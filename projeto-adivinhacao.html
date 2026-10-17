@@ -1024,6 +1024,70 @@ static void Jogar()
 
 <h2>O programa completo</h2>
 <p>A versão final é a versão 5, acima. O que o projeto juntou: <a href="constantes.html">const</a>, <a href="if-else.html">if</a> e <a href="else-if.html">else if</a>, <a href="while.html">while</a>, <a href="do-while.html">do while</a>, <a href="break-continue.html">break e continue</a>, <a href="aleatorios.html">Random.Shared</a>, <a href="parse.html">TryParse</a>, <a href="referencias-anulaveis.html">string?</a> e um <a href="metodos.html">método</a> <code>void</code>.</p>
+<p>Agora, jogue de verdade. Esta caixa traz a versão final, sem nenhuma entrada pronta. Quando o jogo pedir um palpite, aparece um campo no terminal da caixa, logo depois da pergunta: digite o número e tecle <kbd>Enter</kbd>. O número secreto continua o mesmo durante toda a partida, e <kbd>Ctrl</kbd>+<kbd>D</kbd> encerra a entrada (o jogo mostra <code>Jogo interrompido.</code> e termina).</p>
+<div class="trycs" data-file="adivinhacao.cs">
+<pre class="script" data-file="adivinhacao.cs">const int MaxTentativas = 7;
+
+Console.WriteLine("=== Jogo de Adivinhação ===");
+
+int partidas = 0;
+string resposta;
+do
+{
+    partidas++;
+    Console.WriteLine();
+    Console.WriteLine($"Partida {partidas}: pensei num número de 1 a 100. Você tem {MaxTentativas} tentativas.");
+    Jogar();
+
+    do
+    {
+        Console.Write("Jogar de novo? (s/n): ");
+        resposta = (Console.ReadLine() ?? "n").Trim().ToLower();
+    } while (resposta != "s" &amp;&amp; resposta != "n");
+} while (resposta == "s");
+
+Console.WriteLine($"Partidas: {partidas}. Até a próxima!");
+
+static void Jogar()
+{
+    int segredo = Random.Shared.Next(1, 101);
+    int tentativas = 0;
+    while (tentativas &lt; MaxTentativas)
+    {
+        Console.Write($"Palpite {tentativas + 1} de {MaxTentativas}: ");
+        string? texto = Console.ReadLine();
+        if (texto is null)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Jogo interrompido.");
+            return;
+        }
+        if (!int.TryParse(texto, out int palpite))
+        {
+            Console.WriteLine("Digite um número inteiro.");
+            continue;
+        }
+        tentativas++;
+
+        if (palpite == segredo)
+        {
+            Console.WriteLine($"Acertou! Tentativas: {tentativas}.");
+            return;
+        }
+        if (palpite &lt; segredo)
+        {
+            Console.WriteLine($"O número é maior que {palpite}.");
+        }
+        else
+        {
+            Console.WriteLine($"O número é menor que {palpite}.");
+        }
+    }
+    Console.WriteLine($"Suas {MaxTentativas} tentativas acabaram. O número era {segredo}.");
+}
+</pre>
+</div>
+
 
 <hr>
 
