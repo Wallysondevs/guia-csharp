@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Bibliotecas de Classes — dotnet new classlib, public e internal | Guia C#</title>
+<meta name="description" content="Bibliotecas de classes em C# para quem está começando: dotnet new classlib, o .csproj sem OutputType, public × internal entre projetos (CS0122), ProjectReference, o .dll copiado para o programa, a mesma biblioteca em dois programas, exceções que atravessam projetos, comentários de documentação /// com GenerateDocumentationFile (CS1591) e dotnet pack, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Bibliotecas de Classes</span></h1>
+
+<p class="intro">A Ana escreveu as regras do boletim da escola: lançar notas, calcular a média, dizer se o aluno passou. Agora ela quer usar essas mesmas regras em dois programas: o que a professora usa para lançar as notas e o que imprime o relatório da turma. Copiar o código para os dois seria pedir problema: uma correção num, esquecida no outro. A saída é pôr as regras numa <strong>biblioteca de classes</strong>: um projeto que não roda sozinho, só serve para outros projetos usarem.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A criar uma biblioteca com <code>dotnet new classlib</code> e o que muda no <code>.csproj</code>.</li>
+  <li>O que outro projeto enxerga: <code>public</code> × <code>internal</code> e o erro <code>CS0122</code>.</li>
+  <li>A ligar a biblioteca a um programa (<code>dotnet reference add</code>) e onde o <code>.dll</code> dela vai parar.</li>
+  <li>A usar a <strong>mesma</strong> biblioteca em dois programas.</li>
+  <li>Como uma exceção da biblioteca aparece no programa.</li>
+  <li>A documentar a biblioteca com <code>///</code> (e o aviso <code>CS1591</code>) e a empacotá-la com <code>dotnet pack</code>.</li>
+</ul>
+</div>
+
+<p>Todas as saídas desta aula são reais, feitas com o <strong>.NET 10 SDK</strong> (<code>10.0.112</code>) na máquina fictícia da Ana, na solução <code>~/projetos/Escola</code>. Antes, leia <a href="solucoes.html">Soluções e Vários Projetos</a>, que mostra a solução e o <code>dotnet reference add</code>.</p>
+
+<hr>
+
+<h2>A ideia: a caixa de ferramentas</h2>
+<p>Um eletricista não fabrica uma chave de fenda para cada serviço. Ele tem <strong>uma</strong> caixa de ferramentas e a leva para todas as casas. A caixa não faz nada sozinha: quem trabalha é o eletricista, usando as ferramentas dela.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na oficina</th><th>No .NET</th></tr>
+<tr><td>A caixa de ferramentas</td><td>A <strong>biblioteca de classes</strong> (<code>Escola.Notas</code>): classes prontas, sem <code>Main</code></td></tr>
+<tr><td>Cada serviço numa casa</td><td>Cada <strong>programa</strong> (<code>Escola.App</code>, <code>Escola.Relatorio</code>): tem por onde começar a rodar</td></tr>
+<tr><td>As ferramentas que ficam à mostra</td><td>As classes <code>public</code></td></tr>
+<tr><td>As peças de dentro da caixa (que o cliente não mexe)</td><td>As classes <code>internal</code></td></tr>
+<tr><td>Uma caixa vendida na loja</td><td>Um pacote NuGet (<code>dotnet pack</code>)</td></tr>
+</table>
+</div>
+
+<p>Você já usa bibliotecas o tempo todo: <code>Console</code>, <code>List&lt;T&gt;</code> e <code>File</code> moram em bibliotecas do .NET, e o Humanizer da aula <a href="nuget.html">Pacotes NuGet</a> é uma biblioteca de outra pessoa. Agora você vai escrever a sua.</p>
+
+<hr>
+
+<h2>1. Criar a biblioteca: <code>dotnet new classlib</code></h2>
+<pre class="term" data-cwd="~/projetos">$ mkdir Escola &amp;&amp; cd Escola
+$ dotnet new sln &gt; /dev/null
+$ dotnet new classlib -o src/Escola.Notas &gt; /dev/null
+$ ls src/Escola.Notas
+Class1.cs
+Escola.Notas.csproj
+obj
+$ cat src/Escola.Notas/Escola.Notas.csproj
+&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+
+  &lt;PropertyGroup&gt;
+    &lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;
+    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+    &lt;Nullable&gt;enable&lt;/Nullable&gt;
+  &lt;/PropertyGroup&gt;
+
+&lt;/Project&gt;
+$ cat src/Escola.Notas/Class1.cs
+namespace Escola.Notas;
+
+public class Class1
+{
+
+}</pre>
+
+<dl class="anatomy">
+  <dt>dotnet new classlib</dt><dd>O modelo "Biblioteca de Classes" (<em>class library</em>). O <code>&gt; /dev/null</code> só esconde as mensagens de sempre do <code>dotnet new</code>.</dd>
+  <dt>sem &lt;OutputType&gt;</dt><dd>Compare com o <code>.csproj</code> de um console (veja <a href="csproj.html">O Arquivo .csproj</a>): falta a linha <code>&lt;OutputType&gt;Exe&lt;/OutputType&gt;</code>. Sem ela, o padrão é <code>Library</code>: o resultado é só um <code>.dll</code>, sem executável.</dd>
+  <dt>Class1.cs</dt><dd>Uma classe vazia de exemplo, no lugar do <code>Program.cs</code>. Não há instruções de nível superior: uma biblioteca só tem classes (e outros tipos).</dd>
+  <dt>namespace Escola.Notas;</dt><dd>O namespace vem do nome do projeto. É por ele que os outros projetos vão chamar as classes (<code>using Escola.Notas;</code>, veja <a href="namespaces.html">Namespaces e using</a>).</dd>
+</dl>
+
+<p>Uma biblioteca não roda:</p>
+<pre class="term" data-cwd="~/projetos/Escola/src/Escola.Notas">$ dotnet run
+Não é possível continuar com o projeto "/home/ana/projetos/Escola/src/Escola.Notas/Escola.Notas.csproj".
+Verifique se você tem um tipo de projeto executável.
+Um projeto executável deve ter como destino um TFM executável (por exemplo, net10.0) e ter OutputType "Exe".
+O OutputType atual é "Library".</pre>
+
+<p>A mensagem é clara: para rodar, o projeto precisaria de <code>OutputType</code> <code>Exe</code> (o "TFM" é o <em>Target Framework Moniker</em>, o <code>net10.0</code> do <code>TargetFramework</code>). Mas a biblioteca não é para rodar: é para ser usada.</p>
+
+<hr>
+
+<h2>2. As classes da biblioteca: <code>public</code> e <code>internal</code></h2>
+<p>A Ana apagou o <code>Class1.cs</code> e escreveu dois arquivos. O primeiro é a classe que os programas vão usar:</p>
+
+<pre class="file" data-file="src/Escola.Notas/Boletim.cs">namespace Escola.Notas;
+
+public class Boletim(string aluno)
+{
+    private readonly List&lt;decimal&gt; _notas = [];
+
+    public string Aluno { get; } = aluno;
+
+    public void Lancar(decimal nota)
+    {
+        if (nota &lt; 0 || nota &gt; 10)
+        {
+            throw new ArgumentOutOfRangeException(nameof(nota), "A nota vai de 0 a 10.");
+        }
+        _notas.Add(nota);
+    }
+
+    public decimal Media =&gt; _notas.Count == 0 ? 0 : Regras.Arredondar(_notas.Average());
+
+    public string Situacao =&gt; Media &gt;= Regras.MediaMinima ? "Aprovado" : "Recuperação";
+}
+</pre>
+
+<p>O segundo guarda as regras da escola, que só o <code>Boletim</code> usa:</p>
+
+<pre class="file" data-file="src/Escola.Notas/Regras.cs">namespace Escola.Notas;
+
+internal static class Regras
+{
+    public const decimal MediaMinima = 7.0m;
+
+    public static decimal Arredondar(decimal valor) =&gt; Math.Round(valor, 1);
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>public class Boletim</dt><dd><code>public</code> ("público"): a classe fica visível para os <strong>outros projetos</strong> que usarem a biblioteca. É a "ferramenta à mostra".</dd>
+  <dt>internal static class Regras</dt><dd><code>internal</code> ("interno"): visível só <strong>dentro deste projeto</strong>. O <code>Boletim</code> usa as <code>Regras</code>, mas os programas não enxergam essa classe. Assim, a Ana pode mudar as regras (o arredondamento, a média mínima) sem quebrar nenhum programa.</dd>
+  <dt>sem modificador</dt><dd>Uma classe sem <code>public</code> nem <code>internal</code> é <code>internal</code>. Por isso, numa biblioteca, <strong>esquecer o <code>public</code></strong> deixa a classe invisível para os programas (veja <a href="modificadores-acesso.html">Modificadores de Acesso</a>).</dd>
+  <dt>throw new ArgumentOutOfRangeException(…)</dt><dd>A biblioteca não sabe se está num console, num site ou num celular, então ela não escreve mensagens na tela: ela <strong>lança uma exceção</strong> e deixa o programa decidir o que mostrar (veja <a href="throw.html">throw</a>).</dd>
+</dl>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Modificador</th><th>Quem enxerga</th><th>Use para</th></tr>
+<tr><td><code>public</code></td><td>Todo mundo: este projeto e quem o referenciar</td><td>O que os programas devem usar (o <code>Boletim</code>)</td></tr>
+<tr><td><code>internal</code> (o padrão das classes)</td><td>Só o próprio projeto</td><td>Os detalhes de dentro (as <code>Regras</code>)</td></tr>
+<tr><td><code>private</code> (o padrão dos membros)</td><td>Só a própria classe</td><td>Os campos (<code>_notas</code>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>3. Um programa que usa a biblioteca</h2>
+<pre class="term" data-cwd="~/projetos/Escola">$ dotnet new console -o src/Escola.App &gt; /dev/null
+$ dotnet sln add src/Escola.Notas src/Escola.App
+O projeto ‘src/Escola.Notas/Escola.Notas.csproj’ foi adicionado à solução.
+O projeto ‘src/Escola.App/Escola.App.csproj’ foi adicionado à solução.
+$ dotnet reference add src/Escola.Notas --project src/Escola.App
+A referência ‘..\Escola.Notas\Escola.Notas.csproj’ foi adicionada ao projeto.</pre>
+
+<pre class="file" data-file="src/Escola.App/Program.cs">using Escola.Notas;
+
+var ana = new Boletim("Ana");
+ana.Lancar(8.5m);
+ana.Lancar(6.0m);
+ana.Lancar(9.25m);
+
+Console.WriteLine($"{ana.Aluno}: média {ana.Media} ({ana.Situacao})");
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Escola">$ dotnet build
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Escola/src/Escola.App/Escola.App.csproj restaurado (em 229 ms).
+  1 de 2 projetos estão atualizados para restauração.
+  Escola.Notas -&gt; /home/ana/projetos/Escola/src/Escola.Notas/bin/Debug/net10.0/Escola.Notas.dll
+  Escola.App -&gt; /home/ana/projetos/Escola/src/Escola.App/bin/Debug/net10.0/Escola.App.dll
+
+Compilação com êxito.
+    0 Aviso(s)
+    0 Erro(s)
+
+Tempo Decorrido 00:00:10.19
+$ dotnet run --project src/Escola.App
+Ana: média 7,9 (Aprovado)</pre>
+
+<p>(8,5 + 6,0 + 9,25) ÷ 3 = 7,9166…, arredondado para uma casa: 7,9. O programa só conhece o <code>Boletim</code>; a conta e o arredondamento ficaram dentro da biblioteca.</p>
+
+<h3>Para onde vai o <code>.dll</code> da biblioteca</h3>
+<pre class="term" data-cwd="~/projetos/Escola">$ ls src/Escola.Notas/bin/Debug/net10.0/
+Escola.Notas.deps.json
+Escola.Notas.dll
+Escola.Notas.pdb
+$ ls src/Escola.App/bin/Debug/net10.0/
+Escola.App
+Escola.App.deps.json
+Escola.App.dll
+Escola.App.pdb
+Escola.App.runtimeconfig.json
+Escola.Notas.dll
+Escola.Notas.pdb</pre>
+
+<dl class="anatomy">
+  <dt>Escola.Notas.dll (na pasta da biblioteca)</dt><dd>A biblioteca compilada. Não há executável nem <code>runtimeconfig.json</code>: ela não roda sozinha.</dd>
+  <dt>Escola.Notas.dll (na pasta do programa)</dt><dd>O <code>dotnet build</code> <strong>copiou</strong> a biblioteca para junto do programa. Quando o <code>Escola.App</code> roda, ele procura o <code>Escola.Notas.dll</code> na própria pasta. Para levar o programa para outro computador, as duas <code>.dll</code> têm de ir juntas (a aula <a href="publicar.html">Publicar o Programa</a> faz isso por você).</dd>
+  <dt>.pdb</dt><dd>As informações de depuração: os nomes dos arquivos e os números das linhas (seção 5 e <a href="depuracao.html">Depuração</a>).</dd>
+</dl>
+
+<p>No editor do guia não há projetos separados: os arquivos das abas são compilados juntos, como um projeto só. Mesmo assim dá para treinar a divisão em arquivos:</p>
+
+<div class="trycs" data-goal="out:Maior nota: 9\,25,src:public\s+decimal\s+Maior">
+<p class="try-task"><strong>Missão:</strong> o <code>Program.cs</code> quer mostrar a maior nota da Ana, mas a classe <code>Boletim</code> ainda não tem essa propriedade: rode e veja o erro <code>CS1061</code>. Na aba <code>Boletim.cs</code>, acrescente <code>public decimal Maior =&gt; _notas.Max();</code> e rode de novo. (No editor, a aba <code>Regras.cs</code> também seria visível para o <code>Program.cs</code>, porque tudo é um projeto só; num projeto separado, o <code>internal</code> a esconderia.)</p>
+<pre class="script" data-file="Program.cs">using Escola.Notas;
+
+var ana = new Boletim("Ana");
+ana.Lancar(8.5m);
+ana.Lancar(6.0m);
+ana.Lancar(9.25m);
+
+Console.WriteLine($"{ana.Aluno}: média {ana.Media} ({ana.Situacao})");
+Console.WriteLine($"Maior nota: {ana.Maior}");
+</pre>
+<pre class="script" data-file="Boletim.cs">namespace Escola.Notas;
+
+public class Boletim(string aluno)
+{
+    private readonly List&lt;decimal&gt; _notas = [];
+
+    public string Aluno { get; } = aluno;
+
+    public void Lancar(decimal nota)
+    {
+        if (nota &lt; 0 || nota &gt; 10)
+        {
+            throw new ArgumentOutOfRangeException(nameof(nota), "A nota vai de 0 a 10.");
+        }
+        _notas.Add(nota);
+    }
+
+    public decimal Media =&gt; _notas.Count == 0 ? 0 : Regras.Arredondar(_notas.Average());
+
+    public string Situacao =&gt; Media &gt;= Regras.MediaMinima ? "Aprovado" : "Recuperação";
+}
+</pre>
+<pre class="script" data-file="Regras.cs">namespace Escola.Notas;
+
+internal static class Regras
+{
+    public const decimal MediaMinima = 7.0m;
+
+    public static decimal Arredondar(decimal valor) =&gt; Math.Round(valor, 1);
+}
+</pre>
+<pre class="solucao" data-file="Boletim.cs">namespace Escola.Notas;
+
+public class Boletim(string aluno)
+{
+    private readonly List&lt;decimal&gt; _notas = [];
+
+    public string Aluno { get; } = aluno;
+
+    public void Lancar(decimal nota)
+    {
+        if (nota &lt; 0 || nota &gt; 10)
+        {
+            throw new ArgumentOutOfRangeException(nameof(nota), "A nota vai de 0 a 10.");
+        }
+        _notas.Add(nota);
+    }
+
+    public decimal Media =&gt; _notas.Count == 0 ? 0 : Regras.Arredondar(_notas.Average());
+
+    public string Situacao =&gt; Media &gt;= Regras.MediaMinima ? "Aprovado" : "Recuperação";
+
+    public decimal Maior =&gt; _notas.Max();
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>4. A mesma biblioteca em dois programas</h2>
+<p>Agora o motivo de tudo isso: um segundo programa, o relatório da turma, usando as <strong>mesmas</strong> regras.</p>
+
+<pre class="term" data-cwd="~/projetos/Escola">$ dotnet new console -o src/Escola.Relatorio &gt; /dev/null
+$ dotnet sln add src/Escola.Relatorio
+O projeto ‘src/Escola.Relatorio/Escola.Relatorio.csproj’ foi adicionado à solução.
+$ dotnet reference add src/Escola.Notas --project src/Escola.Relatorio
+A referência ‘..\Escola.Notas\Escola.Notas.csproj’ foi adicionada ao projeto.</pre>
+
+<pre class="file" data-file="src/Escola.Relatorio/Program.cs">using Escola.Notas;
+
+var turma = new List&lt;Boletim&gt;();
+
+var ana = new Boletim("Ana");
+ana.Lancar(8.5m); ana.Lancar(6.0m); ana.Lancar(9.25m);
+turma.Add(ana);
+
+var beto = new Boletim("Beto");
+beto.Lancar(5.0m); beto.Lancar(7.5m);
+turma.Add(beto);
+
+foreach (Boletim b in turma.OrderByDescending(b =&gt; b.Media))
+{
+    Console.WriteLine($"{b.Aluno,-6} {b.Media,4} {b.Situacao}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Escola">$ dotnet build -v q 2&gt;&amp;1 | tail -4
+    0 Aviso(s)
+    0 Erro(s)
+
+Tempo Decorrido 00:00:02.87
+$ dotnet run --project src/Escola.Relatorio
+Ana     7,9 Aprovado
+Beto    6,2 Recuperação</pre>
+
+<p>A solução agora tem três projetos: uma biblioteca e dois programas que a usam. Se a escola mudar a média mínima para 6,0, a Ana muda <strong>uma</strong> linha em <code>Regras.cs</code>, e os dois programas passam a seguir a regra nova no próximo <code>dotnet build</code>.</p>
+
+<div class="note">
+<strong>Repare na média do Beto.</strong> (5,0 + 7,5) ÷ 2 = 6,25, e o <code>Math.Round(6.25m, 1)</code> deu <strong>6,2</strong>, não 6,3. Quando o número está exatamente no meio, o <code>Math.Round</code> arredonda para o vizinho <strong>par</strong> (o "arredondamento bancário"). Se a escola quiser o arredondamento da escola (6,25 → 6,3), a regra vira <code>Math.Round(valor, 1, MidpointRounding.AwayFromZero)</code>, e a mudança é numa linha só da biblioteca (veja <a href="math.html">Math</a>).
+</div>
+
+<hr>
+
+<h2>5. Uma exceção que atravessa projetos</h2>
+<p>A Ana lançou uma nota 11, por engano, no <code>Escola.App</code>:</p>
+
+<pre class="term" data-cwd="~/projetos/Escola">$ echo 'ana.Lancar(11m);' &gt;&gt; src/Escola.App/Program.cs
+$ dotnet run --project src/Escola.App; echo "código de saída: $?"
+Ana: média 7,9 (Aprovado)
+Unhandled exception. System.ArgumentOutOfRangeException: A nota vai de 0 a 10. (Parameter 'nota')
+   at Escola.Notas.Boletim.Lancar(Decimal nota) in /home/ana/projetos/Escola/src/Escola.Notas/Boletim.cs:line 13
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/projetos/Escola/src/Escola.App/Program.cs:line 9
+código de saída: 134</pre>
+
+<dl class="anatomy">
+  <dt>A nota vai de 0 a 10. (Parameter 'nota')</dt><dd>A mensagem que a biblioteca escreveu, mais o nome do parâmetro, vindo do <code>nameof(nota)</code>.</dd>
+  <dt>at Escola.Notas.Boletim.Lancar … Boletim.cs:line 13</dt><dd>Onde a exceção nasceu: <strong>dentro da biblioteca</strong>, na linha 13 do <code>Boletim.cs</code> (o <code>throw</code>). O nome completo inclui o namespace: <code>Escola.Notas.Boletim</code>.</dd>
+  <dt>at Program.&lt;Main&gt;$ … Program.cs:line 9</dt><dd>Quem chamou: a linha 9 do programa, o <code>ana.Lancar(11m)</code>. A pilha atravessa os dois projetos (veja <a href="excecoes.html">Exceções</a>). Os números de linha vêm dos arquivos <code>.pdb</code>.</dd>
+</dl>
+
+<p>O erro é do <strong>programa</strong> (passou uma nota inválida), e quem tem de tratar é ele, com <code>try</code>/<code>catch</code> (veja <a href="try-catch.html">try e catch</a>). A biblioteca fez a parte dela: recusou a nota e explicou por quê.</p>
+
+<hr>
+
+<h2>6. Documentar a biblioteca: <code>///</code></h2>
+<p>Quem usa uma biblioteca não lê o código dela: lê a <strong>documentação</strong>. No C#, ela é escrita em comentários com três barras, <code>///</code>, logo acima de cada coisa <code>public</code>. Para o compilador cobrar esses comentários, a Ana ligou no <code>Escola.Notas.csproj</code>:</p>
+
+<pre class="file" data-file="src/Escola.Notas/Escola.Notas.csproj">    &lt;GenerateDocumentationFile&gt;true&lt;/GenerateDocumentationFile&gt;
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Escola">$ dotnet build src/Escola.Notas 2&gt;&amp;1 | grep warning | sort -u
+/home/ana/projetos/Escola/src/Escola.Notas/Boletim.cs(18,20): warning CS1591: Comentário XML ausente para tipo publicamente visível ou membro "Boletim.Media" [/home/ana/projetos/Escola/src/Escola.Notas/Escola.Notas.csproj]
+/home/ana/projetos/Escola/src/Escola.Notas/Boletim.cs(20,19): warning CS1591: Comentário XML ausente para tipo publicamente visível ou membro "Boletim.Situacao" [/home/ana/projetos/Escola/src/Escola.Notas/Escola.Notas.csproj]
+/home/ana/projetos/Escola/src/Escola.Notas/Boletim.cs(3,14): warning CS1591: Comentário XML ausente para tipo publicamente visível ou membro "Boletim.Boletim(string)" [/home/ana/projetos/Escola/src/Escola.Notas/Escola.Notas.csproj]
+/home/ana/projetos/Escola/src/Escola.Notas/Boletim.cs(3,14): warning CS1591: Comentário XML ausente para tipo publicamente visível ou membro "Boletim" [/home/ana/projetos/Escola/src/Escola.Notas/Escola.Notas.csproj]
+/home/ana/projetos/Escola/src/Escola.Notas/Boletim.cs(7,19): warning CS1591: Comentário XML ausente para tipo publicamente visível ou membro "Boletim.Aluno" [/home/ana/projetos/Escola/src/Escola.Notas/Escola.Notas.csproj]
+/home/ana/projetos/Escola/src/Escola.Notas/Boletim.cs(9,17): warning CS1591: Comentário XML ausente para tipo publicamente visível ou membro "Boletim.Lancar(decimal)" [/home/ana/projetos/Escola/src/Escola.Notas/Escola.Notas.csproj]</pre>
+
+<p>Seis avisos <code>CS1591</code> ("comentário XML ausente para tipo ou membro visível publicamente"): um para cada coisa <code>public</code>. As <code>Regras</code>, que são <code>internal</code>, não precisam. A Ana documentou o <code>Boletim</code>:</p>
+
+<pre class="file" data-file="src/Escola.Notas/Boletim.cs">namespace Escola.Notas;
+
+/// &lt;summary&gt;As notas de um aluno e a situação dele.&lt;/summary&gt;
+/// &lt;param name="aluno"&gt;O nome do aluno.&lt;/param&gt;
+public class Boletim(string aluno)
+{
+    private readonly List&lt;decimal&gt; _notas = [];
+
+    /// &lt;summary&gt;O nome do aluno.&lt;/summary&gt;
+    public string Aluno { get; } = aluno;
+
+    /// &lt;summary&gt;Lança uma nota de 0 a 10.&lt;/summary&gt;
+    /// &lt;exception cref="ArgumentOutOfRangeException"&gt;A nota é menor que 0 ou maior que 10.&lt;/exception&gt;
+    public void Lancar(decimal nota)
+    {
+        «… igual …»
+    }
+
+    /// &lt;summary&gt;A média das notas, com uma casa decimal (0 se não houver notas).&lt;/summary&gt;
+    public decimal Media =&gt; _notas.Count == 0 ? 0 : Regras.Arredondar(_notas.Average());
+
+    /// &lt;summary&gt;"Aprovado" com média 7,0 ou mais; senão, "Recuperação".&lt;/summary&gt;
+    public string Situacao =&gt; Media &gt;= Regras.MediaMinima ? "Aprovado" : "Recuperação";
+}
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Escola">$ dotnet build src/Escola.Notas 2&gt;&amp;1 | grep -E "warning|Aviso"
+    0 Aviso(s)
+$ ls src/Escola.Notas/bin/Debug/net10.0/
+Escola.Notas.deps.json
+Escola.Notas.dll
+Escola.Notas.pdb
+Escola.Notas.xml
+$ head -12 src/Escola.Notas/bin/Debug/net10.0/Escola.Notas.xml
+&lt;?xml version="1.0"?&gt;
+&lt;doc&gt;
+    &lt;assembly&gt;
+        &lt;name&gt;Escola.Notas&lt;/name&gt;
+    &lt;/assembly&gt;
+    &lt;members&gt;
+        &lt;member name="T:Escola.Notas.Boletim"&gt;
+            &lt;summary&gt;As notas de um aluno e a situação dele.&lt;/summary&gt;
+            &lt;param name="aluno"&gt;O nome do aluno.&lt;/param&gt;
+        &lt;/member&gt;
+        &lt;member name="M:Escola.Notas.Boletim.#ctor(System.String)"&gt;
+            &lt;summary&gt;As notas de um aluno e a situação dele.&lt;/summary&gt;</pre>
+
+<dl class="anatomy">
+  <dt>&lt;summary&gt;</dt><dd>"Resumo": uma frase dizendo o que a coisa é ou faz.</dd>
+  <dt>&lt;param name="aluno"&gt;</dt><dd>O que é cada parâmetro.</dd>
+  <dt>&lt;exception cref="…"&gt;</dt><dd>Que exceção pode sair dali, e quando.</dd>
+  <dt>Escola.Notas.xml</dt><dd>O compilador juntou os comentários num arquivo ao lado do <code>.dll</code>. Os editores (VS Code, Visual Studio, Rider) leem esse arquivo e mostram o resumo quando você passa o mouse sobre <code>Lancar</code> no programa. É assim que aparece a explicação de <code>Console.WriteLine</code> no seu editor.</dd>
+</dl>
+
+<p>Os comentários de documentação têm aula própria: veja <a href="comentarios.html">Comentários</a>.</p>
+
+<hr>
+
+<h2>7. Empacotar: <code>dotnet pack</code></h2>
+<p>Para outras pessoas (ou outras soluções) usarem a biblioteca como um pacote NuGet:</p>
+
+<pre class="term" data-cwd="~/projetos/Escola">$ dotnet pack src/Escola.Notas -c Release
+  Determinando os projetos a serem restaurados...
+  Todos os projetos estão atualizados para restauração.
+  Escola.Notas -&gt; /home/ana/projetos/Escola/src/Escola.Notas/bin/Release/net10.0/Escola.Notas.dll
+  Falta um pacote Escola.Notas.1.0.0 Acesse. Acesse https://aka.ms/nuget/authoring-best-practices/readme para saber porque readmes de pacote são importantes.
+  Pacote criado com êxito '/home/ana/projetos/Escola/src/Escola.Notas/bin/Release/Escola.Notas.1.0.0.nupkg'.
+$ ls src/Escola.Notas/bin/Release/
+Escola.Notas.1.0.0.nupkg
+net10.0</pre>
+
+<dl class="anatomy">
+  <dt>dotnet pack … -c Release</dt><dd>"Empacote": compila em Release e cria um <code>.nupkg</code>, o mesmo tipo de arquivo que vem do <code>nuget.org</code>.</dd>
+  <dt>Escola.Notas.1.0.0.nupkg</dt><dd>Nome e versão. Sem <code>&lt;Version&gt;</code> no <code>.csproj</code>, a versão é <code>1.0.0</code>.</dd>
+  <dt>Falta um pacote … Acesse.</dt><dd>A tradução saiu truncada, mas o original diz: "o pacote <code>Escola.Notas.1.0.0</code> não tem um README". É uma recomendação, não um erro: o <code>nuget.org</code> mostra o README na página do pacote.</dd>
+</dl>
+
+<p>Esse <code>.nupkg</code> pode ser publicado no <code>nuget.org</code> (com uma conta e uma chave) ou num servidor da empresa. Para uma solução só, como a da Ana, a referência de projeto é mais simples: não precisa empacotar nada.</p>
+
+<hr>
+
+<h2>Biblioteca ou só uma pasta no projeto?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Escolha</th></tr>
+<tr><td>Um programa só, código organizado em vários arquivos</td><td>Pastas e namespaces dentro do mesmo projeto (veja <a href="namespaces.html">Namespaces</a>).</td></tr>
+<tr><td>As mesmas regras em dois ou mais programas (console, site, testes)</td><td><strong>Biblioteca de classes</strong> + <code>dotnet reference add</code>.</td></tr>
+<tr><td>Separar as regras da tela (o boletim não sabe que existe um console)</td><td><strong>Biblioteca</strong>: fica claro o que é regra e o que é tela.</td></tr>
+<tr><td>Testar as regras (veja <a href="testes.html">Testes</a>)</td><td><strong>Biblioteca</strong>: o projeto de testes a referencia como qualquer programa.</td></tr>
+<tr><td>Outras pessoas, em outras soluções, vão usar</td><td>Biblioteca + <code>dotnet pack</code> (pacote NuGet).</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0122: "Regras" é inacessível devido ao seu nível de proteção</code></strong>
+<pre class="term" data-cwd="~/projetos/Escola">$ echo 'Console.WriteLine(Regras.MediaMinima);' &gt;&gt; src/Escola.App/Program.cs
+$ dotnet build 2&gt;&amp;1 | grep error | sort -u
+/home/ana/projetos/Escola/src/Escola.App/Program.cs(9,19): error CS0122: "Regras" é inacessível devido ao seu nível de proteção [/home/ana/projetos/Escola/src/Escola.App/Escola.App.csproj]</pre>
+<p><strong>O que aconteceu:</strong> o programa tentou usar a classe <code>Regras</code>, que é <code>internal</code> na biblioteca. O compilador sabe que ela existe, mas não deixa usar (em inglês, <code>'Regras' is inaccessible due to its protection level</code>). Se a classe tivesse ficado <strong>sem</strong> modificador, o erro seria o mesmo, porque o padrão é <code>internal</code>.</p>
+<p><strong>Como resolver:</strong> se o programa precisa mesmo daquilo, torne <code>public</code>. Se não (como aqui), deixe <code>internal</code> e use o que a biblioteca oferece em público (<code>Boletim.Situacao</code>). Para um projeto de testes enxergar o <code>internal</code>, existe o atributo <code>[assembly: InternalsVisibleTo("Escola.Notas.Tests")]</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>Não é possível continuar com o projeto … O OutputType atual é "Library".</code></strong>
+<p><strong>O que aconteceu:</strong> o <code>dotnet run</code> foi chamado na pasta da biblioteca (seção 1).</p>
+<p><strong>Como resolver:</strong> rode o programa que usa a biblioteca: <code>dotnet run --project src/Escola.App</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0246: O nome do tipo ou do namespace "Escola" não pode ser encontrado</code></strong>
+<p><strong>O que aconteceu:</strong> o programa não tem a referência para a biblioteca, ou falta o <code>using Escola.Notas;</code> (veja o mesmo erro em <a href="solucoes.html">Soluções</a>).</p>
+<p><strong>Como resolver:</strong> <code>dotnet reference list --project src/Escola.App</code> mostra as referências. Se a biblioteca não estiver lá: <code>dotnet reference add src/Escola.Notas --project src/Escola.App</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando ou código</th><th>O que faz</th></tr>
+<tr><td><code>dotnet new classlib -o src/Nome</code></td><td>Cria uma biblioteca de classes.</td></tr>
+<tr><td><code>dotnet reference add src/Biblioteca --project src/Programa</code></td><td>O programa passa a usar a biblioteca.</td></tr>
+<tr><td><code>public class …</code></td><td>Visível para quem usa a biblioteca.</td></tr>
+<tr><td><code>internal class …</code> (ou sem modificador)</td><td>Só dentro da biblioteca.</td></tr>
+<tr><td><code>&lt;GenerateDocumentationFile&gt;true&lt;/GenerateDocumentationFile&gt;</code></td><td>Gera o <code>.xml</code> da documentação e avisa (<code>CS1591</code>) o que falta documentar.</td></tr>
+<tr><td><code>/// &lt;summary&gt;…&lt;/summary&gt;</code></td><td>Comentário de documentação.</td></tr>
+<tr><td><code>dotnet pack -c Release</code></td><td>Cria o pacote <code>.nupkg</code>.</td></tr>
+<tr><td><code>[assembly: InternalsVisibleTo("Outro")]</code></td><td>Deixa o projeto <code>Outro</code> (os testes) ver o <code>internal</code>.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Criar a biblioteca</h3>
+<p>Complete o comando que cria uma biblioteca de classes em <code>src/Loja.Precos</code>:</p>
+<div class="ex-code">dotnet new <input data-answer="classlib" aria-label="modelo"> -o src/Loja.Precos</div>
+</div>
+
+<div class="exercise">
+<h3>2. Visível para os programas</h3>
+<p>Complete para que a classe possa ser usada por outros projetos:</p>
+<div class="ex-code"><input data-answer="public" aria-label="modificador"> class Tabela</div>
+</div>
+
+<div class="exercise">
+<h3>3. Ligar o programa à biblioteca</h3>
+<p>Complete para o <code>src/Loja.App</code> usar a <code>src/Loja.Precos</code>:</p>
+<div class="ex-code">dotnet reference add src/Loja.Precos <input data-answer="--project src/Loja.App" aria-label="opção"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. A Ana esqueceu o modificador: escreveu só <code>class Boletim</code> na biblioteca. O que acontece no programa que a usa?</p>
+<label><input type="radio" name="q4"> Funciona normalmente: o padrão é <code>public</code>.</label>
+<label><input type="radio" name="q4"> A biblioteca não compila.</label>
+<label><input type="radio" name="q4"> O programa não consegue usar o <code>Boletim</code>: o padrão é <code>internal</code>.</label>
+<label><input type="radio" name="q4"> O programa usa, mas com um aviso.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Por que a biblioteca lança uma exceção em vez de escrever "nota inválida" com <code>Console.WriteLine</code>?</p>
+<label><input type="radio" name="q5"> Porque bibliotecas não podem usar <code>Console</code>.</label>
+<label><input type="radio" name="q5"> Porque ela não sabe onde vai ser usada (console, site, testes); quem decide o que mostrar é o programa.</label>
+<label><input type="radio" name="q5"> Porque exceções são mais rápidas.</label>
+<label><input type="radio" name="q5"> Porque o <code>Console</code> não funciona em <code>internal</code>.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Depois do <code>dotnet build</code>, onde está o <code>Escola.Notas.dll</code> que o <code>Escola.App</code> usa ao rodar?</p>
+<label><input type="radio" name="q6"> Copiado na pasta <code>bin</code> do próprio <code>Escola.App</code>.</label>
+<label><input type="radio" name="q6"> Só em <code>~/.nuget/packages</code>.</label>
+<label><input type="radio" name="q6"> Dentro do <code>Escola.App.csproj</code>.</label>
+<label><input type="radio" name="q6"> Em lugar nenhum: o código da biblioteca é copiado para o <code>Program.cs</code>.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma <strong>biblioteca de classes</strong> (<code>dotnet new classlib</code>) é um projeto sem <code>OutputType</code> <code>Exe</code>: vira um <code>.dll</code> que não roda sozinho, só é usado.</li>
+  <li><code>public</code> é o que os outros projetos enxergam; <code>internal</code> (o padrão das classes) fica dentro da biblioteca.</li>
+  <li>O programa usa a biblioteca com <code>dotnet reference add</code> e <code>using</code>. O <code>build</code> copia o <code>.dll</code> da biblioteca para a pasta do programa.</li>
+  <li>Uma biblioteca serve a vários programas: uma correção nela vale para todos.</li>
+  <li>A biblioteca lança exceções; o programa decide o que mostrar.</li>
+  <li><code>///</code> documenta; <code>GenerateDocumentationFile</code> gera o <code>.xml</code> e cobra o que falta (<code>CS1591</code>). <code>dotnet pack</code> cria um pacote NuGet.</li>
+</ul>
+
+<div class="pager"></div>
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
