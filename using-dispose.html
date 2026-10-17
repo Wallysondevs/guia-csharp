@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# using e IDisposable — fechar o que foi aberto | Guia C#</title>
+<meta name="description" content="O comando using em C#: o bloco using (…) { }, a declaração using var do C# 8, a interface IDisposable e o método Dispose, a ordem de fechamento, a armadilha do using var nas instruções de nível superior e os erros CS1674 e ObjectDisposedException, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">using e IDisposable</span></h1>
+
+<p class="intro">Na aula <a href="finally.html">finally</a>, a Ana perdeu a lista de compras porque o arquivo não foi fechado, e consertou com um <code>try</code>/<code>finally</code>. Funciona, mas são oito linhas para dizer "feche quando terminar". O C# tem um atalho para isso: o comando <code>using</code>. Nesta aula você vai usá-lo nas duas formas (com bloco e a declaração <code>using var</code>), entender a interface <code>IDisposable</code> que está por trás e criar uma classe sua que pode ser usada com <code>using</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é um <strong>recurso</strong> e por que ele precisa ser liberado.</li>
+  <li>O bloco <code>using (var x = …) { … }</code> e o que o compilador gera a partir dele.</li>
+  <li>A declaração <code>using var x = …;</code> e até onde ela vale.</li>
+  <li>A interface <code>IDisposable</code> e o método <code>Dispose()</code>, inclusive numa classe sua.</li>
+  <li>A ordem em que vários recursos são fechados.</li>
+  <li>A armadilha do <code>using var</code> nas instruções do topo do arquivo.</li>
+  <li>Os erros <code>CS1674</code> e <code>ObjectDisposedException</code>.</li>
+</ul>
+</div>
+
+<div class="warning">
+<strong>Dois <code>using</code> diferentes</strong>
+<p>A aula <a href="namespaces.html">Namespaces e using</a> mostrou a <strong>diretiva</strong> <code>using System.Text;</code>, no topo do arquivo, que encurta nomes. Esta aula é sobre o <strong>comando</strong> <code>using</code>, que aparece no meio do código, sempre com uma variável: <code>using var escritor = …;</code>. A palavra é a mesma; o assunto não tem nada a ver.</p>
+</div>
+
+<p>Todos os programas rodaram na máquina da Ana, com o .NET 10 (C# 14), usando <code>dotnet run arquivo.cs</code> na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código</h2>
+<p>A Ana pegou um livro emprestado na biblioteca da escola. O combinado é simples: usou, devolveu. Se ela esquecer, ninguém mais consegue pegar aquele livro, e no fim do ano a biblioteca está vazia. Melhor ainda seria um empréstimo que se devolvesse sozinho quando ela terminasse de ler.</p>
+<p>No computador, as coisas "emprestadas" se chamam <strong>recursos</strong>: um arquivo aberto, uma conexão com um banco de dados, uma conexão de rede. O sistema operacional empresta e espera de volta. Um programa que abre arquivos e não fecha acaba sem poder abrir mais nenhum, e os dados que estavam esperando no buffer (como na aula <a href="finally.html">finally</a>) se perdem.</p>
+<p>O <code>using</code> é o empréstimo que se devolve sozinho: você diz o que vai usar, e o C# garante que, no fim, aquilo é devolvido, dando certo ou dando errado.</p>
+
+<hr>
+
+<h2>1. O bloco <code>using</code></h2>
+
+<pre class="file" data-file="bloco.cs">using (var escritor = new StreamWriter("compras.txt"))
+{
+    escritor.WriteLine("arroz");
+    escritor.WriteLine("feijão");
+}
+Console.WriteLine("No arquivo:");
+Console.Write(File.ReadAllText("compras.txt"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run bloco.cs
+No arquivo:
+arroz
+feijão</pre>
+
+<dl class="anatomy">
+  <dt>using (</dt><dd>O <strong>comando</strong> <code>using</code> ("usando"): "enquanto eu estiver usando isto…".</dd>
+  <dt>var escritor = new StreamWriter("compras.txt")</dt><dd>Abre o recurso e guarda numa variável, como sempre. A variável só existe dentro do bloco.</dd>
+  <dt>{ … }</dt><dd>O bloco em que o recurso é usado.</dd>
+  <dt>} (o fim do bloco)</dt><dd>Aqui o C# chama <code>escritor.Dispose()</code> sozinho. Para um <code>StreamWriter</code>, <code>Dispose()</code> grava o que estava no buffer e fecha o arquivo, o mesmo que o <code>Close()</code>.</dd>
+</dl>
+
+<p>Depois do bloco, o arquivo já está fechado e gravado: o <code>File.ReadAllText</code> (aula <a href="arquivos.html">Arquivos</a>) lê as duas linhas.</p>
+
+<h3>O que o compilador faz com o <code>using</code></h3>
+<p>O <code>using</code> não é mágica: o compilador o transforma no <code>try</code>/<code>finally</code> que você já conhece. As duas versões abaixo são o mesmo programa:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Com <code>using</code></th><th>O que o compilador gera (simplificado)</th></tr>
+<tr><td><pre class="file" data-file="você escreve">using (var escritor = new StreamWriter("compras.txt"))
+{
+    escritor.WriteLine("arroz");
+}
+</pre></td><td><pre class="file" data-file="o compilador gera">var escritor = new StreamWriter("compras.txt");
+try
+{
+    escritor.WriteLine("arroz");
+}
+finally
+{
+    escritor?.Dispose();
+}
+</pre></td></tr>
+</table>
+</div>
+
+<p>Por isso o <code>using</code> herda todas as garantias do <code>finally</code>: o <code>Dispose()</code> roda no fim do bloco, com <code>return</code>, com <code>break</code> e com exceção.</p>
+
+<div class="trycs" data-goal="out:feijão,src:using\s*\(\s*var\s+escritor">
+<p class="try-task"><strong>Missão:</strong> o programa não fecha o arquivo, e depois de <code>No arquivo:</code> não aparece nada. Coloque as linhas que escrevem dentro de um bloco <code>using (var escritor = …) { … }</code>, sem chamar <code>Close()</code>.</p>
+<pre class="script" data-file="compras.cs">var escritor = new StreamWriter("compras.txt");
+escritor.WriteLine("arroz");
+escritor.WriteLine("feijão");
+
+Console.WriteLine("No arquivo:");
+Console.Write(File.ReadAllText("compras.txt"));
+</pre>
+<pre class="solucao" data-file="compras.cs">using (var escritor = new StreamWriter("compras.txt"))
+{
+    escritor.WriteLine("arroz");
+    escritor.WriteLine("feijão");
+}
+
+Console.WriteLine("No arquivo:");
+Console.Write(File.ReadAllText("compras.txt"));
+</pre>
+</div>
+
+<hr>
+
+<h2>2. A interface <code>IDisposable</code></h2>
+<p>Como o <code>using</code> sabe o que fazer no fim? Ele não sabe: ele só chama <code>Dispose()</code>. Quem sabe o que significa "devolver" é a própria classe. Toda classe que guarda um recurso assina um contrato, a <a href="interfaces.html">interface</a> <strong><code>IDisposable</code></strong> ("descartável"), que tem um método só:</p>
+
+<pre class="file" data-file="IDisposable (como o .NET a declara)">public interface IDisposable
+{
+    void Dispose();
+}
+</pre>
+
+<p><code>StreamWriter</code>, <code>StreamReader</code>, <code>FileStream</code>, as conexões de banco de dados e muitas outras classes implementam <code>IDisposable</code>. Uma classe sua também pode. O caixa da lojinha abre no construtor e fecha no <code>Dispose()</code>:</p>
+
+<pre class="file" data-file="caixa.cs">try
+{
+    using (var caixa = new Caixa())
+    {
+        caixa.Vender(10m);
+        caixa.Vender(-5m);
+        caixa.Vender(20m);
+    }
+}
+catch (ArgumentOutOfRangeException e)
+{
+    Console.WriteLine($"Erro: {e.Message}");
+}
+Console.WriteLine("Fim");
+
+class Caixa : IDisposable
+{
+    public Caixa()
+    {
+        Console.WriteLine("Abrindo o caixa");
+    }
+
+    public void Vender(decimal valor)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(valor);
+        Console.WriteLine($"Venda: {valor:C}");
+    }
+
+    public void Dispose()
+    {
+        Console.WriteLine("Fechando o caixa");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run caixa.cs
+Abrindo o caixa
+Venda: R$ 10,00
+Fechando o caixa
+Erro: valor ('-5') must be a non-negative value. (Parameter 'valor')
+Actual value was -5.
+Fim</pre>
+
+<dl class="anatomy">
+  <dt>class Caixa : IDisposable</dt><dd>A classe promete ter um método <code>public void Dispose()</code>. É essa promessa que permite usá-la num <code>using</code>.</dd>
+  <dt>public void Dispose()</dt><dd>O que "devolver" quer dizer para um <code>Caixa</code>. Aqui, só uma mensagem; num programa de verdade, fechar arquivos ou conexões que a classe abriu.</dd>
+  <dt>caixa.Vender(-5m);</dt><dd>Lança <code>ArgumentOutOfRangeException</code> (o atalho <code>ThrowIfNegative</code>, da aula <a href="throw.html">throw</a>). A venda de 20 nunca acontece.</dd>
+  <dt>Fechando o caixa</dt><dd>Aparece <strong>antes</strong> do <code>Erro:</code>. A exceção, ao sair do bloco <code>using</code>, passou pelo <code>finally</code> escondido, que chamou <code>Dispose()</code>. Só depois ela chegou ao <code>catch</code>, lá fora.</dd>
+</dl>
+
+<div class="tip">
+<strong>Quem implementa <code>IDisposable</code>?</strong>
+<p>Na prática, você vai <strong>usar</strong> muito mais do que implementar. Uma classe sua só precisa de <code>IDisposable</code> se ela guardar, num campo, algo que também é <code>IDisposable</code> (um <code>StreamWriter</code>, por exemplo); aí o <code>Dispose()</code> dela chama o <code>Dispose()</code> desse campo. Classes que só guardam números, textos e listas não precisam. E se você vir na internet um <code>Dispose(bool disposing)</code> com <code>~Classe()</code>, é um padrão antigo para quem lida direto com recursos do sistema operacional, raro hoje.</p>
+</div>
+
+<div class="trycs" data-goal="out:Fechando o caixa,src:class\s+Caixa\s*:\s*IDisposable">
+<p class="try-task"><strong>Missão:</strong> o código não compila (<code>CS1674</code>), porque <code>Caixa</code> não é <code>IDisposable</code>. Faça a classe implementar <code>IDisposable</code>, com um método <code>public void Dispose()</code> que mostre <code>Fechando o caixa</code>.</p>
+<pre class="script" data-file="caixa.cs">using (var caixa = new Caixa())
+{
+    caixa.Vender(10m);
+}
+Console.WriteLine("Fim");
+
+class Caixa
+{
+    public Caixa()
+    {
+        Console.WriteLine("Abrindo o caixa");
+    }
+
+    public void Vender(decimal valor)
+    {
+        Console.WriteLine($"Venda: {valor:C}");
+    }
+}
+</pre>
+<pre class="solucao" data-file="caixa.cs">using (var caixa = new Caixa())
+{
+    caixa.Vender(10m);
+}
+Console.WriteLine("Fim");
+
+class Caixa : IDisposable
+{
+    public Caixa()
+    {
+        Console.WriteLine("Abrindo o caixa");
+    }
+
+    public void Vender(decimal valor)
+    {
+        Console.WriteLine($"Venda: {valor:C}");
+    }
+
+    public void Dispose()
+    {
+        Console.WriteLine("Fechando o caixa");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>3. A declaração <code>using var</code> <span class="versao">C# 8</span></h2>
+<p>O bloco <code>using</code> obriga a abrir chaves e recuar o código. Desde o C# 8, há uma forma sem bloco: <code>using</code> na frente da declaração da variável. O recurso é liberado quando a variável <strong>sai de escopo</strong>, isto é, no fim do bloco em que ela foi declarada (o método, o <code>if</code>, o laço…):</p>
+
+<pre class="file" data-file="metodo.cs">Gravar("compras.txt");
+Console.WriteLine("No arquivo:");
+Console.Write(File.ReadAllText("compras.txt"));
+
+void Gravar(string caminho)
+{
+    using var escritor = new StreamWriter(caminho);
+    escritor.WriteLine("arroz");
+    escritor.WriteLine("feijão");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run metodo.cs
+No arquivo:
+arroz
+feijão</pre>
+
+<dl class="anatomy">
+  <dt>using var escritor = new StreamWriter(caminho);</dt><dd>Abre o arquivo e marca a variável para <code>Dispose()</code> automático.</dd>
+  <dt>} (o fim do método Gravar)</dt><dd>A variável sai de escopo e o arquivo é fechado. Quando o <code>File.ReadAllText</code> roda, tudo já está gravado.</dd>
+</dl>
+
+<p>É a forma que o guia usa com arquivos (aula <a href="streams.html">StreamReader e StreamWriter</a>): curta, e impossível de esquecer, porque o fechamento fica na mesma linha da abertura.</p>
+
+<h3>A armadilha: <code>using var</code> nas instruções do topo</h3>
+<p>Nas instruções de nível superior, o "bloco" é o programa inteiro. Um <code>using var</code> escrito ali só é liberado quando o programa <strong>termina</strong>:</p>
+
+<div class="warning"><strong>Este código tem um problema de propósito.</strong></div>
+<pre class="file" data-file="declaracao.cs">using var escritor = new StreamWriter("compras.txt");
+escritor.WriteLine("arroz");
+escritor.WriteLine("feijão");
+Console.WriteLine("No arquivo:");
+Console.Write(File.ReadAllText("compras.txt"));
+Console.WriteLine("(fim)");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run declaracao.cs
+No arquivo:
+(fim)
+$ cat compras.txt
+arroz
+feijão</pre>
+
+<p>Durante o programa, o arquivo estava vazio: o escritor ainda estava aberto, com as linhas no buffer. Elas só foram gravadas no fim, depois do <code>(fim)</code>, quando o <code>Dispose()</code> rodou; por isso o <code>cat</code> as mostra. Nada se perdeu, mas o próprio programa leu o arquivo cedo demais. A solução é dar ao escritor um escopo menor: um bloco <code>using (…) { }</code> ou um método, como o <code>Gravar</code> acima.</p>
+
+<hr>
+
+<h2>4. Vários recursos: fechados de trás para frente</h2>
+
+<pre class="file" data-file="dois.cs">using var gaveta = new Recurso("gaveta");
+using var cofre = new Recurso("cofre");
+Console.WriteLine("Trabalhando...");
+
+class Recurso : IDisposable
+{
+    private readonly string _nome;
+    public Recurso(string nome)
+    {
+        _nome = nome;
+        Console.WriteLine($"Abrindo {_nome}");
+    }
+    public void Dispose() =&gt; Console.WriteLine($"Fechando {_nome}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run dois.cs
+Abrindo gaveta
+Abrindo cofre
+Trabalhando...
+Fechando cofre
+Fechando gaveta</pre>
+
+<p>Quem abriu por último fecha primeiro, como uma pilha de pratos. Faz sentido: o segundo recurso pode depender do primeiro (um leitor que lê de um arquivo aberto antes, por exemplo), então o primeiro tem de continuar aberto até o segundo terminar.</p>
+
+<hr>
+
+<h2>Formas diferentes, qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Forma</th></tr>
+<tr><td>Recurso usado num método, até o fim dele</td><td><code>using var x = …;</code></td></tr>
+<tr><td>Recurso que precisa ser fechado <strong>antes</strong> do fim do método (para ler o arquivo logo depois, por exemplo)</td><td><code>using (var x = …) { … }</code></td></tr>
+<tr><td>Instruções do topo do arquivo</td><td>Bloco <code>using (…) { }</code>, ou um método com <code>using var</code></td></tr>
+<tr><td>Fechar e também tratar erros</td><td><code>try { using var x = …; … } catch (IOException e) { … }</code></td></tr>
+<tr><td>Sua classe guarda um campo <code>IDisposable</code></td><td>Implemente <code>IDisposable</code> e chame o <code>Dispose()</code> do campo</td></tr>
+<tr><td>Código antigo com <code>try</code>/<code>finally</code> + <code>Close()</code></td><td>Funciona; troque por <code>using</code> quando for mexer nele</td></tr>
+<tr><td>Recursos assíncronos (<code>IAsyncDisposable</code>)</td><td><code>await using var x = …;</code> (aula <a href="async-await.html">async e await</a>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS1674: "o tipo usado em uma instrução 'using' deve implementar 'System.IDisposable'"</strong>
+<pre class="file" data-file="naodisp.cs">using (var lista = new List&lt;string&gt;())
+{
+    lista.Add("arroz");
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run naodisp.cs
+/home/ana/cs/naodisp.cs(1,8): error CS1674: 'List&lt;string&gt;': o tipo usado em uma instrução 'using' deve implementar 'System.IDisposable'.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>using</code> precisa chamar <code>Dispose()</code> no fim, e uma <code>List&lt;string&gt;</code> não tem esse método: ela não guarda nenhum recurso do sistema, só memória, que o .NET recolhe sozinho (aula <a href="memoria.html">Memória e Coletor de Lixo</a>).</p>
+<p><strong>Como consertar:</strong> tire o <code>using</code>; ele não é necessário aqui. Se a classe é sua e guarda recursos, implemente <code>IDisposable</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>ObjectDisposedException: usar depois de fechar</strong>
+<pre class="file" data-file="fechado.cs">var escritor = new StreamWriter("compras.txt");
+using (escritor)
+{
+    escritor.WriteLine("arroz");
+}
+escritor.WriteLine("feijão");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run fechado.cs
+Unhandled exception. System.ObjectDisposedException: Cannot write to a closed TextWriter.
+Object name: 'StreamWriter'.
+   at System.IO.StreamWriter.&lt;ThrowIfDisposed&gt;g__ThrowObjectDisposedException|80_0()
+   at System.IO.StreamWriter.WriteLine(String value)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/fechado.cs:line 6</pre>
+<p><strong>O que significa:</strong> "não é possível escrever num <code>TextWriter</code> fechado". O <code>using (escritor)</code> fechou o arquivo no fim do bloco, e a linha 6 tentou escrever depois. Um objeto descartado (<em>disposed</em>) não volta a funcionar. Este é o motivo de declarar a variável <strong>dentro</strong> do <code>using</code> (<code>using (var escritor = …)</code>): assim ela nem existe depois do bloco, e o compilador impede o erro.</p>
+<p><strong>Como consertar:</strong> faça todo o trabalho dentro do bloco, ou abra o recurso de novo.</p>
+</div>
+
+<div class="cenario">
+<strong>O arquivo está vazio enquanto o programa roda</strong>
+<p><strong>O que significa:</strong> provavelmente um <code>using var</code> nas instruções do topo, ou num método que ainda não terminou. O <code>Dispose()</code> ainda não rodou.</p>
+<p><strong>Como consertar:</strong> use o bloco <code>using (…) { }</code> ou mova a escrita para um método.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Sintaxe</th><th>O que faz</th></tr>
+<tr><td><code>using (var x = new T()) { … }</code></td><td>Chama <code>x.Dispose()</code> no fim do bloco, com ou sem exceção</td></tr>
+<tr><td><code>using var x = new T();</code></td><td>Chama <code>x.Dispose()</code> no fim do bloco em que <code>x</code> foi declarada <span class="versao">C# 8</span></td></tr>
+<tr><td><code>class T : IDisposable { public void Dispose() { … } }</code></td><td>Permite usar <code>T</code> com <code>using</code></td></tr>
+<tr><td>Vários <code>using</code></td><td>Fechados na ordem inversa da abertura</td></tr>
+<tr><td><code>await using var x = …;</code></td><td>Para recursos <code>IAsyncDisposable</code> <span class="versao">C# 8</span></td></tr>
+<tr><td><code>CS1674</code></td><td>O tipo do <code>using</code> não é <code>IDisposable</code></td></tr>
+<tr><td><code>ObjectDisposedException</code></td><td>Usou o objeto depois do <code>Dispose()</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A interface</h3>
+<p>Complete para a classe poder ser usada com <code>using</code>:</p>
+<div class="ex-code">class Conexao : <input data-answer="IDisposable|System.IDisposable" aria-label="interface"></div>
+</div>
+
+<div class="exercise">
+<h3>2. O método do contrato</h3>
+<p>Complete o método que o <code>using</code> chama no fim:</p>
+<div class="ex-code">public void <input data-answer="Dispose" aria-label="método">() { … }</div>
+</div>
+
+<div class="exercise">
+<h3>3. A forma curta</h3>
+<p>Complete a declaração do C# 8:</p>
+<div class="ex-code"><input data-answer="using" aria-label="palavra-chave"> var leitor = new StreamReader("notas.txt");</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Num bloco <code>using (var caixa = new Caixa()) { … }</code>, uma linha do meio lança uma exceção. O que acontece?</p>
+<label><input type="radio" name="q4"> <code>Dispose()</code> não roda, porque a exceção interrompeu o bloco.</label>
+<label><input type="radio" name="q4"> <code>Dispose()</code> roda, e depois a exceção continua subindo.</label>
+<label><input type="radio" name="q4"> A exceção é capturada pelo <code>using</code> e some.</label>
+<label><input type="radio" name="q4"> O programa não compila.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. Com <code>using var a = …;</code> e depois <code>using var b = …;</code> no mesmo método, em que ordem eles são fechados?</p>
+<label><input type="radio" name="q5"> <code>a</code> e depois <code>b</code>.</label>
+<label><input type="radio" name="q5"> Os dois ao mesmo tempo.</label>
+<label><input type="radio" name="q5"> Em ordem aleatória.</label>
+<label><input type="radio" name="q5"> <code>b</code> e depois <code>a</code>.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Qual destes <strong>não</strong> pode ser usado num <code>using</code>?</p>
+<label><input type="radio" name="q6"> <code>List&lt;int&gt;</code></label>
+<label><input type="radio" name="q6"> <code>StreamWriter</code></label>
+<label><input type="radio" name="q6"> <code>StreamReader</code></label>
+<label><input type="radio" name="q6"> Uma classe sua que implementa <code>IDisposable</code></label>
+</div>
+
+<div class="trycs" data-goal="outre:No arquivo:\narroz\nfeijão\n,src:using">
+<p class="try-task"><strong>Missão final:</strong> o <code>using var</code> está nas instruções do topo, então o arquivo só é gravado no fim do programa, e o <code>No arquivo:</code> sai vazio. Troque por um bloco <code>using (var escritor = …) { … }</code> em volta das duas linhas que escrevem, para que <code>arroz</code> e <code>feijão</code> apareçam logo depois de <code>No arquivo:</code>.</p>
+<pre class="script" data-file="declaracao.cs">using var escritor = new StreamWriter("compras.txt");
+escritor.WriteLine("arroz");
+escritor.WriteLine("feijão");
+Console.WriteLine("No arquivo:");
+Console.Write(File.ReadAllText("compras.txt"));
+Console.WriteLine("(fim)");
+</pre>
+<pre class="solucao" data-file="declaracao.cs">using (var escritor = new StreamWriter("compras.txt"))
+{
+    escritor.WriteLine("arroz");
+    escritor.WriteLine("feijão");
+}
+Console.WriteLine("No arquivo:");
+Console.Write(File.ReadAllText("compras.txt"));
+Console.WriteLine("(fim)");
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Recursos (arquivos, conexões) são emprestados pelo sistema e precisam ser devolvidos. Quem devolve é o método <code>Dispose()</code> da interface <code>IDisposable</code>.</li>
+  <li><code>using (var x = …) { … }</code> chama <code>Dispose()</code> no fim do bloco, com ou sem exceção. Por baixo, é um <code>try</code>/<code>finally</code>.</li>
+  <li><code>using var x = …;</code> <span class="versao">C# 8</span> chama <code>Dispose()</code> no fim do bloco onde a variável foi declarada. Nas instruções do topo, isso é o fim do programa.</li>
+  <li>Vários recursos são fechados na ordem inversa da abertura.</li>
+  <li>Uma classe sua pode implementar <code>IDisposable</code>; faça isso quando ela guardar outro recurso <code>IDisposable</code>.</li>
+  <li><code>CS1674</code>: o tipo não é <code>IDisposable</code>. <code>ObjectDisposedException</code>: usou depois de fechar.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
