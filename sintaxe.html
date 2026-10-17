@@ -475,7 +475,15 @@ Console.WriteLine("Pastel: R$ 8");
 </pre>
 </div>
 
-<p>Repare numa coisa curiosa: na primeira vez, o compilador mostra só <strong>dois</strong> erros (<code>CS1002</code> na linha 2 e <code>CS1026</code> na linha 3), e o <code>Writeline</code> da linha 1 passa despercebido. O compilador trabalha em etapas: primeiro confere a <strong>escrita</strong> (sinais, pares, <code>;</code>); só quando ela está toda certa ele confere os <strong>nomes</strong>. Por isso o <code>CS0117</code> só aparece depois que você conserta os outros dois. Um erro pode esconder outro: compile de novo depois de cada conserto.</p>
+<p>Repare numa coisa curiosa. O compilador trabalha em etapas: primeiro confere a <strong>escrita</strong> (sinais, pares, <code>;</code>) e depois os <strong>nomes</strong>. No terminal, o <code>dotnet run</code> para na primeira etapa quando ela tem erro: com este código, ele mostra só <strong>dois</strong> erros (<code>CS1002</code> na linha 2 e <code>CS1026</code> na linha 3), e o <code>Writeline</code> da linha 1 só é denunciado (<code>CS0117</code>) depois que você conserta os outros dois:</p>
+
+<pre class="term" data-cwd="~/cs/sintaxe">$ dotnet run cardapio.cs
+/home/ana/cs/sintaxe/cardapio.cs(2,32): error CS1002: ; esperado
+/home/ana/cs/sintaxe/cardapio.cs(3,33): error CS1026: ) esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O editor do guia faz as duas etapas de uma vez e mostra os três erros juntos, com o <code>CS0117</code> por último. Nos dois casos, a lição é a mesma: um erro pode esconder outro, então compile de novo depois de cada conserto.</p>
 
 <hr>
 
