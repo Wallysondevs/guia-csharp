@@ -258,7 +258,7 @@ $ echo $?
 
 <div class="note">
 <strong>No editor do guia</strong>
-<p>O editor roda o .NET dentro do navegador, e lá a pilha é controlada pelo próprio navegador. Por isso, um estouro de pilha no editor não mostra o <code>Stack overflow.</code> acima: o programa só termina com erro. Para ver a mensagem real, rode no seu terminal, com <code>dotnet run</code>.</p>
+<p>O editor também mostra o <code>Stack overflow.</code>, o bloco repetido, o <code>Main</code> e o código 134. Só o número do <code>Repeated … times:</code> é outro (perto de 999), porque o .NET do editor roda dentro do navegador, com uma pilha bem menor que a do Linux. Como esse número muda de uma máquina para outra, nenhuma missão depende dele.</p>
 </div>
 
 <p>Os enganos que levam a uma recursão sem fim são sempre um destes três:</p>
