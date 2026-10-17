@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Boas Práticas — o checklist de um código limpo e seguro | Guia C#</title>
+<meta name="description" content="Boas práticas de C# para quem está começando: nomes em PascalCase e camelCase, avisos ligados e referências anuláveis, decimal para dinheiro, TryParse com entrada do usuário, nunca engolir exceções, using para arquivos, constantes no lugar de números mágicos, lista vazia em vez de null e dotnet format, com um antes × depois completo e as saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Boas Práticas</span></h1>
+
+<p class="intro">Um programa pode funcionar e, mesmo assim, ser difícil de ler, quebrar com a primeira entrada estranha ou errar uma conta de centavos. As <strong>boas práticas</strong> são hábitos que os programadores C# aprenderam do jeito difícil e que evitam esses problemas desde o começo. Esta aula junta os mais importantes num checklist, sempre com o <strong>porquê</strong> e com o que acontece quando você não segue a regra. No fim, um programa da lojinha da Ana é reescrito do "funciona, mas…" para o "funciona e é confiável".</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>As convenções de nomes do C#: <strong>PascalCase</strong> e <strong>camelCase</strong>.</li>
+  <li>Por que ler os avisos e manter as <a href="referencias-anulaveis.html">referências anuláveis</a> ligadas, e como transformar avisos em erros.</li>
+  <li><code>decimal</code> para dinheiro e <code>TryParse</code> para o que o usuário digita.</li>
+  <li>Por que nunca escrever um <code>catch</code> vazio.</li>
+  <li><code>using</code> para arquivos, constantes no lugar de "números mágicos" e lista vazia em vez de <code>null</code>.</li>
+  <li>Como o <code>dotnet format</code> arruma o código sozinho.</li>
+</ul>
+</div>
+
+<p>Os programas rodaram na máquina da Ana com o <strong>.NET 10</strong>, em <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Cada regra tem uma aula própria, indicada no link; aqui você vê todas juntas.</p>
+
+<hr>
+
+<h2>A ideia: as regras da cozinha</h2>
+<p>Numa cozinha profissional, todo mundo segue as mesmas regras: cada coisa tem lugar e etiqueta, a faca volta para o suporte, o que abre se fecha. Nenhuma regra dessas faz a comida ficar pronta, mas sem elas a cozinha vira bagunça, alguém se corta e o prato sai errado. Código é igual. O compilador aceita nomes como <code>x</code> e <code>t</code>, aceita <code>double</code> para dinheiro e aceita um <code>catch</code> vazio. Quem sofre é quem lê, quem usa e você mesmo, daqui a três meses.</p>
+
+<hr>
+
+<h2>1. Nomes que dizem o que a coisa é</h2>
+<p>Compare. O que este programa calcula?</p>
+
+<pre class="file" data-file="nomes.cs">int x = 3;
+decimal y = 12.5m;
+decimal z = x * y * 0.9m;
+Console.WriteLine(z);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run nomes.cs
+33,75</pre>
+
+<p>Agora com nomes:</p>
+
+<pre class="file" data-file="nomes.cs">int quantidade = 3;
+decimal precoDoCaderno = 12.5m;
+decimal totalComDesconto = quantidade * precoDoCaderno * 0.9m;
+Console.WriteLine(totalComDesconto);
+</pre>
+
+<p>A saída é a mesma, mas agora qualquer pessoa entende: três cadernos de R$ 12,50 com 10% de desconto. Além de dizer o que a coisa é, os nomes em C# seguem um <strong>padrão de maiúsculas</strong> que todo programador C# reconhece (a aula <a href="identificadores.html">Nomes e Convenções</a> tem todos os detalhes):</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>O quê</th><th>Padrão</th><th>Exemplo</th></tr>
+<tr><td>Classes, structs, records, enums</td><td><strong>PascalCase</strong> (cada palavra com maiúscula)</td><td><code>ContaBancaria</code>, <code>Aluno</code></td></tr>
+<tr><td>Métodos e propriedades</td><td>PascalCase</td><td><code>CalcularMedia()</code>, <code>Saldo</code></td></tr>
+<tr><td>Constantes</td><td>PascalCase</td><td><code>MediaParaAprovar</code></td></tr>
+<tr><td>Interfaces</td><td><code>I</code> + PascalCase</td><td><code>IComparable</code>, <code>IRepositorio</code></td></tr>
+<tr><td>Variáveis locais e parâmetros</td><td><strong>camelCase</strong> (a primeira palavra minúscula)</td><td><code>precoDoCaderno</code>, <code>quantidade</code></td></tr>
+<tr><td>Campos privados</td><td><code>_</code> + camelCase</td><td><code>_saldo</code></td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>Nomes longos não são problema</strong>
+<p>O editor completa o nome para você (veja <a href="editores.html">Editores e IDEs</a>). Um nome que explica economiza um comentário. Use <code>i</code> e <code>j</code> só para contadores de <a href="for.html">for</a> curtos.</p>
+</div>
+
+<hr>
+
+<h2>2. Leia os avisos (e mantenha os anuláveis ligados)</h2>
+<p>Um <a href="avisos.html">aviso</a> (<em>warning</em>) não impede o programa de rodar, e por isso muita gente o ignora. Quase sempre é um erro de verdade esperando a hora de acontecer. O caso mais comum é o <strong>null</strong>:</p>
+
+<pre class="file" data-file="nulo.cs">string? apelido = BuscarApelido("Bruno");
+Console.WriteLine($"Apelido com {apelido.Length} letras");
+
+static string? BuscarApelido(string nome)
+{
+    return nome == "Ana" ? "Aninha" : null;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run nulo.cs
+/home/ana/cs/nulo.cs(2,34): warning CS8602: Desreferência de uma referência possivelmente nula.
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/nulo.cs:line 2
+$ echo $?
+134</pre>
+
+<p>O compilador avisou, na linha 2, coluna 34 (o <code>apelido.Length</code>): "o <code>apelido</code> pode ser <code>null</code>" (em inglês, <em>Dereference of a possibly null reference</em>). Ninguém ouviu, e o programa caiu com a <code>NullReferenceException</code>, a exceção mais famosa do C#. O <code>string?</code> do método diz "pode voltar sem apelido"; o conserto é tratar esse caso: <code>apelido?.Length ?? 0</code> ou um <code>if (apelido is null)</code> (veja <a href="operadores-null.html">Operadores ??, ?. e ??=</a>).</p>
+
+<h3>Avisos como erros</h3>
+<p>Para não deixar nenhum aviso passar, peça ao compilador que trate todos como erros. Num projeto, coloque no <code>.csproj</code> (veja <a href="csproj.html">O Arquivo .csproj</a>):</p>
+
+<pre class="file" data-file="Loja.csproj">&lt;PropertyGroup&gt;
+  &lt;Nullable&gt;enable&lt;/Nullable&gt;
+  &lt;TreatWarningsAsErrors&gt;true&lt;/TreatWarningsAsErrors&gt;
+&lt;/PropertyGroup&gt;
+</pre>
+
+<p>Num arquivo solto, o .NET 10 aceita a mesma configuração numa linha especial, no topo do arquivo <span class="versao">.NET 10</span>:</p>
+
+<pre class="file" data-file="nulo2.cs">#:property TreatWarningsAsErrors=true
+string? apelido = BuscarApelido("Bruno");
+Console.WriteLine($"Apelido com {apelido.Length} letras");
+
+static string? BuscarApelido(string nome)
+{
+    return nome == "Ana" ? "Aninha" : null;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run nulo2.cs
+/home/ana/cs/nulo2.cs(3,34): error CS8602: Desreferência de uma referência possivelmente nula.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O mesmo <code>CS8602</code>, agora como <code>error</code>: o programa nem chega a rodar, e o defeito é consertado antes de alguém usar.</p>
+
+<div class="warning">
+<strong>Não desligue os anuláveis</strong>
+<p>O <code>&lt;Nullable&gt;enable&lt;/Nullable&gt;</code> já vem ligado em todo projeto novo e nos arquivos soltos. Desligá-lo faz os avisos sumirem, mas não as exceções. E o <code>!</code> no fim de uma expressão (<code>Console.ReadLine()!</code>) também cala o aviso: use só quando você <strong>tem certeza</strong> de que não é <code>null</code>.</p>
+</div>
+
+<hr>
+
+<h2>3. <code>decimal</code> para dinheiro</h2>
+<p>O <code>double</code> guarda números em base 2, e muitos números da base 10, como 0,1, não têm representação exata em base 2 (como 1/3 não tem em base 10: 0,333…). Para medidas e ciência, a diferença minúscula não importa. Para dinheiro, importa (veja <a href="decimais.html">float, double e decimal</a>):</p>
+
+<pre class="file" data-file="dinheiro.cs">double totalDouble = 0.1 + 0.2;
+decimal totalDecimal = 0.1m + 0.2m;
+Console.WriteLine($"double:  {totalDouble}");
+Console.WriteLine($"decimal: {totalDecimal}");
+Console.WriteLine(totalDouble == 0.3);
+Console.WriteLine(totalDecimal == 0.3m);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run dinheiro.cs
+double:  0,30000000000000004
+decimal: 0,3
+False
+True</pre>
+
+<p>Com <code>double</code>, 10 centavos mais 20 centavos não dá 30 centavos, e a comparação dá <code>False</code>. O <code>decimal</code> guarda em base 10 e acerta. O <code>m</code> no fim de <code>0.1m</code> diz "este número é <code>decimal</code>".</p>
+
+<div class="trycs" data-goal="out:Conta certa,src:decimal">
+<p class="try-task"><strong>Missão:</strong> três balas de 10 centavos deveriam custar 30 centavos, mas a conta sai errada. Troque os dois <code>double</code> por <code>decimal</code> e coloque o <code>m</code> nos números (<code>0.1m</code> e <code>0.3m</code>).</p>
+<pre class="script" data-file="conta.cs">double preco = 0.1;
+double total = preco * 3;
+Console.WriteLine(total == 0.3 ? "Conta certa: 0,3" : $"Conta errada: {total}");
+</pre>
+<pre class="solucao" data-file="conta.cs">decimal preco = 0.1m;
+decimal total = preco * 3;
+Console.WriteLine(total == 0.3m ? "Conta certa: 0,3" : $"Conta errada: {total}");
+</pre>
+</div>
+
+<hr>
+
+<h2>4. <code>TryParse</code> para o que o usuário digita</h2>
+<p>O usuário digita o que quiser: "três", "3 ", nada. O <code>int.Parse</code> confia que veio um número e, se não veio, lança uma exceção:</p>
+
+<pre class="file" data-file="parse.cs">Console.Write("Quantos cadernos? ");
+int quantidade = int.Parse(Console.ReadLine()!);
+Console.WriteLine($"Total: {quantidade * 12.50m:C}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run parse.cs
+Quantos cadernos? 3
+Total: R$ 37,50
+$ dotnet run parse.cs
+Quantos cadernos? abc
+Unhandled exception. System.FormatException: The input string 'abc' was not in a correct format.
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+   at System.Int32.Parse(String s)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/parse.cs:line 2</pre>
+
+<p>"O texto 'abc' não está num formato correto." O <code>int.TryParse</code> ("tentar converter") não lança nada: devolve <code>true</code> ou <code>false</code> e entrega o número num parâmetro <a href="ref-out-in.html">out</a>. Você decide o que fazer quando a entrada é ruim (veja <a href="parse.html">Parse e TryParse</a>).</p>
+
+<div class="trycs" data-stdin="abc\n" data-goal="out:Quantidade inválida.,exit:0,src:TryParse">
+<p class="try-task"><strong>Missão:</strong> a entrada desta caixa é <code>abc</code>, e o programa cai. Troque o <code>int.Parse</code> por <code>if (!int.TryParse(Console.ReadLine(), out int quantidade))</code>: se a conversão falhar, mostre <code>Quantidade inválida.</code> e termine com <code>return;</code>.</p>
+<pre class="script" data-file="parse.cs">Console.Write("Quantos cadernos? ");
+int quantidade = int.Parse(Console.ReadLine()!);
+Console.WriteLine($"Total: {quantidade * 12.50m:C}");
+</pre>
+<pre class="solucao" data-file="parse.cs">Console.Write("Quantos cadernos? ");
+if (!int.TryParse(Console.ReadLine(), out int quantidade))
+{
+    Console.WriteLine("Quantidade inválida.");
+    return;
+}
+Console.WriteLine($"Total: {quantidade * 12.50m:C}");
+</pre>
+</div>
+
+<hr>
+
+<h2>5. Nunca engula exceções</h2>
+<p>Um <code>catch</code> vazio "engole" o erro: o programa segue como se nada tivesse acontecido, e ninguém fica sabendo. Veja a conta de parcelas da Ana:</p>
+
+<pre class="file" data-file="engole.cs">decimal saldo = 100m;
+try
+{
+    decimal parcela = saldo / ContarParcelas();
+    Console.WriteLine($"Parcela: {parcela:C}");
+}
+catch
+{
+}
+Console.WriteLine("Pronto!");
+
+static int ContarParcelas() =&gt; 0;
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run engole.cs
+Pronto!</pre>
+
+<p>"Pronto!", mas a parcela nunca foi mostrada, e nada diz por quê. Sem o <code>try</code>, pelo menos a exceção apareceria: <code>System.DivideByZeroException: Attempted to divide by zero.</code> ("tentou dividir por zero"). As regras (veja <a href="try-catch.html">try e catch</a>):</p>
+<ul>
+  <li>Pegue <strong>só a exceção que você sabe tratar</strong>: <code>catch (DivideByZeroException)</code>, não <code>catch</code> de tudo.</li>
+  <li>Dentro do <code>catch</code>, <strong>faça algo</strong>: avise o usuário, registre o erro, use um valor padrão.</li>
+  <li>Melhor ainda: evite a exceção com um <code>if</code> quando dá para prever (<code>if (parcelas == 0)</code>). Exceção é para o inesperado.</li>
+</ul>
+
+<hr>
+
+<h2>6. <code>using</code> para tudo o que precisa ser fechado</h2>
+<p>Arquivos, conexões e outros recursos do sistema precisam ser <strong>fechados</strong>. O <a href="memoria.html">coletor de lixo</a> cuida só da memória e não tem hora para passar. O <code>using</code> fecha o recurso no fim do bloco, mesmo que aconteça uma exceção lá dentro:</p>
+
+<pre class="file" data-file="arquivo.cs">using (var escritor = new StreamWriter("compras.txt"))
+{
+    escritor.WriteLine("arroz");
+    escritor.WriteLine("feijão");
+}   // aqui o arquivo já foi fechado, mesmo se der erro lá dentro
+
+Console.WriteLine(File.ReadAllText("compras.txt"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run arquivo.cs
+arroz
+feijão
+</pre>
+
+<p>A forma curta <code>using var escritor = new StreamWriter("compras.txt");</code> <span class="versao">C# 8</span> fecha o arquivo no fim do método. A aula <a href="using-dispose.html">using e IDisposable</a> explica as duas.</p>
+
+<hr>
+
+<h2>7. Constantes no lugar de números mágicos</h2>
+<p>Um "número mágico" é um número solto no meio do código, como o <code>0.9m</code> do começo da aula ou um <code>if (nota &gt;= 6)</code>. Quem lê não sabe o que ele significa, e quem precisar mudá-lo tem de caçar cada cópia. Dê um nome com <a href="constantes.html">const</a>:</p>
+
+<pre class="file" data-file="constantes.cs">const decimal MediaParaAprovar = 6.0m;
+const decimal Desconto = 0.10m; // 10%
+</pre>
+
+<p>Agora o código diz <code>if (nota &gt;= MediaParaAprovar)</code> e <code>total * (1 - Desconto)</code>. Mudou a média da escola? Muda uma linha só.</p>
+
+<hr>
+
+<h2>8. Devolva uma lista vazia, não <code>null</code></h2>
+<p>Um método que devolve uma lista não deve devolver <code>null</code> quando não há nada: quem chama teria de lembrar de conferir, e o esquecimento vira <code>NullReferenceException</code>. Devolva uma lista <strong>vazia</strong>, e o <code>Count</code>, o <code>foreach</code> e o LINQ funcionam sem nenhum <code>if</code>:</p>
+
+<pre class="file" data-file="vazia.cs">List&lt;string&gt; pedidos = BuscarPedidos("Bruno");
+Console.WriteLine($"Bruno tem {pedidos.Count} pedidos");
+
+static List&lt;string&gt; BuscarPedidos(string cliente)
+{
+    if (cliente == "Ana")
+    {
+        return ["caderno", "caneta"];
+    }
+    return [];
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run vazia.cs
+Bruno tem 0 pedidos</pre>
+
+<p>O <code>[]</code> é uma <strong>expressão de coleção</strong> <span class="versao">C# 12</span>: uma lista vazia do tipo que o método devolve. Repare também no tipo de retorno: <code>List&lt;string&gt;</code>, sem <code>?</code>. Ele promete "sempre devolvo uma lista".</p>
+
+<hr>
+
+<h2>9. Formate o código (e deixe a ferramenta fazer isso)</h2>
+<p>Espaços, chaves e recuos não mudam o que o programa faz, mas um código torto é difícil de ler. O padrão do C# põe as chaves <code>{ }</code> em linhas próprias e recua 4 espaços. Não precisa fazer à mão: o SDK traz o <code>dotnet format</code>, que arruma um projeto inteiro. Este é o <code>Program.cs</code> de um projeto da Ana em <code>~/projetos/Loja</code>:</p>
+
+<pre class="file" data-file="Program.cs">int  total=0;
+for(int i=1;i&lt;=3;i++){
+total+=i;
+    }
+  Console.WriteLine( total );
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Loja">$ dotnet format --verify-no-changes
+/home/ana/projetos/Loja/Program.cs(1,5): error WHITESPACE: Corrigir a formatação de espaço em branco. Excluir 1 caracteres. [/home/ana/projetos/Loja/Loja.csproj]
+/home/ana/projetos/Loja/Program.cs(1,11): error WHITESPACE: Corrigir a formatação de espaço em branco. Inserir "\s". [/home/ana/projetos/Loja/Loja.csproj]
+/home/ana/projetos/Loja/Program.cs(1,12): error WHITESPACE: Corrigir a formatação de espaço em branco. Inserir "\s". [/home/ana/projetos/Loja/Loja.csproj]
+…                                         « mais 15 linhas iguais
+$ dotnet format
+$ cat Program.cs
+int total = 0;
+for (int i = 1; i &lt;= 3; i++)
+{
+    total += i;
+}
+Console.WriteLine(total);</pre>
+
+<dl class="anatomy">
+  <dt>dotnet format --verify-no-changes</dt><dd>Só confere, sem mudar nada ("verificar que não há mudanças"): lista cada espaço fora do padrão (<code>\s</code> é um espaço, <code>\n</code> uma quebra de linha) e termina com o código 2. É o que se usa num servidor de testes para recusar código torto.</dd>
+  <dt>dotnet format</dt><dd>Arruma tudo e não mostra nada. O <code>cat</code> mostra o resultado.</dd>
+</dl>
+
+<p>Os editores fazem o mesmo com um atalho (no VS Code, <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd>). As regras podem ser ajustadas num arquivo <code>.editorconfig</code> na pasta do projeto.</p>
+
+<hr>
+
+<h2>Antes × depois: o caixa da lojinha</h2>
+<p>A Ana escreveu um caixa para a lojinha: pergunta quantos itens, lê o preço de cada um e dá 10% de desconto acima de R$ 100. Funciona, mas quebra quase todas as regras da aula:</p>
+
+<pre class="file" data-file="antes.cs">Console.Write("Quantos itens? ");
+int n = int.Parse(Console.ReadLine());
+double t = 0;
+for (int i = 0; i &lt; n; i++)
+{
+    Console.Write("Preço: ");
+    t += double.Parse(Console.ReadLine());
+}
+if (t &gt; 100) t = t * 0.9;
+Console.WriteLine("Total: " + t);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run antes.cs
+/home/ana/cs/antes.cs(2,19): warning CS8604: Possível argumento de referência nula para o parâmetro 's' em 'int int.Parse(string s)'.
+/home/ana/cs/antes.cs(7,23): warning CS8604: Possível argumento de referência nula para o parâmetro 's' em 'double double.Parse(string s)'.
+Quantos itens? 3
+Preço: 50
+Preço: 40,5
+Preço: 30
+Total: 108,45</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Problema</th><th>Regra</th></tr>
+<tr><td><code>n</code>, <code>t</code>, <code>i</code> começando em 0 (o "item 0")</td><td>1. Nomes</td></tr>
+<tr><td>Dois avisos <code>CS8604</code> ignorados</td><td>2. Avisos</td></tr>
+<tr><td><code>double</code> para dinheiro</td><td>3. <code>decimal</code></td></tr>
+<tr><td><code>int.Parse</code> e <code>double.Parse</code> com o que o usuário digita</td><td>4. <code>TryParse</code></td></tr>
+<tr><td><code>100</code> e <code>0.9</code> soltos no código</td><td>7. Constantes</td></tr>
+<tr><td>O total sem <code>R$</code> e sem as duas casas</td><td>Formate com <code>:C</code> (<a href="formatacao.html">Formatar Números</a>)</td></tr>
+</table>
+</div>
+
+<p>A versão reescrita:</p>
+
+<pre class="file" data-file="depois.cs">const decimal ValorParaDesconto = 100m;
+const decimal Desconto = 0.10m; // 10%
+
+Console.Write("Quantos itens? ");
+if (!int.TryParse(Console.ReadLine(), out int quantidade) || quantidade &lt; 1)
+{
+    Console.WriteLine("Quantidade inválida.");
+    return;
+}
+
+decimal total = 0m;
+for (int item = 1; item &lt;= quantidade; item++)
+{
+    Console.Write($"Preço do item {item}: ");
+    if (!decimal.TryParse(Console.ReadLine(), out decimal preco) || preco &lt; 0)
+    {
+        Console.WriteLine("Preço inválido.");
+        return;
+    }
+    total += preco;
+}
+
+decimal totalComDesconto = AplicarDesconto(total);
+Console.WriteLine($"Total: {totalComDesconto:C}");
+
+static decimal AplicarDesconto(decimal total)
+{
+    if (total &gt; ValorParaDesconto)
+    {
+        return total * (1 - Desconto);
+    }
+    return total;
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>const decimal ValorParaDesconto = 100m;</dt><dd>As regras da loja ganham nome, no topo, fáceis de achar e mudar.</dd>
+  <dt>!int.TryParse(…) || quantidade &lt; 1</dt><dd>Recusa texto e também números que não fazem sentido (0 ou negativos).</dd>
+  <dt>return;</dt><dd>Nas <a href="top-level.html">instruções de nível superior</a>, o <code>return</code> termina o programa.</dd>
+  <dt>for (int item = 1; item &lt;= quantidade; item++)</dt><dd>Conta de 1 em diante, como a Ana conta os itens, e mostra o número na pergunta.</dd>
+  <dt>static decimal AplicarDesconto(decimal total)</dt><dd>A regra do desconto num <a href="metodos.html">método</a> com nome: o programa principal lê como uma lista de passos.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run depois.cs
+Quantos itens? 3
+Preço do item 1: 50
+Preço do item 2: 40,50
+Preço do item 3: 30
+Total: R$ 108,45
+$ dotnet run depois.cs
+Quantos itens? dois
+Quantidade inválida.</pre>
+
+<p>Sem avisos, com o total em reais e sem cair com a primeira entrada errada.</p>
+
+<div class="trycs" data-file="depois.cs" data-stdin="3\n50\n40,50\n30\n">
+<p class="try-task">A versão reescrita, com a compra da Ana (3 itens: 50, 40,50 e 30) como entrada. Troque o desconto para 15% (<code>0.15m</code>) e rode de novo: a regra mudou numa linha só. Depois, apague o <code>|| preco &lt; 0</code> e pense: o que um preço negativo faria com o total?</p>
+<pre class="script" data-file="depois.cs">const decimal ValorParaDesconto = 100m;
+const decimal Desconto = 0.10m; // 10%
+
+Console.Write("Quantos itens? ");
+if (!int.TryParse(Console.ReadLine(), out int quantidade) || quantidade &lt; 1)
+{
+    Console.WriteLine("Quantidade inválida.");
+    return;
+}
+
+decimal total = 0m;
+for (int item = 1; item &lt;= quantidade; item++)
+{
+    Console.Write($"Preço do item {item}: ");
+    if (!decimal.TryParse(Console.ReadLine(), out decimal preco) || preco &lt; 0)
+    {
+        Console.WriteLine("Preço inválido.");
+        return;
+    }
+    total += preco;
+}
+
+decimal totalComDesconto = AplicarDesconto(total);
+Console.WriteLine($"Total: {totalComDesconto:C}");
+
+static decimal AplicarDesconto(decimal total)
+{
+    if (total &gt; ValorParaDesconto)
+    {
+        return total * (1 - Desconto);
+    }
+    return total;
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>"40.5" virou 405: o ponto e a vírgula</strong>
+<p>No programa antigo, a Ana digitou o segundo preço com <strong>ponto</strong>, como nos programas em inglês:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run antes.cs
+Quantos itens? 3
+Preço: 50
+Preço: 40.5
+Preço: 30
+Total: 436,5</pre>
+<p><strong>O que aconteceu:</strong> a máquina da Ana está em português, e em pt-BR a vírgula é a casa decimal e o ponto separa os milhares (<code>1.000</code>). O <code>double.Parse("40.5")</code> leu "quatrocentos e cinco": 50 + 405 + 30 = 485, menos 10% = 436,5. Nenhum erro, nenhum aviso, só uma conta errada.</p>
+<p><strong>Como consertar:</strong> decida qual formato o programa aceita e diga isso ao usuário ("use vírgula"). Se os números vêm de um arquivo ou de outro programa, e não de uma pessoa, leia com <code>CultureInfo.InvariantCulture</code>, que sempre usa o ponto (veja <a href="cultura.html">Cultura</a>). E confira se o valor faz sentido: um caderno de R$ 405 deveria levantar suspeita.</p>
+</div>
+
+<div class="cenario">
+<strong>O <code>catch</code> que escondeu a divisão por zero</strong>
+<p>No exemplo da seção 5, o programa disse "Pronto!" sem mostrar a parcela. Tirando o <code>try</code>, a Ana viu o problema de verdade:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run engole.cs
+Unhandled exception. System.DivideByZeroException: Attempted to divide by zero.
+   at System.Decimal.DecCalc.VarDecDiv(DecCalc&amp; d1, DecCalc&amp; d2)
+   at System.Decimal.op_Division(Decimal d1, Decimal d2)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/engole.cs:line 2</pre>
+<p><strong>O que significa:</strong> o <code>ContarParcelas()</code> devolveu 0, e dividir um <code>decimal</code> por zero lança <code>DivideByZeroException</code>. A última linha diz onde: <code>engole.cs:line 2</code>. <strong>Como consertar:</strong> faça a missão abaixo.</p>
+</div>
+
+<div class="trycs" data-file="engole.cs" data-goal="out:Não dá para dividir em 0 parcelas.,out:Pronto!,src:catch\s*\(\s*DivideByZeroException">
+<p class="try-task"><strong>Missão:</strong> o <code>catch</code> vazio esconde o erro. Troque-o por <code>catch (DivideByZeroException)</code> e, dentro dele, mostre <code>Não dá para dividir em 0 parcelas.</code>.</p>
+<pre class="script" data-file="engole.cs">decimal saldo = 100m;
+try
+{
+    decimal parcela = saldo / ContarParcelas();
+    Console.WriteLine($"Parcela: {parcela:C}");
+}
+catch
+{
+}
+Console.WriteLine("Pronto!");
+
+static int ContarParcelas() =&gt; 0;
+</pre>
+<pre class="solucao" data-file="engole.cs">decimal saldo = 100m;
+try
+{
+    decimal parcela = saldo / ContarParcelas();
+    Console.WriteLine($"Parcela: {parcela:C}");
+}
+catch (DivideByZeroException)
+{
+    Console.WriteLine("Não dá para dividir em 0 parcelas.");
+}
+Console.WriteLine("Pronto!");
+
+static int ContarParcelas() =&gt; 0;
+</pre>
+</div>
+
+<hr>
+
+<h2>Referência: o checklist</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Regra</th><th>Por quê</th><th>Aula</th></tr>
+<tr><td>Nomes que explicam; PascalCase para tipos e métodos, camelCase para variáveis</td><td>O código se lê sozinho, e todo programador C# reconhece o padrão.</td><td><a href="identificadores.html">Nomes e Convenções</a></td></tr>
+<tr><td>Leia todos os avisos; mantenha <code>Nullable</code> ligado</td><td>Cada aviso é um defeito provável, como o <code>CS8602</code>.</td><td><a href="avisos.html">Avisos</a>, <a href="referencias-anulaveis.html">Referências Anuláveis</a></td></tr>
+<tr><td><code>decimal</code> para dinheiro</td><td><code>double</code> erra centavos (<code>0,30000000000000004</code>).</td><td><a href="decimais.html">float, double e decimal</a></td></tr>
+<tr><td><code>TryParse</code> com entrada do usuário</td><td><code>Parse</code> lança <code>FormatException</code> com qualquer texto errado.</td><td><a href="parse.html">Parse e TryParse</a></td></tr>
+<tr><td>Nenhum <code>catch</code> vazio; pegue a exceção específica</td><td>Erro escondido vira resultado errado sem explicação.</td><td><a href="try-catch.html">try e catch</a></td></tr>
+<tr><td><code>using</code> para arquivos e conexões</td><td>Fecha na hora, mesmo com exceção.</td><td><a href="using-dispose.html">using e IDisposable</a></td></tr>
+<tr><td><code>const</code> no lugar de números mágicos</td><td>O número ganha significado e muda num lugar só.</td><td><a href="constantes.html">Constantes</a></td></tr>
+<tr><td>Lista vazia (<code>[]</code>) em vez de <code>null</code></td><td>Quem chama não precisa conferir <code>null</code>.</td><td><a href="list.html">List&lt;T&gt;</a></td></tr>
+<tr><td>Métodos curtos, que fazem uma coisa só</td><td>Fáceis de ler, testar e reaproveitar.</td><td><a href="metodos.html">Métodos</a>, <a href="testes.html">Testes</a></td></tr>
+<tr><td><code>dotnet format</code></td><td>Todos os arquivos no mesmo padrão, sem esforço.</td><td><a href="dotnet-cli.html">O Comando dotnet</a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">1. Qual destes nomes segue a convenção do C# para um <strong>método</strong>?</p>
+<label><input type="radio" name="q1"> <code>calcular_media</code></label>
+<label><input type="radio" name="q1"> <code>CalcularMedia</code></label>
+<label><input type="radio" name="q1"> <code>calcularMedia</code></label>
+<label><input type="radio" name="q1"> <code>CALCULAR_MEDIA</code></label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">2. O compilador mostrou <code>warning CS8602: Desreferência de uma referência possivelmente nula.</code> O que fazer?</p>
+<label><input type="radio" name="q2"> Nada: é só um aviso, o programa roda.</label>
+<label><input type="radio" name="q2"> Desligar o <code>Nullable</code> no projeto.</label>
+<label><input type="radio" name="q2"> Tratar o caso <code>null</code> (com <code>if</code>, <code>?.</code> ou <code>??</code>), porque o programa pode cair com <code>NullReferenceException</code>.</label>
+<label><input type="radio" name="q2"> Trocar <code>string?</code> por <code>object</code>.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">3. Qual tipo usar para guardar o saldo de uma conta?</p>
+<label><input type="radio" name="q3"> <code>decimal</code></label>
+<label><input type="radio" name="q3"> <code>double</code></label>
+<label><input type="radio" name="q3"> <code>float</code></label>
+<label><input type="radio" name="q3"> <code>int</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">4. O que há de errado com <code>catch { }</code>?</p>
+<label><input type="radio" name="q4"> Não compila: falta o tipo da exceção.</label>
+<label><input type="radio" name="q4"> Deixa o programa mais lento.</label>
+<label><input type="radio" name="q4"> Nada, é a forma recomendada.</label>
+<label><input type="radio" name="q4"> Esconde qualquer erro: o programa segue como se nada tivesse acontecido.</label>
+</div>
+
+<div class="exercise">
+<p>5. Complete o método que converte o texto digitado sem lançar exceção:</p>
+<div class="ex-code">if (int.<input data-answer="TryParse" aria-label="método" size="10">(Console.ReadLine(), out int idade))</div>
+</div>
+
+<div class="exercise">
+<p>6. Complete o comando do SDK que arruma os espaços e as chaves de um projeto:</p>
+<div class="ex-code">$ dotnet <input data-answer="format" aria-label="comando" size="8"></div>
+</div>
+
+<div class="trycs" data-file="caixa.cs" data-stdin="3\n50\n40,50\n30\n" data-goal="out:Total: R$ 108\,45,src:decimal\.TryParse,semaviso">
+<p class="try-task"><strong>Missão final:</strong> reescreva o caixa antigo com as boas práticas. Troque <code>double</code> por <code>decimal</code>, os dois <code>Parse</code> por <code>TryParse</code> (mostrando uma mensagem e usando <code>return;</code> quando a entrada for ruim) e mostre o total com <code>:C</code>. A meta: sair <code>Total: R$ 108,45</code> e compilar <strong>sem nenhum aviso</strong>. Se quiser, use a versão "depois" da aula como guia.</p>
+<pre class="script" data-file="caixa.cs">Console.Write("Quantos itens? ");
+int n = int.Parse(Console.ReadLine());
+double t = 0;
+for (int i = 0; i &lt; n; i++)
+{
+    Console.Write("Preço: ");
+    t += double.Parse(Console.ReadLine());
+}
+if (t &gt; 100) t = t * 0.9;
+Console.WriteLine("Total: " + t);
+</pre>
+<pre class="solucao" data-file="caixa.cs">const decimal ValorParaDesconto = 100m;
+const decimal Desconto = 0.10m; // 10%
+
+Console.Write("Quantos itens? ");
+if (!int.TryParse(Console.ReadLine(), out int quantidade) || quantidade &lt; 1)
+{
+    Console.WriteLine("Quantidade inválida.");
+    return;
+}
+
+decimal total = 0m;
+for (int item = 1; item &lt;= quantidade; item++)
+{
+    Console.Write($"Preço do item {item}: ");
+    if (!decimal.TryParse(Console.ReadLine(), out decimal preco) || preco &lt; 0)
+    {
+        Console.WriteLine("Preço inválido.");
+        return;
+    }
+    total += preco;
+}
+
+if (total &gt; ValorParaDesconto)
+{
+    total = total * (1 - Desconto);
+}
+Console.WriteLine($"Total: {total:C}");
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Nomes que explicam: PascalCase para tipos, métodos, propriedades e constantes; camelCase para variáveis e parâmetros.</li>
+  <li>Avisos são defeitos esperando a hora: leia, conserte e, se quiser garantia, ligue o <code>TreatWarningsAsErrors</code>.</li>
+  <li><code>decimal</code> para dinheiro; <code>TryParse</code> para tudo o que vem do usuário.</li>
+  <li>Nada de <code>catch</code> vazio: pegue a exceção que você sabe tratar e faça algo com ela.</li>
+  <li><code>using</code> fecha arquivos e conexões na hora certa.</li>
+  <li>Constantes com nome no lugar de números mágicos; lista vazia em vez de <code>null</code>.</li>
+  <li><code>dotnet format</code> deixa o código no padrão sem esforço.</li>
+</ul>
+<p>Hora de juntar tudo em programas completos: <a href="projetos.html">Sobre os Projetos</a>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
