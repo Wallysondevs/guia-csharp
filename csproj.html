@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# O Arquivo .csproj — TargetFramework, Nullable, ImplicitUsings e mais | Guia C#</title>
+<meta name="description" content="O arquivo .csproj para quem está começando: Project Sdk, PropertyGroup, OutputType, TargetFramework, ImplicitUsings e o GlobalUsings.g.cs, Nullable, AssemblyName, Version, copiar arquivos de dados com ItemGroup, TreatWarningsAsErrors, NoWarn, LangVersion, as diretivas #:property dos arquivos soltos, dotnet project convert e os erros MSB4025, NETSDK1045 e CS8805, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">O Arquivo .csproj</span></h1>
+
+<p class="intro">Todo projeto C# tem um arquivo com o nome do projeto e a extensão <code>.csproj</code> (de <em>C# project</em>, "projeto C#"). Ele é pequeno, quase sempre umas dez linhas, mas manda em tudo: qual versão do .NET usar, se o programa é um executável ou uma biblioteca, se o compilador avisa sobre <code>null</code>, que nome o programa vai ter, que arquivos vão junto com ele, que pacotes ele usa. Nesta aula você vai ler o <code>.csproj</code> linha por linha e aprender a mudar as configurações mais comuns.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>As linhas do <code>.csproj</code> que o <code>dotnet new console</code> cria: <code>Project Sdk</code>, <code>PropertyGroup</code>, <code>OutputType</code>, <code>TargetFramework</code>, <code>ImplicitUsings</code> e <code>Nullable</code>.</li>
+  <li>O que são os <strong>usings implícitos</strong> e o arquivo <code>GlobalUsings.g.cs</code>; como acrescentar um com <code>&lt;Using Include="…" /&gt;</code>.</li>
+  <li>A mudar o nome e a versão do programa (<code>AssemblyName</code>, <code>Version</code>) e a copiar um arquivo de dados junto com ele (<code>ItemGroup</code>).</li>
+  <li>A tratar avisos como erros (<code>TreatWarningsAsErrors</code>) e a calar um aviso (<code>NoWarn</code>).</li>
+  <li><code>LangVersion</code>, as diretivas <code>#:property</code> dos arquivos soltos <span class="versao">.NET 10</span> e o <code>dotnet project convert</code>.</li>
+  <li>Os erros <code>MSB4025</code>, <code>NETSDK1045</code> e <code>CS8805</code>, e a propriedade escrita errado que ninguém avisa.</li>
+</ul>
+</div>
+
+<p>Todas as saídas desta aula são reais, feitas com o <strong>.NET 10 SDK</strong> (<code>10.0.112</code>) na máquina fictícia da Ana, no projeto <code>~/projetos/Lojinha</code>, criado com <code>dotnet new console -o Lojinha</code> (veja <a href="projetos-console.html">Projetos</a> e <a href="dotnet-cli.html">O Comando dotnet</a>).</p>
+
+<hr>
+
+<h2>A ideia: a ficha técnica do projeto</h2>
+<p>Numa receita de bolo, antes do modo de fazer, vem a ficha: "rende 12 fatias, forno a 180 °C, tempo 40 minutos, contém glúten". A ficha não é o bolo, mas diz como ele deve ser feito. O <code>.csproj</code> é a ficha técnica do projeto. Os arquivos <code>.cs</code> são o "modo de fazer" (o código); o <code>.csproj</code> diz ao <code>dotnet build</code> <strong>como</strong> transformar esse código num programa.</p>
+
+<p>Ele é escrito em <strong>XML</strong>, um formato de texto com <strong>etiquetas</strong> (em inglês, <em>tags</em>) entre <code>&lt; &gt;</code>, como o HTML das páginas da internet. Cada informação fica entre uma etiqueta de abertura e uma de fechamento, com o mesmo nome:</p>
+
+<pre class="file" data-file="exemplo">&lt;Nome&gt;valor&lt;/Nome&gt;
+«abre com &lt;Nome&gt;, fecha com &lt;/Nome&gt; (com a barra)»</pre>
+
+<hr>
+
+<h2>1. O <code>.csproj</code> de um projeto novo</h2>
+<pre class="term" data-cwd="~/projetos/Lojinha">$ cat Lojinha.csproj
+&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+
+  &lt;PropertyGroup&gt;
+    &lt;OutputType&gt;Exe&lt;/OutputType&gt;
+    &lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;
+    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+    &lt;Nullable&gt;enable&lt;/Nullable&gt;
+  &lt;/PropertyGroup&gt;
+
+&lt;/Project&gt;</pre>
+
+<dl class="anatomy">
+  <dt>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;</dt><dd>"Projeto": a etiqueta que envolve o arquivo inteiro (ela fecha na última linha, <code>&lt;/Project&gt;</code>). O <code>Sdk="Microsoft.NET.Sdk"</code> é um <strong>atributo</strong>: diz que este é um projeto .NET comum e traz centenas de regras prontas (onde ficam os <code>.cs</code>, como chamar o compilador, onde pôr o resultado). É por isso que o arquivo é tão curto: o resto vem do SDK. Sites usam <code>Microsoft.NET.Sdk.Web</code>.</dd>
+  <dt>&lt;PropertyGroup&gt;</dt><dd>"Grupo de propriedades": uma caixa com as configurações do projeto. Cada linha dentro dela é uma <strong>propriedade</strong>: um nome e um valor.</dd>
+  <dt>&lt;OutputType&gt;Exe&lt;/OutputType&gt;</dt><dd>"Tipo de saída": <code>Exe</code> (de <em>executable</em>) é um programa que dá para rodar. A outra opção comum é <code>Library</code>, uma biblioteca, que só serve para outros projetos usarem (veja <a href="bibliotecas-classe.html">Bibliotecas de Classes</a>).</dd>
+  <dt>&lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;</dt><dd>"Plataforma alvo": para qual versão do .NET o programa é feito. <code>net10.0</code> é o .NET 10; <code>net8.0</code>, o .NET 8. Ela decide também a versão do C# (o .NET 10 usa o C# 14) e quais classes você pode usar.</dd>
+  <dt>&lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;</dt><dd>"Usings implícitos: ligado". É por causa desta linha que você escreve <code>Console</code>, <code>List&lt;T&gt;</code> e <code>File</code> sem nenhum <code>using</code> no começo do arquivo (seção 2).</dd>
+  <dt>&lt;Nullable&gt;enable&lt;/Nullable&gt;</dt><dd>"Anuláveis: ligado". Liga os avisos sobre <code>null</code>: o compilador passa a separar <code>string</code> (nunca nulo) de <code>string?</code> (pode ser nulo) (seção 3 e <a href="null.html">null e Tipos Anuláveis</a>).</dd>
+</dl>
+
+<p>Repare no que <strong>não</strong> está ali: a lista dos arquivos <code>.cs</code>. O SDK compila automaticamente <strong>todos</strong> os <code>.cs</code> da pasta do projeto e das subpastas (menos <code>bin</code> e <code>obj</code>). Criou um <code>Produto.cs</code>? Ele já faz parte do projeto, sem mexer no <code>.csproj</code>.</p>
+
+<div class="tip">
+<strong>Maiúsculas importam.</strong> No XML, <code>&lt;OutputType&gt;</code> e <code>&lt;outputtype&gt;</code> são etiquetas diferentes. Copie os nomes exatamente como aparecem nesta aula.
+</div>
+
+<hr>
+
+<h2>2. Os usings implícitos</h2>
+<p>Quando <code>ImplicitUsings</code> está ligado, o <code>dotnet build</code> escreve sozinho um arquivo de código na pasta <code>obj</code> e o compila junto com o seu:</p>
+
+<pre class="term" data-cwd="~/projetos/Lojinha">$ cat obj/Debug/net10.0/Lojinha.GlobalUsings.g.cs
+// &lt;auto-generated/&gt;
+global using System;
+global using System.Collections.Generic;
+global using System.IO;
+global using System.Linq;
+global using System.Net.Http;
+global using System.Threading;
+global using System.Threading.Tasks;</pre>
+
+<dl class="anatomy">
+  <dt>// &lt;auto-generated/&gt;</dt><dd>"Gerado automaticamente": não edite; ele é reescrito a cada <code>build</code>. O <code>.g.</code> no nome também quer dizer <em>generated</em>.</dd>
+  <dt>global using System;</dt><dd>Um <code>using</code> com <code>global</code> na frente vale para <strong>todos</strong> os arquivos do projeto, não só para este (veja <a href="namespaces.html">Namespaces e using</a>). <code>System</code> traz <code>Console</code>; <code>System.Collections.Generic</code>, <code>List</code> e <code>Dictionary</code>; <code>System.IO</code>, <code>File</code>; <code>System.Linq</code>, o LINQ; <code>System.Threading.Tasks</code>, <code>Task</code>.</dd>
+</dl>
+
+<p>Para ver a diferença, a Ana desligou (<code>&lt;ImplicitUsings&gt;disable&lt;/ImplicitUsings&gt;</code>) e compilou um programa de duas linhas:</p>
+
+<pre class="file" data-file="Program.cs">var itens = new List&lt;string&gt; { "caderno", "lápis" };
+Console.WriteLine(itens.Count);
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet build 2&gt;&amp;1 | grep -E "warning|error|Aviso|Erro"
+/home/ana/projetos/Lojinha/Program.cs(1,17): error CS0246: O nome do tipo ou do namespace "List&lt;&gt;" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?) [/home/ana/projetos/Lojinha/Lojinha.csproj]
+/home/ana/projetos/Lojinha/Program.cs(2,1): error CS0103: O nome "Console" não existe no contexto atual [/home/ana/projetos/Lojinha/Lojinha.csproj]
+«… as mesmas duas linhas, repetidas no resumo …»
+    0 Aviso(s)
+    2 Erro(s)</pre>
+
+<p>Sem os usings implícitos, nem o <code>Console</code> existe: seria preciso escrever <code>using System;</code> e <code>using System.Collections.Generic;</code> no começo. É assim que eram os programas até o .NET 5, e é por isso que código antigo começa com uma fileira de <code>using</code>. (No fim de cada mensagem, entre colchetes, vem o projeto em que o erro aconteceu. O <code>dotnet build</code> mostra cada erro duas vezes: quando acontece e no resumo do fim.)</p>
+
+<h3>Acrescentar um using para o projeto inteiro</h3>
+<p>A Ana usa <code>StringBuilder</code> (de <code>System.Text</code>, veja <a href="stringbuilder.html">StringBuilder</a>) em vários arquivos. Ela não está na lista acima:</p>
+
+<pre class="file" data-file="Program.cs">var sb = new StringBuilder();
+sb.Append("caderno, ");
+sb.Append("lápis");
+Console.WriteLine(sb.ToString());
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet build 2&gt;&amp;1 | grep -E " error " | head -1
+/home/ana/projetos/Lojinha/Program.cs(1,14): error CS0246: O nome do tipo ou do namespace "StringBuilder" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?) [/home/ana/projetos/Lojinha/Lojinha.csproj]</pre>
+
+<p>Em vez de pôr <code>using System.Text;</code> em cada arquivo, ela acrescenta um <strong>item</strong> <code>Using</code> no <code>.csproj</code>:</p>
+
+<pre class="file" data-file="Lojinha.csproj">&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+
+  &lt;PropertyGroup&gt;
+    &lt;OutputType&gt;Exe&lt;/OutputType&gt;
+    &lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;
+    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+    &lt;Nullable&gt;enable&lt;/Nullable&gt;
+  &lt;/PropertyGroup&gt;
+
+  &lt;ItemGroup&gt;
+    &lt;Using Include="System.Text" /&gt;
+  &lt;/ItemGroup&gt;
+
+&lt;/Project&gt;
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet run
+caderno, lápis
+$ cat obj/Debug/net10.0/Lojinha.GlobalUsings.g.cs
+// &lt;auto-generated/&gt;
+global using System;
+global using System.Collections.Generic;
+global using System.IO;
+global using System.Linq;
+global using System.Net.Http;
+global using System.Text;
+global using System.Threading;
+global using System.Threading.Tasks;</pre>
+
+<dl class="anatomy">
+  <dt>&lt;ItemGroup&gt;</dt><dd>"Grupo de itens": a segunda caixa do <code>.csproj</code>. O <code>PropertyGroup</code> guarda <strong>configurações</strong> (um valor cada); o <code>ItemGroup</code> guarda <strong>listas de coisas</strong>: arquivos, pacotes, outros projetos, usings.</dd>
+  <dt>&lt;Using Include="System.Text" /&gt;</dt><dd>"Inclua o using <code>System.Text</code>". A barra antes do <code>&gt;</code> fecha a etiqueta ali mesmo: é uma etiqueta sem conteúdo, só com atributo. O <code>global using System.Text;</code> apareceu no arquivo gerado.</dd>
+</dl>
+
+<p>Fazer isso num arquivo de código também vale: um arquivo <code>Usings.cs</code> com <code>global using System.Text;</code> tem o mesmo efeito. Experimente:</p>
+
+<div class="trycs" data-goal="compila,out:caderno\, lápis">
+<p class="try-task"><strong>Missão:</strong> as duas abas são compiladas juntas, como num projeto. O <code>Program.cs</code> usa <code>StringBuilder</code>, que não está nos usings implícitos, e o build falha com <code>CS0246</code>. <strong>Sem mexer no <code>Program.cs</code></strong>, escreva na aba <code>Usings.cs</code> a linha <code>global using System.Text;</code> e rode.</p>
+<pre class="script" data-file="Program.cs">var sb = new StringBuilder();
+sb.Append("caderno, ");
+sb.Append("lápis");
+Console.WriteLine(sb.ToString());
+</pre>
+<pre class="script" data-file="Usings.cs">// os usings do projeto inteiro
+</pre>
+<pre class="solucao" data-file="Usings.cs">// os usings do projeto inteiro
+global using System.Text;
+</pre>
+</div>
+
+<hr>
+
+<h2>3. <code>Nullable</code>: os avisos sobre <code>null</code></h2>
+<p>Com <code>&lt;Nullable&gt;enable&lt;/Nullable&gt;</code>, o compilador avisa quando você pode estar usando algo que vale <code>null</code>:</p>
+
+<pre class="file" data-file="Program.cs">string? apelido = null;
+Console.WriteLine($"Tamanho: {apelido.Length}");
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet build 2&gt;&amp;1 | grep -E "warning|error|Aviso|Erro"
+/home/ana/projetos/Lojinha/Program.cs(2,31): warning CS8602: Desreferência de uma referência possivelmente nula. [/home/ana/projetos/Lojinha/Lojinha.csproj]
+«… a mesma linha, repetida no resumo …»
+    1 Aviso(s)
+    0 Erro(s)</pre>
+
+<p>O aviso <code>CS8602</code> ("uso de uma referência possivelmente nula") salvou a Ana: esse programa daria <code>NullReferenceException</code>. Com <code>disable</code>, o aviso some, e aparece outro, dizendo que o <code>?</code> de <code>string?</code> não tem efeito:</p>
+
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet build 2&gt;&amp;1 | grep -E "warning|error|Aviso|Erro"
+/home/ana/projetos/Lojinha/Program.cs(1,7): warning CS8632: A anotação para tipos de referência anuláveis deve ser usada apenas em código em um contexto de anotações '#nullable'. [/home/ana/projetos/Lojinha/Lojinha.csproj]
+«…»
+    1 Aviso(s)
+    0 Erro(s)</pre>
+
+<p>Deixe sempre <code>enable</code>, como o modelo cria. Projetos antigos (de antes do .NET 6) não têm essa linha, e por isso não mostram esses avisos.</p>
+
+<hr>
+
+<h2>4. Nome, versão e arquivos de dados</h2>
+<p>A Ana quer que o executável se chame <code>loja</code> (sem maiúscula, como os comandos do Linux), que o programa saiba a própria versão e que a tabela de preços <code>precos.txt</code> vá junto com ele. O <code>.csproj</code> ficou assim:</p>
+
+<pre class="file" data-file="Lojinha.csproj">&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+
+  &lt;PropertyGroup&gt;
+    &lt;OutputType&gt;Exe&lt;/OutputType&gt;
+    &lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;
+    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+    &lt;Nullable&gt;enable&lt;/Nullable&gt;
+    &lt;AssemblyName&gt;loja&lt;/AssemblyName&gt;
+    &lt;Version&gt;1.2.0&lt;/Version&gt;
+  &lt;/PropertyGroup&gt;
+
+  &lt;ItemGroup&gt;
+    &lt;None Update="precos.txt" CopyToOutputDirectory="PreserveNewest" /&gt;
+  &lt;/ItemGroup&gt;
+
+&lt;/Project&gt;
+</pre>
+
+<pre class="file" data-file="precos.txt">caderno;12,50
+lápis;1,99
+</pre>
+
+<pre class="file" data-file="Program.cs">using System.Reflection;
+
+string versao = Assembly.GetExecutingAssembly().GetName().Version!.ToString();
+Console.WriteLine($"Lojinha da Ana, versão {versao}");
+
+foreach (string linha in File.ReadAllLines("precos.txt"))
+{
+    string[] partes = linha.Split(';');
+    Console.WriteLine($"{partes[0],-10} R$ {partes[1]}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet build
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Lojinha/Lojinha.csproj restaurado (em 161 ms).
+  Lojinha -&gt; /home/ana/projetos/Lojinha/bin/Debug/net10.0/loja.dll
+
+Compilação com êxito.
+    0 Aviso(s)
+    0 Erro(s)
+
+Tempo Decorrido 00:00:04.91
+$ ls bin/Debug/net10.0/
+loja
+loja.deps.json
+loja.dll
+loja.pdb
+loja.runtimeconfig.json
+precos.txt
+$ cd bin/Debug/net10.0 &amp;&amp; ./loja &amp;&amp; cd ../../..
+Lojinha da Ana, versão 1.2.0.0
+caderno    R$ 12,50
+lápis      R$ 1,99</pre>
+
+<dl class="anatomy">
+  <dt>&lt;AssemblyName&gt;loja&lt;/AssemblyName&gt;</dt><dd>"Nome do assembly": o nome dos arquivos gerados (<code>loja</code>, <code>loja.dll</code>…). Sem ela, o nome é o do <code>.csproj</code>. Um <strong>assembly</strong> é o nome que o .NET dá a um <code>.dll</code> ou executável compilado. Repare que a linha <code>Lojinha -&gt; …/loja.dll</code> mostra os dois: o projeto continua se chamando <code>Lojinha</code>.</dd>
+  <dt>&lt;Version&gt;1.2.0&lt;/Version&gt;</dt><dd>A versão do programa, gravada dentro do <code>loja.dll</code>. O <code>Assembly.GetExecutingAssembly().GetName().Version</code> a lê de volta (veja <a href="reflexao.html">Reflexão</a>), com um quarto número, <code>.0</code>. O costume é <code>MAIOR.MENOR.CORREÇÃO</code>.</dd>
+  <dt>&lt;None Update="precos.txt" … /&gt;</dt><dd>Para o SDK, um <code>.txt</code> é um item do tipo <code>None</code> ("nenhum": não é para compilar). <code>Update</code> ("atualize") muda as regras de um item que o SDK já conhece: aqui, a regra de cópia.</dd>
+  <dt>CopyToOutputDirectory="PreserveNewest"</dt><dd>"Copie para a pasta de saída se for mais novo": o <code>precos.txt</code> aparece em <code>bin/Debug/net10.0/</code>, ao lado do executável. A outra opção é <code>Always</code> ("sempre").</dd>
+</dl>
+
+<div class="warning">
+<strong>O programa procura o arquivo na pasta em que ele <em>roda</em>.</strong> O <code>File.ReadAllLines("precos.txt")</code> procura na <strong>pasta atual</strong> do terminal. Por isso a Ana entrou em <code>bin/Debug/net10.0</code> antes de rodar. Com <code>dotnet run</code>, a pasta atual é a do projeto, onde o <code>precos.txt</code> original está, e também funciona. Para não depender disso, use <code>Path.Combine(AppContext.BaseDirectory, "precos.txt")</code>, que é sempre a pasta do executável (veja <a href="caminhos.html">Pastas e Caminhos</a>).
+</div>
+
+<hr>
+
+<h2>5. Avisos: mais rígido ou mais calmo</h2>
+<h3><code>TreatWarningsAsErrors</code>: aviso vira erro</h3>
+<p>Num projeto sério, aviso ignorado vira defeito. Com <code>&lt;TreatWarningsAsErrors&gt;true&lt;/TreatWarningsAsErrors&gt;</code> ("trate avisos como erros") no <code>PropertyGroup</code>, o build <strong>falha</strong> em qualquer aviso (veja <a href="avisos.html">Avisos do Compilador</a>):</p>
+
+<pre class="file" data-file="Program.cs">int naoUsada;
+Console.WriteLine("oi");
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet build 2&gt;&amp;1 | grep -E "warning|error|Aviso|Erro" | head -3
+/home/ana/projetos/Lojinha/Program.cs(1,5): error CS0168: A variável "naoUsada" está declarada, mas nunca é usada [/home/ana/projetos/Lojinha/Lojinha.csproj]
+/home/ana/projetos/Lojinha/Program.cs(1,5): error CS0168: A variável "naoUsada" está declarada, mas nunca é usada [/home/ana/projetos/Lojinha/Lojinha.csproj]
+    0 Aviso(s)</pre>
+
+<p>O <code>CS0168</code> é normalmente um <code>warning</code>; aqui saiu como <code>error</code>.</p>
+
+<h3><code>NoWarn</code>: calar um aviso específico</h3>
+<p>Para desligar <strong>um</strong> aviso no projeto inteiro, use <code>NoWarn</code> com o código dele:</p>
+
+<pre class="file" data-file="Lojinha.csproj">    &lt;TreatWarningsAsErrors&gt;true&lt;/TreatWarningsAsErrors&gt;
+    &lt;NoWarn&gt;$(NoWarn);CS0168&lt;/NoWarn&gt;
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet build 2&gt;&amp;1 | grep -E "warning|error|Aviso|Erro" | head -3
+    0 Aviso(s)
+    0 Erro(s)</pre>
+
+<dl class="anatomy">
+  <dt>$(NoWarn)</dt><dd>O <code>$( )</code> lê o valor <strong>atual</strong> de uma propriedade. O SDK já põe alguns códigos no <code>NoWarn</code>; escrevendo <code>$(NoWarn);CS0168</code>, você <strong>acrescenta</strong> o seu à lista em vez de apagar os dele.</dd>
+  <dt>;</dt><dd>Separa os itens de uma lista: <code>$(NoWarn);CS0168;CS8602</code>.</dd>
+</dl>
+
+<p>Use o <code>NoWarn</code> com moderação: calar um aviso não conserta o problema. Uma variável não usada se apaga.</p>
+
+<hr>
+
+<h2>6. Versão do C# e do .NET</h2>
+<h3><code>LangVersion</code>: travar a versão do C#</h3>
+<p>O <code>TargetFramework</code> já escolhe o C# certo (<code>net10.0</code> → C# 14), e quase nunca você precisa mudar. Mas a propriedade <code>LangVersion</code> existe, e é útil para ver o que uma versão antiga não aceita. A Ana usou a palavra-chave <code>field</code> <span class="versao">C# 14</span> numa propriedade (veja <a href="propriedades.html">Propriedades</a>):</p>
+
+<pre class="file" data-file="Program.cs">var p = new Produto { Nome = "  caderno  " };
+Console.WriteLine($"[{p.Nome}]");
+
+class Produto
+{
+    public string Nome
+    {
+        get;
+        set =&gt; field = value.Trim();
+    } = "";
+}
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet run
+[caderno]</pre>
+
+<p>Com <code>&lt;LangVersion&gt;13&lt;/LangVersion&gt;</code> no <code>PropertyGroup</code>:</p>
+
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet build 2&gt;&amp;1 | grep -E "error" | head -2
+/home/ana/projetos/Lojinha/Program.cs(6,19): error CS9260: O recurso "campo palavra-chave" não está disponível no C# 13.0. Use a versão da linguagem 14.0 ou superior. [/home/ana/projetos/Lojinha/Lojinha.csproj]
+«…»</pre>
+
+<p>A mensagem diz o recurso, a versão atual e a versão necessária (a tradução "campo palavra-chave" é do original <em>field keyword</em>, "a palavra-chave <code>field</code>"). Valores comuns: um número (<code>12</code>, <code>13</code>, <code>14</code>), <code>latest</code> (a mais nova que o compilador conhece) e <code>preview</code> (recursos ainda em teste).</p>
+
+<h3><code>TargetFramework</code>: outra versão do .NET</h3>
+<p>Trocar para <code>net8.0</code> faz o projeto ser compilado para o .NET 8 (o <code>dotnet build</code> baixa da internet as "referências" do .NET 8, e o C# vira o 12). Compila, mas, na máquina da Ana, que só tem o runtime do .NET 10, <strong>não roda</strong>:</p>
+
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet run; echo "código de saída: $?"
+/home/ana/projetos/Lojinha/Program.cs(2,31): warning CS8602: Desreferência de uma referência possivelmente nula. [/home/ana/projetos/Lojinha/Lojinha.csproj]
+You must install or update .NET to run this application.
+
+App: /home/ana/projetos/Lojinha/bin/Debug/net8.0/loja
+Architecture: x64
+Framework: 'Microsoft.NETCore.App', version '8.0.0' (x64)
+.NET location: /usr/lib/dotnet
+
+The following frameworks were found:
+  10.0.12 at [/usr/lib/dotnet/shared/Microsoft.NETCore.App]
+
+Learn more:
+https://aka.ms/dotnet/app-launch-failed
+
+To install missing framework, download:
+https://aka.ms/dotnet-core-applaunch?framework=Microsoft.NETCore.App&amp;framework_version=8.0.0&amp;arch=x64&amp;rid=ubuntu.26.04-x64&amp;os=ubuntu.26.04
+código de saída: 150</pre>
+
+<p>"Você precisa instalar ou atualizar o .NET para rodar este aplicativo": o programa pede o runtime <code>8.0.0</code>, e só o <code>10.0.12</code> foi encontrado. Um programa feito para o .NET 8 não roda sozinho num .NET 10 (veja <a href="versoes.html">Versões do C# e do .NET</a>). Para um programa novo, deixe <code>net10.0</code>.</p>
+
+<hr>
+
+<h2>7. Arquivos soltos: <code>#:property</code> <span class="versao">.NET 10</span></h2>
+<p>Um arquivo solto rodado com <code>dotnet run arquivo.cs</code> não tem <code>.csproj</code>... mas tem um escondido: o <code>dotnet</code> cria um projeto "virtual" para ele. Para mudar uma propriedade desse projeto, escreva uma <strong>diretiva</strong> <code>#:property Nome=Valor</code> no começo do arquivo:</p>
+
+<pre class="file" data-file="preco.cs">#:property LangVersion=13
+#:property Nullable=disable
+
+var p = new Produto { Nome = "  caderno  " };
+Console.WriteLine($"[{p.Nome}]");
+
+class Produto
+{
+    public string Nome
+    {
+        get;
+        set =&gt; field = value.Trim();
+    } = "";
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/csproj">$ dotnet run preco.cs
+/home/ana/cs/csproj/preco.cs(9,19): error CS9260: O recurso "campo palavra-chave" não está disponível no C# 13.0. Use a versão da linguagem 14.0 ou superior.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.
+$ sed -i '1d' preco.cs
+$ dotnet run preco.cs
+[caderno]</pre>
+
+<p>O <code>#:property LangVersion=13</code> fez o mesmo que o <code>&lt;LangVersion&gt;13&lt;/LangVersion&gt;</code>. O <code>sed -i '1d'</code> apagou a primeira linha, e o programa voltou a compilar. (A outra diretiva, <code>#:package</code>, que traz pacotes, está em <a href="nuget.html">Pacotes NuGet</a>.)</p>
+
+<h3>Do arquivo solto ao projeto: <code>dotnet project convert</code></h3>
+<p>Quando o arquivo cresce e merece virar projeto, o <code>dotnet</code> faz a conversão e transforma as diretivas em propriedades:</p>
+
+<pre class="term" data-cwd="~/cs/csproj">$ dotnet project convert preco.cs
+$ ls
+preco
+preco.cs
+$ ls preco
+preco.cs
+preco.csproj
+$ cat preco/preco.csproj
+&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+
+  &lt;PropertyGroup&gt;
+    &lt;OutputType&gt;Exe&lt;/OutputType&gt;
+    &lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;
+    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+    &lt;PublishAot&gt;true&lt;/PublishAot&gt;
+    &lt;PackAsTool&gt;true&lt;/PackAsTool&gt;
+    &lt;UserSecretsId&gt;preco-7a1225a797ad0e935c00e2d01a8479b119ec6ea9614670c215fe58bd7891b396&lt;/UserSecretsId&gt;
+    &lt;Nullable&gt;disable&lt;/Nullable&gt;
+  &lt;/PropertyGroup&gt;
+
+&lt;/Project&gt;</pre>
+
+<p>A pasta <code>preco</code> nova tem uma cópia do código e um <code>.csproj</code> com as configurações que um arquivo solto usa sem você ver. Além das quatro conhecidas, aparecem três que um <code>dotnet new console</code> não põe: <code>PublishAot</code> (publicar em código nativo, veja <a href="publicar.html">Publicar o Programa</a>), <code>PackAsTool</code> (poder virar uma ferramenta do <code>dotnet tool</code>) e <code>UserSecretsId</code> (um nome único para guardar senhas de desenvolvimento fora do código). O <code>Nullable</code> é o <code>disable</code> que veio da diretiva. Pode apagar as três linhas se não for usá-las.</p>
+
+<hr>
+
+<h2>Referência: as propriedades mais usadas</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>No <code>PropertyGroup</code></th><th>Valores</th><th>O que faz</th></tr>
+<tr><td><code>OutputType</code></td><td><code>Exe</code>, <code>Library</code></td><td>Programa ou biblioteca.</td></tr>
+<tr><td><code>TargetFramework</code></td><td><code>net10.0</code>, <code>net8.0</code>…</td><td>A versão do .NET (e, com ela, a do C#).</td></tr>
+<tr><td><code>ImplicitUsings</code></td><td><code>enable</code>, <code>disable</code></td><td>Os <code>global using</code> automáticos.</td></tr>
+<tr><td><code>Nullable</code></td><td><code>enable</code>, <code>disable</code></td><td>Os avisos sobre <code>null</code>.</td></tr>
+<tr><td><code>AssemblyName</code></td><td>um nome</td><td>O nome do <code>.dll</code> e do executável.</td></tr>
+<tr><td><code>RootNamespace</code></td><td>um nome</td><td>O namespace que o editor usa nos arquivos novos.</td></tr>
+<tr><td><code>Version</code></td><td><code>1.2.0</code></td><td>A versão do programa.</td></tr>
+<tr><td><code>TreatWarningsAsErrors</code></td><td><code>true</code>, <code>false</code></td><td>Todo aviso vira erro.</td></tr>
+<tr><td><code>NoWarn</code></td><td><code>$(NoWarn);CS0168</code></td><td>Desliga avisos pelo código.</td></tr>
+<tr><td><code>LangVersion</code></td><td><code>13</code>, <code>14</code>, <code>latest</code>, <code>preview</code></td><td>Trava a versão do C#.</td></tr>
+</table>
+</div>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>No <code>ItemGroup</code></th><th>O que faz</th></tr>
+<tr><td><code>&lt;Using Include="System.Text" /&gt;</code></td><td>Um <code>global using</code> para o projeto todo.</td></tr>
+<tr><td><code>&lt;None Update="dados.txt" CopyToOutputDirectory="PreserveNewest" /&gt;</code></td><td>Copia o arquivo para a pasta do executável.</td></tr>
+<tr><td><code>&lt;PackageReference Include="Nome" Version="1.0.0" /&gt;</code></td><td>Usa um pacote do NuGet (veja <a href="nuget.html">Pacotes NuGet</a>).</td></tr>
+<tr><td><code>&lt;ProjectReference Include="../Outro/Outro.csproj" /&gt;</code></td><td>Usa outro projeto (veja <a href="bibliotecas-classe.html">Bibliotecas de Classes</a>).</td></tr>
+<tr><td><code>&lt;Compile Remove="Rascunho.cs" /&gt;</code></td><td>Tira um <code>.cs</code> da compilação.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error MSB4025: Não foi possível carregar o arquivo de projeto.</code></strong>
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet build
+/home/ana/projetos/Lojinha/Lojinha.csproj(4,22): error MSB4025: Não foi possível carregar o arquivo de projeto. The 'OutputType' start tag on line 4 position 6 does not match the end tag of 'OutputTipe'. Line 4, position 22.
+
+FALHA da compilação.
+«… a mesma linha, repetida …»
+    0 Aviso(s)
+    1 Erro(s)</pre>
+<p><strong>O que aconteceu:</strong> o XML está quebrado. A linha 4 abre com <code>&lt;OutputType&gt;</code> e fecha com <code>&lt;/OutputTipe&gt;</code>: "a etiqueta de abertura <code>OutputType</code> não combina com a de fechamento <code>OutputTipe</code>". O mesmo erro aparece se faltar um <code>&lt;/…&gt;</code>, um <code>&gt;</code> ou uma aspa.</p>
+<p><strong>Como resolver:</strong> vá à linha e à coluna indicadas (<code>(4,22)</code>) e deixe a abertura e o fechamento com o mesmo nome. Um editor com destaque de XML ajuda a achar a etiqueta errada.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error NETSDK1045: o SDK .NET atual não oferece suporte ao direcionamento .NET 11.0.</code></strong>
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet build
+  Determinando os projetos a serem restaurados...
+/usr/lib/dotnet/sdk/10.0.112/Sdks/Microsoft.NET.Sdk/targets/Microsoft.NET.TargetFrameworkInference.targets(184,5): error NETSDK1045: o SDK .NET atual não oferece suporte ao direcionamento .NET 11.0.  Destina-se a .NET 10.0 ou inferior ou usa uma versão do .NET SDK compatível com .NET 11.0. Baixe o SDK .NET em https://aka.ms/dotnet/download [/home/ana/projetos/Lojinha/Lojinha.csproj]
+
+FALHA da compilação.
+«…»</pre>
+<p><strong>O que aconteceu:</strong> o projeto pede <code>net11.0</code>, mas o SDK instalado é o do .NET 10, que não sabe compilar para uma versão mais nova que ele. Acontece ao baixar um projeto feito por alguém com um SDK mais novo. O começo da mensagem é o arquivo de regras do SDK onde o erro foi detectado: não é para você mexer nele.</p>
+<p><strong>Como resolver:</strong> troque para <code>&lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;</code> (se o código não usa nada do .NET 11) ou instale o SDK mais novo.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8805: O programa que usa as instruções de nível superior precisa ser um executável.</code></strong>
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet run 2&gt;&amp;1 | tail -4
+/home/ana/projetos/Lojinha/Program.cs(1,1): error CS8805: O programa que usa as instruções de nível superior precisa ser um executável. [/home/ana/projetos/Lojinha/Lojinha.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> o <code>.csproj</code> tem <code>&lt;OutputType&gt;Library&lt;/OutputType&gt;</code>, mas o <code>Program.cs</code> tem código solto, fora de classes (as instruções de nível superior, veja <a href="top-level.html">Program.cs e o Main</a>). Uma biblioteca não tem por onde começar a rodar.</p>
+<p><strong>Como resolver:</strong> para um programa, <code>&lt;OutputType&gt;Exe&lt;/OutputType&gt;</code>. Para uma biblioteca, tire o código solto (só classes).</p>
+</div>
+
+<div class="cenario">
+<strong>Escrevi a propriedade e nada mudou</strong>
+<p>A Ana escreveu <code>&lt;Nulable&gt;enable&lt;/Nulable&gt;</code> (com um <code>l</code> só) e compilou o programa do <code>apelido.Length</code>:</p>
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet build 2&gt;&amp;1 | grep -E "warning|Aviso"
+/home/ana/projetos/Lojinha/Program.cs(1,7): warning CS8632: A anotação para tipos de referência anuláveis deve ser usada apenas em código em um contexto de anotações '#nullable'. [/home/ana/projetos/Lojinha/Lojinha.csproj]
+«…»
+    1 Aviso(s)</pre>
+<p><strong>O que aconteceu:</strong> é o aviso de quando o <code>Nullable</code> está <strong>desligado</strong>. No <code>PropertyGroup</code>, qualquer nome é aceito: <code>Nulable</code> virou uma propriedade nova, que ninguém lê. O SDK não avisa nada, e o <code>Nullable</code> de verdade ficou com o valor padrão (desligado).</p>
+<p><strong>Como resolver:</strong> confira a grafia letra por letra, com as maiúsculas. Na dúvida, copie o nome da tabela de referência acima ou da documentação.</p>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Programa ou biblioteca?</h3>
+<p>Complete para o projeto gerar um programa que dá para rodar:</p>
+<div class="ex-code">&lt;OutputType&gt;<input data-answer="Exe" aria-label="tipo">&lt;/OutputType&gt;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Para o .NET 10</h3>
+<p>Complete o valor da plataforma alvo do .NET 10:</p>
+<div class="ex-code">&lt;TargetFramework&gt;<input data-answer="net10.0" aria-label="versão">&lt;/TargetFramework&gt;</div>
+</div>
+
+<div class="exercise">
+<h3>3. Aviso vira erro</h3>
+<p>Complete a propriedade que faz o build falhar em qualquer aviso:</p>
+<div class="ex-code">&lt;<input data-answer="TreatWarningsAsErrors" aria-label="propriedade">&gt;true&lt;/TreatWarningsAsErrors&gt;</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Por que um projeto novo usa <code>Console</code> e <code>List&lt;T&gt;</code> sem nenhum <code>using</code>?</p>
+<label><input type="radio" name="q4"> Porque o C# 14 não precisa mais de <code>using</code>.</label>
+<label><input type="radio" name="q4"> Por causa do <code>&lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;</code>, que gera os <code>global using</code> no <code>obj</code>.</label>
+<label><input type="radio" name="q4"> Por causa do <code>&lt;Nullable&gt;enable&lt;/Nullable&gt;</code>.</label>
+<label><input type="radio" name="q4"> Porque o <code>Program.cs</code> é especial.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. A Ana criou o arquivo <code>Cliente.cs</code> na pasta do projeto. O que precisa mudar no <code>.csproj</code>?</p>
+<label><input type="radio" name="q5"> Acrescentar <code>&lt;Compile Include="Cliente.cs" /&gt;</code>.</label>
+<label><input type="radio" name="q5"> Acrescentar <code>&lt;Using Include="Cliente" /&gt;</code>.</label>
+<label><input type="radio" name="q5"> Nada: o SDK compila todos os <code>.cs</code> da pasta.</label>
+<label><input type="radio" name="q5"> Trocar o <code>OutputType</code> para <code>Library</code>.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. O <code>dados.csv</code> não aparece em <code>bin/Debug/net10.0</code>. Qual linha resolve?</p>
+<label><input type="radio" name="q6"> <code>&lt;None Update="dados.csv" CopyToOutputDirectory="PreserveNewest" /&gt;</code></label>
+<label><input type="radio" name="q6"> <code>&lt;AssemblyName&gt;dados.csv&lt;/AssemblyName&gt;</code></label>
+<label><input type="radio" name="q6"> <code>&lt;Using Include="dados.csv" /&gt;</code></label>
+<label><input type="radio" name="q6"> <code>&lt;Version&gt;dados.csv&lt;/Version&gt;</code></label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>O <code>.csproj</code> é a ficha técnica do projeto, em XML: <code>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;</code> com <code>PropertyGroup</code> (configurações) e <code>ItemGroup</code> (listas).</li>
+  <li>As quatro linhas do modelo: <code>OutputType</code> (<code>Exe</code>), <code>TargetFramework</code> (<code>net10.0</code>), <code>ImplicitUsings</code> e <code>Nullable</code> (<code>enable</code>).</li>
+  <li>Todos os <code>.cs</code> da pasta entram sozinhos. Os usings implícitos ficam em <code>obj/…/NOME.GlobalUsings.g.cs</code>; acrescente outros com <code>&lt;Using Include="…" /&gt;</code>.</li>
+  <li><code>AssemblyName</code> muda o nome do executável; <code>Version</code>, a versão; <code>&lt;None Update="…" CopyToOutputDirectory="PreserveNewest" /&gt;</code> copia arquivos de dados.</li>
+  <li><code>TreatWarningsAsErrors</code> deixa o projeto rígido; <code>NoWarn</code> cala um aviso; <code>LangVersion</code> trava o C#.</li>
+  <li>Arquivo solto: <code>#:property Nome=Valor</code>; para virar projeto, <code>dotnet project convert</code>.</li>
+  <li>Propriedade com nome errado não dá erro nenhum: só não funciona.</li>
+</ul>
+
+<div class="pager"></div>
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
