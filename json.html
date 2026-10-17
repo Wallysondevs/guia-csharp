@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# JSON — System.Text.Json: Serialize e Deserialize | Guia C#</title>
+<meta name="description" content="JSON em C# para quem nunca programou: o formato JSON, JsonSerializer.Serialize e Deserialize com records e listas, WriteIndented, salvar e carregar a agenda num arquivo .json, camelCase, PropertyNameCaseInsensitive, JsonPropertyName, JsonIgnore, acentos com ã, JsonNode, e os erros JsonException, nomes que não batem e a serialização por reflexão desativada no dotnet run arquivo.cs, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">JSON</span></h1>
+
+<p class="intro">Gravar texto num arquivo você já sabe. Mas como gravar um <strong>objeto</strong>, um contato com nome, cidade e telefone, ou uma lista com cem deles, e depois ler de volta exatamente igual? O formato mais usado do mundo para isso é o <strong>JSON</strong>. É nele que os sites conversam com os servidores, que os aplicativos guardam configurações e que muitas lojas trocam dados. Nesta aula você vai usar o <code>System.Text.Json</code>, que já vem no .NET, para transformar objetos em JSON e JSON em objetos, e vai salvar a agenda de contatos da Ana num arquivo.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Ler e escrever o formato JSON: objetos, listas, textos, números, <code>true</code>, <code>false</code> e <code>null</code>.</li>
+  <li>Transformar um objeto em JSON com <code>JsonSerializer.Serialize</code> (serializar), bonito com <code>WriteIndented</code>.</li>
+  <li>Transformar JSON em objeto com <code>JsonSerializer.Deserialize&lt;T&gt;</code> (desserializar).</li>
+  <li>Salvar e carregar uma lista num arquivo <code>.json</code>.</li>
+  <li>Controlar os nomes: <code>camelCase</code>, <code>PropertyNameCaseInsensitive</code>, <code>[JsonPropertyName]</code> e <code>[JsonIgnore]</code>.</li>
+  <li>Ler um JSON sem criar classe, com <code>JsonNode</code>.</li>
+  <li>Os erros: <code>JsonException</code>, nomes que não batem e a reflexão desativada no <code>dotnet run arquivo.cs</code>.</li>
+</ul>
+</div>
+
+<p>Esta aula usa <a href="records.html">records</a>, <a href="propriedades.html">propriedades</a>, <a href="list.html">List&lt;T&gt;</a>, <a href="generics.html">generics</a> (o <code>&lt;T&gt;</code>) e a aula <a href="arquivos.html">Arquivos</a>.</p>
+
+<div class="warning">
+<strong>Nesta aula, a Ana usa um projeto</strong>
+<p>No .NET 10, o <code>dotnet run arquivo.cs</code> (de um arquivo só) vem preparado para virar um programa "nativo" (AOT, seção "Quando dá errado"), e nesse modo o <code>JsonSerializer</code> simples é <strong>desligado</strong>. Por isso, os exemplos desta aula rodam num projeto, criado com <code>dotnet new console -o Agenda</code> (aula <a href="projetos-console.html">Projetos</a>). O código vai no <code>Program.cs</code> e roda com <code>dotnet run</code>. O editor do guia funciona como um projeto.</p>
+</div>
+
+<pre class="term" data-cwd="~/projetos">$ dotnet new console -o Agenda
+O modelo "Aplicativo do Console" foi criado com êxito.
+
+Processando ações pós-criação...
+Restaurando /home/ana/projetos/Agenda/Agenda.csproj:
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Agenda/Agenda.csproj restaurado (em 108 ms).
+A restauração foi bem-sucedida.
+
+$ cd Agenda</pre>
+
+<hr>
+
+<h2>A ideia: a ficha que qualquer um preenche</h2>
+<p>Um objeto vive na memória do seu programa, num formato que só o .NET entende. Para guardá-lo num arquivo, ou mandá-lo para outro programa (que pode nem ser em C#), você precisa escrevê-lo numa <strong>ficha padronizada</strong>, que qualquer um sabe ler e preencher. O JSON (<em>JavaScript Object Notation</em>, "notação de objetos do JavaScript") é essa ficha. Ele é só texto:</p>
+
+<pre class="file" data-file="contato.json">{
+  "Nome": "Bruno",
+  "Cidade": "Curitiba",
+  "Idade": 34,
+  "Cliente": true,
+  "Apelido": null,
+  "Telefones": ["(41) 99999-0000", "(41) 3333-0000"]
+}
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>No JSON</th><th>Exemplo</th><th>Em C#</th></tr>
+<tr><td>Objeto: pares <code>"nome": valor</code> entre <code>{ }</code>, separados por vírgula</td><td><code>{ "Nome": "Bruno" }</code></td><td>Um objeto de uma classe ou record</td></tr>
+<tr><td>Texto, sempre entre aspas <strong>duplas</strong></td><td><code>"Curitiba"</code></td><td><code>string</code></td></tr>
+<tr><td>Número, com <strong>ponto</strong> nos decimais, em qualquer país</td><td><code>34</code>, <code>15.90</code></td><td><code>int</code>, <code>double</code>, <code>decimal</code>…</td></tr>
+<tr><td>Verdadeiro ou falso</td><td><code>true</code>, <code>false</code></td><td><code>bool</code></td></tr>
+<tr><td>Nada</td><td><code>null</code></td><td><code>null</code></td></tr>
+<tr><td>Lista (array) entre <code>[ ]</code></td><td><code>["a", "b"]</code></td><td>array, <code>List&lt;T&gt;</code></td></tr>
+</table>
+</div>
+
+<p>Transformar um objeto em JSON se chama <strong>serializar</strong> (pôr "em série", numa fila de letras). O caminho de volta, de JSON para objeto, é <strong>desserializar</strong>. Os dois ficam na classe <code>JsonSerializer</code>, do namespace <code>System.Text.Json</code>, que precisa de <code>using</code>.</p>
+
+<hr>
+
+<h2>1. Objeto → JSON: Serialize</h2>
+
+<pre class="file" data-file="Program.cs">using System.Text.Json;
+
+Contato ana = new Contato("Ana Souza", "ana@exemplo.com", 29, ["Recife", "São Paulo"]);
+
+string json = JsonSerializer.Serialize(ana);
+Console.WriteLine(json);
+
+JsonSerializerOptions opcoes = new JsonSerializerOptions { WriteIndented = true };
+Console.WriteLine(JsonSerializer.Serialize(ana, opcoes));
+
+record Contato(string Nome, string Email, int Idade, List&lt;string&gt; Cidades);
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Agenda">$ dotnet run
+{"Nome":"Ana Souza","Email":"ana@exemplo.com","Idade":29,"Cidades":["Recife","São Paulo"]}
+{
+  "Nome": "Ana Souza",
+  "Email": "ana@exemplo.com",
+  "Idade": 29,
+  "Cidades": [
+    "Recife",
+    "São Paulo"
+  ]
+}</pre>
+
+<dl class="anatomy">
+  <dt>using System.Text.Json;</dt><dd>Traz o <code>JsonSerializer</code> e o <code>JsonSerializerOptions</code>. Esse namespace não vem incluído sozinho.</dd>
+  <dt>record Contato(…)</dt><dd>Um <a href="records.html">record</a> com quatro propriedades. Fica no <strong>fim</strong> do arquivo, depois das instruções do programa. Uma classe com propriedades <code>{ get; set; }</code> funciona do mesmo jeito.</dd>
+  <dt>JsonSerializer.Serialize(ana)</dt><dd>Olha as propriedades <strong>públicas</strong> do objeto e escreve cada uma como <code>"Nome": valor</code>. A lista virou um array JSON. O resultado é uma <code>string</code> comum, que você pode mostrar, gravar num arquivo ou mandar pela internet.</dd>
+  <dt>new JsonSerializerOptions { WriteIndented = true }</dt><dd>As opções ("configurações") do serializador. <code>WriteIndented</code> ("escrever com recuo") põe cada valor numa linha, com recuo: mais fácil para pessoas lerem. Sem ele, tudo sai numa linha só, menor, melhor para programas.</dd>
+  <dt>São Paulo</dt><dd>O <code>ã</code> saiu como <code>ã</code>, o código Unicode da letra. É JSON válido, e quem ler o arquivo recebe <code>São Paulo</code> de volta. A seção 4 mostra como deixar o acento visível.</dd>
+</dl>
+
+<hr>
+
+<h2>2. JSON → objeto: Deserialize</h2>
+<p>O caminho de volta. O <code>Deserialize</code> precisa saber em que <strong>tipo</strong> transformar o texto, e você diz isso entre <code>&lt; &gt;</code>:</p>
+
+<pre class="file" data-file="Program.cs">using System.Text.Json;
+
+string json = File.ReadAllText("contato.json");
+Contato? c = JsonSerializer.Deserialize&lt;Contato&gt;(json);
+if (c != null)
+{
+    Console.WriteLine($"{c.Nome} mora em {c.Cidade}");
+}
+
+record Contato(string Nome, string Cidade, string Telefone);
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Agenda">$ cat contato.json
+{
+  "Nome": "Bruno",
+  "Cidade": "Curitiba",
+  "Telefone": "(41) 99999-0000"
+}
+$ dotnet run
+Bruno mora em Curitiba</pre>
+
+<dl class="anatomy">
+  <dt>JsonSerializer.Deserialize&lt;Contato&gt;(json)</dt><dd>Lê o texto e cria um <code>Contato</code>, preenchendo cada propriedade com o valor do mesmo nome no JSON.</dd>
+  <dt>Contato?</dt><dd>O resultado pode ser <code>null</code>: se o texto for literalmente <code>null</code>, é isso que volta. Por isso a variável é <code>Contato?</code> e o <code>if (c != null)</code> confere antes de usar (aula <a href="referencias-anulaveis.html">Referências Anuláveis</a>).</dd>
+</dl>
+
+<p>O JSON é lido com a mesma regra de nomes do <code>Serialize</code>: <code>"Nome"</code> no texto vai para <code>Nome</code> no objeto. Valores do JSON que não existem no record são <strong>ignorados</strong>, e propriedades do record que não aparecem no JSON ficam com o valor padrão (<code>null</code>, <code>0</code>, <code>false</code>).</p>
+
+<div class="trycs" data-goal="out:Carla mora em Salvador,src:Deserialize">
+<p class="try-task"><strong>Missão:</strong> o arquivo <code>contato.json</code> (na outra aba) tem a ficha da Carla. Transforme o texto num <code>Contato</code> com <code>JsonSerializer.Deserialize&lt;Contato&gt;(json)</code> e mostre <code>Carla mora em Salvador</code>.</p>
+<pre class="script" data-file="Program.cs">using System.Text.Json;
+
+string json = File.ReadAllText("contato.json");
+Console.WriteLine(json);
+// transforme o json num Contato e mostre "Nome mora em Cidade"
+
+record Contato(string Nome, string Cidade, string Telefone);
+</pre>
+<pre class="script" data-file="contato.json">{
+  "Nome": "Carla",
+  "Cidade": "Salvador",
+  "Telefone": "(71) 97777-2222"
+}
+</pre>
+<pre class="solucao" data-file="Program.cs">using System.Text.Json;
+
+string json = File.ReadAllText("contato.json");
+Contato? c = JsonSerializer.Deserialize&lt;Contato&gt;(json);
+if (c != null)
+{
+    Console.WriteLine($"{c.Nome} mora em {c.Cidade}");
+}
+
+record Contato(string Nome, string Cidade, string Telefone);
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Salvar e carregar uma lista</h2>
+<p>A agenda da Ana é uma <code>List&lt;Contato&gt;</code>. O JSON de uma lista é um array de objetos, e o <code>Deserialize</code> aceita o tipo <code>List&lt;Contato&gt;</code> do mesmo jeito. Juntando com o <code>File</code>, a agenda passa a sobreviver ao fim do programa:</p>
+
+<pre class="file" data-file="Program.cs">using System.Text.Json;
+
+JsonSerializerOptions opcoes = new JsonSerializerOptions { WriteIndented = true };
+
+string texto = File.ReadAllText("contatos.json");
+List&lt;Contato&gt; agenda = JsonSerializer.Deserialize&lt;List&lt;Contato&gt;&gt;(texto) ?? [];
+
+agenda.Add(new Contato("Carla", "Salvador", "(71) 97777-2222"));
+File.WriteAllText("contatos.json", JsonSerializer.Serialize(agenda, opcoes));
+
+Console.WriteLine($"{agenda.Count} contatos");
+Console.WriteLine(File.ReadAllText("contatos.json"));
+
+record Contato(string Nome, string Cidade, string Telefone);
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Agenda">$ dotnet run
+3 contatos
+[
+  {
+    "Nome": "Ana",
+    "Cidade": "Recife",
+    "Telefone": "(81) 98888-1111"
+  },
+  {
+    "Nome": "Bruno",
+    "Cidade": "Curitiba",
+    "Telefone": "(41) 99999-0000"
+  },
+  {
+    "Nome": "Carla",
+    "Cidade": "Salvador",
+    "Telefone": "(71) 97777-2222"
+  }
+]</pre>
+
+<dl class="anatomy">
+  <dt>Deserialize&lt;List&lt;Contato&gt;&gt;(texto)</dt><dd>O tipo agora é "lista de contatos". O array do arquivo, que tinha a Ana e o Bruno, virou uma lista com dois itens.</dd>
+  <dt>?? []</dt><dd>Se o resultado for <code>null</code> (o arquivo tinha só <code>null</code>), use uma lista vazia (operador <code>??</code>, aula <a href="operadores-null.html">Operadores ??, ?. e ??=</a>). Assim <code>agenda</code> é <code>List&lt;Contato&gt;</code>, sem <code>?</code>, e o resto do programa não precisa conferir.</dd>
+  <dt>File.WriteAllText("contatos.json", JsonSerializer.Serialize(agenda, opcoes))</dt><dd>Serializa a lista inteira e <strong>substitui</strong> o arquivo, já com a Carla.</dd>
+</dl>
+
+<p>Esse é o jeito mais simples de um programa pequeno "lembrar" das coisas: carregar tudo no começo, mexer na lista e salvar tudo no fim. O projeto <a href="projeto-agenda.html">Agenda de Contatos</a> faz um programa completo assim.</p>
+
+<hr>
+
+<h2>4. Nomes, acentos e números</h2>
+<p>Muitos sites e programas escrevem JSON em <strong>camelCase</strong> (<code>"nome"</code>, <code>"precoUnitario"</code>), e o C# usa PascalCase nas propriedades (<code>Nome</code>, <code>PrecoUnitario</code>). As opções e dois <a href="atributos.html">atributos</a> resolvem a diferença:</p>
+
+<pre class="file" data-file="Program.cs">using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+JsonSerializerOptions opcoes = new JsonSerializerOptions
+{
+    WriteIndented = true,
+    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+};
+
+List&lt;Produto&gt; estoque =
+[
+    new Produto { Nome = "Caderno", Preco = 15.90m, Quantidade = 12 },
+    new Produto { Nome = "Caneta azul", Preco = 2.50m, Quantidade = 40, Senha = "x" },
+];
+Console.WriteLine(JsonSerializer.Serialize(estoque, opcoes));
+
+class Produto
+{
+    public string Nome { get; set; } = "";
+    public decimal Preco { get; set; }
+    [JsonPropertyName("qtd")]
+    public int Quantidade { get; set; }
+    [JsonIgnore]
+    public string? Senha { get; set; }
+}
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Agenda">$ dotnet run
+[
+  {
+    "nome": "Caderno",
+    "preco": 15.90,
+    "qtd": 12
+  },
+  {
+    "nome": "Caneta azul",
+    "preco": 2.50,
+    "qtd": 40
+  }
+]</pre>
+
+<dl class="anatomy">
+  <dt>PropertyNamingPolicy = JsonNamingPolicy.CamelCase</dt><dd>"Política de nomes": escreve <code>Nome</code> como <code>"nome"</code> e <code>Preco</code> como <code>"preco"</code>. Use as <strong>mesmas</strong> opções no <code>Deserialize</code>, para a volta entender os nomes.</dd>
+  <dt>Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping</dt><dd>Deixa acentos como <code>ã</code> e símbolos como <code>&amp;</code> sem virar <code>ã</code>. O "Unsafe" ("inseguro") é porque esse JSON não deve ser colado dentro de uma página HTML sem cuidado; para arquivos e programas, é tranquilo. Fica em <code>System.Text.Encodings.Web</code>.</dd>
+  <dt>[JsonPropertyName("qtd")]</dt><dd>Um atributo (de <code>System.Text.Json.Serialization</code>) que escolhe o nome exato no JSON só para essa propriedade. Vale nos dois sentidos.</dd>
+  <dt>[JsonIgnore]</dt><dd>"Ignorar": a propriedade não vai para o JSON (nem é lida dele). Bom para senhas e valores calculados.</dd>
+  <dt>"preco": 15.90</dt><dd>No JSON, o número sai sempre com <strong>ponto</strong>, mesmo no computador em pt-BR da Ana. O JSON não depende da <a href="cultura.html">cultura</a>: não há o problema do <code>8.5</code> que vira <code>85</code>. E o <code>decimal</code> manteve os dois zeros.</dd>
+</dl>
+
+<h3>Ler sem diferenciar maiúsculas</h3>
+<p>Ao <strong>ler</strong> um JSON escrito por outro programa, você nem sempre sabe se os nomes vêm como <code>"nome"</code>, <code>"Nome"</code> ou <code>"NOME"</code>. A opção <code>PropertyNameCaseInsensitive = true</code> ("nomes sem diferenciar maiúsculas") aceita todos. Este trecho usa a mesma classe <code>Produto</code> (no fim do arquivo, como antes):</p>
+
+<pre class="file" data-file="Program.cs">string deFora = """{"nome":"Régua","preco":1.2,"cor":"azul"}""";
+
+Produto? r1 = JsonSerializer.Deserialize&lt;Produto&gt;(deFora);
+Console.WriteLine($"Sem opções: [{r1?.Nome}] {r1?.Preco}");
+
+JsonSerializerOptions flexivel = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+Produto? r2 = JsonSerializer.Deserialize&lt;Produto&gt;(deFora, flexivel);
+Console.WriteLine($"Sem diferenciar maiúsculas: [{r2?.Nome}] {r2?.Preco}");
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Agenda">$ dotnet run
+Sem opções: [] 0
+Sem diferenciar maiúsculas: [Régua] 1,2</pre>
+
+<p>Sem a opção, nenhum nome bateu (<code>"nome"</code> não é <code>Nome</code>) e o produto veio vazio, <strong>sem nenhum erro</strong>. Com ela, deu certo. O <code>"cor"</code>, que não existe na classe, foi ignorado nos dois casos. O <code>"""…"""</code> é a string literal crua da aula <a href="escapes.html">Escapes</a>, que deixa escrever aspas sem barra.</p>
+
+<hr>
+
+<h2>5. Ler sem criar classe: JsonNode</h2>
+<p>Às vezes você só quer um ou dois valores de um JSON grande, e criar classes para tudo dá trabalho. O <code>JsonNode</code> ("nó JSON", de <code>System.Text.Json.Nodes</code>) lê o JSON como uma árvore, que você percorre com <code>["nome"]</code> e <code>[0]</code>:</p>
+
+<pre class="file" data-file="Program.cs">using System.Text.Json.Nodes;
+
+string json = """
+{
+  "loja": "Papelaria da Ana",
+  "aberta": true,
+  "produtos": [
+    { "nome": "Caderno", "preco": 15.90 },
+    { "nome": "Caneta", "preco": 2.50 }
+  ]
+}
+""";
+JsonNode? raiz = JsonNode.Parse(json);
+Console.WriteLine(raiz?["loja"]);
+Console.WriteLine((bool?)raiz?["aberta"]);
+
+JsonArray produtos = raiz!["produtos"]!.AsArray();
+Console.WriteLine($"{produtos.Count} produtos");
+foreach (JsonNode? p in produtos)
+{
+    string nome = (string)p!["nome"]!;
+    decimal preco = (decimal)p["preco"]!;
+    Console.WriteLine($"{nome}: {preco:C}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Agenda">$ dotnet run
+Papelaria da Ana
+True
+2 produtos
+Caderno: R$ 15,90
+Caneta: R$ 2,50</pre>
+
+<dl class="anatomy">
+  <dt>JsonNode.Parse(json)</dt><dd>"Analisa" o texto e devolve a raiz da árvore (ou <code>null</code>, se o texto for <code>null</code>).</dd>
+  <dt>raiz?["loja"]</dt><dd>O valor do campo <code>"loja"</code>. Se o campo não existir, vem <code>null</code>, sem exceção.</dd>
+  <dt>(bool?)…, (string)…, (decimal)…</dt><dd>Um <a href="conversao-tipos.html">cast</a> converte o nó no tipo C# que você quer.</dd>
+  <dt>.AsArray()</dt><dd>Trata o nó como lista, com <code>Count</code> e <code>foreach</code>.</dd>
+  <dt>! (depois de um valor)</dt><dd>O operador "eu garanto que não é <code>null</code>" (aula <a href="referencias-anulaveis.html">Referências Anuláveis</a>). Aqui você sabe que os campos existem; num JSON de fora, prefira conferir.</dd>
+</dl>
+
+<hr>
+
+<h2>Qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Use</th></tr>
+<tr><td>Guardar e carregar os seus próprios objetos</td><td><code>JsonSerializer.Serialize</code> e <code>Deserialize&lt;T&gt;</code> com um record ou classe</td></tr>
+<tr><td>Um arquivo que pessoas vão ler</td><td><code>WriteIndented = true</code> e o <code>Encoder</code> que mantém os acentos</td></tr>
+<tr><td>Conversar com um site que usa <code>"nomeAssim"</code></td><td><code>PropertyNamingPolicy = JsonNamingPolicy.CamelCase</code> (nos dois sentidos)</td></tr>
+<tr><td>Ler JSON de fora, sem saber as maiúsculas</td><td><code>PropertyNameCaseInsensitive = true</code></td></tr>
+<tr><td>Um nome especial numa propriedade</td><td><code>[JsonPropertyName("…")]</code></td></tr>
+<tr><td>Pegar alguns valores de um JSON grande</td><td><code>JsonNode.Parse</code></td></tr>
+<tr><td>Programa nativo (AOT) ou <code>dotnet run arquivo.cs</code></td><td>Geração de código com <code>JsonSerializerContext</code> (abaixo)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>Reflection-based serialization has been disabled</code> no <code>dotnet run arquivo.cs</code></strong>
+<p>A Ana tentou o primeiro exemplo da aula num arquivo solto, <code>~/cs/json1.cs</code>, como nas aulas dos níveis 1 e 2:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run json1.cs
+/home/ana/cs/json1.cs(4,15): warning IL2026: Using member 'System.Text.Json.JsonSerializer.Serialize&lt;TValue&gt;(TValue, JsonSerializerOptions)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed. Use the overload that takes a JsonTypeInfo or JsonSerializerContext, or make sure all of the required types are preserved.
+/home/ana/cs/json1.cs(4,15): warning IL3050: Using member 'System.Text.Json.JsonSerializer.Serialize&lt;TValue&gt;(TValue, JsonSerializerOptions)' which has 'RequiresDynamicCodeAttribute' can break functionality when AOT compiling. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications.
+…                                                « o mesmo par de avisos para cada Serialize e Deserialize
+Unhandled exception. System.InvalidOperationException: Reflection-based serialization has been disabled for this application. Either use the source generator APIs or explicitly configure the 'JsonSerializerOptions.TypeInfoResolver' property.
+   at System.Text.Json.ThrowHelper.ThrowInvalidOperationException_JsonSerializerIsReflectionDisabled()
+   …                                                « mais 4 linhas de dentro do .NET
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/json1.cs:line 4</pre>
+<p><strong>O que aconteceu:</strong> no .NET 10, um programa de arquivo único vem configurado para ser publicado como programa <strong>nativo</strong> (<em>AOT</em>, "compilado antes", aula <a href="publicar.html">Publicar o Programa</a>). Um programa nativo não pode examinar as classes enquanto roda (isso se chama <a href="reflexao.html">reflexão</a>), e é assim que o <code>JsonSerializer</code> simples descobre as propriedades. Os avisos <code>IL2026</code> e <code>IL3050</code> avisam disso, e a exceção diz "a serialização por reflexão foi desativada para este programa". Num projeto (<code>dotnet new console</code>), essa configuração vem desligada, e tudo funciona.</p>
+<p><strong>Como resolver:</strong> três caminhos.</p>
+<ol class="passo">
+  <li>Use um projeto, como nesta aula.</li>
+  <li>No arquivo solto, desligue o modo nativo com uma <strong>diretiva</strong> na primeira linha: <code>#:property PublishAot=false</code>. Os avisos somem e o programa roda.</li>
+  <li>Use a <strong>geração de código</strong>, que funciona em todo lugar, inclusive em programas nativos: uma classe <code>partial</code> marcada com <code>[JsonSerializable]</code>, que o compilador completa sozinho.</li>
+</ol>
+<pre class="file" data-file="json2.cs">#:property PublishAot=false
+using System.Text.Json;
+
+Contato ana = new Contato("Ana Souza", "ana@exemplo.com", 29, ["Recife", "São Paulo"]);
+Console.WriteLine(JsonSerializer.Serialize(ana));
+
+record Contato(string Nome, string Email, int Idade, List&lt;string&gt; Cidades);
+</pre>
+<pre class="file" data-file="json3.cs">using System.Text.Json;
+using System.Text.Json.Serialization;
+
+Contato ana = new Contato("Ana Souza", "ana@exemplo.com", 29, ["Recife", "São Paulo"]);
+string json = JsonSerializer.Serialize(ana, AgendaJson.Default.Contato);
+Console.WriteLine(json);
+Contato? volta = JsonSerializer.Deserialize(json, AgendaJson.Default.Contato);
+Console.WriteLine(volta?.Nome);
+
+record Contato(string Nome, string Email, int Idade, List&lt;string&gt; Cidades);
+
+[JsonSerializable(typeof(Contato))]
+partial class AgendaJson : JsonSerializerContext { }
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run json2.cs
+{"Nome":"Ana Souza","Email":"ana@exemplo.com","Idade":29,"Cidades":["Recife","São Paulo"]}
+$ dotnet run json3.cs
+{"Nome":"Ana Souza","Email":"ana@exemplo.com","Idade":29,"Cidades":["Recife","São Paulo"]}
+Ana Souza</pre>
+<p>No <code>json3.cs</code>, o <code>AgendaJson.Default.Contato</code> é a "receita" para ler e escrever um <code>Contato</code>, que o compilador gerou ao ver o <code>[JsonSerializable(typeof(Contato))]</code>. Para uma lista, acrescente outro atributo: <code>[JsonSerializable(typeof(List&lt;Contato&gt;))]</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>JsonException</code>: o valor não é do tipo certo</strong>
+<pre class="file" data-file="Program.cs">using System.Text.Json;
+
+string json = """{"Nome":"Ana", "Idade": "vinte e nove"}""";
+Pessoa? p = JsonSerializer.Deserialize&lt;Pessoa&gt;(json);
+Console.WriteLine(p?.Nome);
+
+record Pessoa(string Nome, int Idade);
+</pre>
+<pre class="term" data-cwd="~/projetos/Agenda">$ dotnet run
+Unhandled exception. System.Text.Json.JsonException: The JSON value could not be converted to Pessoa. Path: $.Idade | LineNumber: 0 | BytePositionInLine: 38.
+ ---&gt; System.InvalidOperationException: Cannot get the value of a token type 'String' as a number.
+   at System.Text.Json.ThrowHelper.ThrowInvalidOperationException_ExpectedNumber(JsonTokenType tokenType)
+   …                                                « mais 14 linhas de dentro do .NET
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/projetos/Agenda/Program.cs:line 4</pre>
+<p><strong>O que aconteceu:</strong> "O valor JSON não pôde ser convertido". A <code>Idade</code> é <code>int</code>, mas no JSON veio um texto (entre aspas). A mensagem é ótima para achar o problema: <code>Path: $.Idade</code> é o campo (<code>$</code> é a raiz), e <code>LineNumber</code> e <code>BytePositionInLine</code> dizem a linha e a posição no texto, contando do zero.</p>
+<p><strong>Como resolver:</strong> conserte o JSON (<code>"Idade": 29</code>, sem aspas) ou, se o JSON vem de fora, trate com <code>try { … } catch (JsonException e) { Console.WriteLine(e.Message); }</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>JsonException</code>: JSON mal escrito</strong>
+<pre class="term" data-cwd="~/projetos/Agenda">$ grep json Program.cs
+string json = """{"Nome":"Ana", "Idade": 29,}""";
+$ dotnet run
+Unhandled exception. System.Text.Json.JsonException: The JSON object contains a trailing comma at the end which is not supported in this mode. Change the reader options. Path: $ | LineNumber: 0 | BytePositionInLine: 27.
+ ---&gt; System.Text.Json.JsonReaderException: The JSON object contains a trailing comma at the end which is not supported in this mode. Change the reader options. LineNumber: 0 | BytePositionInLine: 27.
+   …                                                « mais 14 linhas de dentro do .NET
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/projetos/Agenda/Program.cs:line 4</pre>
+<p><strong>O que aconteceu:</strong> "O objeto JSON tem uma vírgula sobrando no fim". O JSON é mais rígido que o C#: nada de vírgula depois do último item, nada de comentários, nada de aspas simples (<code>'Ana'</code>), e os nomes sempre entre aspas duplas.</p>
+<p><strong>Como resolver:</strong> tire a vírgula. Se o JSON vem de um lugar que escreve assim, as opções <code>AllowTrailingCommas = true</code> e <code>ReadCommentHandling = JsonCommentHandling.Skip</code> deixam o leitor mais tolerante.</p>
+</div>
+
+<div class="cenario">
+<strong>Os valores vieram vazios, sem erro nenhum</strong>
+<pre class="file" data-file="Program.cs">using System.Text.Json;
+
+Pessoa? p = JsonSerializer.Deserialize&lt;Pessoa&gt;("""{"nome":"Ana","idade":29}""");
+Console.WriteLine($"{p?.Nome} tem {p?.Idade} anos");
+
+record Pessoa(string Nome, int Idade);
+</pre>
+<pre class="term" data-cwd="~/projetos/Agenda">$ dotnet run
+ tem 0 anos</pre>
+<p><strong>O que aconteceu:</strong> o JSON usa <code>"nome"</code> e <code>"idade"</code>, minúsculos, e o record usa <code>Nome</code> e <code>Idade</code>. Por padrão, o <code>Deserialize</code> diferencia maiúsculas, não achou nenhum campo e deixou os valores padrão: <code>null</code> e <code>0</code>. Campos que não batem nunca dão erro.</p>
+<p><strong>Como resolver:</strong> passe <code>new JsonSerializerOptions { PropertyNameCaseInsensitive = true }</code>, ou <code>PropertyNamingPolicy = JsonNamingPolicy.CamelCase</code> (seção 4). Para exigir um campo, marque a propriedade com <code>[JsonRequired]</code>: aí a falta dele lança <code>JsonException</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Avisos <code>CS8600</code> e <code>CS8602</code>: o resultado pode ser null</strong>
+<pre class="term" data-cwd="~/projetos/Agenda">$ grep Deserialize Program.cs
+Pessoa p = JsonSerializer.Deserialize&lt;Pessoa&gt;("""{"Nome":"Ana","Idade":29}""");
+$ dotnet run
+/home/ana/projetos/Agenda/Program.cs(3,12): warning CS8600: Conversão de literal nula ou possível valor nulo em tipo não anulável. [/home/ana/projetos/Agenda/Agenda.csproj]
+/home/ana/projetos/Agenda/Program.cs(4,22): warning CS8602: Desreferência de uma referência possivelmente nula. [/home/ana/projetos/Agenda/Agenda.csproj]
+Ana tem 29 anos</pre>
+<p><strong>O que aconteceu:</strong> o <code>Deserialize</code> devolve <code>Pessoa?</code>, e a variável foi declarada como <code>Pessoa</code>. Num projeto, o aviso vem com o nome do <code>.csproj</code> entre colchetes no fim.</p>
+<p><strong>Como resolver:</strong> <code>Pessoa? p = …</code> e confira com <code>if (p != null)</code>, ou dê um valor para o caso <code>null</code> com <code>??</code>, como em <code>?? []</code> para listas.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>using System.Text.Json;</code></td><td>Traz <code>JsonSerializer</code> e <code>JsonSerializerOptions</code></td></tr>
+<tr><td><code>JsonSerializer.Serialize(obj)</code></td><td>Objeto → texto JSON</td></tr>
+<tr><td><code>JsonSerializer.Serialize(obj, opcoes)</code></td><td>Com opções</td></tr>
+<tr><td><code>JsonSerializer.Deserialize&lt;T&gt;(json)</code></td><td>Texto JSON → objeto (<code>T?</code>)</td></tr>
+<tr><td><code>new JsonSerializerOptions { WriteIndented = true }</code></td><td>Uma linha por valor, com recuo</td></tr>
+<tr><td><code>PropertyNamingPolicy = JsonNamingPolicy.CamelCase</code></td><td>Nomes <code>"assim"</code></td></tr>
+<tr><td><code>PropertyNameCaseInsensitive = true</code></td><td>Ler sem diferenciar maiúsculas</td></tr>
+<tr><td><code>Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping</code></td><td>Acentos visíveis (<code>System.Text.Encodings.Web</code>)</td></tr>
+<tr><td><code>[JsonPropertyName("x")]</code>, <code>[JsonIgnore]</code>, <code>[JsonRequired]</code></td><td>Nome próprio, fora do JSON, obrigatório (<code>System.Text.Json.Serialization</code>)</td></tr>
+<tr><td><code>JsonNode.Parse(json)?["campo"]</code></td><td>Ler sem classe (<code>System.Text.Json.Nodes</code>)</td></tr>
+<tr><td><code>[JsonSerializable(typeof(T))] partial class X : JsonSerializerContext { }</code></td><td>Geração de código, para AOT e arquivos soltos</td></tr>
+<tr><td><code>#:property PublishAot=false</code></td><td>No <code>dotnet run arquivo.cs</code>, liga de novo a reflexão</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Para JSON</h3>
+<p>Complete para transformar o objeto <code>produto</code> num texto JSON:</p>
+<div class="ex-code">string json = JsonSerializer.<input data-answer="Serialize" aria-label="método">(produto);</div>
+</div>
+
+<div class="exercise">
+<h3>2. De volta</h3>
+<p>Complete para transformar o texto numa lista de produtos:</p>
+<div class="ex-code">List&lt;Produto&gt;? lista = JsonSerializer.Deserialize&lt;<input data-answer="List&lt;Produto&gt;|List<Produto>" aria-label="tipo">&gt;(json);</div>
+</div>
+
+<div class="exercise">
+<h3>3. Bonito para ler</h3>
+<p>Complete a opção que põe cada valor numa linha, com recuo:</p>
+<div class="ex-code">new JsonSerializerOptions { <input data-answer="WriteIndented" aria-label="opção"> = true }</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Num computador em pt-BR, como o <code>JsonSerializer</code> escreve o <code>decimal</code> <code>2.50m</code>?</p>
+<label><input type="radio" name="q4"> <code>"2,50"</code></label>
+<label><input type="radio" name="q4"> <code>2,50</code></label>
+<label><input type="radio" name="q4"> <code>2.50</code></label>
+<label><input type="radio" name="q4"> <code>R$ 2,50</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. O JSON tem <code>"nome": "Ana"</code> e a classe tem <code>Nome</code>. Sem opções, o que o <code>Deserialize</code> faz?</p>
+<label><input type="radio" name="q5"> Preenche <code>Nome</code> com <code>Ana</code>.</label>
+<label><input type="radio" name="q5"> Deixa <code>Nome</code> com o valor padrão, sem erro.</label>
+<label><input type="radio" name="q5"> Lança <code>JsonException</code>.</label>
+<label><input type="radio" name="q5"> Não compila.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Qual destes textos é um JSON válido?</p>
+<label><input type="radio" name="q6"> <code>{"itens": ["pão", "leite"]}</code></label>
+<label><input type="radio" name="q6"> <code>{'itens': ['pão', 'leite']}</code></label>
+<label><input type="radio" name="q6"> <code>{itens: ["pão", "leite"]}</code></label>
+<label><input type="radio" name="q6"> <code>{"itens": ["pão", "leite",]}</code></label>
+</div>
+
+<h3>Missão final: a agenda que lembra</h3>
+<div class="trycs" data-goal="out:3 contatos,outre:.Nome.: .Carla.,src:WriteIndented">
+<p class="try-task"><strong>Missão:</strong> o programa carrega a agenda do <code>contatos.json</code> (na outra aba) e mostra quantos contatos ela tem. Complete-o:</p>
+<ol class="passo">
+  <li>acrescente na lista o contato <code>new Contato("Carla", "Salvador", "(71) 97777-2222")</code>;</li>
+  <li>serialize a lista com <code>WriteIndented = true</code> e grave em <code>contatos.json</code> com <code>File.WriteAllText</code>;</li>
+  <li>mostre a quantidade (<code>3 contatos</code>) e depois o arquivo, lido de volta com <code>File.ReadAllText</code>.</li>
+</ol>
+<pre class="script" data-file="Program.cs">using System.Text.Json;
+
+string texto = File.ReadAllText("contatos.json");
+List&lt;Contato&gt; agenda = JsonSerializer.Deserialize&lt;List&lt;Contato&gt;&gt;(texto) ?? [];
+
+// 1. acrescente a Carla
+// 2. grave a lista, com recuo, em contatos.json
+
+Console.WriteLine($"{agenda.Count} contatos");
+// 3. mostre o arquivo
+
+record Contato(string Nome, string Cidade, string Telefone);
+</pre>
+<pre class="script" data-file="contatos.json">[
+  {
+    "Nome": "Ana",
+    "Cidade": "Recife",
+    "Telefone": "(81) 98888-1111"
+  },
+  {
+    "Nome": "Bruno",
+    "Cidade": "Curitiba",
+    "Telefone": "(41) 99999-0000"
+  }
+]
+</pre>
+<pre class="solucao" data-file="Program.cs">using System.Text.Json;
+
+string texto = File.ReadAllText("contatos.json");
+List&lt;Contato&gt; agenda = JsonSerializer.Deserialize&lt;List&lt;Contato&gt;&gt;(texto) ?? [];
+
+agenda.Add(new Contato("Carla", "Salvador", "(71) 97777-2222"));
+JsonSerializerOptions opcoes = new JsonSerializerOptions { WriteIndented = true };
+File.WriteAllText("contatos.json", JsonSerializer.Serialize(agenda, opcoes));
+
+Console.WriteLine($"{agenda.Count} contatos");
+Console.WriteLine(File.ReadAllText("contatos.json"));
+
+record Contato(string Nome, string Cidade, string Telefone);
+</pre>
+</div>
+
+<p>No seu computador, rodando o programa de novo, a agenda carrega os 3 contatos do arquivo e grava 4: ela "lembra" entre uma execução e outra. Se quiser ir além: antes de acrescentar, confira se já existe alguém com o mesmo nome (<code>agenda.Any(c =&gt; c.Nome == "Carla")</code>, aula <a href="linq.html">LINQ</a>).</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>JSON é texto: objetos <code>{ "nome": valor }</code>, listas <code>[ ]</code>, textos entre aspas duplas, números com ponto, <code>true</code>, <code>false</code> e <code>null</code>.</li>
+  <li><code>JsonSerializer.Serialize(obj)</code> transforma as propriedades públicas em JSON; <code>Deserialize&lt;T&gt;(json)</code> faz o caminho de volta e devolve <code>T?</code>.</li>
+  <li>Para salvar e carregar: <code>File.WriteAllText(c, JsonSerializer.Serialize(lista, opcoes))</code> e <code>JsonSerializer.Deserialize&lt;List&lt;T&gt;&gt;(File.ReadAllText(c)) ?? []</code>.</li>
+  <li>As opções controlam o formato (<code>WriteIndented</code>), os nomes (<code>CamelCase</code>, <code>PropertyNameCaseInsensitive</code>) e os acentos (<code>Encoder</code>). Use as mesmas na ida e na volta.</li>
+  <li>Nomes que não batem deixam valores vazios, sem erro. JSON mal escrito ou com tipo errado lança <code>JsonException</code>, com o campo e a posição.</li>
+  <li>No <code>dotnet run arquivo.cs</code>, a serialização por reflexão vem desligada: use um projeto, <code>#:property PublishAot=false</code> ou a geração de código com <code>JsonSerializerContext</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
