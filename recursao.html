@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Recursão — um método que chama a si mesmo | Guia C#</title>
+<meta name="description" content="Recursão em C# para quem nunca programou: o caso base e o passo recursivo, a contagem regressiva, o fatorial passo a passo, a pilha de chamadas, o Stack overflow real do .NET no Linux (código de saída 134), por que o Fibonacci recursivo é lento, recursão × laço e um exemplo de verdade com pastas, com missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Recursão</span></h1>
+
+<p class="intro">Em <a href="metodos.html">Métodos</a> você viu que um método pode chamar outro. E se ele chamar <strong>a si mesmo</strong>? Isso se chama <strong>recursão</strong>, e é um jeito de resolver um problema grande dividindo-o numa versão um pouco menor dele mesmo, até chegar numa tão pequena que a resposta é óbvia. Nesta aula você vai escrever métodos recursivos, acompanhar passo a passo o que acontece por dentro e ver, com a mensagem real do .NET, o que acontece quando a recursão não tem fim.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é recursão e as duas partes de todo método recursivo: o <strong>caso base</strong> e o <strong>passo recursivo</strong>.</li>
+  <li>A contagem regressiva e o fatorial, linha por linha.</li>
+  <li>A <strong>pilha de chamadas</strong>: por que cada chamada tem o seu próprio <code>n</code>.</li>
+  <li>O que acontece sem caso base: o <code>Stack overflow.</code> real, com o código de saída 134.</li>
+  <li>Por que o Fibonacci recursivo fica lento, e quando um laço é melhor.</li>
+  <li>Onde a recursão brilha: estruturas que têm partes iguais ao todo, como pastas dentro de pastas.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram na máquina fictícia da Ana, na pasta <code>~/cs</code>, com o <strong>.NET 10</strong> e o comando <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: a fila do pão</h2>
+<p>A Ana está numa fila enorme e quer saber em que posição está. Ela não consegue ver o começo. Então pergunta para a pessoa da frente: "qual é a sua posição?". Essa pessoa também não sabe, e faz a mesma pergunta para a da frente dela. E assim por diante, até chegar em quem está no balcão, que responde sem perguntar nada: "eu sou a primeira". A resposta volta pela fila: "então eu sou a segunda", "então eu sou a terceira"… até chegar na Ana.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na fila</th><th>Na recursão</th><th>Nome técnico</th></tr>
+<tr><td>Quem está no balcão responde direto: "sou a primeira"</td><td>Um caso tão pequeno que a resposta é imediata, sem chamar ninguém</td><td><strong>caso base</strong></td></tr>
+<tr><td>Os outros perguntam à pessoa da frente e somam 1</td><td>O método chama a si mesmo com um problema <strong>menor</strong> e usa a resposta</td><td><strong>passo recursivo</strong></td></tr>
+<tr><td>A resposta volta pela fila</td><td>Cada chamada termina e devolve o resultado para quem a chamou</td><td>o <strong>retorno</strong> das chamadas</td></tr>
+</table>
+</div>
+
+<p>As duas partes são obrigatórias. Sem o caso base, ninguém responde e a pergunta nunca para de andar. Sem o problema ficar menor a cada passo, o caso base nunca chega.</p>
+
+<hr>
+
+<h2>1. A contagem regressiva</h2>
+
+<pre class="file" data-file="contagem.cs">Contar(3);
+
+void Contar(int n)
+{
+    if (n == 0)
+    {
+        Console.WriteLine("Já!");
+        return;
+    }
+    Console.WriteLine(n);
+    Contar(n - 1);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run contagem.cs
+3
+2
+1
+Já!</pre>
+
+<dl class="anatomy">
+  <dt>if (n == 0) { … return; }</dt><dd>O <strong>caso base</strong>: quando chegar a zero, mostra <code>Já!</code> e para, sem chamar mais ninguém. É ele que garante o fim.</dd>
+  <dt>Console.WriteLine(n);</dt><dd>O trabalho desta chamada: mostrar o próprio número.</dd>
+  <dt>Contar(n - 1);</dt><dd>O <strong>passo recursivo</strong>: o resto da contagem é "a mesma coisa, começando de um número a menos". O <code>n - 1</code> faz o problema diminuir a cada chamada, até chegar no caso base.</dd>
+</dl>
+
+<p>Repare que não há laço nenhum, e mesmo assim a contagem se repete. Quem faz a repetição são as chamadas: <code>Contar(3)</code> chama <code>Contar(2)</code>, que chama <code>Contar(1)</code>, que chama <code>Contar(0)</code>, que mostra <code>Já!</code> e para.</p>
+
+<hr>
+
+<h2>2. Recursão que devolve um valor: o fatorial</h2>
+<p>O <strong>fatorial</strong> de um número, escrito <em>4!</em>, é a multiplicação de todos os inteiros de 1 até ele: 4! = 4 × 3 × 2 × 1 = 24. Repare numa coisa: 4 × 3 × 2 × 1 é 4 × (3 × 2 × 1), ou seja, <strong>4 × 3!</strong>. O fatorial de um número é ele vezes o fatorial do anterior. Isso é uma definição recursiva, e vira código quase palavra por palavra:</p>
+
+<pre class="file" data-file="fatorial.cs">Console.WriteLine(Fatorial(4));
+Console.WriteLine(Fatorial(10));
+
+long Fatorial(int n)
+{
+    if (n &lt;= 1)
+    {
+        return 1;
+    }
+    return n * Fatorial(n - 1);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fatorial.cs
+24
+3628800</pre>
+
+<dl class="anatomy">
+  <dt>if (n &lt;= 1) return 1;</dt><dd>Caso base: 1! = 1 (e, por definição, 0! = 1). O <code>&lt;=</code> no lugar de <code>==</code> também protege contra um 0.</dd>
+  <dt>return n * Fatorial(n - 1);</dt><dd>Passo recursivo: "n vezes o fatorial do anterior". Para calcular esta conta, o C# precisa primeiro do resultado de <code>Fatorial(n - 1)</code>; esta chamada fica <strong>esperando</strong> a outra terminar.</dd>
+  <dt>long</dt><dd>O fatorial cresce muito rápido: 10! já passa de três milhões, e 13! não cabe num <code>int</code>. Por isso o retorno é <code>long</code> (<a href="inteiros.html">Inteiros</a>).</dd>
+</dl>
+
+<h3>A pilha de chamadas, passo a passo</h3>
+<p>Para ver a espera acontecendo, esta versão recebe também o <code>nivel</code> de profundidade e escreve com recuo quando cada chamada começa e quando devolve:</p>
+
+<pre class="file" data-file="rastro.cs">Console.WriteLine($"Resultado: {Fatorial(4, 0)}");
+
+long Fatorial(int n, int nivel)
+{
+    string recuo = new string(' ', nivel * 2);
+    Console.WriteLine($"{recuo}Fatorial({n}) começou");
+    if (n &lt;= 1)
+    {
+        Console.WriteLine($"{recuo}Fatorial({n}) devolve 1");
+        return 1;
+    }
+    long resultado = n * Fatorial(n - 1, nivel + 1);
+    Console.WriteLine($"{recuo}Fatorial({n}) devolve {resultado}");
+    return resultado;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run rastro.cs
+Fatorial(4) começou
+  Fatorial(3) começou
+    Fatorial(2) começou
+      Fatorial(1) começou                « caso base: ninguém mais é chamado
+      Fatorial(1) devolve 1
+    Fatorial(2) devolve 2                « 2 × 1
+  Fatorial(3) devolve 6                  « 3 × 2
+Fatorial(4) devolve 24                   « 4 × 6
+Resultado: 24</pre>
+
+<p>A descida (as linhas "começou") empilha quatro chamadas, cada uma esperando a de baixo. Quando o caso base responde, as respostas sobem, e cada chamada termina a sua conta. O .NET guarda as chamadas que estão esperando numa área da memória chamada <strong>pilha de chamadas</strong> (<em>call stack</em>), como pratos empilhados: o último que entrou é o primeiro que sai.</p>
+
+<div class="tip">
+<strong>Cada chamada tem o seu próprio <code>n</code></strong>
+<p>Na pilha acima existem, ao mesmo tempo, quatro variáveis chamadas <code>n</code>, valendo 4, 3, 2 e 1. Elas não se misturam: como você viu em <a href="escopo.html">Escopo</a>, cada chamada cria as suas próprias variáveis e parâmetros. É por isso que, quando <code>Fatorial(2)</code> termina, <code>Fatorial(3)</code> ainda sabe que o seu <code>n</code> é 3.</p>
+</div>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> troque <code>Fatorial(4, 0)</code> por <code>Fatorial(6, 0)</code> e veja a pilha crescer. Depois troque o caso base para <code>n &lt;= 3</code> (e o <code>return 1</code> para <code>return 6</code>): a descida para mais cedo, e o resultado é o mesmo.</p>
+<pre class="script">Console.WriteLine($"Resultado: {Fatorial(4, 0)}");
+
+long Fatorial(int n, int nivel)
+{
+    string recuo = new string(' ', nivel * 2);
+    Console.WriteLine($"{recuo}Fatorial({n}) começou");
+    if (n &lt;= 1)
+    {
+        Console.WriteLine($"{recuo}Fatorial({n}) devolve 1");
+        return 1;
+    }
+    long resultado = n * Fatorial(n - 1, nivel + 1);
+    Console.WriteLine($"{recuo}Fatorial({n}) devolve {resultado}");
+    return resultado;
+}
+</pre>
+</div>
+
+<div class="trycs" data-goal="outre:^8\n1\n81\n$,src:return[^;]*Potencia\s*\(">
+<p class="try-task"><strong>Missão:</strong> escreva o método recursivo <code>int Potencia(int b, int e)</code>, que calcula <em>b</em> elevado a <em>e</em>. Caso base: qualquer número elevado a 0 é 1. Passo recursivo: <em>b<sup>e</sup></em> = <em>b</em> × <em>b<sup>e-1</sup></em>. Não use laços nem <code>Math.Pow</code>. A saída deve ser:</p>
+<pre class="out">8
+1
+81</pre>
+<pre class="script">Console.WriteLine(Potencia(2, 3));
+Console.WriteLine(Potencia(5, 0));
+Console.WriteLine(Potencia(3, 4));
+
+// escreva aqui o método Potencia
+</pre>
+<pre class="solucao">Console.WriteLine(Potencia(2, 3));
+Console.WriteLine(Potencia(5, 0));
+Console.WriteLine(Potencia(3, 4));
+
+int Potencia(int b, int e)
+{
+    if (e == 0)
+    {
+        return 1;
+    }
+    return b * Potencia(b, e - 1);
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Sem caso base: <code>Stack overflow.</code></h2>
+<p>Tire o caso base do fatorial e veja o que acontece:</p>
+
+<pre class="file" data-file="infinito2.cs">Console.WriteLine(Fatorial(4));
+
+long Fatorial(int n)
+{
+    return n * Fatorial(n - 1);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run infinito2.cs
+Stack overflow.
+Repeated 174627 times:
+--------------------------------
+   at Program.&lt;&lt;Main&gt;$&gt;g__Fatorial|0_0(Int32)
+--------------------------------
+   at Program.&lt;Main&gt;$(System.String[])
+$ echo $?
+134</pre>
+
+<p>O programa compilou sem um aviso sequer, mas quebrou ao rodar. <code>Fatorial(4)</code> chamou <code>Fatorial(3)</code>, que chamou <code>Fatorial(2)</code>, depois 1, 0, -1, -2… sem nunca parar. Cada chamada que espera ocupa um pedaço da pilha, e a pilha tem tamanho limitado (alguns megabytes). Quando ela enche, acontece o <strong>estouro de pilha</strong>.</p>
+
+<dl class="anatomy">
+  <dt>Stack overflow.</dt><dd>"Estouro de pilha". É a <code>System.StackOverflowException</code>, mas o .NET nem chega a escrever o nome completo, como faz com as outras exceções: ele mostra essa linha e mata o programa.</dd>
+  <dt>Repeated 174627 times:</dt><dd>"Repetido 174.627 vezes": o caminho entre as linhas tracejadas se repetiu esse tanto antes de a pilha encher. Foram mais de 170 mil chamadas a <code>Fatorial</code> esperando ao mesmo tempo. O número <strong>muda</strong> um pouco de uma execução para outra (no laboratório já saiu 174.576 e 174.624), porque depende de quanto da pilha já estava ocupado.</dd>
+  <dt>g__Fatorial|0_0(Int32)</dt><dd>A função local <code>Fatorial</code>, com um parâmetro <code>int</code> (o nome que o .NET dá ao <code>int</code> é <code>Int32</code>). Repare que, aqui, não aparece o número da linha.</dd>
+  <dt>at Program.&lt;Main&gt;$(System.String[])</dt><dd>Quem fez a primeira chamada: o programa principal.</dd>
+  <dt>134</dt><dd>O código de saída. É o mesmo de uma exceção não tratada no Linux: o processo foi abortado.</dd>
+</dl>
+
+<div class="warning">
+<strong>O <code>try</code>/<code>catch</code> não salva</strong>
+<p>A maioria das exceções pode ser "pega" com <code>try</code>/<code>catch</code> e tratada (aula <a href="try-catch.html">try e catch</a>). A <code>StackOverflowException</code>, não: o .NET encerra o programa na hora, sem passar pelo <code>catch</code>. Este programa tenta, e não consegue:</p>
+<pre class="file" data-file="trycatchso.cs">try
+{
+    Afundar(1);
+}
+catch (Exception e)
+{
+    Console.WriteLine($"Peguei: {e.GetType().Name}");
+}
+
+void Afundar(int n)
+{
+    Afundar(n + 1);
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run trycatchso.cs
+Stack overflow.
+Repeated 261746 times:
+--------------------------------
+   at Program.&lt;&lt;Main&gt;$&gt;g__Afundar|0_0(Int32)
+--------------------------------
+   at Program.&lt;Main&gt;$(System.String[])
+$ echo $?
+134</pre>
+<p>A linha <code>Peguei:</code> nunca aparece. A única defesa é escrever o caso base certo.</p>
+</div>
+
+<div class="note">
+<strong>No editor do guia</strong>
+<p>O editor roda o .NET dentro do navegador, e lá a pilha é controlada pelo próprio navegador. Por isso, um estouro de pilha no editor não mostra o <code>Stack overflow.</code> acima: o programa só termina com erro. Para ver a mensagem real, rode no seu terminal, com <code>dotnet run</code>.</p>
+</div>
+
+<p>Os enganos que levam a uma recursão sem fim são sempre um destes três:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Engano</th><th>Exemplo</th><th>Conserto</th></tr>
+<tr><td>Esqueceu o caso base</td><td><code>return n * Fatorial(n - 1);</code> sozinho</td><td><code>if (n &lt;= 1) return 1;</code> antes</td></tr>
+<tr><td>O problema não diminui</td><td><code>Fatorial(n)</code> no lugar de <code>Fatorial(n - 1)</code></td><td>Confira se cada chamada fica mais perto do caso base</td></tr>
+<tr><td>O caso base nunca é alcançado</td><td><code>if (n == 0)</code> e a chamada pula de 2 em 2 começando de um ímpar (<code>n - 2</code> a partir de 5: 5, 3, 1, -1…)</td><td>Use <code>&lt;=</code> no caso base</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>4. Recursão nem sempre é a melhor escolha</h2>
+<p>A sequência de <strong>Fibonacci</strong> começa com 0 e 1, e cada número seguinte é a soma dos dois anteriores: 0, 1, 1, 2, 3, 5, 8, 13… A definição é recursiva (Fib(n) = Fib(n-1) + Fib(n-2)), e o código também. Mas este programa conta quantas chamadas acontecem:</p>
+
+<pre class="file" data-file="fib.cs">long chamadas = 0;
+for (int n = 10; n &lt;= 30; n += 10)
+{
+    chamadas = 0;
+    long f = Fib(n);
+    Console.WriteLine($"Fib({n}) = {f}, com {chamadas:N0} chamadas");
+}
+
+long Fib(int n)
+{
+    chamadas++;
+    if (n &lt; 2) return n;
+    return Fib(n - 1) + Fib(n - 2);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fib.cs
+Fib(10) = 55, com 177 chamadas
+Fib(20) = 6765, com 21.891 chamadas
+Fib(30) = 832040, com 2.692.537 chamadas</pre>
+
+<p>Para o Fib(30), quase <strong>2,7 milhões</strong> de chamadas. Cada chamada se divide em duas, e as duas recalculam as mesmas coisas: Fib(30) calcula Fib(28) pelo caminho de Fib(29) e, de novo, por conta própria. A cada 10 a mais no <code>n</code>, o trabalho fica mais de cem vezes maior. Um laço simples, que guarda os dois últimos números, faz o mesmo com 30 voltas:</p>
+
+<pre class="file" data-file="fibloop.cs">Console.WriteLine(Fib(30));
+Console.WriteLine(Fib(90));
+
+long Fib(int n)
+{
+    long anterior = 0, atual = 1;
+    for (int i = 0; i &lt; n; i++)
+    {
+        long proximo = anterior + atual;
+        anterior = atual;
+        atual = proximo;
+    }
+    return anterior;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fibloop.cs
+832040
+2880067194370816120</pre>
+
+<p>O Fib(90) saiu na hora. Na versão recursiva, seriam uns 9 quintilhões de chamadas: mesmo a um bilhão de chamadas por segundo, quase 300 anos.</p>
+
+<h3>O fatorial também tem limite</h3>
+<p>Com <code>long</code>, o maior fatorial que cabe é o de 20. O de 21 passa do limite, e o C# não avisa: o número "dá a volta" e vira negativo (o <strong>estouro</strong> de <a href="inteiros.html">Inteiros</a>):</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fat21.cs                « Fatorial(20) e Fatorial(21)
+2432902008176640000
+-4249290049419214848</pre>
+
+<hr>
+
+<h2>5. Onde a recursão brilha: pastas dentro de pastas</h2>
+<p>A recursão é natural quando a <strong>estrutura</strong> do problema é recursiva: uma coisa que contém coisas do mesmo tipo. Uma pasta contém arquivos e outras pastas, que contêm arquivos e outras pastas… Para listar tudo, o método lista a pasta e chama a si mesmo para cada subpasta. O caso base é implícito: uma pasta sem subpastas não chama ninguém.</p>
+
+<pre class="file" data-file="pastas.cs">Directory.CreateDirectory("loja/2026/janeiro");
+Directory.CreateDirectory("loja/2026/fevereiro");
+Directory.CreateDirectory("loja/fotos");
+File.WriteAllText("loja/2026/janeiro/vendas.txt", "");
+File.WriteAllText("loja/fotos/caderno.png", "");
+Listar("loja", 0);
+
+void Listar(string pasta, int nivel)
+{
+    Console.WriteLine($"{new string(' ', nivel * 2)}{Path.GetFileName(pasta)}/");
+    foreach (string arquivo in Directory.GetFiles(pasta).Order())
+    {
+        Console.WriteLine($"{new string(' ', nivel * 2 + 2)}{Path.GetFileName(arquivo)}");
+    }
+    foreach (string sub in Directory.GetDirectories(pasta).Order())
+    {
+        Listar(sub, nivel + 1);
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pastas.cs
+loja/
+  2026/
+    fevereiro/
+    janeiro/
+      vendas.txt
+  fotos/
+    caderno.png</pre>
+
+<p>As cinco primeiras linhas só criam as pastas e arquivos de exemplo (aula <a href="caminhos.html">Pastas e Caminhos</a>). O <code>Listar</code> não sabe quantos níveis existem, e não precisa saber: cada chamada cuida de uma pasta e entrega as subpastas para "outra cópia de si mesma". Com um laço, você teria de controlar à mão a lista de pastas que faltam visitar. Árvores, menus dentro de menus e expressões com parênteses dentro de parênteses são outros casos assim.</p>
+
+<hr>
+
+<h2>Formas diferentes: recursão × laço</h2>
+<p>Todo problema recursivo pode ser escrito com um laço, e vice-versa. O fatorial com <code>for</code>:</p>
+
+<pre class="file" data-file="fatloop.cs">Console.WriteLine(Fatorial(4));
+Console.WriteLine(Fatorial(10));
+
+long Fatorial(int n)
+{
+    long resultado = 1;
+    for (int i = 2; i &lt;= n; i++)
+    {
+        resultado *= i;
+    }
+    return resultado;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fatloop.cs
+24
+3628800</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Recursão</th><th>Laço</th></tr>
+<tr><td>Leitura</td><td>Fica parecida com a definição ("n vezes o fatorial do anterior")</td><td>Mostra o passo a passo</td></tr>
+<tr><td>Memória</td><td>Cada chamada ocupa a pilha; muitas chamadas estouram</td><td>Usa só as variáveis do laço</td></tr>
+<tr><td>Limite</td><td>De dezenas a centenas de milhares de níveis, conforme o método</td><td>Nenhum</td></tr>
+<tr><td>Melhor para</td><td>Estruturas que se repetem dentro de si (pastas, árvores)</td><td>Contagens, somas, sequências</td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>Regra do guia</strong>
+<p>Em C#, use um laço quando ele for simples (fatorial, somas, Fibonacci). Use recursão quando o problema tiver partes iguais ao todo e a profundidade for pequena (uma árvore de pastas raramente passa de algumas dezenas de níveis). E, ao escrever um método recursivo, escreva <strong>primeiro</strong> o caso base.</p>
+</div>
+
+<p>Uma recursão também pode ser escrita na forma com classe (<code>static long Fatorial(int n)</code>), e funções locais podem ser recursivas, como todas desta aula. Em <a href="funcoes-locais.html">Funções Locais</a> você vai ver uma função local recursiva dentro de outro método.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>Stack overflow.</code> e código de saída 134</strong>
+<p><strong>O que significa:</strong> a recursão não parou, e a pilha de chamadas encheu. O compilador não avisa: o erro só aparece ao rodar.</p>
+<p><strong>Como consertar:</strong> confira as três coisas: existe um caso base? Cada chamada fica mais perto dele? O caso base é alcançado para qualquer valor (prefira <code>&lt;=</code> a <code>==</code>)? Se a lógica está certa e mesmo assim estoura, a profundidade é grande demais para a pilha: troque por um laço.</p>
+</div>
+
+<div class="cenario">
+<strong>O programa fica parado, sem mostrar nada</strong>
+<p><strong>O que significa:</strong> provavelmente uma recursão como a do Fibonacci, que se divide em duas chamadas a cada passo: ela termina, mas só depois de bilhões de chamadas.</p>
+<p><strong>Como consertar:</strong> aperte <kbd>Ctrl</kbd>+<kbd>C</kbd> no terminal para interromper. Conte as chamadas (como no <code>fib.cs</code>) para confirmar e reescreva com um laço.</p>
+</div>
+
+<div class="cenario">
+<strong>O resultado vira negativo ou estranho</strong>
+<p><strong>O que significa:</strong> o valor passou do limite do tipo (21! num <code>long</code>). Não é erro da recursão, é estouro de inteiro.</p>
+<p><strong>Como consertar:</strong> limite o <code>n</code>, use um tipo maior (<code>System.Numerics.BigInteger</code> não tem limite) ou ligue a conferência com <code>checked</code> para virar uma exceção (<a href="inteiros.html">Inteiros</a>).</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Termo</th><th>O que é</th></tr>
+<tr><td>Recursão</td><td>Um método que chama a si mesmo</td></tr>
+<tr><td>Caso base</td><td>A situação em que o método responde direto, sem se chamar; garante o fim</td></tr>
+<tr><td>Passo recursivo</td><td>A chamada a si mesmo com um problema menor</td></tr>
+<tr><td>Pilha de chamadas</td><td>Onde o .NET guarda as chamadas que estão esperando; cada uma com as suas variáveis</td></tr>
+<tr><td><code>Stack overflow.</code></td><td>A pilha encheu (recursão sem fim ou funda demais); o programa morre com código 134, sem <code>catch</code> possível</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O nome da parte que para</h3>
+<p>Como se chama a parte do método recursivo que responde sem chamar a si mesmo? (duas palavras)</p>
+<div class="ex-code"><input data-answer="caso base|Caso base" aria-label="nome"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Quanto vale?</h3>
+<p>Com <code>int S(int n) =&gt; n == 0 ? 0 : n + S(n - 1);</code>, quanto vale <code>S(4)</code>?</p>
+<div class="ex-code"><input data-answer="10" aria-label="valor"></div>
+</div>
+
+<div class="exercise">
+<h3>3. O código de saída</h3>
+<p>Com que código de saída um programa termina no Linux depois de um <code>Stack overflow.</code>?</p>
+<div class="ex-code"><input data-answer="134" aria-label="código"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O que falta em <code>int Contar(int n) { return Contar(n - 1); }</code>?</p>
+<label><input type="radio" name="q4"> O passo recursivo</label>
+<label><input type="radio" name="q4"> O caso base: nada faz a recursão parar</label>
+<label><input type="radio" name="q4"> Um laço <code>for</code></label>
+<label><input type="radio" name="q4"> Nada: está correto</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Um <code>try</code>/<code>catch</code> em volta de uma recursão infinita…</p>
+<label><input type="radio" name="q5"> pega a <code>StackOverflowException</code> e o programa continua</label>
+<label><input type="radio" name="q5"> faz o compilador avisar do problema</label>
+<label><input type="radio" name="q5"> não adianta: o .NET encerra o programa sem passar pelo <code>catch</code></label>
+<label><input type="radio" name="q5"> transforma a recursão num laço</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que o Fibonacci recursivo de 30 fez 2,7 milhões de chamadas?</p>
+<label><input type="radio" name="q6"> Porque cada chamada se divide em duas, e os mesmos valores são recalculados muitas vezes</label>
+<label><input type="radio" name="q6"> Porque faltou o caso base</label>
+<label><input type="radio" name="q6"> Porque <code>long</code> é lento</label>
+<label><input type="radio" name="q6"> Porque o laço <code>for</code> do programa rodou 2,7 milhões de vezes</label>
+</div>
+
+<h3>Missão final: inverter um texto</h3>
+
+<div class="trycs" data-goal="outre:^ahnijoL\novo\n\[\]\n$,src:return[^;]*Inverter\s*\(">
+<p class="try-task"><strong>Missão:</strong> escreva o método recursivo <code>string Inverter(string texto)</code>. Caso base: um texto com 0 ou 1 letra já está invertido (devolva ele mesmo). Passo recursivo: o texto invertido é "o resto invertido" seguido da primeira letra, ou seja, <code>Inverter(texto.Substring(1)) + texto[0]</code>. Não use laços. A saída deve ser:</p>
+<pre class="out">ahnijoL
+ovo
+[]</pre>
+<pre class="script">Console.WriteLine(Inverter("Lojinha"));
+Console.WriteLine(Inverter("ovo"));
+Console.WriteLine($"[{Inverter("")}]");
+
+// escreva aqui o método Inverter
+</pre>
+<pre class="solucao">Console.WriteLine(Inverter("Lojinha"));
+Console.WriteLine(Inverter("ovo"));
+Console.WriteLine($"[{Inverter("")}]");
+
+string Inverter(string texto)
+{
+    if (texto.Length &lt;= 1)
+    {
+        return texto;
+    }
+    return Inverter(texto.Substring(1)) + texto[0];
+}
+</pre>
+</div>
+
+<p>A última chamada passa um texto vazio. Se o seu caso base fosse <code>texto.Length == 1</code>, o <code>Substring(1)</code> de um texto vazio daria <code>ArgumentOutOfRangeException</code>. Por isso o <code>&lt;= 1</code>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><strong>Recursão</strong>: um método que chama a si mesmo, com um problema menor a cada vez.</li>
+  <li>Todo método recursivo tem um <strong>caso base</strong> (responde direto e para) e um <strong>passo recursivo</strong> (chama a si mesmo, mais perto do caso base). Escreva o caso base primeiro.</li>
+  <li>As chamadas que esperam ficam na <strong>pilha de chamadas</strong>, cada uma com as suas próprias variáveis.</li>
+  <li>Sem fim, a pilha enche: <code>Stack overflow.</code>, código 134, e nenhum <code>catch</code> segura. O compilador não avisa.</li>
+  <li>Recursão que se divide em duas (Fibonacci) pode ficar lentíssima. Para contas simples, prefira um laço; a recursão brilha em estruturas que se repetem dentro de si, como pastas.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
