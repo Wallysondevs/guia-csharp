@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Exceções — o que são e como ler o stack trace | Guia C#</title>
+<meta name="description" content="O que é uma exceção em C#, o que acontece quando o programa quebra (Unhandled exception e o código de saída 134), como ler o stack trace linha por linha, a família System.Exception e as exceções mais comuns, com as mensagens reais do .NET 10 no Linux.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Exceções</span></h1>
+
+<p class="intro">Você já deve ter visto um programa seu parar no meio e despejar na tela umas linhas em inglês começando com <code>Unhandled exception.</code>. Isso é uma <strong>exceção</strong>, e as linhas que começam com <code>at</code> são o <strong>stack trace</strong>. Nesta aula você vai entender o que é uma exceção, ler cada pedaço daquela mensagem, achar a linha do seu código no meio dela e conhecer a família das exceções do .NET. Nas próximas aulas você aprende a tratá-las.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma exceção e a diferença para um erro de compilação.</li>
+  <li>O que acontece quando uma exceção não é tratada: a mensagem, o código de saída <code>134</code> e a saída de erro.</li>
+  <li>Como ler um <em>stack trace</em>: o tipo, a mensagem e cada linha <code>at … in arquivo:line N</code>.</li>
+  <li>Como achar a linha do <strong>seu</strong> código num stack trace comprido.</li>
+  <li>A família: <code>Exception</code>, <code>SystemException</code>, <code>ArithmeticException</code>, <code>ArgumentException</code>…</li>
+  <li>As exceções que você mais vai encontrar, com as mensagens reais, e as contas erradas que <strong>não</strong> lançam exceção.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram na máquina da Ana (usuária <code>ana</code>, computador <code>notebook</code>), com o <strong>.NET 10</strong> (C# 14), usando <code>dotnet run arquivo.cs</code> na pasta <code>~/cs</code>. As mensagens do compilador saem em português, mas as <strong>exceções saem em inglês</strong>: o .NET no Linux não traduz essas mensagens. A aula traduz cada uma.</p>
+
+<hr>
+
+<h2>A ideia antes do código</h2>
+<p>A Ana trabalha no caixa da lojinha. O normal é: o cliente traz o produto, ela passa no leitor, cobra e entrega. Mas às vezes algo sai do normal: o código de barras não existe no sistema, a maquininha recusa o cartão, acabou o troco. A Ana não pode fingir que nada aconteceu e seguir em frente. Ela <strong>para</strong> o atendimento e <strong>avisa</strong>: "este produto não está cadastrado". Alguém decide o que fazer: ela mesma, ou a gerente.</p>
+<p>No C# é igual. Uma <strong>exceção</strong> (do latim <em>exceptio</em>, "o que fica fora da regra"; em inglês, <em>exception</em>) é um aviso de que aconteceu algo fora do normal <strong>enquanto o programa rodava</strong>: dividir um inteiro por zero, pegar a posição 10 de um array de 5, transformar <code>"abc"</code> em número. O .NET interrompe o que estava fazendo e <strong>lança</strong> (<em>throws</em>) o aviso. Se ninguém <strong>tratar</strong> o aviso, o programa termina ali.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Erro de compilação</th><th>Exceção</th></tr>
+<tr><td>Quem encontra</td><td>O compilador, antes de rodar</td><td>O .NET, durante a execução</td></tr>
+<tr><td>O programa chega a rodar?</td><td>Não: nenhuma linha é executada</td><td>Sim: roda até o ponto do problema</td></tr>
+<tr><td>Causa típica</td><td>Código escrito errado (falta <code>;</code>, tipo errado)</td><td>Código certo, mas um <strong>valor</strong> inesperado (zero, <code>null</code>, texto no lugar de número)</td></tr>
+<tr><td>Como aparece</td><td><code>arquivo.cs(5,13): error CS0029: …</code> (em português)</td><td><code>Unhandled exception. System.…Exception: …</code> (em inglês)</td></tr>
+<tr><td>Aula</td><td><a href="erros-compilacao.html">Lendo Erros do Compilador</a></td><td>esta</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>O programa "quebrando"</h2>
+<p>A Ana guardou as notas de cinco provas num <a href="arrays.html">array</a>. As posições começam em <code>0</code>, então as cinco notas estão nas posições 0, 1, 2, 3 e 4. Veja o que acontece quando o programa pede a posição 5:</p>
+
+<pre class="file" data-file="notas.cs">int[] notas = [7, 9, 6, 10, 8];
+Console.WriteLine($"Primeira nota: {notas[0]}");
+Console.WriteLine($"Sexta nota: {notas[5]}");
+Console.WriteLine("Fim do programa");
+</pre>
+
+<p>O código está escrito corretamente: o compilador não reclama de nada. O problema só aparece quando ele roda:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run notas.cs
+Primeira nota: 7
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/notas.cs:line 3
+$ echo $?
+134</pre>
+
+<p>Repare em quatro coisas:</p>
+<ol>
+  <li><strong>A linha 2 rodou</strong>: <code>Primeira nota: 7</code> apareceu. O programa funcionou normalmente até o problema.</li>
+  <li><strong>A linha 3 lançou a exceção</strong>, e o programa parou ali. Nem a própria linha 3 terminou: <code>Sexta nota:</code> não apareceu.</li>
+  <li><strong>A linha 4 nunca rodou</strong>: <code>Fim do programa</code> não aparece.</li>
+  <li>O <strong>código de saída</strong> (o número que o programa devolve ao terminar, mostrado com <code>echo $?</code>) foi <code>134</code>. Um programa que termina bem devolve <code>0</code>.</li>
+</ol>
+
+<p>É isso que se chama de exceção <strong>não tratada</strong> (<em>unhandled</em>): ninguém cuidou do aviso, então o .NET mostra o relatório do problema e encerra o programa. A primeira linha diz exatamente isso: <em>Unhandled exception</em>, "exceção não tratada". Na aula <a href="try-catch.html">try e catch</a>, você aprende a cuidar do aviso e deixar o programa continuar.</p>
+
+<div class="note">
+<strong>Por que 134?</strong>
+<p>Quando uma exceção não é tratada, o .NET encerra o programa com o sinal <code>SIGABRT</code> ("abortar"), que no Linux tem o número 6. A convenção do Linux para "terminou por causa de um sinal" é 128 + o número do sinal: 128 + 6 = <strong>134</strong>. Num script do terminal, um <code>134</code> quer dizer "o programa C# quebrou com uma exceção". O número é do Linux (e do macOS); no Windows, o código de saída é outro.</p>
+</div>
+
+<div class="trycs" data-goal="exit:134,out:Quinta nota: 8,out:IndexOutOfRangeException">
+<p class="try-task"><strong>Missão:</strong> o programa mostra a primeira nota e termina bem (código 0). Faça-o mostrar a <strong>quinta</strong> nota (<code>8</code>, na posição 4) e, na linha seguinte, tentar mostrar a sexta nota, que não existe. Rode e leia a exceção e o código de saída.</p>
+<pre class="script" data-file="notas.cs">int[] notas = [7, 9, 6, 10, 8];
+Console.WriteLine($"Primeira nota: {notas[0]}");
+Console.WriteLine("Fim do programa");
+</pre>
+<pre class="solucao" data-file="notas.cs">int[] notas = [7, 9, 6, 10, 8];
+Console.WriteLine($"Quinta nota: {notas[4]}");
+Console.WriteLine($"Sexta nota: {notas[5]}");
+Console.WriteLine("Fim do programa");
+</pre>
+</div>
+
+<h3>O relatório vai para a saída de erro</h3>
+<p>Um programa tem dois "canos" de saída: a <strong>saída padrão</strong> (<em>stdout</em>), onde vai o <code>Console.WriteLine</code>, e a <strong>saída de erro</strong> (<em>stderr</em>). Na tela, os dois aparecem misturados. O relatório da exceção vai para a saída de erro, e dá para ver isso mandando-a para um arquivo com <code>2&gt;</code>:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run notas.cs 2&gt; erros.txt
+Primeira nota: 7
+$ echo $?
+134
+$ cat erros.txt
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/notas.cs:line 3</pre>
+
+<p>Na tela, só ficou o que o programa escreveu de propósito. O relatório foi para o <code>erros.txt</code>. É assim que servidores guardam os problemas num arquivo de registro (<em>log</em>) sem misturar com a saída normal.</p>
+
+<hr>
+
+<h2>Lendo o stack trace, linha por linha</h2>
+<p>O relatório se chama <strong>stack trace</strong> (em inglês, "rastro da pilha"). Parece assustador, mas tem sempre as mesmas partes. Este programa tem dois <a href="metodos.html">métodos</a> numa classe <a href="static.html">estática</a>, um chamando o outro:</p>
+
+<pre class="file" data-file="media.cs">Console.WriteLine("Começando");
+Console.WriteLine(Calculo.Media(30, 0));
+Console.WriteLine("Fim");
+
+static class Calculo
+{
+    public static int Dividir(int a, int b)
+    {
+        return a / b;
+    }
+
+    public static double Media(int soma, int quantidade)
+    {
+        return Dividir(soma, quantidade);
+    }
+}
+</pre>
+
+<p>O programa chama <code>Media(30, 0)</code>, que chama <code>Dividir(30, 0)</code>, que tenta fazer <code>30 / 0</code>. Divisão de inteiro por zero não existe:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run media.cs
+Começando
+Unhandled exception. System.DivideByZeroException: Attempted to divide by zero.
+   at Calculo.Dividir(Int32 a, Int32 b) in /home/ana/cs/media.cs:line 9
+   at Calculo.Media(Int32 soma, Int32 quantidade) in /home/ana/cs/media.cs:line 14
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/media.cs:line 2</pre>
+
+<p>A primeira linha, pedaço por pedaço:</p>
+
+<dl class="anatomy">
+  <dt>Unhandled exception.</dt><dd>"Exceção não tratada." O .NET está avisando que ninguém tratou o problema e que o programa vai terminar.</dd>
+  <dt>System.DivideByZeroException</dt><dd>O <strong>tipo</strong> da exceção, com o nome completo: <code>System</code> é o <a href="namespaces.html">namespace</a> e <code>DivideByZeroException</code> ("exceção de divisão por zero") é a classe. O nome sozinho já conta muito.</dd>
+  <dt>: Attempted to divide by zero.</dt><dd>A <strong>mensagem</strong>, depois dos dois-pontos: "tentou dividir por zero". Muitas mensagens dizem também o valor que causou o problema.</dd>
+</dl>
+
+<p>Cada linha que começa com <code>at</code> ("em") é um degrau da <strong>pilha de chamadas</strong>:</p>
+
+<dl class="anatomy">
+  <dt>at Calculo.Dividir(Int32 a, Int32 b)</dt><dd>Onde a exceção <strong>nasceu</strong>: no método <code>Dividir</code> da classe <code>Calculo</code>. Entre parênteses vêm os parâmetros, com os nomes de tipo do .NET: <code>Int32</code> é o nome do <code>int</code> (aula <a href="inteiros.html">Inteiros</a>), <code>String</code> é o do <code>string</code>.</dd>
+  <dt>in /home/ana/cs/media.cs:line 9</dt><dd>O arquivo e a <strong>linha 9</strong>: <code>return a / b;</code>.</dd>
+  <dt>at Calculo.Media(…) … line 14</dt><dd>Quem chamou o <code>Dividir</code>: o método <code>Media</code>, na linha 14 (<code>return Dividir(soma, quantidade);</code>).</dd>
+  <dt>at Program.&lt;Main&gt;$(String[] args) … line 2</dt><dd>Quem chamou o <code>Media</code>: as instruções do topo do arquivo, na linha 2. <code>&lt;Main&gt;$</code> é o nome que o compilador dá ao <code>Main</code> escondido das instruções de nível superior, dentro de uma classe <code>Program</code> que ele também cria (aula <a href="top-level.html">Program.cs e o Main</a>). É o fundo da pilha, onde tudo começou.</dd>
+</dl>
+
+<h3>Por que "pilha"?</h3>
+<p>Pense numa pilha de pratos. Quando o <code>Main</code> chama o <code>Media</code>, o .NET coloca um prato "Media" em cima do prato "Main". Quando o <code>Media</code> chama o <code>Dividir</code>, outro prato vai para o topo. O stack trace é uma foto da pilha <strong>no momento da exceção</strong>, de cima para baixo:</p>
+
+<pre>  ┌──────────────────────────────┐
+  │ Dividir   (linha 9)   ← a exceção nasceu aqui (topo)
+  ├──────────────────────────────┤
+  │ Media     (linha 14)  ← chamou o Dividir
+  ├──────────────────────────────┤
+  │ &lt;Main&gt;$   (linha 2)   ← chamou o Media (fundo)
+  └──────────────────────────────┘</pre>
+
+<p>A regra de leitura: <strong>a primeira linha <code>at</code> diz onde aconteceu; as de baixo dizem o caminho que levou até lá.</strong> Às vezes o erro "de verdade" não está na linha de cima. Aqui, o <code>Dividir</code> faz exatamente o que deveria; quem passou o zero foi a linha 2. O stack trace mostra o caminho todo para você decidir onde consertar.</p>
+
+<div class="tip">
+<strong>Uma receita para qualquer stack trace</strong>
+<ol>
+  <li>Leia o <strong>tipo</strong> (o nome que termina em <code>Exception</code>).</li>
+  <li>Leia a <strong>mensagem</strong> depois dos dois-pontos. Não sabe inglês? Copie a mensagem e pesquise: ela é sempre igual, no mundo inteiro.</li>
+  <li>Desça pelas linhas <code>at</code> até a primeira que cita um arquivo <strong>seu</strong> (<code>in /home/ana/…</code>) e abra essa linha.</li>
+  <li>Se a linha estiver certa, desça mais um degrau: quem chamou, e com que valores?</li>
+</ol>
+</div>
+
+<div class="trycs" data-goal="outre:Começando\n15\nFim,src:Media\(30\s*\,\s*2\)">
+<p class="try-task"><strong>Missão:</strong> rode o programa e leia o stack trace. Depois conserte a chamada da linha 2 para calcular a média de <code>30</code> pontos em <code>2</code> provas. A saída deve ser <code>Começando</code>, <code>15</code> e <code>Fim</code>.</p>
+<pre class="script" data-file="media.cs">Console.WriteLine("Começando");
+Console.WriteLine(Calculo.Media(30, 0));
+Console.WriteLine("Fim");
+
+static class Calculo
+{
+    public static int Dividir(int a, int b)
+    {
+        return a / b;
+    }
+
+    public static double Media(int soma, int quantidade)
+    {
+        return Dividir(soma, quantidade);
+    }
+}
+</pre>
+<pre class="solucao" data-file="media.cs">Console.WriteLine("Começando");
+Console.WriteLine(Calculo.Media(30, 2));
+Console.WriteLine("Fim");
+
+static class Calculo
+{
+    public static int Dividir(int a, int b)
+    {
+        return a / b;
+    }
+
+    public static double Media(int soma, int quantidade)
+    {
+        return Dividir(soma, quantidade);
+    }
+}
+</pre>
+</div>
+
+<h3>Nomes estranhos: funções locais</h3>
+<p>Se o método for uma <a href="funcoes-locais.html">função local</a>, escrita direto no meio das instruções do topo, o nome no stack trace fica esquisito:</p>
+
+<pre class="file" data-file="local.cs">Console.WriteLine(Dividir(30, 0));
+
+int Dividir(int a, int b)
+{
+    return a / b;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run local.cs
+Unhandled exception. System.DivideByZeroException: Attempted to divide by zero.
+   at Program.&lt;&lt;Main&gt;$&gt;g__Dividir|0_0(Int32 a, Int32 b) in /home/ana/cs/local.cs:line 5
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/local.cs:line 1</pre>
+
+<p><code>&lt;&lt;Main&gt;$&gt;g__Dividir|0_0</code> é o nome que o compilador inventou para a função local <code>Dividir</code> que mora dentro do <code>&lt;Main&gt;$</code>. Não precisa decorar: procure o nome que você conhece (<code>Dividir</code>) no meio dos símbolos, e use o <code>in arquivo:line N</code>, que é sempre claro.</p>
+
+<h3>Stack traces compridos: procure o seu arquivo</h3>
+<p>Quando a exceção nasce <strong>dentro</strong> da biblioteca do .NET, o rastro mostra também os métodos do próprio .NET. A Ana tentou transformar um texto em número com <code>int.Parse</code> (aula <a href="parse.html">Parse e TryParse</a>):</p>
+
+<pre class="file" data-file="idade.cs">string idade = "29 anos";
+int numero = int.Parse(idade);
+Console.WriteLine(numero + 1);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run idade.cs
+Unhandled exception. System.FormatException: The input string '29 anos' was not in a correct format.
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+   at System.Int32.Parse(String s)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/idade.cs:line 2</pre>
+
+<p>As duas primeiras linhas <code>at</code> são do .NET (<code>System.Number</code>, <code>System.Int32</code>) e <strong>não têm</strong> <code>in arquivo:line</code>: você não tem o código-fonte delas, e não é lá que está o problema. A primeira linha sua é a da <code>idade.cs:line 2</code>, a chamada <code>int.Parse(idade)</code>. A mensagem conta o motivo: <em>The input string '29 anos' was not in a correct format</em>, "o texto de entrada '29 anos' não estava num formato correto". O texto tem letras, então não vira número.</p>
+
+<hr>
+
+<h2>Exceções são objetos</h2>
+<p>Uma exceção não é só uma mensagem na tela: é um <strong>objeto</strong> de verdade, criado a partir de uma <strong>classe</strong>, como os objetos de <a href="classes-objetos.html">Classes e Objetos</a>. <code>DivideByZeroException</code>, <code>FormatException</code> e todas as outras são classes. Quando o problema acontece, o .NET cria um objeto dessa classe (com a mensagem e o stack trace guardados dentro) e o lança.</p>
+<p>Como toda classe, elas formam uma família por <a href="heranca.html">herança</a>. Este programa pergunta a cada classe quem é a "mãe" dela (a propriedade <code>BaseType</code>, da aula <a href="reflexao.html">Reflexão</a>), até chegar ao topo:</p>
+
+<pre class="file" data-file="familia.cs">Type[] tipos = [typeof(DivideByZeroException), typeof(FormatException), typeof(IndexOutOfRangeException),
+    typeof(ArgumentNullException), typeof(ArgumentOutOfRangeException), typeof(KeyNotFoundException),
+    typeof(FileNotFoundException), typeof(NullReferenceException), typeof(InvalidOperationException),
+    typeof(OverflowException), typeof(InvalidCastException), typeof(OutOfMemoryException), typeof(StackOverflowException)];
+foreach (var t in tipos)
+{
+    var nomes = new List&lt;string&gt;();
+    for (var x = t; x != null; x = x.BaseType) nomes.Add(x.Name);
+    Console.WriteLine(string.Join(" → ", nomes));
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run familia.cs
+DivideByZeroException → ArithmeticException → SystemException → Exception → Object
+FormatException → SystemException → Exception → Object
+IndexOutOfRangeException → SystemException → Exception → Object
+ArgumentNullException → ArgumentException → SystemException → Exception → Object
+ArgumentOutOfRangeException → ArgumentException → SystemException → Exception → Object
+KeyNotFoundException → SystemException → Exception → Object
+FileNotFoundException → IOException → SystemException → Exception → Object
+NullReferenceException → SystemException → Exception → Object
+InvalidOperationException → SystemException → Exception → Object
+OverflowException → ArithmeticException → SystemException → Exception → Object
+InvalidCastException → SystemException → Exception → Object
+OutOfMemoryException → SystemException → Exception → Object
+StackOverflowException → SystemException → Exception → Object</pre>
+
+<p>Não se preocupe em entender cada linha deste programa agora; o que importa é a resposta. Juntando tudo, a árvore fica assim:</p>
+
+<h2 id="hierarquia">A família das exceções</h2>
+
+<pre>Object
+ └─ Exception ......................... a mãe de todas
+     └─ SystemException ............... as que o próprio .NET lança
+         ├─ ArithmeticException ....... contas
+         │   ├─ DivideByZeroException
+         │   └─ OverflowException
+         ├─ ArgumentException ......... argumento inválido num método
+         │   ├─ ArgumentNullException
+         │   └─ ArgumentOutOfRangeException
+         ├─ FormatException ........... texto no formato errado
+         ├─ IndexOutOfRangeException .. posição fora do array
+         ├─ InvalidCastException ...... conversão impossível
+         ├─ InvalidOperationException . operação que não cabe agora
+         ├─ KeyNotFoundException ...... chave que não existe no dicionário
+         ├─ NullReferenceException .... usou algo que é null
+         ├─ IOException ............... arquivos e entrada/saída
+         │   └─ FileNotFoundException
+         ├─ OutOfMemoryException ...... a memória acabou
+         └─ StackOverflowException .... a pilha de chamadas estourou</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Classe</th><th>Em português</th><th>O que representa</th></tr>
+<tr><td><code>Exception</code></td><td>exceção</td><td>A raiz. Só objetos desta família podem ser lançados com <code>throw</code> e capturados com <code>catch</code>.</td></tr>
+<tr><td><code>SystemException</code></td><td>exceção do sistema</td><td>As que o próprio .NET lança. Você nunca cria uma <code>SystemException</code> diretamente.</td></tr>
+<tr><td><code>ArithmeticException</code></td><td>exceção aritmética</td><td>Problemas em contas: divisão de inteiro por zero, estouro em <code>checked</code>.</td></tr>
+<tr><td><code>ArgumentException</code></td><td>exceção de argumento</td><td>Um método recebeu um valor que não aceita. As filhas dizem o porquê: <code>null</code> (<code>ArgumentNullException</code>) ou fora do intervalo (<code>ArgumentOutOfRangeException</code>).</td></tr>
+</table>
+</div>
+
+<p>Essa família importa porque, na <a href="try-catch.html">próxima aula</a>, um <code>catch</code> de uma classe mãe pega também as filhas: <code>catch (ArithmeticException)</code> pega <code>DivideByZeroException</code> e <code>OverflowException</code>.</p>
+
+<div class="note">
+<strong>Vindo do Java?</strong>
+<p>O C# <strong>não tem</strong> exceções "checked". O compilador nunca obriga você a tratar ou declarar uma exceção, e não existe a palavra <code>throws</code> no método. Também não existe o ramo <code>Error</code>: problemas graves, como <code>OutOfMemoryException</code>, também são <code>Exception</code>. Cabe a você, e à documentação de cada método, saber o que pode ser lançado.</p>
+</div>
+
+<hr>
+
+<h2>As exceções mais comuns</h2>
+<p>Estas são as que quem está começando mais encontra. Todas foram provocadas de verdade no .NET 10 da Ana; a mensagem é exatamente a que aparece. A lista para consulta está em <a href="ref-excecoes.html">Referência: Exceções</a>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Exceção</th><th>Código que provoca</th><th>Mensagem real (e tradução)</th><th>Aula</th></tr>
+<tr><td><code>IndexOutOfRangeException</code></td><td><code>notas[5]</code> num array de 5; <code>"uva"[9]</code></td><td><em>Index was outside the bounds of the array.</em><br>"O índice estava fora dos limites do array."</td><td><a href="arrays.html">Arrays</a></td></tr>
+<tr><td><code>ArgumentOutOfRangeException</code></td><td><code>lista[5]</code> numa <code>List</code> de 2</td><td><em>Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')</em><br>"Índice fora do intervalo. Tem de ser não negativo e menor que o tamanho da coleção."</td><td><a href="list.html">List&lt;T&gt;</a></td></tr>
+<tr><td><code>ArgumentOutOfRangeException</code></td><td><code>"uva".Substring(9)</code></td><td><em>startIndex cannot be larger than length of string. (Parameter 'startIndex')</em><br>"O início não pode ser maior que o tamanho do texto."</td><td><a href="metodos-string.html">Métodos de String</a></td></tr>
+<tr><td><code>DivideByZeroException</code></td><td><code>30 / 0</code> com inteiros ou <code>decimal</code></td><td><em>Attempted to divide by zero.</em><br>"Tentou dividir por zero."</td><td><a href="operadores-aritmeticos.html">Aritméticos</a></td></tr>
+<tr><td><code>FormatException</code></td><td><code>int.Parse("29 anos")</code></td><td><em>The input string '29 anos' was not in a correct format.</em><br>"O texto '29 anos' não está num formato correto."</td><td><a href="parse.html">Parse e TryParse</a></td></tr>
+<tr><td><code>OverflowException</code></td><td><code>int.Parse("99999999999")</code></td><td><em>Value was either too large or too small for an Int32.</em><br>"O valor é grande ou pequeno demais para um <code>int</code>."</td><td><a href="parse.html">Parse e TryParse</a></td></tr>
+<tr><td><code>OverflowException</code></td><td><code>checked(int.MaxValue + 1)</code></td><td><em>Arithmetic operation resulted in an overflow.</em><br>"A operação aritmética resultou num estouro."</td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>ArgumentNullException</code></td><td><code>int.Parse(null)</code></td><td><em>Value cannot be null. (Parameter 's')</em><br>"O valor não pode ser null (parâmetro 's')."</td><td><a href="null.html">null</a></td></tr>
+<tr><td><code>NullReferenceException</code></td><td><code>apelido.Length</code> com <code>apelido = null</code></td><td><em>Object reference not set to an instance of an object.</em><br>"A referência não aponta para nenhum objeto."</td><td><a href="referencias-anulaveis.html">Referências Anuláveis</a></td></tr>
+<tr><td><code>InvalidCastException</code></td><td><code>(int)coisa</code> com <code>object coisa = "texto"</code></td><td><em>Unable to cast object of type 'System.String' to type 'System.Int32'.</em><br>"Não dá para converter um <code>string</code> em <code>int</code>."</td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
+<tr><td><code>KeyNotFoundException</code></td><td><code>precos["café"]</code> sem a chave <code>"café"</code></td><td><em>The given key 'café' was not present in the dictionary.</em><br>"A chave 'café' não estava no dicionário."</td><td><a href="dictionary.html">Dictionary</a></td></tr>
+<tr><td><code>InvalidOperationException</code></td><td><code>vazio.First()</code> numa lista vazia</td><td><em>Sequence contains no elements</em><br>"A sequência não tem elementos."</td><td><a href="linq.html">LINQ</a></td></tr>
+<tr><td><code>InvalidOperationException</code></td><td><code>lista.Add(…)</code> dentro de um <code>foreach</code> da mesma lista</td><td><em>Collection was modified; enumeration operation may not execute.</em><br>"A coleção foi modificada; a enumeração não pode continuar."</td><td><a href="foreach.html">foreach</a></td></tr>
+<tr><td><code>FileNotFoundException</code></td><td><code>File.ReadAllText("compras.txt")</code> sem o arquivo</td><td><em>Could not find file '/home/ana/cs/compras.txt'.</em><br>"Não foi possível encontrar o arquivo."</td><td><a href="arquivos.html">Arquivos</a></td></tr>
+</table>
+</div>
+
+<p>Repare que a <code>FileNotFoundException</code> mostra o caminho <strong>completo</strong>: <code>"compras.txt"</code> virou <code>/home/ana/cs/compras.txt</code>, porque o programa procura o arquivo na pasta de onde foi rodado. Essa mensagem já resolve metade dos problemas com arquivos: "ah, ele estava procurando na pasta errada".</p>
+
+<h3>O aviso que vem antes da exceção</h3>
+<p>O compilador não consegue prever todas as exceções, mas às vezes ele <strong>avisa</strong>. Com as <a href="referencias-anulaveis.html">referências anuláveis</a> ligadas (o padrão do .NET 10), usar algo que pode ser <code>null</code> dá o aviso <code>CS8602</code>:</p>
+
+<pre class="file" data-file="nulo.cs">string? apelido = null;
+Console.WriteLine("Tamanho do apelido:");
+Console.WriteLine(apelido.Length);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run nulo.cs
+/home/ana/cs/nulo.cs(3,19): warning CS8602: Desreferência de uma referência possivelmente nula.
+Tamanho do apelido:
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/nulo.cs:line 3</pre>
+
+<p>A primeira linha é do <strong>compilador</strong>, em português, antes de rodar: "desreferência (uso) de uma referência possivelmente nula", na linha 3, coluna 19. Como é só um aviso, o programa rodou… e quebrou exatamente na linha avisada. Por isso o guia insiste: <strong>leia os avisos</strong> (aula <a href="avisos.html">Avisos do Compilador</a>). Cada um é uma exceção que você pode evitar antes de ela acontecer.</p>
+
+<hr>
+
+<h2>Nem toda conta errada lança exceção</h2>
+<p>Algumas operações que parecem impossíveis <strong>não</strong> lançam exceção. Elas devolvem um resultado estranho, e o programa segue como se nada tivesse acontecido. Isso pode ser pior, porque ninguém percebe:</p>
+
+<pre class="file" data-file="real.cs">double conta = 1.0 / 0;
+Console.WriteLine(conta);
+Console.WriteLine(0.0 / 0);
+decimal d = 0;
+Console.WriteLine(10m / d);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run real.cs
+∞
+NaN
+Unhandled exception. System.DivideByZeroException: Attempted to divide by zero.
+   at System.Decimal.DecCalc.VarDecDiv(DecCalc&amp; d1, DecCalc&amp; d2)
+   at System.Decimal.op_Division(Decimal d1, Decimal d2)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/real.cs:line 5</pre>
+
+<dl class="anatomy">
+  <dt>1.0 / 0 → ∞</dt><dd>Com <code>double</code>, dividir por zero dá <strong>infinito</strong>, sem exceção.</dd>
+  <dt>0.0 / 0 → NaN</dt><dd><em>Not a Number</em>, "não é um número": o resultado de uma conta sem sentido. Também sem exceção (aula <a href="decimais.html">float, double e decimal</a>).</dd>
+  <dt>10m / d → DivideByZeroException</dt><dd>Com <code>decimal</code> (e com inteiros), dividir por zero lança a exceção. Mais um motivo para usar <code>decimal</code> com dinheiro: o erro aparece, em vez de um "infinito" silencioso numa nota fiscal.</dd>
+</dl>
+
+<p>Com inteiros, há outro caso silencioso: o <strong>estouro</strong>. Passar do maior <code>int</code> faz o número "dar a volta", a menos que a conta esteja dentro de <code>checked</code>:</p>
+
+<pre class="file" data-file="estouro.cs">int grande = int.MaxValue;
+Console.WriteLine(grande + 1);
+Console.WriteLine(checked(grande + 1));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run estouro.cs
+-2147483648
+Unhandled exception. System.OverflowException: Arithmetic operation resulted in an overflow.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/estouro.cs:line 3</pre>
+
+<p>A linha 2 mostrou um número negativo sem reclamar; a linha 3, com <code>checked</code> ("verificado"), lançou <code>OverflowException</code>. Os detalhes estão em <a href="inteiros.html">Inteiros</a>.</p>
+
+<hr>
+
+<h2>A exceção que não dá para tratar: estouro da pilha</h2>
+<p>Um método que chama a si mesmo para sempre (uma <a href="recursao.html">recursão</a> sem fim) empilha pratos até a pilha acabar:</p>
+
+<pre class="file" data-file="pilha.cs">Contar(1);
+
+void Contar(int n)
+{
+    Contar(n + 1);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pilha.cs
+Stack overflow.
+Repeated 261792 times:
+--------------------------------
+   at Program.&lt;&lt;Main&gt;$&gt;g__Contar|0_0(Int32)
+--------------------------------
+   at Program.&lt;Main&gt;$(System.String[])
+$ echo $?
+134</pre>
+
+<p>"Estouro da pilha. Repetido 261792 vezes": o .NET resume as chamadas iguais em vez de mostrar 261 mil linhas (o número muda de uma execução para outra). Esse é o único caso da aula que <strong>nenhum</strong> <code>catch</code> consegue segurar: o .NET encerra o programa na hora. A solução é sempre consertar o código, para a recursão ter um ponto de parada.</p>
+
+<hr>
+
+<h2>Prevenir ou tratar?</h2>
+<p>Muitas exceções podem ser <strong>evitadas</strong> com um <a href="if-else.html">if</a> antes da linha perigosa. Quando o problema é previsível, prevenir é mais claro (e mais rápido) do que deixar a exceção acontecer:</p>
+
+<pre class="file" data-file="prevenir.cs">int[] notas = [7, 9, 6, 10, 8];
+int posicao = 5;
+if (posicao &lt; notas.Length)
+{
+    Console.WriteLine($"Nota {posicao + 1}: {notas[posicao]}");
+}
+else
+{
+    Console.WriteLine($"Não existe a nota {posicao + 1}: só há {notas.Length}.");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run prevenir.cs
+Não existe a nota 6: só há 5.
+$ echo $?
+0</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Problema</th><th>Prevenir com</th><th>Tratar com</th></tr>
+<tr><td>Posição fora do array</td><td><code>if (i &lt; notas.Length)</code></td><td><code>catch (IndexOutOfRangeException)</code></td></tr>
+<tr><td>Texto que não é número</td><td><code>int.TryParse(texto, out int n)</code></td><td><code>catch (FormatException)</code></td></tr>
+<tr><td>Divisão por zero</td><td><code>if (quantidade != 0)</code></td><td><code>catch (DivideByZeroException)</code></td></tr>
+<tr><td>Variável <code>null</code></td><td><code>?.</code>, <code>??</code>, <code>if (x is not null)</code> e os avisos <code>CS86xx</code></td><td>(não trate: conserte o código)</td></tr>
+<tr><td>Chave fora do dicionário</td><td><code>precos.TryGetValue("café", out var p)</code></td><td><code>catch (KeyNotFoundException)</code></td></tr>
+<tr><td>Arquivo que pode sumir, rede que pode cair</td><td>(não dá para prevenir tudo: outro programa pode apagar o arquivo um instante depois do <code>if</code>)</td><td><code>catch (IOException)</code></td></tr>
+</table>
+</div>
+
+<p>A regra prática: <strong>previna</strong> o que é erro de lógica ou de entrada do usuário; <strong>trate</strong> (com <a href="try-catch.html">try e catch</a>) o que depende do mundo lá fora: arquivos, rede, outros programas.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>O programa fecha e mostra um monte de linhas em inglês</strong>
+<p><strong>O que aconteceu:</strong> uma exceção não tratada. O código de saída é <code>134</code>.</p>
+<p><strong>Como resolver:</strong> siga a receita: o tipo, a mensagem e a primeira linha <code>at</code> com <code>in /home/ana/…:line N</code>. Abra o arquivo nessa linha e pergunte "que valor aqui pode estar diferente do que eu esperava?".</p>
+</div>
+
+<div class="cenario">
+<strong>O stack trace não mostra nenhum arquivo meu</strong>
+<p><strong>O que aconteceu:</strong> quase sempre, você está olhando só o topo de um rastro comprido. As linhas do .NET (<code>at System.…</code>, sem <code>in arquivo</code>) vêm primeiro; as suas, mais embaixo.</p>
+<p><strong>Como resolver:</strong> role até o fim do relatório. A linha <code>at Program.&lt;Main&gt;$(…) in …</code>, quando existe, é a última.</p>
+</div>
+
+<div class="cenario">
+<strong>A linha do stack trace parece certa</strong>
+<p><strong>O que aconteceu:</strong> a linha que lançou está certa; quem errou foi quem <strong>passou o valor</strong>. No <code>media.cs</code>, a linha 9 (<code>a / b</code>) não tem defeito; o zero veio da linha 2.</p>
+<p><strong>Como resolver:</strong> desça um degrau no stack trace de cada vez, até achar de onde veio o valor errado.</p>
+</div>
+
+<div class="cenario">
+<strong>O programa não quebra, mas o resultado é <code>∞</code>, <code>NaN</code> ou um número negativo absurdo</strong>
+<p><strong>O que aconteceu:</strong> uma conta com <code>double</code> dividiu por zero, ou um inteiro estourou. Nenhuma exceção foi lançada.</p>
+<p><strong>Como resolver:</strong> confira o divisor antes da conta, use <code>decimal</code> para dinheiro e <code>checked</code> onde um estouro seria grave.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Parte do relatório</th><th>O que é</th></tr>
+<tr><td><code>Unhandled exception.</code></td><td>"Exceção não tratada": ninguém capturou, o programa vai terminar</td></tr>
+<tr><td><code>System.FormatException</code></td><td>O tipo (namespace + classe)</td></tr>
+<tr><td><code>: The input string '…' was not …</code></td><td>A mensagem (sempre em inglês no Linux)</td></tr>
+<tr><td><code>at Classe.Metodo(Int32 a) in /home/ana/cs/x.cs:line 9</code></td><td>Um degrau da pilha: método, parâmetros, arquivo e linha</td></tr>
+<tr><td><code>at System.…</code> (sem <code>in</code>)</td><td>Código do .NET: pule até achar um arquivo seu</td></tr>
+<tr><td><code>Program.&lt;Main&gt;$</code></td><td>O <code>Main</code> escondido das instruções de nível superior</td></tr>
+<tr><td><code>&lt;&lt;Main&gt;$&gt;g__Nome|0_0</code></td><td>Uma função local chamada <code>Nome</code></td></tr>
+<tr><td>Código de saída <code>134</code></td><td>128 + 6 (<code>SIGABRT</code>): o programa terminou por uma exceção não tratada</td></tr>
+<tr><td><code>2&gt; erros.txt</code></td><td>O relatório vai para a saída de erro; assim ele fica num arquivo</td></tr>
+<tr><td><code>Stack overflow.</code></td><td>Recursão sem fim; não pode ser capturada</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O código de saída</h3>
+<p>Uma exceção não tratada num programa C# no Linux faz o <code>echo $?</code> mostrar:</p>
+<div class="ex-code"><input data-answer="134" aria-label="número"></div>
+</div>
+
+<div class="exercise">
+<h3>2. O nome da exceção</h3>
+<p>Complete o nome da exceção que <code>int.Parse("dez")</code> lança:</p>
+<div class="ex-code">System.<input data-answer="FormatException" aria-label="tipo">: The input string 'dez' was not in a correct format.</div>
+</div>
+
+<div class="exercise">
+<h3>3. A mãe de todas</h3>
+<p>Complete: todas as exceções do .NET descendem da classe</p>
+<div class="ex-code"><input data-answer="Exception|System.Exception" aria-label="classe"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Num stack trace, qual linha <code>at</code> mostra onde a exceção <strong>nasceu</strong>?</p>
+<label><input type="radio" name="q4"> A última, a do <code>&lt;Main&gt;$</code>.</label>
+<label><input type="radio" name="q4"> A primeira, logo abaixo do tipo e da mensagem.</label>
+<label><input type="radio" name="q4"> A que tiver o maior número de linha.</label>
+<label><input type="radio" name="q4"> Nenhuma: o stack trace só mostra quem chamou.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Qual destas linhas <strong>não</strong> lança exceção?</p>
+<label><input type="radio" name="q5"> <code>int zero = 0; Console.WriteLine(10 / zero);</code></label>
+<label><input type="radio" name="q5"> <code>decimal zero = 0; Console.WriteLine(10m / zero);</code></label>
+<label><input type="radio" name="q5"> <code>double zero = 0; Console.WriteLine(10.0 / zero);</code></label>
+<label><input type="radio" name="q5"> <code>Console.WriteLine(int.Parse("dez"));</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. <code>DivideByZeroException</code> e <code>OverflowException</code> são filhas de qual classe?</p>
+<label><input type="radio" name="q6"> <code>ArithmeticException</code></label>
+<label><input type="radio" name="q6"> <code>ArgumentException</code></label>
+<label><input type="radio" name="q6"> <code>FormatException</code></label>
+<label><input type="radio" name="q6"> <code>InvalidOperationException</code></label>
+</div>
+
+<div class="trycs" data-goal="out:Não existe a nota 6,exit:0,src:notas\.Length">
+<p class="try-task"><strong>Missão final:</strong> o programa quebra com <code>IndexOutOfRangeException</code> (código 134). Sem tirar a linha que mostra a nota, <strong>previna</strong> a exceção com um <code>if</code> que compare <code>posicao</code> com <code>notas.Length</code>. Quando a nota não existir, mostre <code>Não existe a nota 6</code>. O programa deve terminar com código 0.</p>
+<pre class="script" data-file="notas.cs">int[] notas = [7, 9, 6, 10, 8];
+int posicao = 5;
+Console.WriteLine($"Nota {posicao + 1}: {notas[posicao]}");
+</pre>
+<pre class="solucao" data-file="notas.cs">int[] notas = [7, 9, 6, 10, 8];
+int posicao = 5;
+if (posicao &lt; notas.Length)
+{
+    Console.WriteLine($"Nota {posicao + 1}: {notas[posicao]}");
+}
+else
+{
+    Console.WriteLine($"Não existe a nota {posicao + 1}: só há {notas.Length}.");
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma <strong>exceção</strong> é um aviso de que algo saiu do normal <strong>durante a execução</strong>. O código compila; o problema está num valor.</li>
+  <li>Sem tratamento, o programa para na linha do problema, mostra <code>Unhandled exception.</code> com o tipo, a mensagem (em inglês) e o stack trace, na saída de erro, e termina com o código <code>134</code>.</li>
+  <li>No stack trace, a primeira linha <code>at</code> é onde a exceção nasceu; as de baixo, o caminho até lá. Procure o <code>in /home/ana/…:line N</code> do seu arquivo.</li>
+  <li>Exceções são objetos de classes que herdam de <code>Exception</code>. As do .NET passam por <code>SystemException</code>. O C# não tem exceções "checked".</li>
+  <li>As mais comuns: <code>IndexOutOfRangeException</code>, <code>ArgumentOutOfRangeException</code>, <code>FormatException</code>, <code>NullReferenceException</code>, <code>DivideByZeroException</code>, <code>KeyNotFoundException</code>, <code>InvalidOperationException</code>, <code>FileNotFoundException</code>.</li>
+  <li><code>double</code> dividido por zero dá <code>∞</code> ou <code>NaN</code>, e inteiros estouram em silêncio fora de <code>checked</code>: sem exceção.</li>
+  <li>Previna com <code>if</code> e <code>TryParse</code> o que é previsível; trate com <code>try</code>/<code>catch</code> (próxima aula) o que depende do mundo lá fora.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
