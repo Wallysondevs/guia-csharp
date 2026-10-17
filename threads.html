@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Threads — Thread, Start, Join e condição de corrida | Guia C#</title>
+<meta name="description" content="Threads em C# para quem nunca programou: a thread principal, Thread.CurrentThread, criar threads com new Thread, Start e Join, Thread.Sleep, threads de primeiro e segundo plano (IsBackground), o pool de threads, a condição de corrida do contador++ e o conserto com Interlocked.Increment, exceções que derrubam o programa, ThreadStateException, e por que preferir Task.Run, com saídas reais do .NET 10 em 8 núcleos.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Threads</span></h1>
+
+<p class="intro">Uma <strong>thread</strong> ("fio", "linha de execução") é um caminho de execução dentro do programa: uma sequência de instruções sendo executada, uma depois da outra. Todo programa que você escreveu até aqui tinha uma thread só. Com várias, o programa faz várias coisas <strong>ao mesmo tempo</strong>, usando os vários núcleos do processador. Nesta aula você vai criar threads, esperar por elas, ver a saída delas se misturar e conhecer o erro mais traiçoeiro da programação com threads: duas threads mexendo na mesma variável.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é a thread principal e como ver as informações dela (<code>Thread.CurrentThread</code>).</li>
+  <li>Criar uma thread com <code>new Thread</code>, começá-la com <code>Start</code> e esperá-la com <code>Join</code>.</li>
+  <li>Pausar uma thread com <code>Thread.Sleep</code>.</li>
+  <li>A diferença entre threads de primeiro e de segundo plano (<code>IsBackground</code>).</li>
+  <li>A <strong>condição de corrida</strong> do <code>contador++</code> e o conserto com <code>Interlocked.Increment</code>.</li>
+  <li>O que acontece com uma exceção dentro de uma thread, e por que hoje se prefere <code>Task.Run</code>.</li>
+</ul>
+</div>
+
+<p>Esta aula usa <a href="lambdas.html">lambdas</a> e <a href="funcoes-locais.html">funções locais</a>. Os programas rodam com <code>dotnet run</code> na pasta <code>~/cs</code> do notebook da Ana, que tem <strong>8 núcleos</strong>. Com threads, a ordem de algumas linhas da saída e alguns números <strong>mudam a cada execução</strong>: os exemplos mostram execuções reais, e as suas podem sair diferentes.</p>
+
+<div class="warning">
+<strong>No editor do guia, uma thread só</strong>
+<p>O .NET do editor roda em WebAssembly, dentro do navegador, com <strong>uma thread só</strong>. Lá, <code>new Thread(…).Start()</code> não funciona (veja "Quando dá errado"). Por isso, os exemplos com <code>new Thread</code> aparecem com a saída do terminal da Ana, e as caixas "Experimente" usam a thread principal e o <code>Task.Run</code>, que funciona nos dois lugares.</p>
+</div>
+
+<hr>
+
+<h2>A ideia antes do código: cozinheiros numa cozinha</h2>
+<p>Pense no programa como uma <strong>cozinha</strong> e nas threads como <strong>cozinheiros</strong>. Com um cozinheiro só, as receitas saem uma depois da outra. Com dois, uma panela fica com cada um, e o jantar sai mais rápido. Os núcleos do processador são as <strong>bocas do fogão</strong>: com 8 bocas, até 8 cozinheiros trabalham de verdade ao mesmo tempo.</p>
+<p>Mas cozinheiros na mesma cozinha dividem as coisas. Se dois forem pegar o último ovo da mesma caixa ao mesmo tempo, os dois podem achar que pegaram. Variáveis compartilhadas entre threads têm exatamente esse problema (seção 4).</p>
+
+<hr>
+
+<h2>1. Você sempre esteve numa thread: a principal</h2>
+
+<pre class="file" data-file="principal.cs">Thread atual = Thread.CurrentThread;
+atual.Name = "principal";
+Console.WriteLine($"Nome: {atual.Name}");
+Console.WriteLine($"Número: {atual.ManagedThreadId}");
+Console.WriteLine($"Em segundo plano? {atual.IsBackground}");
+Console.WriteLine($"Do pool? {atual.IsThreadPoolThread}");
+Console.WriteLine($"Núcleos: {Environment.ProcessorCount}");
+for (int i = 3; i &gt;= 1; i--)
+{
+    Console.WriteLine(i);
+    Thread.Sleep(500);
+}
+Console.WriteLine("Já!");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run principal.cs
+Nome: principal
+Número: 1
+Em segundo plano? False
+Do pool? False
+Núcleos: 8
+3
+2
+1
+Já!</pre>
+
+<dl class="anatomy">
+  <dt>Thread.CurrentThread</dt><dd>"A thread atual": um objeto da classe <code>Thread</code> (namespace <code>System.Threading</code>, já incluído) que representa quem está rodando esta linha. Aqui, a thread principal, criada pelo .NET quando o programa começa.</dd>
+  <dt>atual.Name = "principal"</dt><dd>Threads podem ter um nome, que ajuda a descobrir "quem fez o quê" nas mensagens e no <a href="depuracao.html">depurador</a>. O nome só pode ser dado uma vez.</dd>
+  <dt>ManagedThreadId</dt><dd>O número da thread no .NET. A principal é a 1. (<code>Environment.CurrentManagedThreadId</code> dá o mesmo número, sem precisar do objeto.)</dd>
+  <dt>IsBackground, IsThreadPoolThread</dt><dd>Se ela é de segundo plano (seção 3) e se é do pool de threads (seção 5).</dd>
+  <dt>Environment.ProcessorCount</dt><dd>Quantos núcleos o computador tem: quantas threads conseguem rodar de verdade ao mesmo tempo.</dd>
+  <dt>Thread.Sleep(500)</dt><dd>"Dormir": pausa a thread atual por 500 milissegundos (meio segundo). Durante a pausa, ela não faz nada.</dd>
+</dl>
+
+<div class="trycs" data-goal="outre:Estou na thread principal\n3\n2\n1\nJá!,src:Thread\.Sleep">
+<p class="try-task"><strong>Missão:</strong> o programa mostra <code>Estou na thread </code> sem nome nenhum. Dê o nome <code>"principal"</code> à thread atual antes da mensagem e, depois dela, faça uma contagem regressiva de 3 a 1, com <code>Thread.Sleep(500)</code> entre os números, terminando com <code>Já!</code>.</p>
+<pre class="script" data-file="contagem.cs">Console.WriteLine($"Estou na thread {Thread.CurrentThread.Name}");
+// a contagem regressiva vem aqui
+</pre>
+<pre class="solucao" data-file="contagem.cs">Thread.CurrentThread.Name = "principal";
+Console.WriteLine($"Estou na thread {Thread.CurrentThread.Name}");
+for (int i = 3; i &gt;= 1; i--)
+{
+    Console.WriteLine(i);
+    Thread.Sleep(500);
+}
+Console.WriteLine("Já!");
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Criando outras threads: Start e Join</h2>
+<p>A Ana e o Bruno vão contar até 3, cada um no seu ritmo, cada um na sua thread:</p>
+
+<pre class="file" data-file="duas.cs">Thread ana = new Thread(() =&gt; Contar("Ana", 300));
+Thread bruno = new Thread(() =&gt; Contar("Bruno", 500));
+ana.Name = "thread da Ana";
+ana.Start();
+bruno.Start();
+Console.WriteLine("Principal: comecei as duas");
+ana.Join();
+bruno.Join();
+Console.WriteLine("Principal: as duas terminaram");
+
+void Contar(string quem, int pausa)
+{
+    for (int i = 1; i &lt;= 3; i++)
+    {
+        Console.WriteLine($"{quem}: {i} (thread {Environment.CurrentManagedThreadId}, {Thread.CurrentThread.Name ?? "sem nome"})");
+        Thread.Sleep(pausa);
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run duas.cs
+Principal: comecei as duas
+Bruno: 1 (thread 5, sem nome)
+Ana: 1 (thread 4, thread da Ana)
+Ana: 2 (thread 4, thread da Ana)
+Bruno: 2 (thread 5, sem nome)
+Ana: 3 (thread 4, thread da Ana)
+Bruno: 3 (thread 5, sem nome)
+Principal: as duas terminaram
+$ dotnet run duas.cs               « de novo: as primeiras linhas trocaram de ordem
+Principal: comecei as duas
+Ana: 1 (thread 4, thread da Ana)
+Bruno: 1 (thread 5, sem nome)
+Ana: 2 (thread 4, thread da Ana)
+Bruno: 2 (thread 5, sem nome)
+Ana: 3 (thread 4, thread da Ana)
+Bruno: 3 (thread 5, sem nome)
+Principal: as duas terminaram</pre>
+
+<dl class="anatomy">
+  <dt>new Thread(() =&gt; Contar("Ana", 300))</dt><dd>Cria uma thread e diz o que ela vai fazer: a lambda, que chama <code>Contar</code>. Criar <strong>não</strong> começa nada.</dd>
+  <dt>ana.Start()</dt><dd>"Começar": a partir daqui, a thread da Ana roda o <code>Contar</code> ao mesmo tempo que a principal continua para a linha seguinte.</dd>
+  <dt>Principal: comecei as duas</dt><dd>Saiu primeiro, porque a principal não esperou ninguém: começar uma thread leva um tempinho, e a principal já estava na linha seguinte.</dd>
+  <dt>ana.Join()</dt><dd>"Juntar-se": a principal <strong>espera</strong> a thread da Ana terminar. Depois, espera a do Bruno. Só então mostra a última mensagem.</dd>
+  <dt>a ordem das linhas</dt><dd>As linhas das duas threads se <strong>misturam</strong>, e a ordem muda de uma execução para outra: quem decide qual thread roda em cada instante é o sistema operacional. Nunca conte com uma ordem entre threads, a não ser que você a garanta (com <code>Join</code>, por exemplo).</dd>
+</dl>
+
+<hr>
+
+<h2>3. Primeiro e segundo plano: IsBackground</h2>
+<p>O que acontece se a thread principal terminar antes das outras? Depende do tipo da thread:</p>
+
+<pre class="file" data-file="fundo.cs">Thread t = new Thread(() =&gt;
+{
+    for (int i = 1; i &lt;= 5; i++)
+    {
+        Console.WriteLine($"Trabalhando... {i}");
+        Thread.Sleep(300);
+    }
+    Console.WriteLine("Trabalho terminado");
+});
+t.IsBackground = true;
+t.Start();
+Thread.Sleep(700);
+Console.WriteLine("Principal: fim");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fundo.cs
+Trabalhando... 1
+Trabalhando... 2
+Trabalhando... 3
+Principal: fim
+$ sed -i 's/IsBackground = true/IsBackground = false/' fundo.cs
+$ dotnet run fundo.cs
+Trabalhando... 1
+Trabalhando... 2
+Trabalhando... 3
+Principal: fim
+Trabalhando... 4
+Trabalhando... 5
+Trabalho terminado</pre>
+
+<dl class="anatomy">
+  <dt>t.IsBackground = true</dt><dd>Uma thread de <strong>segundo plano</strong> (<em>background</em>): quando a principal termina, o programa acaba, e ela é cortada no meio. O trabalho parou no 3.</dd>
+  <dt>IsBackground = false</dt><dd>O padrão do <code>new Thread</code>: uma thread de <strong>primeiro plano</strong>. O programa só termina quando todas as threads de primeiro plano terminarem, mesmo depois de a principal acabar. (O <code>sed</code> do terminal trocou o <code>true</code> por <code>false</code> no arquivo.)</dd>
+</dl>
+
+<p>Use segundo plano para trabalhos que podem morrer junto com o programa (verificar atualizações, por exemplo), e primeiro plano, ou melhor, um <code>Join</code>, para trabalhos que precisam terminar (gravar um arquivo). As threads do pool (seção 5) são todas de segundo plano.</p>
+
+<hr>
+
+<h2>4. O perigo: duas threads, uma variável</h2>
+<p>Duas threads somam 1 a um contador, um milhão de vezes cada. O resultado deveria ser dois milhões:</p>
+
+<pre class="file" data-file="corrida.cs">int contador = 0;
+Thread a = new Thread(Somar);
+Thread b = new Thread(Somar);
+a.Start();
+b.Start();
+a.Join();
+b.Join();
+Console.WriteLine($"Contador: {contador} (esperado: 2000000)");
+
+void Somar()
+{
+    for (int i = 0; i &lt; 1_000_000; i++)
+    {
+        contador++;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run corrida.cs
+Contador: 1098163 (esperado: 2000000)
+$ dotnet run corrida.cs
+Contador: 1256102 (esperado: 2000000)
+$ dotnet run corrida.cs
+Contador: 1935612 (esperado: 2000000)</pre>
+
+<p>Três execuções, três resultados diferentes, todos errados, sem nenhum erro ou aviso. Isso se chama <strong>condição de corrida</strong> (<em>race condition</em>): o resultado depende de quem "chega primeiro".</p>
+
+<p>O motivo é que <code>contador++</code> parece uma coisa só, mas são <strong>três passos</strong>: ler o valor, somar 1, gravar o valor. Quando as duas threads fazem isso ao mesmo tempo:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Passo</th><th>Thread A</th><th>Thread B</th><th>contador</th></tr>
+<tr><td>1</td><td>lê 41</td><td></td><td>41</td></tr>
+<tr><td>2</td><td></td><td>lê 41</td><td>41</td></tr>
+<tr><td>3</td><td>soma: 42, grava 42</td><td></td><td>42</td></tr>
+<tr><td>4</td><td></td><td>soma: 42, grava 42</td><td>42</td></tr>
+</table>
+</div>
+
+<p>Duas somas, mas o contador só andou uma casa: uma das somas se perdeu. Num milhão de voltas, isso acontece centenas de milhares de vezes. É o caso do último ovo da caixa.</p>
+
+<h3>O conserto: Interlocked</h3>
+<p>A classe <code>Interlocked</code> ("travado entre si") faz operações simples numa variável de um jeito <strong>atômico</strong>: os três passos acontecem como um só, sem outra thread no meio.</p>
+
+<pre class="term" data-cwd="~/cs">$ sed -i 's/        contador++;/        Interlocked.Increment(ref contador);/' corrida.cs
+$ grep Interlocked corrida.cs
+        Interlocked.Increment(ref contador);
+$ dotnet run corrida.cs
+Contador: 2000000 (esperado: 2000000)
+$ dotnet run corrida.cs
+Contador: 2000000 (esperado: 2000000)</pre>
+
+<dl class="anatomy">
+  <dt>Interlocked.Increment(ref contador)</dt><dd>Soma 1 ao contador de forma atômica. O <code>ref</code> (aula <a href="ref-out-in.html">ref, out e in</a>) entrega a própria variável, e não uma cópia do valor. Também existem <code>Interlocked.Decrement</code> (tira 1), <code>Interlocked.Add(ref x, n)</code> (soma <code>n</code>) e <code>Interlocked.Exchange</code> (troca o valor).</dd>
+</dl>
+
+<p>O <code>Interlocked</code> serve para uma variável e uma conta simples. Para proteger vários passos de uma vez (atualizar o saldo <strong>e</strong> o extrato, por exemplo), use o <code>lock</code>, da aula <a href="lock.html">Sincronização (lock)</a>. E o melhor é não precisar de nenhum dos dois: cada thread com as suas próprias variáveis, juntando os resultados só no fim (como o <code>Task.WhenAll</code> da aula <a href="tasks.html">Task</a> e o <code>Parallel</code> da aula <a href="paralelismo.html">Parallel e PLINQ</a>).</p>
+
+<hr>
+
+<h2>5. O pool de threads e o Task.Run</h2>
+<p>Criar uma thread custa caro: o sistema reserva memória para ela (cerca de 1 MB para a pilha) e precisa prepará-la. Para trabalhos curtos, o .NET mantém um <strong>pool de threads</strong>, um grupo de threads já prontas que pegam trabalhos de uma fila e, ao terminar, voltam a esperar o próximo. Você entrega trabalho para o pool com o <code>Task.Run</code> (aula <a href="tasks.html">Task</a>):</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th><code>new Thread(…).Start()</code></th><th><code>Task.Run(…)</code></th></tr>
+<tr><td>Quem roda</td><td>Uma thread nova, só sua</td><td>Uma thread do pool, reaproveitada</td></tr>
+<tr><td>Custo para começar</td><td>Alto</td><td>Baixo</td></tr>
+<tr><td>Resultado</td><td>Não devolve (use uma variável)</td><td><code>Task&lt;T&gt;</code>, com <code>await</code></td></tr>
+<tr><td>Esperar</td><td><code>Join()</code>, que trava a thread</td><td><code>await</code>, que não trava</td></tr>
+<tr><td>Exceção</td><td>Derruba o programa (veja abaixo)</td><td>Fica guardada na tarefa e volta no <code>await</code></td></tr>
+<tr><td>Plano</td><td>Primeiro plano, por padrão</td><td>Segundo plano</td></tr>
+<tr><td>Use para</td><td>Trabalhos muito longos e especiais (uma thread que vive o programa inteiro)</td><td>Quase tudo</td></tr>
+</table>
+</div>
+
+<p>Por isso, em código novo, quase não se escreve <code>new Thread</code>. Mas tudo o que esta aula mostrou continua valendo com tarefas: elas também rodam em threads, a ordem também muda, e a condição de corrida é a mesma. A missão final mostra isso.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>Uma exceção numa thread derruba o programa inteiro</strong>
+<pre class="file" data-file="explode.cs">Thread t = new Thread(() =&gt;
+{
+    Thread.Sleep(200);
+    throw new InvalidOperationException("Erro dentro da thread");
+});
+t.Start();
+try
+{
+    t.Join();
+    Console.WriteLine("Principal: terminei");
+}
+catch (Exception e)
+{
+    Console.WriteLine($"Peguei: {e.Message}");
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run explode.cs; echo "código: $?"
+Unhandled exception. System.InvalidOperationException: Erro dentro da thread
+   at Program.&lt;&gt;c.&lt;&lt;Main&gt;$&gt;b__0_0() in /home/ana/cs/explode.cs:line 4
+   at System.Threading.Thread.StartCallback()
+código: 134</pre>
+<p><strong>O que aconteceu:</strong> o <code>try</code> da principal não pega exceções de <strong>outra</strong> thread. Cada thread tem a sua própria pilha de chamadas, e a exceção não tratada na thread nova derrubou o programa todo, sem passar pelo <code>catch</code> nem mostrar <code>Principal: terminei</code>.</p>
+<p><strong>Como resolver:</strong> ponha o <code>try</code>/<code>catch</code> <strong>dentro</strong> da lambda da thread. Ou use <code>Task.Run</code> e <code>await</code>: com tarefas, a exceção volta para quem fez o <code>await</code>, dentro do <code>try</code> dele.</p>
+</div>
+
+<div class="cenario">
+<strong><code>ThreadStateException</code>: começar a mesma thread duas vezes</strong>
+<pre class="file" data-file="duasvezes.cs">Thread t = new Thread(() =&gt; Console.WriteLine("oi"));
+t.Start();
+t.Join();
+t.Start();
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run duasvezes.cs
+oi
+Unhandled exception. System.Threading.ThreadStateException: Thread is running or terminated; it cannot restart.
+   at System.Threading.Thread.StartCore()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/duasvezes.cs:line 4</pre>
+<p><strong>O que aconteceu:</strong> "A thread está rodando ou terminou; ela não pode recomeçar". Um objeto <code>Thread</code> roda uma vez só.</p>
+<p><strong>Como resolver:</strong> para rodar de novo, crie outra: <code>new Thread(…)</code>. (Com <code>Task.Run</code>, cada chamada já é uma tarefa nova.)</p>
+</div>
+
+<div class="cenario">
+<strong><code>PlatformNotSupportedException</code> no editor do guia</strong>
+<pre class="term">Unhandled exception. System.PlatformNotSupportedException: Operation is not supported on this platform.</pre>
+<p><strong>O que aconteceu:</strong> é o que o <code>new Thread(…).Start()</code> lança no editor do guia, cujo .NET roda dentro do navegador com uma thread só. No seu computador, o mesmo programa funciona.</p>
+<p><strong>Como resolver:</strong> rode os exemplos com <code>new Thread</code> no seu computador, com <code>dotnet run</code>. No editor, use <code>Task.Run</code>: ele funciona (as tarefas rodam uma depois da outra, na thread 1).</p>
+</div>
+
+<div class="cenario">
+<strong>O programa terminou e o trabalho ficou pela metade</strong>
+<p><strong>O que aconteceu:</strong> como no primeiro <code>fundo.cs</code>, uma thread de segundo plano (ou uma tarefa do <code>Task.Run</code>, que também é) foi cortada quando a principal terminou.</p>
+<p><strong>Como resolver:</strong> espere o trabalho antes do fim: <code>t.Join()</code> para uma thread, <code>await</code> para uma tarefa.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>Thread.CurrentThread</code></td><td>A thread atual (<code>Name</code>, <code>ManagedThreadId</code>, <code>IsBackground</code>, <code>IsThreadPoolThread</code>)</td></tr>
+<tr><td><code>Environment.CurrentManagedThreadId</code></td><td>O número da thread atual</td></tr>
+<tr><td><code>Environment.ProcessorCount</code></td><td>Quantos núcleos o computador tem</td></tr>
+<tr><td><code>new Thread(() =&gt; …)</code></td><td>Cria uma thread (ainda parada)</td></tr>
+<tr><td><code>t.Start()</code></td><td>Começa a thread (uma vez só)</td></tr>
+<tr><td><code>t.Join()</code></td><td>Espera a thread terminar</td></tr>
+<tr><td><code>t.IsBackground = true</code></td><td>Segundo plano: morre quando o programa acaba</td></tr>
+<tr><td><code>Thread.Sleep(ms)</code></td><td>Pausa a thread atual</td></tr>
+<tr><td><code>Interlocked.Increment(ref x)</code>, <code>Decrement</code>, <code>Add(ref x, n)</code></td><td>Contas atômicas, seguras entre threads</td></tr>
+<tr><td><code>lock (objeto) { … }</code></td><td>Protege vários passos (aula <a href="lock.html">lock</a>)</td></tr>
+<tr><td><code>Task.Run(() =&gt; …)</code></td><td>Trabalho numa thread do pool (aula <a href="tasks.html">Task</a>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Começar</h3>
+<p>Complete para a thread começar a rodar:</p>
+<div class="ex-code">Thread t = new Thread(() =&gt; Trabalhar());
+t.<input data-answer="Start()" aria-label="chamada">;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Esperar</h3>
+<p>Complete para a thread principal esperar a <code>t</code> terminar:</p>
+<div class="ex-code">t.<input data-answer="Join()" aria-label="chamada">;</div>
+</div>
+
+<div class="exercise">
+<h3>3. Somar sem corrida</h3>
+<p>Complete para somar 1 ao <code>total</code> de forma segura entre threads:</p>
+<div class="ex-code">Interlocked.<input data-answer="Increment" aria-label="método">(ref total);</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Duas threads fazem <code>contador++</code> 1000 vezes cada, sem proteção. O que é certo dizer do resultado?</p>
+<label><input type="radio" name="q4"> É sempre 2000.</label>
+<label><input type="radio" name="q4"> Pode ser menor que 2000, e mudar a cada execução.</label>
+<label><input type="radio" name="q4"> É sempre 1000.</label>
+<label><input type="radio" name="q4"> O compilador dá um erro.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. A thread principal termina enquanto uma thread com <code>IsBackground = true</code> ainda trabalha. O que acontece?</p>
+<label><input type="radio" name="q5"> O programa espera a thread terminar.</label>
+<label><input type="radio" name="q5"> Lança <code>ThreadStateException</code>.</label>
+<label><input type="radio" name="q5"> A thread vira a principal.</label>
+<label><input type="radio" name="q5"> O programa termina e a thread é cortada.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que, em código novo, se prefere <code>Task.Run</code> a <code>new Thread</code>?</p>
+<label><input type="radio" name="q6"> Ele reaproveita threads do pool, devolve resultado com <code>await</code> e entrega as exceções para quem espera.</label>
+<label><input type="radio" name="q6"> Porque o <code>Task.Run</code> nunca tem condição de corrida.</label>
+<label><input type="radio" name="q6"> Porque <code>new Thread</code> foi removido do .NET 10.</label>
+<label><input type="radio" name="q6"> Porque o <code>Task.Run</code> sempre usa todos os núcleos.</label>
+</div>
+
+<h3>Missão final: os dois caixas do cinema</h3>
+<div class="trycs" data-goal="out:Ingressos vendidos: 1000000,src:Interlocked\.Increment">
+<p class="try-task"><strong>Missão:</strong> o cinema tem dois caixas, cada um numa tarefa do <code>Task.Run</code>, vendendo 500 mil ingressos (é a estreia de um filme muito esperado). Os dois somam no mesmo contador <code>vendidos</code>, com <code>vendidos++</code>: no computador da Ana, com threads de verdade, o total sai errado e diferente a cada vez (numa execução real, <code>Ingressos vendidos: 504546</code>). Troque o <code>vendidos++</code> por <code>Interlocked.Increment(ref vendidos);</code> para o total ser sempre <code>1000000</code>.</p>
+<p class="try-task">No editor, que tem uma thread só, as duas tarefas rodam uma depois da outra e o total já sai certo antes do conserto: a corrida só aparece com threads de verdade. A missão confere o resultado e o <code>Interlocked</code>.</p>
+<pre class="script" data-file="cinema.cs">int vendidos = 0;
+Task caixa1 = Task.Run(() =&gt; Vender(500_000));
+Task caixa2 = Task.Run(() =&gt; Vender(500_000));
+await Task.WhenAll(caixa1, caixa2);
+Console.WriteLine($"Ingressos vendidos: {vendidos}");
+
+void Vender(int quantidade)
+{
+    for (int i = 0; i &lt; quantidade; i++)
+    {
+        vendidos++;
+    }
+}
+</pre>
+<pre class="solucao" data-file="cinema.cs">int vendidos = 0;
+Task caixa1 = Task.Run(() =&gt; Vender(500_000));
+Task caixa2 = Task.Run(() =&gt; Vender(500_000));
+await Task.WhenAll(caixa1, caixa2);
+Console.WriteLine($"Ingressos vendidos: {vendidos}");
+
+void Vender(int quantidade)
+{
+    for (int i = 0; i &lt; quantidade; i++)
+    {
+        Interlocked.Increment(ref vendidos);
+    }
+}
+</pre>
+</div>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run cinema.cs               « o código de antes do conserto, no notebook da Ana
+Ingressos vendidos: 504546
+$ sed -i 's/        vendidos++;/        Interlocked.Increment(ref vendidos);/' cinema.cs
+$ dotnet run cinema.cs
+Ingressos vendidos: 1000000</pre>
+
+<p>Se quiser ir além: em vez de somar no mesmo contador, faça cada caixa contar numa variável <strong>própria</strong> e devolver o total (<code>Task&lt;int&gt;</code>), e some os dois resultados do <code>Task.WhenAll</code>. Sem variável compartilhada, não há corrida, e nem é preciso <code>Interlocked</code>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma thread é um caminho de execução; todo programa começa com a thread principal (número 1). Várias threads rodam ao mesmo tempo em vários núcleos.</li>
+  <li><code>new Thread(…)</code> cria, <code>Start()</code> começa (uma vez só), <code>Join()</code> espera; <code>Thread.Sleep</code> pausa a thread atual.</li>
+  <li>A ordem entre threads não é garantida e muda a cada execução.</li>
+  <li>Threads de segundo plano morrem com o programa; as de primeiro plano o mantêm vivo.</li>
+  <li>Duas threads mexendo na mesma variável causam condição de corrida: <code>contador++</code> perde somas. Use <code>Interlocked</code> (ou <code>lock</code>), ou evite variáveis compartilhadas.</li>
+  <li>Uma exceção não tratada numa thread derruba o programa. Em código novo, prefira <code>Task.Run</code> e <code>await</code>. No editor do guia, que tem uma thread só, <code>new Thread</code> não funciona.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
