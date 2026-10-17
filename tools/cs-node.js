@@ -32,7 +32,7 @@ function carregar() {
     const mapa = comum.lerPacote(new Uint8Array(pacoteSab));
     const { dotnet } = await import(path.join(PASTA, "dotnet.js"));
     const rt = await comum.configurar(dotnet, mapa).create();
-    rt.setModuleImports("motor", { escrever() {}, lerEntrada() { return ""; }, pedirEntrada() {} });
+    rt.setModuleImports("motor", { escrever() {}, lerEntrada() { return ""; }, pedirEntrada() {}, inicio() {} });
     const ex = (await rt.getAssemblyExports("Motor.dll")).Motor;
     ex.Compilador.CarregarReferencias(new Uint8Array(lerGz("refs.pak.gz")));
     return ex;
@@ -57,7 +57,7 @@ async function compilar(arquivos, opts) {
   opts = opts || {};
   const ex = await carregar();
   const o = onde(arquivos, opts);
-  const r = JSON.parse(ex.Compilador.Compilar(JSON.stringify({ arquivos, pasta: o.pasta, projeto: o.projeto, nome: o.nome })));
+  const r = JSON.parse(await ex.Compilador.Compilar(JSON.stringify({ arquivos, pasta: o.pasta, projeto: o.projeto, nome: o.nome })));
   r.onde = o;
   if (r.ok) { r.dll = ex.Compilador.Dll().slice(); r.pdb = ex.Compilador.Pdb().slice(); }
   return r;
@@ -69,7 +69,8 @@ function rodar(c, arquivos, opts) {
     const dados = arquivos.filter((a) => !ehFonte(a.nome));
     const w = new Worker(path.join(__dirname, "cs-executor-node.mjs"), {
       workerData: { pacote: pacoteSab, pasta: PASTA, dll: c.dll, pdb: c.pdb, args: opts.args || [], dir: c.onde.pasta,
-        nomes: dados.map((a) => a.nome), conteudos: dados.map((a) => a.codigo), stdin: opts.stdin === undefined ? null : opts.stdin },
+        nomes: dados.map((a) => a.nome), conteudos: dados.map((a) => a.codigo), stdin: opts.stdin === undefined ? null : opts.stdin,
+        arquivoUnico: c.onde.projeto ? "" : c.onde.pasta + "/" + (arquivos.find((a) => ehFonte(a.nome)) || arquivos[0]).nome },
       stdout: true, stderr: true,
     });
     const r = { saida: "", eventos: [], exit: null, tempoEsgotado: false, estourou: false, leuSemEntrada: false };
@@ -91,6 +92,8 @@ function rodar(c, arquivos, opts) {
     w.on("error", (e) => { r.falha = String(e && e.stack || e); });
     w.on("exit", (code) => {
       if (r.exit === null && !r.tempoEsgotado && !r.estourou) r.exit = code; // Environment.Exit(n)
+      // cores do Console (ANSI) ficam em r.eventos; a saída das metas e da comparação é o texto sem elas
+      r.saida = r.saida.replace(/\x1b\[[0-9;]*m/g, "");
       terminar();
     });
   });

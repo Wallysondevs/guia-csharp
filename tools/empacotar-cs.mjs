@@ -9,7 +9,7 @@ import path from "node:path";
 import zlib from "node:zlib";
 import crypto from "node:crypto";
 
-const [fw, refs, roslyn] = process.argv.slice(2);
+const [fw, refs, roslyn, analisadores, consoleRemendado] = process.argv.slice(2);
 const SAIDA = path.join(path.dirname(new URL(import.meta.url).pathname), "..", "assets", "cs");
 
 function pacote(lista) {
@@ -33,10 +33,35 @@ fs.mkdirSync(SAIDA, { recursive: true });
 const arquivos = fs.readdirSync(fw).filter((f) => fs.statSync(path.join(fw, f)).isFile());
 // fora do pacote: os módulos JS (ficam soltos em assets/cs/) e os dados do ICU que o pt-BR não usa
 const motor = arquivos.filter((f) => !/\.js$/.test(f) && !/^icudt_(CJK|EFIGS)\.dat$/.test(f)).sort().map((f) => [f, fs.readFileSync(path.join(fw, f))]);
+// o System.Console remendado (tools/cs-src/Remendo, opção --console) no lugar do original: o Mono aceita o PE
+// (.dll) mesmo com o nome .wasm do webcil
+if (consoleRemendado) {
+  const e = motor.find((x) => x[0] === "System.Console.wasm");
+  if (!e) throw new Error("System.Console.wasm não está no pacote");
+  e[1] = fs.readFileSync(consoleRemendado);
+}
 const pm = gravar("motor.pak.gz", pacote(motor));
 const rl = fs.readdirSync(refs).filter((f) => f.endsWith(".dll")).sort().map((f) => [f, fs.readFileSync(path.join(refs, f))]);
+// analisadores e geradores do SDK (an/…, an/pt-BR/…) e a configuração deles (cfg/…), preparados por construir-cs.sh
+if (analisadores) {
+  for (const f of fs.readdirSync(analisadores).sort()) {
+    const c = path.join(analisadores, f);
+    if (fs.statSync(c).isDirectory()) { for (const g of fs.readdirSync(c).sort()) rl.push(["an/" + f + "/" + g, fs.readFileSync(path.join(c, g))]); }
+    else if (f.endsWith(".dll")) rl.push(["an/" + f, fs.readFileSync(c)]);
+    else rl.push(["cfg/" + f, fs.readFileSync(c)]);
+  }
+}
 const pr = gravar("refs.pak.gz", pacote(rl));
-for (const js of arquivos.filter((f) => /\.js$/.test(f))) fs.copyFileSync(path.join(fw, js), path.join(SAIDA, js));
+for (const js of arquivos.filter((f) => /\.js$/.test(f))) {
+  let t = fs.readFileSync(path.join(fw, js), "utf8");
+  if (js === "dotnet.js") {
+    // o dotnet.js só liga a leitura de PDB (linhas nas exceções) no Chrome e no Firefox; aqui, em todo lugar (Safari, Node)
+    const antes = t;
+    t = t.replace(/function (\w+)\(\)\{return!!globalThis\.navigator&&\(\w+\.isChromium\|\|\w+\.isFirefox\)\}/, "function $1(){return!0}");
+    if (t === antes) throw new Error("dotnet.js: não achei a função isDebuggingSupported para ajustar");
+  }
+  fs.writeFileSync(path.join(SAIDA, js), t);
+}
 const man = {
   versao: crypto.createHash("sha256").update(pm.sha + pr.sha + fs.readFileSync(path.join(fw, "dotnet.js"))).digest("hex").slice(0, 12),
   roslyn, runtime: (/var e="([\d.]+)"/.exec(fs.readFileSync(path.join(fw, "dotnet.runtime.js"), "utf8")) || [])[1] || "?",

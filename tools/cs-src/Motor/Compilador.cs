@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Emit;
 using Microsoft.CodeAnalysis.Text;
 
@@ -46,6 +47,8 @@ public static partial class Compilador
             string nome = Encoding.UTF8.GetString(pacote, p, tn); p += tn;
             int t = (int)BitConverter.ToUInt32(pacote, p); p += 4;
             var img = ImmutableArray.Create(pacote, p, t); p += t;
+            if (nome.StartsWith("an/")) { Analisadores.Arquivos[nome[3..]] = img.ToArray(); continue; }
+            if (nome.StartsWith("cfg/")) { Analisadores.Configuracao(Encoding.UTF8.GetString(img.AsSpan())); continue; }
             lista.Add(MetadataReference.CreateFromImage(img, filePath: "/usr/lib/dotnet/packs/Microsoft.NETCore.App.Ref/10.0.12/ref/net10.0/" + nome));
         }
         referencias = lista.ToArray();
@@ -57,7 +60,13 @@ public static partial class Compilador
             var a = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromStream(st);
             satelites[a.GetName().Name!] = a;
         }
+        foreach (var (nomeArq, bytes) in Analisadores.Arquivos.Where(kv => kv.Key.StartsWith("pt-BR/")))
+        {
+            var a = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromStream(new MemoryStream(bytes));
+            satelites[a.GetName().Name!] = a;
+        }
         System.Runtime.Loader.AssemblyLoadContext.Default.Resolving += (_, n) => n.CultureName == "pt-BR" ? satelites.GetValueOrDefault(n.Name ?? "") : null;
+        Analisadores.Carregar();
         CultureInfo.DefaultThreadCurrentUICulture = PtBr;
         CultureInfo.CurrentUICulture = PtBr;
         return referencias.Length;
@@ -66,7 +75,7 @@ public static partial class Compilador
     /// pedido (JSON): { "arquivos": [{"nome","codigo"}], "pasta": "/home/ana/cs", "projeto": "Exemplo" ou null, "nome": "ola" }
     /// resposta (JSON): { "ok", "texto" (como o dotnet mostra), "diags": [{"sev","id","linha","msg"}], "ms" }
     [JSExport]
-    public static string Compilar(string pedido)
+    public static async Task<string> Compilar(string pedido)
     {
         var t0 = DateTime.UtcNow;
         using var doc = JsonDocument.Parse(pedido);
@@ -108,9 +117,10 @@ public static partial class Compilador
                 specificDiagnosticOptions: new Dictionary<string, ReportDiagnostic> {
                     ["CS1701"] = ReportDiagnostic.Suppress, ["CS1702"] = ReportDiagnostic.Suppress, ["IL2121"] = ReportDiagnostic.Suppress,
                     ["SYSLIB0011"] = ReportDiagnostic.Error,
-                })
+                }.Concat(Analisadores.Severidades.Where(kv => kv.Key is not ("CS1701" or "CS1702" or "IL2121" or "SYSLIB0011"))).ToDictionary())
             .WithPlatform(Platform.AnyCpu);
 
+        Task<ImmutableArray<Diagnostic>>? analise = null;
         var comp = CSharpCompilation.Create(nome, arvores, referencias ?? throw new InvalidOperationException("referências não carregadas"), opcoes);
         using var msDll = new MemoryStream();
         using var msPdb = new MemoryStream();
@@ -125,18 +135,42 @@ public static partial class Compilador
         List<Diagnostic> Etapa(IEnumerable<Diagnostic> ds) => ds.Select(Filtrar).Where(d => d != null && Visivel(d)).Select(d => d!).ToList();
         var visiveis = Etapa(comp.GetParseDiagnostics());
         bool ok = false;
+        var dGeradores = new List<Diagnostic>();
+        var (geradores, analisadores, provedor) = Analisadores.Para(projeto == null, nome, pasta);
+        if (!visiveis.Any(d => d.Severity == DiagnosticSeverity.Error) && geradores.Length > 0)
+        {
+            // geradores de código do SDK ([GeneratedRegex], JsonSerializerContext, [LibraryImport]…)
+            var driver = CSharpGeneratorDriver.Create(geradores, parseOptions: parse, optionsProvider: provedor);
+            driver.RunGeneratorsAndUpdateCompilation(comp, out var nova, out var dg);
+            comp = (CSharpCompilation)nova;
+            dGeradores = Etapa(dg);
+            visiveis.AddRange(dGeradores);
+        }
         if (!visiveis.Any(d => d.Severity == DiagnosticSeverity.Error))
         {
             visiveis.AddRange(Etapa(comp.GetDeclarationDiagnostics()));
             if (!visiveis.Any(d => d.Severity == DiagnosticSeverity.Error))
             {
                 var res = comp.Emit(msDll, msPdb, options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb, pdbFilePath: obj + nome + ".pdb"));
-                visiveis = res.Diagnostics.Where(Visivel).ToList();
+                // o Emit devolve de novo os diagnósticos das etapas anteriores; os dos geradores, não
+                visiveis = dGeradores.Concat(res.Diagnostics.Where(Visivel)).ToList();
                 ok = res.Success;
+                if (ok && analisadores.Length > 0)
+                {
+                    // analisadores do SDK (CA…, IL…): como o dotnet, só os que podem dar aviso
+                    var cwa = comp.WithAnalyzers(analisadores, new CompilationWithAnalyzersOptions(new AnalyzerOptions([], provedor), null, concurrentAnalysis: false, logAnalyzerExecutionTime: false));
+                    analise = cwa.GetAnalyzerDiagnosticsAsync();
+                }
             }
         }
-        // o dotnet mostra primeiro os erros, depois os avisos (cada grupo na ordem do código)
-        var ordenados = visiveis.Where(d => d.Severity == DiagnosticSeverity.Error).Concat(visiveis.Where(d => d.Severity == DiagnosticSeverity.Warning)).ToList();
+        if (analise != null)
+        {
+            var ad = (await analise).Where(d => Visivel(d)).OrderBy(d => d.Location.SourceTree?.FilePath).ThenBy(d => d.Location.SourceSpan.Start).ToList();
+            visiveis.AddRange(ad);
+            if (ad.Any(d => d.Severity == DiagnosticSeverity.Error)) ok = false;
+        }
+        // na ordem em que o compilador os produz (é a ordem do csc/dotnet)
+        var ordenados = visiveis;
         string sufixo = projeto == null ? "" : " [" + pasta + "/" + projeto + ".csproj]";
         var texto = new StringBuilder();
         var vistos = new HashSet<string>();
@@ -184,4 +218,117 @@ public static partial class Compilador
 
     [JSExport] public static byte[] Dll() => dll;
     [JSExport] public static byte[] Pdb() => pdb;
+}
+
+/// Os analisadores e geradores de código do SDK 10.0.112 do laboratório, com a mesma configuração do `dotnet run`
+/// (analysislevel_10_default.globalconfig + as build_property do GeneratedMSBuildEditorConfig).
+static class Analisadores
+{
+    public static readonly Dictionary<string, byte[]> Arquivos = new();
+    public static readonly Dictionary<string, ReportDiagnostic> Severidades = new();
+    static readonly Dictionary<string, string> global = new();
+    static readonly List<(string arquivo, DiagnosticAnalyzer a)> analisadores = new();
+    static readonly List<(string arquivo, ISourceGenerator g)> geradores = new();
+
+    public static void Configuracao(string texto)
+    {
+        foreach (var bruta in texto.Split('\n'))
+        {
+            var l = bruta.Trim();
+            if (l.Length == 0 || l[0] == '#' || l[0] == ';' || l[0] == '[') continue;
+            int i = l.IndexOf('=');
+            if (i < 0) continue;
+            string k = l[..i].Trim(), v = l[(i + 1)..].Trim();
+            if (k is "is_global" or "global_level") continue;
+            if (k.StartsWith("dotnet_diagnostic.") && k.EndsWith(".severity"))
+            {
+                var id = k["dotnet_diagnostic.".Length..^".severity".Length];
+                ReportDiagnostic? r = v switch { "none" => ReportDiagnostic.Suppress, "silent" => ReportDiagnostic.Hidden, "suggestion" => ReportDiagnostic.Info, "warning" => ReportDiagnostic.Warn, "error" => ReportDiagnostic.Error, _ => null };
+                if (r != null) Severidades[id] = r.Value;
+            }
+            else global[k] = v;
+        }
+    }
+
+    public static void Carregar()
+    {
+        var asms = new List<(string, System.Reflection.Assembly, byte[])>();
+        foreach (var (nome, bytes) in Arquivos)
+            if (!nome.Contains('/') && nome.EndsWith(".dll"))
+                asms.Add((nome, System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromStream(new MemoryStream(bytes)), bytes));
+        foreach (var (nome, asm, bytes) in asms)
+        {
+            // GetTypes() falha inteiro se um tipo (ex.: um CodeFixProvider, que precisa do Workspaces) não carrega:
+            // lista os tipos pelos metadados e carrega um por um
+            var tipos = new List<Type>();
+            using (var pe = new System.Reflection.PortableExecutable.PEReader(new MemoryStream(bytes)))
+            {
+                var md = System.Reflection.Metadata.PEReaderExtensions.GetMetadataReader(pe);
+                foreach (var h in md.TypeDefinitions)
+                {
+                    var td = md.GetTypeDefinition(h);
+                    if (td.GetDeclaringType().IsNil == false || td.GetCustomAttributes().Count == 0) continue;
+                    string ns = md.GetString(td.Namespace), tn = md.GetString(td.Name);
+                    try { var t = asm.GetType(ns.Length > 0 ? ns + "." + tn : tn, false); if (t != null) tipos.Add(t); } catch { }
+                }
+            }
+            foreach (var t in tipos)
+            {
+                if (t.IsAbstract || t.ContainsGenericParameters) continue;
+                try
+                {
+                    var da = t.GetCustomAttributes(typeof(DiagnosticAnalyzerAttribute), false).Cast<DiagnosticAnalyzerAttribute>();
+                    if (typeof(DiagnosticAnalyzer).IsAssignableFrom(t) && da.Any(x => x.Languages.Contains(LanguageNames.CSharp)))
+                    {
+                        var a = (DiagnosticAnalyzer)Activator.CreateInstance(t)!;
+                        // como o dotnet: só interessa quem pode dar aviso ou erro
+                        if (a.SupportedDiagnostics.Any(d => Efetiva(d) is ReportDiagnostic.Warn or ReportDiagnostic.Error)) analisadores.Add((nome, a));
+                    }
+                    var ga = t.GetCustomAttributes(typeof(GeneratorAttribute), false).Cast<GeneratorAttribute>();
+                    if (ga.Any(x => x.Languages.Contains(LanguageNames.CSharp)))
+                    {
+                        var o = Activator.CreateInstance(t);
+                        if (o is IIncrementalGenerator ig) geradores.Add((nome, ig.AsSourceGenerator()));
+                        else if (o is ISourceGenerator sg) geradores.Add((nome, sg));
+                    }
+                }
+                catch { /* tipo que não carrega no WebAssembly: ignora */ }
+            }
+        }
+    }
+
+    static ReportDiagnostic Efetiva(DiagnosticDescriptor d)
+    {
+        if (Severidades.TryGetValue(d.Id, out var r)) return r;
+        if (!d.IsEnabledByDefault) return ReportDiagnostic.Suppress;
+        return d.DefaultSeverity switch { DiagnosticSeverity.Error => ReportDiagnostic.Error, DiagnosticSeverity.Warning => ReportDiagnostic.Warn, DiagnosticSeverity.Info => ReportDiagnostic.Info, _ => ReportDiagnostic.Hidden };
+    }
+
+    /// arquivo único (dotnet run arquivo.cs: PublishAot, com os analisadores IL de trimming/AOT) ou projeto
+    public static (ISourceGenerator[], ImmutableArray<DiagnosticAnalyzer>, AnalyzerConfigOptionsProvider) Para(bool arquivoUnico, string nome, string pasta)
+    {
+        var g = new Dictionary<string, string>(global);
+        void P(string k, string v) => g["build_property." + k] = v;
+        if (arquivoUnico) { P("EnableAotAnalyzer", "true"); P("EnableSingleFileAnalyzer", "true"); P("EnableTrimAnalyzer", "true"); P("EnableGeneratedComInterfaceComImportInterop", "false"); }
+        else P("EnableGeneratedComInterfaceComImportInterop", "");
+        P("TargetFramework", "net10.0"); P("TargetFrameworkIdentifier", ".NETCoreApp"); P("TargetFrameworkVersion", "v10.0");
+        P("_SupportedPlatformList", "Linux,macOS,Windows"); P("RootNamespace", nome); P("ProjectDir", pasta + "/");
+        P("EffectiveAnalysisLevelStyle", "10.0");
+        foreach (var k in new[] { "IncludeAllContentForSelfExtract", "VerifyReferenceTrimCompatibility", "VerifyReferenceAotCompatibility", "TargetPlatformMinVersion", "UsingMicrosoftNETSdkWeb", "ProjectTypeGuids", "InvariantGlobalization", "PlatformNeutralAssembly", "EnforceExtendedAnalyzerRules", "EnableComHosting", "EnableCodeStyleSeverity" })
+            if (!g.ContainsKey("build_property." + k)) P(k, "");
+        var a = analisadores.Where(x => arquivoUnico || !x.arquivo.StartsWith("ILLink.")).Select(x => x.a).ToImmutableArray();
+        return (geradores.Select(x => x.g).ToArray(), a, new Provedor(new Opcoes(g)));
+    }
+
+    sealed class Opcoes(Dictionary<string, string> g) : AnalyzerConfigOptions
+    {
+        public override bool TryGetValue(string key, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? value) => g.TryGetValue(key, out value);
+        public override IEnumerable<string> Keys => g.Keys;
+    }
+    sealed class Provedor(AnalyzerConfigOptions o) : AnalyzerConfigOptionsProvider
+    {
+        public override AnalyzerConfigOptions GlobalOptions => o;
+        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => o;
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => o;
+    }
 }

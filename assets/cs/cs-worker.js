@@ -2,10 +2,10 @@
    papel "compilador": carrega o Roslyn e os reference assemblies e compila (fica vivo).
    papel "executor": um runtime .NET novo para UM programa (a caixa cria outro para a próxima vez).
    Os pacotes (.pak.gz) vêm da Cache API (baixados só na primeira vez) e são descomprimidos aqui. */
-import { lerPacote, configurar } from "./cs-comum.mjs";
+import { lerPacote, configurar, estouroDePilha } from "./cs-comum.mjs";
 
 const CACHE = "guia-csharp-motor";
-let papel = null, ex = null, filaEntradas = [], interativo = false;
+let papel = null, ex = null, filaEntradas = [], interativo = false, erroNativo = "", inicio = null;
 
 // números "aleatórios" com semente: quando o programa pede entrada, a caixa roda de novo o programa
 // com as linhas digitadas, e o Random tem de sortear os mesmos números (ver CONTRIBUINDO §4)
@@ -64,7 +64,7 @@ async function carregar(m) {
   // num Web Worker, o dotnet.js acha que é uma thread do próprio runtime, a menos que seja um "sidecar"
   self.dotnetSidecar = true;
   const { dotnet } = await import("./dotnet.js");
-  const rt = await configurar(dotnet, lerPacote(motor)).create();
+  const rt = await configurar(dotnet, lerPacote(motor), { depurar: papel === "executor", erroNativo: (t) => { if (erroNativo.length < 2e6) erroNativo += t; } }).create();
   rt.setModuleImports("motor", {
     escrever(fd, s) { enviar({ ev: "saida", fd, s }); },
     lerEntrada() {
@@ -73,19 +73,20 @@ async function carregar(m) {
       if (!interativo) { enviar({ ev: "leu" }); return ""; }
       return null; // o C# chama pedirEntrada() e encerra com Environment.Exit(250)
     },
-    pedirEntrada() { enviar({ ev: "espera" }); },
+    inicio(q) { inicio = q; },
+  pedirEntrada() { enviar({ ev: "espera" }); },
   });
   ex = (await rt.getAssemblyExports("Motor.dll")).Motor;
   if (papel === "compilador") {
     ex.Compilador.CarregarReferencias(refs);
     // aquece o Roslyn (a 1ª compilação é a mais lenta)
-    try { ex.Compilador.Compilar(JSON.stringify({ arquivos: [{ nome: "Aquece.cs", codigo: "System.Console.WriteLine(1);" }], pasta: "/home/ana/cs", projeto: null, nome: "Aquece" })); } catch (e) { /* ok */ }
+    try { await ex.Compilador.Compilar(JSON.stringify({ arquivos: [{ nome: "Aquece.cs", codigo: "System.Console.WriteLine(1);" }], pasta: "/home/ana/cs", projeto: null, nome: "Aquece" })); } catch (e) { /* ok */ }
   }
   enviar({ ev: "pronto" });
 }
 
-function compilar(m) {
-  const r = JSON.parse(ex.Compilador.Compilar(JSON.stringify({ arquivos: m.arquivos, pasta: m.pasta, projeto: m.projeto, nome: m.nome })));
+async function compilar(m) {
+  const r = JSON.parse(await ex.Compilador.Compilar(JSON.stringify({ arquivos: m.arquivos, pasta: m.pasta, projeto: m.projeto, nome: m.nome })));
   const dll = r.ok ? ex.Compilador.Dll().slice() : new Uint8Array(0), pdb = r.ok ? ex.Compilador.Pdb().slice() : new Uint8Array(0);
   enviar({ ev: "compilado", id: m.id, r, dll, pdb }, [dll.buffer, pdb.buffer]);
 }
@@ -95,10 +96,12 @@ async function rodar(m) {
   filaEntradas = (m.entradas || []).slice();
   interativo = !!m.interativo;
   try {
-    const codigo = await ex.Executor.Rodar(new Uint8Array(m.dll), new Uint8Array(m.pdb), m.args || [], m.pasta, m.nomes || [], m.conteudos || [], m.stdin === undefined ? null : m.stdin);
+    const codigo = await ex.Executor.Rodar(new Uint8Array(m.dll), new Uint8Array(m.pdb), m.args || [], m.pasta, m.nomes || [], m.conteudos || [], m.stdin === undefined ? null : m.stdin, m.arquivoUnico || "");
     enviar({ ev: "fim", id: m.id, exit: codigo });
   } catch (e) {
-    if (e && typeof e.status === "number") enviar({ ev: "fim", id: m.id, exit: e.status }); // Environment.Exit(n)
+    const so = estouroDePilha(erroNativo, inicio);
+    if (so) { enviar({ ev: "saida", fd: 2, s: so }); enviar({ ev: "fim", id: m.id, exit: 134 }); }
+    else if (e && typeof e.status === "number") enviar({ ev: "fim", id: m.id, exit: e.status }); // Environment.Exit(n)
     else enviar({ ev: "falha", id: m.id, msg: String((e && e.stack) || e) });
   }
 }
@@ -106,9 +109,15 @@ async function rodar(m) {
 self.onmessage = (e) => {
   const m = e.data;
   if (m.op === "carregar") carregar(m).catch((x) => enviar({ ev: "falha", msg: String((x && x.message) || x) }));
-  else if (m.op === "compilar") { try { compilar(m); } catch (x) { enviar({ ev: "falha", id: m.id, msg: String((x && x.stack) || x) }); } }
+  else if (m.op === "compilar") compilar(m).catch((x) => enviar({ ev: "falha", id: m.id, msg: String((x && x.stack) || x) }));
   else if (m.op === "rodar") rodar(m);
 };
 // Environment.Exit dentro de um callback assíncrono (depois de um await) chega aqui
-self.addEventListener("unhandledrejection", (e) => { const r = e.reason; if (r && typeof r.status === "number") { e.preventDefault(); enviar({ ev: "fim", exit: r.status }); } });
-self.addEventListener("error", (e) => { const r = e.error; if (r && typeof r.status === "number") { e.preventDefault(); enviar({ ev: "fim", exit: r.status }); } });
+function morte(r) {
+  const so = estouroDePilha(erroNativo, inicio);
+  if (so) { enviar({ ev: "saida", fd: 2, s: so }); enviar({ ev: "fim", exit: 134 }); return true; }
+  if (r && typeof r.status === "number") { enviar({ ev: "fim", exit: r.status }); return true; }
+  return false;
+}
+self.addEventListener("unhandledrejection", (e) => { if (morte(e.reason)) e.preventDefault(); });
+self.addEventListener("error", (e) => { if (morte(e.error)) e.preventDefault(); });

@@ -38,6 +38,33 @@
   function semAnsi(s) { return String(s || "").replace(/\x1b\[[0-9;]*m/g, ""); }
   CSharpSim.semAnsi = semAnsi;
 
+  // Texto com cores ANSI (Console.ForegroundColor no editor vira "\x1b[91m"…) → HTML
+  var CORES_ANSI = { 30: "c-k", 31: "c-r", 32: "c-g", 33: "c-y", 34: "c-b", 35: "c-m", 36: "c-c", 37: "c-w", 90: "c-k", 91: "c-r", 92: "c-g", 93: "c-y", 94: "c-b", 95: "c-m", 96: "c-c", 97: "c-w" };
+  function ansiParaHtml(s, estado) {
+    estado = estado || { negrito: false, cor: null };
+    var r = "", re = /\x1b\[([0-9;]*)m/g, ult = 0, m;
+    function trecho(t) {
+      if (!t) return;
+      var cls = (estado.negrito ? "c-n " : "") + (estado.cor || "");
+      r += cls.trim() ? '<span class="' + cls.trim() + '">' + escHtml(t) + "</span>" : escHtml(t);
+    }
+    while ((m = re.exec(s))) {
+      trecho(s.slice(ult, m.index));
+      ult = re.lastIndex;
+      (m[1] === "" ? ["0"] : m[1].split(";")).forEach(function (p) {
+        var n = +p;
+        if (n === 0) { estado.negrito = false; estado.cor = null; }
+        else if (n === 1) estado.negrito = true;
+        else if (n === 22) estado.negrito = false;
+        else if (n === 39) estado.cor = null;
+        else if (CORES_ANSI[n]) estado.cor = CORES_ANSI[n];
+      });
+    }
+    trecho(s.slice(ult).replace(/\x1b\[[0-9;]*$/, ""));
+    return r;
+  }
+  CSharpSim.ansiParaHtml = ansiParaHtml;
+
   // Linhas de diagnóstico do dotnet: "/home/ana/cs/ola.cs(3,5): error CS0103: … [projeto.csproj]"
   var RE_DIAG = /^(?:.*?\(\d+,\d+(?:,\d+,\d+)?\): |CSC : )?(error|warning) ([A-Z]+\d+): (.*)$/;
   function diagnosticos(diag) {
@@ -395,7 +422,7 @@
     function rolar() { tela.scrollTop = tela.scrollHeight; }
 
     // Texto chega em pedaços; segmentos {t: "out"|"err"|"eco", s}
-    function Terminal(raiz) { this.raiz = raiz; this.linha = null; this.segs = []; this.n = 0; this.omitidas = 0; this.cauda = []; }
+    function Terminal(raiz) { this.raiz = raiz; this.linha = null; this.segs = []; this.n = 0; this.omitidas = 0; this.cauda = []; this.ansi = { negrito: false, cor: null }; }
     Terminal.prototype.escrever = function (t, s) {
       var partes = s.split("\n");
       for (var i = 0; i < partes.length; i++) {
@@ -409,9 +436,11 @@
       this.desenhar();
     };
     Terminal.prototype.html = function (segs) {
+      var est = { negrito: this.ansi.negrito, cor: this.ansi.cor };
       return segs.map(function (x) {
         if (x.t === "eco") return '<span class="sim-digitado">' + escHtml(x.s) + "</span>";
-        return x.t === "err" ? '<span class="sim-err">' + escHtml(x.s) + "</span>" : escHtml(x.s);
+        var h = ansiParaHtml(x.s, est);
+        return x.t === "err" ? '<span class="sim-err">' + h + "</span>" : h;
       }).join("");
     };
     Terminal.prototype.desenhar = function () {
@@ -424,6 +453,8 @@
     Terminal.prototype.fechar = function () {
       if (this.n < MAX_LINHAS) { this.desenhar(); if (this.linha && !this.linha.innerHTML) this.linha.innerHTML = "<br>"; }
       else { this.omitidas++; this.cauda.push(this.segs); if (this.cauda.length > 40) this.cauda.shift(); }
+      // as cores ANSI continuam na próxima linha
+      var self = this; this.segs.forEach(function (x) { if (x.t !== "eco") ansiParaHtml(x.s, self.ansi); });
       this.n++; this.linha = null; this.segs = [];
     };
     Terminal.prototype.terminar = function () {
@@ -465,7 +496,7 @@
       sessao = null; if (dono === parar) dono = null;
       btn.textContent = "▶ Rodar"; btn.disabled = false;
       if (s.compilou === false) verificar({ compilou: false, diag: s.diag, out: null, exit: null });
-      else if (exit !== null && exit !== undefined) verificar({ compilou: true, diag: s.diag, out: s.texto, exit: exit });
+      else if (exit !== null && exit !== undefined) verificar({ compilou: true, diag: s.diag, out: semAnsi(s.texto), exit: exit });
       prepararReserva();
     }
 
@@ -510,7 +541,7 @@
           } else if (m.ev === "falha") { finalizar(s, null, "(o .NET do navegador falhou: " + String(m.msg).split("\n")[0] + ")"); console.error("csharpsim:", m.msg); }
         };
         var dados = s.arqs.filter(function (a) { return !ehFonte(a.nome); });
-        ex.w.postMessage({ op: "rodar", dll: s.dll, pdb: s.pdb, args: s.args, pasta: s.onde.pasta, nomes: dados.map(function (a) { return a.nome; }), conteudos: dados.map(function (a) { return a.codigo; }), stdin: s.stdin, entradas: s.entradas, interativo: s.stdin === null, semente: s.semente });
+        ex.w.postMessage({ op: "rodar", dll: s.dll, pdb: s.pdb, args: s.args, pasta: s.onde.pasta, nomes: dados.map(function (a) { return a.nome; }), conteudos: dados.map(function (a) { return a.codigo; }), stdin: s.stdin, arquivoUnico: s.onde.projeto ? "" : s.onde.pasta + "/" + (s.arqs.filter(function (a) { return ehFonte(a.nome); })[0] || s.arqs[0]).nome, entradas: s.entradas, interativo: s.stdin === null, semente: s.semente });
       }, function (e) { finalizar(s, null, "(não consegui iniciar o .NET: " + ((e && e.message) || e) + ")"); });
     }
 

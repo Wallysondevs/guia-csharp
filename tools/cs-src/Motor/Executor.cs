@@ -15,11 +15,44 @@ namespace Motor;
 public static partial class Executor
 {
     internal static int bytes;
+    static readonly (string, bool)[] ChavesAot = [
+        ("System.ComponentModel.DefaultValueAttribute.IsSupported", false),
+        ("System.ComponentModel.Design.IDesignerHost.IsSupported", false),
+        ("System.ComponentModel.TypeConverter.EnableUnsafeBinaryFormatterInDesigntimeLicenseContextSerialization", false),
+        ("System.ComponentModel.TypeDescriptor.IsComObjectDescriptorSupported", false),
+        ("System.Data.DataSet.XmlSerializationIsSupported", false),
+        ("System.Diagnostics.Tracing.EventSource.IsSupported", false),
+        ("System.Linq.Enumerable.IsSizeOptimized", true),
+        ("System.Net.SocketsHttpHandler.Http3Support", false),
+        ("System.Reflection.Metadata.MetadataUpdater.IsSupported", false),
+        ("System.Resources.ResourceManager.AllowCustomResourceTypes", false),
+        ("System.Resources.UseSystemResourceKeys", false),
+        ("System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported", false),
+        ("System.Runtime.InteropServices.BuiltInComInterop.IsSupported", false),
+        ("System.Runtime.InteropServices.EnableConsumingManagedCodeFromNativeHosting", false),
+        ("System.Runtime.InteropServices.EnableCppCLIHostActivation", false),
+        ("System.Runtime.InteropServices.Marshalling.EnableGeneratedComInterfaceComImportInterop", false),
+        ("System.Runtime.Serialization.EnableUnsafeBinaryFormatterSerialization", false),
+        ("System.StartupHookProvider.IsSupported", false),
+        ("System.Text.Encoding.EnableUnsafeUTF7Encoding", false),
+        ("System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault", false),
+        ("System.Threading.Thread.EnableAutoreleasePool", false),
+        ("System.Linq.Expressions.CanEmitObjectArrayDelegate", false),
+    ];
+    [JSImport("inicio", "motor")] static partial void Inicio(string quadro);
     internal static string? entrada;
 
     [JSExport]
-    public static async Task<int> Rodar(byte[] dll, byte[] pdb, string[] args, string pasta, string[] nomes, string[] conteudos, string? stdin)
+    public static async Task<int> Rodar(byte[] dll, byte[] pdb, string[] args, string pasta, string[] nomes, string[] conteudos, string? stdin, string arquivoUnico)
     {
+        // dotnet run arquivo.cs liga o PublishAot: as mesmas chaves do .runtimeconfig.json que o SDK gera
+        // (ex.: o JsonSerializer sem contexto lança "Reflection-based serialization has been disabled…")
+        if (arquivoUnico.Length > 0)
+        {
+            foreach (var (k, v) in ChavesAot) AppContext.SetSwitch(k, v);
+            AppContext.SetData("EntryPointFilePath", arquivoUnico);
+            AppContext.SetData("EntryPointFileDirectoryPath", Path.GetDirectoryName(arquivoUnico));
+        }
         var pt = new CultureInfo("pt-BR");
         CultureInfo.DefaultThreadCurrentCulture = pt; CultureInfo.DefaultThreadCurrentUICulture = pt;
         CultureInfo.CurrentCulture = pt; CultureInfo.CurrentUICulture = pt;
@@ -37,6 +70,18 @@ public static partial class Executor
         Console.SetIn(stdin != null ? new StringReader(stdin) : new LeitorJs(saida));
         // Environment.Exit(n): o que estava no buffer sai antes de o runtime terminar
         AppDomain.CurrentDomain.ProcessExit += (_, _) => saida.Descarregar();
+        // exceção fora do Main (async void, timer…): como o .NET, relatório e código 134
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            if (e.ExceptionObject is Exception ex) Relatar(saida, ex, false);
+            saida.Descarregar();
+            Environment.Exit(134);
+        };
+        // Debug.Assert/Debug.Fail: "Process terminated. Assertion failed." e 134 (o Mono do navegador perderia a saída)
+        Afirmacoes.Instalar(saida);
+        // async void: a exceção vai para o SynchronizationContext; sem ele, o Mono do navegador morreria calado
+        SynchronizationContext.SetSynchronizationContext(new Contexto(saida));
+        Environment.ExitCode = 0;
         try
         {
             var asm = Assembly.Load(dll, pdb.Length > 0 ? pdb : null);
@@ -59,6 +104,8 @@ public static partial class Executor
                     Executor.entrada = "   at " + (ep.DeclaringType!.FullName ?? "Program").Replace('+', '.') + "." + ep.Name + "(" + string.Join(", ", ep.GetParameters().Select(p => p.ParameterType.Name + " " + p.Name)) + ")";
                 }
             }
+            // para o JavaScript completar a mensagem de estouro de pilha (o Mono corta a pilha em 1000 quadros)
+            Inicio((alvo.DeclaringType?.FullName ?? "Program").Replace('+', '.') + "." + alvo.Name + "(" + string.Join(", ", alvo.GetParameters().Select(p => p.ParameterType.FullName)) + ")");
             object?[]? parametros = alvo.GetParameters().Length == 1 ? [args] : null;
             object? r = alvo.Invoke(null, BindingFlags.DoNotWrapExceptions, null, parametros, null);
             int codigo = 0;
@@ -68,22 +115,35 @@ public static partial class Executor
                 if (t.GetType().IsGenericType && t.GetType().GetProperty("Result")?.GetValue(t) is int ri) codigo = ri;
             }
             else if (r is int i) codigo = i;
+            // Main sem valor de retorno: vale o Environment.ExitCode
+            if (alvo.ReturnType == typeof(void) || alvo.ReturnType == typeof(Task)) codigo = Environment.ExitCode;
             saida.Descarregar();
             return codigo;
         }
-        catch (Exception ex)
+        // o filtro (when) roda ANTES dos finally do programa, como o relatório do .NET para uma exceção não tratada
+        catch (Exception ex) when (Relatar(saida, ex))
         {
-            saida.Descarregar();
-            saida.Escrever(2, "Unhandled exception. " + FormatarExcecao(ex) + "\n");
-            saida.Descarregar();
+            saida.Descarregar(); // a saída dos finally, que rodaram depois do relatório
             return 134;
         }
+    }
+
+    internal static bool Relatar(Saida saida, Exception ex, bool doMain = true)
+    {
+        try
+        {
+            saida.Descarregar();
+            saida.Escrever(2, "Unhandled exception. " + FormatarExcecao(ex, doMain) + "\n");
+            saida.Descarregar();
+        }
+        catch { }
+        return true;
     }
 
     // como o .NET mostra ("   at Program.<Main>$(String[] args) in /home/ana/cs/ex.cs:line 2"), sem as linhas do
     // próprio executor (Motor.*, System.Reflection.*). O runtime WebAssembly (Mono) não põe " in arquivo:line N":
     // o Linhas acrescenta, lendo o PDB do programa.
-    static string FormatarExcecao(Exception ex)
+    static string FormatarExcecao(Exception ex, bool doMain)
     {
         var linhas = ex.ToString().Split('\n').Select(l => SemArgsGenericos(l.TrimEnd('\r'))).ToList();
         Linhas.Completar(ex, linhas);
@@ -95,7 +155,7 @@ public static partial class Executor
             r.Add(l);
         }
         while (r.Count > 0 && r[^1].TrimStart().StartsWith("--- End of stack trace")) r.RemoveAt(r.Count - 1);
-        if (entrada != null) r.Add(entrada);
+        if (entrada != null && doMain) r.Add(entrada);
         return string.Join("\n", r);
     }
 
@@ -267,10 +327,12 @@ static class Linhas
     public static void Completar(Exception ex, List<string> linhas)
     {
         var quadros = new List<StackFrame>();
-        for (Exception? e = ex; e != null; e = e.InnerException)
-        {
+        // o ToString() mostra primeiro a pilha da exceção mais interna (InnerException), depois as de fora
+        var cadeia = new List<Exception>();
+        for (Exception? e = ex; e != null; e = e.InnerException) cadeia.Add(e);
+        cadeia.Reverse();
+        foreach (var e in cadeia)
             quadros.AddRange((new StackTrace(e, false).GetFrames() ?? []).Where(f => f.GetMethod()?.Module.Assembly == programa));
-        }
         int q = 0;
         for (int i = 0; i < linhas.Count && q < quadros.Count; i++)
         {
@@ -286,5 +348,57 @@ static class Linhas
                 break;
             }
         }
+    }
+}
+
+/// Debug.Assert/Debug.Fail como no .NET do Linux: "Process terminated. Assertion failed.", a mensagem, a pilha e 134.
+/// (O DebugProvider não é público nos reference assemblies; o gancho interno s_FailCore é o que os testes do .NET usam.)
+static class Afirmacoes
+{
+    static Saida? saida;
+    public static void Instalar(Saida s)
+    {
+        saida = s;
+        try
+        {
+            var t = typeof(object).Assembly.GetType("System.Diagnostics.DebugProvider");
+            var f = t?.GetField("s_FailCore", BindingFlags.NonPublic | BindingFlags.Static);
+            f?.SetValue(null, new Action<string, string?, string?, string>(Falhar));
+        }
+        catch { }
+    }
+    static void Falhar(string pilha, string? message, string? detailMessage, string origem)
+    {
+        var sb = new StringBuilder("Process terminated.\nAssertion failed.\n");
+        if (!string.IsNullOrEmpty(message)) sb.Append(message).Append('\n');
+        if (!string.IsNullOrEmpty(detailMessage)) sb.Append(detailMessage).Append('\n');
+        var linhas = new StackTrace(true).ToString().Split('\n');
+        foreach (var l in linhas)
+        {
+            var t = l.TrimStart();
+            if (t.Length == 0 || t.StartsWith("at Motor.") || t.StartsWith("at System.Diagnostics.Debug") || t.StartsWith("at System.Reflection.") || t.StartsWith("at System.Runtime") || t.StartsWith("at System.Threading.Tasks.") || t.StartsWith("at (wrapper")) continue;
+            sb.Append(Executor.SemArgsGenericos(l.TrimEnd('\r'))).Append('\n');
+        }
+        saida!.Descarregar();
+        saida.Escrever(2, sb.ToString());
+        saida.Descarregar();
+        Environment.Exit(134);
+    }
+}
+
+/// Roda as continuações no pool (como sem contexto); uma exceção que escapa (async void) termina o programa
+/// como no .NET: "Unhandled exception. …" e 134.
+sealed class Contexto(Saida saida) : SynchronizationContext
+{
+    public override void Post(SendOrPostCallback d, object? state) => ThreadPool.UnsafeQueueUserWorkItem(_ => Rodar(d, state), null);
+    public override void Send(SendOrPostCallback d, object? state) => Rodar(d, state);
+    public override SynchronizationContext CreateCopy() => this;
+    void Rodar(SendOrPostCallback d, object? state)
+    {
+        var antes = Current;
+        SetSynchronizationContext(this);
+        try { d(state); }
+        catch (Exception ex) when (Executor.Relatar(saida, ex, false)) { saida.Descarregar(); Environment.Exit(134); }
+        finally { SetSynchronizationContext(antes); }
     }
 }
