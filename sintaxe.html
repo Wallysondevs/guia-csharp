@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Sintaxe — instruções, ponto e vírgula, chaves, maiúsculas e recuo | Guia C#</title>
+<meta name="description" content="A sintaxe do C# para quem nunca programou: instruções terminadas em ponto e vírgula, a ordem de cima para baixo, espaços e quebras de linha, maiúsculas e minúsculas, parênteses, aspas, ponto e chaves, blocos e recuo no estilo do C#, dotnet format e os erros CS1002, CS0103, CS0117, CS1010, CS1513, CS1026, CS1056 e CS0201, com mensagens reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Sintaxe</span></h1>
+
+<p class="intro">Toda língua tem regras de escrita. Em português, a frase começa com maiúscula e termina com ponto; em C#, a instrução termina com <code>;</code>, os textos ficam entre aspas e os blocos ficam entre chaves. Esse conjunto de regras se chama <strong>sintaxe</strong>. A diferença é que um leitor humano entende uma frase com um errinho, e o compilador não: uma vírgula fora do lugar e o programa nem chega a rodar. Nesta aula você aprende as regras de escrita que valem para <em>todo</em> programa C#, e as mensagens que aparecem quando uma delas é quebrada.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma <strong>instrução</strong>, por que ela termina com <code>;</code> e em que ordem as instruções rodam.</li>
+  <li>Onde os espaços e as quebras de linha importam (quase nunca) e onde não podem aparecer.</li>
+  <li>Por que <code>Console</code> e <code>console</code> são coisas diferentes.</li>
+  <li>Para que servem os sinais <code>( )</code>, <code>" "</code>, <code>.</code> e <code>{ }</code>.</li>
+  <li>O que é um <strong>bloco</strong>, o <strong>recuo</strong> e o estilo de chaves do C#, e como o <code>dotnet format</code> arruma o código.</li>
+  <li>A diferença entre <strong>instrução</strong> e <strong>expressão</strong>.</li>
+  <li>Os erros de sintaxe mais comuns, com a mensagem real e o conserto.</li>
+</ul>
+</div>
+
+<p>Os programas desta aula foram rodados na máquina fictícia da Ana com o <strong>.NET 10 SDK</strong> (C# 14), na pasta <code>~/cs/sintaxe</code>, com <code>dotnet run arquivo.cs</code>. As mensagens saem em português, como num Ubuntu em pt-BR, e o código <code>CSxxxx</code> de cada uma é o mesmo em qualquer língua.</p>
+
+<hr>
+
+<h2>A ideia: a receita de bolo</h2>
+<p>Uma receita é uma lista de <strong>passos</strong>, um depois do outro: "bata os ovos. Junte o açúcar. Leve ao forno." Cada passo termina com um ponto, e quem cozinha faz um de cada vez, na ordem. Às vezes um grupo de passos vai junto: "para a cobertura: derreta o chocolate e misture o creme".</p>
+
+<p>Um programa C# é igual:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na receita</th><th>No C#</th><th>Exemplo</th></tr>
+<tr><td>Um passo</td><td>Uma <strong>instrução</strong> (<em>statement</em>)</td><td><code>Console.WriteLine("Olá!");</code></td></tr>
+<tr><td>O ponto final do passo</td><td>O <strong>ponto e vírgula</strong></td><td><code>;</code></td></tr>
+<tr><td>Fazer na ordem</td><td>De <strong>cima para baixo</strong></td><td>a linha 1 roda antes da linha 2</td></tr>
+<tr><td>Um grupo de passos ("para a cobertura:")</td><td>Um <strong>bloco</strong>, entre chaves</td><td><code>{ … }</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. Instruções e o ponto e vírgula</h2>
+<p>Uma <strong>instrução</strong> é uma ordem completa para o computador. Toda instrução simples termina com <code>;</code>. O programa roda as instruções na ordem em que estão escritas, de cima para baixo:</p>
+
+<pre class="file" data-file="ordem.cs">Console.WriteLine("1. Acordar");
+Console.WriteLine("2. Tomar café");
+Console.WriteLine("3. Ir à feira");
+</pre>
+
+<pre class="term" data-cwd="~/cs/sintaxe">$ dotnet run ordem.cs
+1. Acordar
+2. Tomar café
+3. Ir à feira</pre>
+
+<dl class="anatomy">
+  <dt>Console</dt><dd>O <strong>console</strong>, ou seja, o terminal. Em C#, é uma <strong>classe</strong>: um conjunto de ferramentas com nome. (O <code>Console</code> é do .NET; aulas <a href="saida.html">Saída</a> e <a href="classes-objetos.html">Classes e Objetos</a>.)</dd>
+  <dt>.</dt><dd>O <strong>ponto</strong> quer dizer "de dentro de": <code>Console.WriteLine</code> é "o <code>WriteLine</code> que mora dentro do <code>Console</code>".</dd>
+  <dt>WriteLine</dt><dd>"Escrever linha": a ferramenta (o <strong>método</strong>) que escreve um texto e pula para a linha de baixo.</dd>
+  <dt>( … )</dt><dd>Os <strong>parênteses</strong> mandam o método trabalhar (isso se chama <strong>chamar</strong> o método) e levam o que ele precisa para trabalhar: aqui, o texto.</dd>
+  <dt>"1. Acordar"</dt><dd>Um <strong>texto</strong>, entre aspas duplas retas. As aspas não aparecem na saída: elas só marcam onde o texto começa e termina.</dd>
+  <dt>;</dt><dd>O fim da instrução, como o ponto final de uma frase.</dd>
+</dl>
+
+<p>Para o compilador, o que separa uma instrução da outra é o <code>;</code>, e não a quebra de linha. Por isso duas instruções podem dividir a mesma linha:</p>
+
+<pre class="file" data-file="linha.cs">Console.WriteLine("Bom dia!"); Console.WriteLine("Boa tarde!");
+</pre>
+
+<pre class="term" data-cwd="~/cs/sintaxe">$ dotnet run linha.cs
+Bom dia!
+Boa tarde!</pre>
+
+<p>Funciona, mas é difícil de ler. A regra de ouro do C# é <strong>uma instrução por linha</strong>.</p>
+
+<h3>E se faltar o <code>;</code>?</h3>
+
+<pre class="file" data-file="pv.cs · erro de propósito">Console.WriteLine("Lista de compras")
+Console.WriteLine("Arroz");
+</pre>
+
+<pre class="term" data-cwd="~/cs/sintaxe">$ dotnet run pv.cs
+/home/ana/cs/sintaxe/pv.cs(1,38): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A mensagem diz o arquivo, a posição (linha 1, coluna 38, logo depois do <code>)</code>), o código do erro (<code>CS1002</code>) e o que faltou: "<code>;</code> esperado". O programa não roda, nem a parte que estava certa. Como ler cada pedaço dessa mensagem é o assunto de <a href="erros-compilacao.html">Lendo Erros do Compilador</a>. Em inglês, para pesquisar: <code>; expected</code>.</p>
+
+<div class="trycs" data-goal="outre:^Feira da Ana\nArroz\nFeijão\n$,compila">
+<p class="try-task"><strong>Missão:</strong> rode e leia o erro. Faltam dois <code>;</code>. Conserte para o programa mostrar as três linhas.</p>
+<pre class="script">Console.WriteLine("Feira da Ana")
+Console.WriteLine("Arroz");
+Console.WriteLine("Feijão")
+</pre>
+<pre class="solucao">Console.WriteLine("Feira da Ana");
+Console.WriteLine("Arroz");
+Console.WriteLine("Feijão");
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Espaços e quebras de linha</h2>
+<p>O compilador ignora espaços, tabulações e quebras de linha entre as "palavras" do código. Este programa, todo espalhado, é igual a <code>Console.WriteLine("Olá, Ana!");</code>:</p>
+
+<pre class="file" data-file="espalhado.cs">Console
+    .WriteLine(
+        "Olá, Ana!"
+    )
+    ;
+</pre>
+
+<pre class="term" data-cwd="~/cs/sintaxe">$ dotnet run espalhado.cs
+Olá, Ana!</pre>
+
+<p>Isso é útil quando uma instrução fica comprida demais e você quer quebrá-la em várias linhas. Mas existem dois lugares onde <strong>não</strong> se pode separar:</p>
+<ul>
+  <li><strong>Dentro de um nome:</strong> <code>Console</code> é uma palavra só; <code>Con sole</code> são duas, e nenhuma delas existe.</li>
+  <li><strong>Dentro de um texto entre aspas:</strong> ali, cada espaço conta (ele aparece na saída), e a quebra de linha é proibida.</li>
+</ul>
+
+<pre class="file" data-file="quebra.cs · erro de propósito">Console.WriteLine("Lista de
+compras");
+</pre>
+
+<pre class="term" data-cwd="~/cs/sintaxe">$ dotnet run quebra.cs
+/home/ana/cs/sintaxe/quebra.cs(1,19): error CS1010: Newline em constante
+/home/ana/cs/sintaxe/quebra.cs(1,28): error CS1003: Erro de sintaxe, "," esperado
+/home/ana/cs/sintaxe/quebra.cs(2,8): error CS1003: Erro de sintaxe, "," esperado
+/home/ana/cs/sintaxe/quebra.cs(2,8): error CS1010: Newline em constante
+/home/ana/cs/sintaxe/quebra.cs(2,11): error CS1026: ) esperado
+/home/ana/cs/sintaxe/quebra.cs(2,11): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Seis erros para um engano só. O primeiro é o verdadeiro: <code>CS1010: Newline em constante</code> ("quebra de linha numa constante"; em inglês, <code>Newline in constant</code>). <strong>Constante</strong>, aqui, é o texto escrito direto no código, e <em>newline</em> é a quebra de linha. A tradução deixou a palavra em inglês no meio da frase. Os outros cinco são consequência: sem as aspas fechadas na linha 1, o compilador se perdeu e tentou entender o resto do jeito que deu. <strong>Leia sempre o primeiro erro primeiro.</strong></p>
+
+<p>Para mostrar duas linhas, use dois <code>WriteLine</code>. (Existe também o <code>\n</code> dentro do texto e os textos de várias linhas com <code>"""</code>, na aula <a href="escapes.html">Escapes e Strings Literais</a>.)</p>
+
+<hr>
+
+<h2>3. Maiúsculas e minúsculas</h2>
+<p>O C# <strong>diferencia maiúsculas de minúsculas</strong> (em inglês, ele é <em>case-sensitive</em>). <code>Console</code>, <code>console</code> e <code>CONSOLE</code> são três nomes diferentes, e só o primeiro existe:</p>
+
+<pre class="file" data-file="minuscula.cs · erro de propósito">console.WriteLine("Olá!");
+</pre>
+
+<pre class="term" data-cwd="~/cs/sintaxe">$ dotnet run minuscula.cs
+/home/ana/cs/sintaxe/minuscula.cs(1,1): error CS0103: O nome "console" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"O nome <code>console</code> não existe no contexto atual": o compilador procurou alguma coisa chamada <code>console</code>, com c minúsculo, e não achou. Esse é o <code>CS0103</code> (<code>The name 'console' does not exist in the current context</code>), um dos erros que você mais vai ver, também quando digitar errado o nome de uma variável. E com o método em minúsculas:</p>
+
+<pre class="file" data-file="metodo.cs · erro de propósito">Console.writeline("Olá!");
+</pre>
+
+<pre class="term" data-cwd="~/cs/sintaxe">$ dotnet run metodo.cs
+/home/ana/cs/sintaxe/metodo.cs(1,9): error CS0117: "Console" não contém uma definição para "writeline"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Agora o <code>Console</code> foi encontrado, mas dentro dele não há nada chamado <code>writeline</code>: o certo é <code>WriteLine</code>, com <strong>W</strong> e <strong>L</strong> maiúsculos. A coluna 9 aponta o começo do <code>writeline</code>, logo depois do ponto. Em inglês: <code>'Console' does not contain a definition for 'writeline'</code>.</p>
+
+<div class="tip">
+<strong>Como lembrar das maiúsculas</strong>
+<p>No C#, os nomes que vêm do .NET seguem um padrão: <strong>cada palavra começa com maiúscula</strong>, inclusive a primeira: <code>Console</code>, <code>WriteLine</code>, <code>ReadLine</code>, <code>ToUpper</code>. Esse estilo se chama <strong>PascalCase</strong>. As palavras da própria linguagem, como <code>if</code>, <code>int</code>, <code>class</code> e <code>static</code>, são todas minúsculas. A aula <a href="identificadores.html">Nomes e Convenções</a> conta a regra completa. E um editor de código, como o VS Code, completa os nomes enquanto você digita, já com as maiúsculas certas (aula <a href="editores.html">Editores e IDEs</a>).</p>
+</div>
+
+<div class="trycs" data-goal="outre:^Olá, Ana!\nBem-vinda ao C#.\n$,compila">
+<p class="try-task"><strong>Missão:</strong> a Ana digitou rápido demais e errou as maiúsculas. Rode, leia cada erro (repare na coluna) e conserte só as letras, até o programa mostrar as duas linhas.</p>
+<pre class="script">console.WriteLine("Olá, Ana!");
+Console.writeLine("Bem-vinda ao C#.");
+</pre>
+<pre class="solucao">Console.WriteLine("Olá, Ana!");
+Console.WriteLine("Bem-vinda ao C#.");
+</pre>
+</div>
+
+<hr>
+
+<h2>4. Os sinais e o que cada um faz</h2>
+<p>Quase todo programa C# usa estes sinais. Cada um tem um papel fixo, e os que abrem (<code>(</code>, <code>{</code>, <code>"</code>) <strong>sempre</strong> precisam do seu par que fecha:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Sinal</th><th>Nome</th><th>Para que serve</th><th>Exemplo</th></tr>
+<tr><td><code>;</code></td><td>ponto e vírgula</td><td>Termina uma instrução</td><td><code>Console.WriteLine("Oi");</code></td></tr>
+<tr><td><code>( )</code></td><td>parênteses</td><td>Chamam um método e levam o que ele recebe; também agrupam contas</td><td><code>WriteLine("Oi")</code>, <code>(2 + 3) * 4</code></td></tr>
+<tr><td><code>" "</code></td><td>aspas duplas</td><td>Marcam um texto (<code>string</code>)</td><td><code>"Olá, Ana!"</code></td></tr>
+<tr><td><code>' '</code></td><td>aspas simples</td><td>Marcam <strong>um</strong> caractere (<code>char</code>)</td><td><code>'A'</code> (aula <a href="char-bool.html">char e bool</a>)</td></tr>
+<tr><td><code>.</code></td><td>ponto</td><td>"De dentro de": acessa algo que mora dentro de outra coisa</td><td><code>Console.WriteLine</code></td></tr>
+<tr><td><code>{ }</code></td><td>chaves</td><td>Começam e terminam um <strong>bloco</strong></td><td><code>{ Console.WriteLine("Oi"); }</code></td></tr>
+<tr><td><code>//</code></td><td>barras</td><td>Começam um comentário: o resto da linha é ignorado</td><td><code>// isto não roda</code> (aula <a href="comentarios.html">Comentários</a>)</td></tr>
+</table>
+</div>
+
+<p>Esquecer o par é um dos erros mais comuns. Com o <code>)</code> faltando:</p>
+
+<pre class="term" data-cwd="~/cs/sintaxe">$ dotnet run parenteses.cs              « Console.WriteLine("Olá!";
+/home/ana/cs/sintaxe/parenteses.cs(1,25): error CS1026: ) esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>E sem os parênteses, o compilador nem percebe que você quis chamar o método. Ele acha que a instrução acabou no <code>WriteLine</code> e reclama do <code>;</code>:</p>
+
+<pre class="term" data-cwd="~/cs/sintaxe">$ dotnet run semparen.cs                « Console.WriteLine "Olá!";
+/home/ana/cs/sintaxe/semparen.cs(1,19): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>É um bom exemplo de que o compilador diz o que <strong>ele</strong> esperava encontrar naquele ponto, e não necessariamente o que você esqueceu. O conserto é <code>Console.WriteLine("Olá!");</code>, com parênteses.</p>
+
+<h3>Aspas retas, sempre</h3>
+<p>Copiar código de um PDF, de uma apresentação ou de um processador de texto (Word, Google Docs) pode trazer as aspas curvas, "bonitas" (<code>“ ”</code>), no lugar das retas (<code>"</code>). Para o compilador, elas não são aspas:</p>
+
+<pre class="file" data-file="curvas.cs · erro de propósito">Console.WriteLine(“Olá!”);
+</pre>
+
+<pre class="term" data-cwd="~/cs/sintaxe">$ dotnet run curvas.cs
+/home/ana/cs/sintaxe/curvas.cs(1,19): error CS1056: Caractere inesperado '“'
+/home/ana/cs/sintaxe/curvas.cs(1,24): error CS1056: Caractere inesperado '”'
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Caractere inesperado" (<code>Unexpected character</code>): troque as aspas curvas pelas retas, digitando-as no editor de código.</p>
+
+<hr>
+
+<h2>5. Blocos, recuo e o estilo das chaves</h2>
+<p>Um <strong>bloco</strong> é um grupo de instruções entre chaves <code>{ }</code>. Ele aparece sempre que várias instruções andam juntas: o corpo de um <code>Main</code> (aula <a href="top-level.html">Program.cs e o Main</a>), os passos de um <code>if</code> ("se"), de uma repetição. Aqui as duas mensagens só aparecem <strong>se</strong> a idade for 18 ou mais (o <code>int idade = 20;</code> cria uma variável, assunto de <a href="variaveis.html">Variáveis</a>, e o <code>if</code> tem aula própria, <a href="if-else.html">if e else</a>; por enquanto, leia como uma frase):</p>
+
+<pre class="file" data-file="bloco.cs">int idade = 20;
+if (idade &gt;= 18)
+{
+    Console.WriteLine("Pode tirar a carteira.");
+    Console.WriteLine("Parabéns!");
+}
+Console.WriteLine("Fim.");
+</pre>
+
+<pre class="term" data-cwd="~/cs/sintaxe">$ dotnet run bloco.cs
+Pode tirar a carteira.
+Parabéns!
+Fim.</pre>
+
+<dl class="anatomy">
+  <dt>if (idade &gt;= 18)</dt><dd>"Se a idade for maior ou igual a 18". Repare: <strong>não</strong> tem <code>;</code> no fim. O <code>if</code> não é uma instrução completa sozinho: ele "abraça" o bloco que vem logo depois.</dd>
+  <dt>{</dt><dd>Abre o bloco. Ela fica <strong>sozinha na linha</strong>, alinhada com o <code>if</code>: é o estilo do C#.</dd>
+  <dt>    Console.WriteLine(…);</dt><dd>As instruções de dentro do bloco, com <strong>recuo</strong> de 4 espaços.</dd>
+  <dt>}</dt><dd>Fecha o bloco, alinhada com a <code>{</code>. Depois da <code>}</code> também não vai <code>;</code>.</dd>
+  <dt>Console.WriteLine("Fim.");</dt><dd>Fora do bloco (sem recuo): roda sempre, qualquer que seja a idade.</dd>
+</dl>
+
+<h3>O recuo é para você, não para o compilador</h3>
+<p><strong>Recuo</strong> (ou <strong>indentação</strong>, do inglês <em>indentation</em>) são os espaços no começo da linha. O compilador ignora o recuo; quem decide o que está dentro do bloco são as chaves. Este programa, todo torto, compila e roda igual:</p>
+
+<pre class="file" data-file="torto.cs">int idade = 20;
+if (idade &gt;= 18) {
+Console.WriteLine("Pode tirar a carteira.");
+        Console.WriteLine("Parabéns!");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/sintaxe">$ dotnet run torto.cs
+Pode tirar a carteira.
+Parabéns!</pre>
+
+<p>Funciona, mas olhe para ele de novo: não dá para ver de relance o que está dentro do <code>if</code>. Num programa de cem linhas, recuo bagunçado é a receita para se perder. A convenção do C# é:</p>
+<ul>
+  <li><strong>4 espaços</strong> de recuo a cada bloco (e não tabulação);</li>
+  <li><strong>a <code>{</code> numa linha própria</strong>, alinhada com a linha de cima, e a <code>}</code> alinhada com ela. Esse estilo tem nome, <strong>Allman</strong>. Em Java e JavaScript, o costume é deixar a <code>{</code> no fim da linha, como no <code>torto.cs</code>; o C# aceita os dois, mas quase todo código C# usa o Allman.</li>
+</ul>
+
+<h3>Arrumar sozinho: <code>dotnet format</code></h3>
+<p>Num projeto (aula <a href="projetos-console.html">Projetos</a>), o comando <code>dotnet format</code> reescreve o código no estilo padrão. A Ana copiou o <code>torto.cs</code> para o <code>Program.cs</code> de um projeto:</p>
+
+<pre class="term" data-cwd="~/projetos/Torto">$ dotnet format
+$ cat Program.cs
+int idade = 20;
+if (idade &gt;= 18)
+{
+    Console.WriteLine("Pode tirar a carteira.");
+    Console.WriteLine("Parabéns!");
+}</pre>
+
+<p>Silêncio quer dizer sucesso: o <code>dotnet format</code> não mostrou nada, só arrumou. O recuo ficou com 4 espaços e a <code>{</code> desceu para a linha dela. Os editores fazem o mesmo com um atalho (no VS Code do Linux, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd>; no Windows, <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd>).</p>
+
+<h3>Chave que não fecha</h3>
+
+<pre class="file" data-file="chave.cs · erro de propósito">int idade = 20;
+if (idade &gt;= 18)
+{
+    Console.WriteLine("Pode tirar a carteira.");
+</pre>
+
+<pre class="term" data-cwd="~/cs/sintaxe">$ dotnet run chave.cs
+/home/ana/cs/sintaxe/chave.cs(4,49): error CS1513: } esperada
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O arquivo acabou com o bloco ainda aberto. O compilador aponta o lugar onde percebeu: o fim da linha 4, coluna 49, onde esperava a <code>}</code>. Em inglês: <code>} expected</code>. Num programa grande, a chave que falta pode estar bem longe desse ponto; o recuo bem-feito é o que permite achá-la, porque cada <code>}</code> fica embaixo da sua <code>{</code>.</p>
+
+<hr>
+
+<h2>6. Instrução e expressão</h2>
+<p>Duas palavras aparecem o tempo todo em livros e mensagens de erro:</p>
+<ul>
+  <li>Uma <strong>expressão</strong> é um pedaço de código que <strong>produz um valor</strong>: <code>2 + 3</code> (vale 5), <code>"Olá"</code> (vale o texto Olá).</li>
+  <li>Uma <strong>instrução</strong> é uma ordem completa, que <strong>faz</strong> alguma coisa: <code>Console.WriteLine(2 + 3);</code>.</li>
+</ul>
+<p>As expressões aparecem <strong>dentro</strong> das instruções. Os parênteses do <code>WriteLine</code> recebem uma expressão, calculam o valor dela e escrevem o resultado:</p>
+
+<pre class="file" data-file="conta.cs">Console.WriteLine(2 + 3);
+Console.WriteLine("2 + 3");
+</pre>
+
+<pre class="term" data-cwd="~/cs/sintaxe">$ dotnet run conta.cs
+5                        « sem aspas: o C# fez a conta
+2 + 3                    « com aspas: é só um texto</pre>
+
+<p>Uma expressão sozinha, sem fazer nada com o valor, não é uma instrução válida. Escrever só <code>2 + 3;</code> é como dizer "dois mais três." a alguém, sem pedir nada:</p>
+
+<pre class="term" data-cwd="~/cs/sintaxe">$ dotnet run solta.cs                   « 2 + 3;
+/home/ana/cs/sintaxe/solta.cs(1,1): error CS0201: Somente as expressões de atribuição, chamada, incremento, diminuição, espera e novo objeto podem ser utilizadas como uma instrução
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A lista da mensagem são as expressões que <strong>fazem</strong> algo e por isso podem virar instrução: guardar um valor (<em>atribuição</em>, <code>x = 5;</code>), chamar um método (<code>Console.WriteLine(…);</code>), somar ou tirar 1 (<code>x++;</code>), esperar (<code>await</code>) e criar um objeto (<code>new</code>). Você vai conhecer cada uma ao longo do guia. Em inglês: <code>Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement</code>.</p>
+
+<hr>
+
+<h2>7. Palavras reservadas</h2>
+<p>Algumas palavras pertencem à própria linguagem e têm um significado fixo: são as <strong>palavras-chave</strong> (<em>keywords</em>). Você já viu várias: <code>if</code>, <code>int</code>, <code>class</code>, <code>static</code>, <code>void</code>, <code>namespace</code>, <code>using</code>, <code>return</code>. Elas são sempre minúsculas e não podem ser usadas como nome de uma variável sua. Os editores as pintam de uma cor diferente. A lista completa, e o que fazer quando você quer muito um nome como <code>class</code>, está em <a href="identificadores.html">Nomes e Convenções</a>.</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS1002: ; esperado</code></strong>
+<p><strong>O que significa:</strong> faltou o ponto e vírgula no fim de uma instrução, ou o compilador achou que a instrução acabou antes do que você imaginava (como no <code>Console.WriteLine "Olá!";</code>, sem parênteses).</p>
+<p><strong>Como consertar:</strong> vá até a linha e a coluna da mensagem. Se o <code>;</code> estiver lá, confira os parênteses e as aspas da mesma linha.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0103: O nome "…" não existe no contexto atual</code></strong>
+<p><strong>O que significa:</strong> um nome escrito errado: maiúscula trocada (<code>console</code>), letra faltando (<code>Consle</code>), ou uma variável usada antes de ser criada (aula <a href="variaveis.html">Variáveis</a>).</p>
+<p><strong>Como consertar:</strong> copie o nome da mensagem e compare letra por letra com o certo, inclusive maiúsculas.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0117: "Console" não contém uma definição para "…"</code></strong>
+<p><strong>O que significa:</strong> o nome antes do ponto existe, mas o que vem depois dele não: <code>Console.writeline</code>, <code>Console.Writeline</code>, <code>Console.PrintLine</code>.</p>
+<p><strong>Como consertar:</strong> escreva o nome exato, em PascalCase: <code>WriteLine</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1010: Newline em constante</code></strong>
+<p><strong>O que significa:</strong> um texto entre aspas não foi fechado antes do fim da linha: a aspa de fechamento foi esquecida, ou o texto foi quebrado em duas linhas. Costuma vir acompanhado de vários outros erros.</p>
+<p><strong>Como consertar:</strong> feche as aspas na mesma linha. Os editores pintam o texto de uma cor só até as aspas fecharem, o que ajuda a enxergar onde ele termina.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1513: } esperada</code> / <code>error CS1026: ) esperado</code></strong>
+<p><strong>O que significa:</strong> um par ficou sem o sinal de fechamento. A posição indica onde o compilador <strong>desistiu</strong> de esperar, que pode ser bem longe de onde o par foi aberto.</p>
+<p><strong>Como consertar:</strong> conte os pares. Com o recuo certo (ou depois de um <code>dotnet format</code>), a <code>{</code> sem par salta aos olhos. Uma <code>}</code> <strong>sobrando</strong> dá outro erro, que aparece na aula <a href="erros-compilacao.html">Lendo Erros do Compilador</a>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1056: Caractere inesperado '“'</code></strong>
+<p><strong>O que significa:</strong> há um caractere que não faz parte da linguagem, quase sempre aspas curvas copiadas de um documento.</p>
+<p><strong>Como consertar:</strong> apague as aspas e digite-as de novo no editor de código.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Regra</th><th>Certo</th><th>Errado</th></tr>
+<tr><td>Instrução termina com <code>;</code></td><td><code>Console.WriteLine("Oi");</code></td><td><code>Console.WriteLine("Oi")</code></td></tr>
+<tr><td>As instruções rodam de cima para baixo</td><td>a linha 1 antes da 2</td><td>(não há como pular, a não ser com <code>if</code>, laços e métodos)</td></tr>
+<tr><td>Maiúsculas importam</td><td><code>Console.WriteLine</code></td><td><code>console.writeline</code></td></tr>
+<tr><td>Texto entre aspas duplas retas, numa linha só</td><td><code>"Olá, Ana!"</code></td><td><code>“Olá”</code>, <code>'Olá'</code>, texto quebrado em duas linhas</td></tr>
+<tr><td>Espaços e quebras de linha entre as palavras são livres</td><td><code>Console.WriteLine( "Oi" );</code></td><td><code>Con sole.WriteLine("Oi");</code></td></tr>
+<tr><td>Todo par fecha</td><td><code>( )</code>, <code>{ }</code>, <code>" "</code></td><td><code>WriteLine("Oi";</code></td></tr>
+<tr><td>Bloco entre chaves, sem <code>;</code> depois da <code>}</code></td><td><code>{ … }</code></td><td></td></tr>
+<tr><td>Estilo do C#</td><td>4 espaços de recuo, <code>{</code> na linha própria (Allman)</td><td>recuo bagunçado (compila, mas confunde)</td></tr>
+<tr><td>Uma instrução por linha</td><td>duas linhas, dois <code>WriteLine</code></td><td>(compila, mas é difícil de ler)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O fim da instrução</h3>
+<p>Complete o sinal que falta para a instrução ficar completa:</p>
+<div class="ex-code">Console.WriteLine("Olá")<input data-answer=";" aria-label="sinal"></div>
+</div>
+
+<div class="exercise">
+<h3>2. As maiúsculas</h3>
+<p>Escreva o nome do método com as maiúsculas certas:</p>
+<div class="ex-code">Console.<input data-answer="WriteLine" aria-label="método">("Oi");</div>
+</div>
+
+<div class="exercise">
+<h3>3. O erro</h3>
+<p>Qual é o código do erro "O nome "console" não existe no contexto atual"?</p>
+<div class="ex-code">CS<input data-answer="0103" aria-label="código"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. O que mostra <code>Console.WriteLine(4 + 4);</code>?</p>
+<label><input type="radio" name="q4"> <code>4 + 4</code></label>
+<label><input type="radio" name="q4"> <code>44</code></label>
+<label><input type="radio" name="q4"> <code>8</code></label>
+<label><input type="radio" name="q4"> Nada: falta aspas, não compila.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. A Ana escreveu um programa todo sem recuo, com todas as chaves certas. O que acontece?</p>
+<label><input type="radio" name="q5"> Não compila: o recuo é obrigatório.</label>
+<label><input type="radio" name="q5"> Compila e roda igual; o recuo só ajuda as pessoas a ler.</label>
+<label><input type="radio" name="q5"> Compila, mas as instruções rodam fora de ordem.</label>
+<label><input type="radio" name="q5"> Dá um aviso para cada linha.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Qual destas linhas está certa?</p>
+<label><input type="radio" name="q6"> <code>Console.WriteLine(“Olá”);</code></label>
+<label><input type="radio" name="q6"> <code>console.WriteLine("Olá");</code></label>
+<label><input type="radio" name="q6"> <code>Console.WriteLine("Olá";</code></label>
+<label><input type="radio" name="q6"> <code>Console.WriteLine ( "Olá" ) ;</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">7. O compilador mostrou seis erros, e o primeiro é <code>CS1010: Newline em constante</code>. O que fazer?</p>
+<label><input type="radio" name="q7"> Fechar as aspas do texto apontado pelo primeiro erro e compilar de novo: os outros provavelmente somem.</label>
+<label><input type="radio" name="q7"> Corrigir os seis, do último para o primeiro.</label>
+<label><input type="radio" name="q7"> Apagar todas as quebras de linha do arquivo.</label>
+<label><input type="radio" name="q7"> Trocar as aspas duplas por simples.</label>
+</div>
+
+<h3>Missão final: o cardápio</h3>
+
+<div class="trycs" data-goal="outre:^Cardápio da Ana\nSuco: R\$ 6\nPastel: R\$ 8\n$,compila">
+<p class="try-task"><strong>Missão:</strong> o cardápio da lanchonete da Ana tem três erros de sintaxe: uma maiúscula, um ponto e vírgula e um parêntese. Use o método: rode, conserte <strong>só o primeiro</strong> erro, rode de novo. No fim, o programa deve mostrar:</p>
+<pre class="out">Cardápio da Ana
+Suco: R$ 6
+Pastel: R$ 8</pre>
+<pre class="script">Console.Writeline("Cardápio da Ana");
+Console.WriteLine("Suco: R$ 6")
+Console.WriteLine("Pastel: R$ 8";
+</pre>
+<pre class="solucao">Console.WriteLine("Cardápio da Ana");
+Console.WriteLine("Suco: R$ 6");
+Console.WriteLine("Pastel: R$ 8");
+</pre>
+</div>
+
+<p>Repare numa coisa curiosa: na primeira vez, o compilador mostra só <strong>dois</strong> erros (<code>CS1002</code> na linha 2 e <code>CS1026</code> na linha 3), e o <code>Writeline</code> da linha 1 passa despercebido. O compilador trabalha em etapas: primeiro confere a <strong>escrita</strong> (sinais, pares, <code>;</code>); só quando ela está toda certa ele confere os <strong>nomes</strong>. Por isso o <code>CS0117</code> só aparece depois que você conserta os outros dois. Um erro pode esconder outro: compile de novo depois de cada conserto.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><strong>Sintaxe</strong> são as regras de escrita da linguagem. O compilador não aceita nenhum desvio.</li>
+  <li>Uma <strong>instrução</strong> é uma ordem completa e termina com <code>;</code>. As instruções rodam de cima para baixo. Use uma por linha.</li>
+  <li>Espaços e quebras de linha entre as palavras são livres, mas não dentro de um nome nem dentro de um texto entre aspas (<code>CS1010</code>).</li>
+  <li>O C# diferencia <strong>maiúsculas de minúsculas</strong>: <code>Console.WriteLine</code>, nunca <code>console.writeline</code> (<code>CS0103</code>, <code>CS0117</code>).</li>
+  <li><code>( )</code> chamam métodos, <code>" "</code> marcam textos (aspas retas: <code>CS1056</code>), <code>.</code> é "de dentro de", <code>{ }</code> formam blocos. Todo par fecha (<code>CS1026</code>, <code>CS1513</code>).</li>
+  <li>O recuo é para as pessoas: o padrão do C# é 4 espaços e a <code>{</code> na linha própria (estilo Allman). <code>dotnet format</code> arruma um projeto.</li>
+  <li>Uma <strong>expressão</strong> produz um valor (<code>2 + 3</code>); sozinha, ela não é uma instrução (<code>CS0201</code>).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
