@@ -291,13 +291,13 @@ $ echo $?
 
 <div class="table-wrap">
 <table class="ref">
-<tr><th>Situação</th><th>Resultado (lab)</th><th>Por quê</th><th>Aula</th></tr>
+<tr><th>Situação</th><th>Resultado (lab e editor)</th><th>Por quê</th><th>Aula</th></tr>
 <tr><td><code>int.MaxValue + 1</code></td><td><code>-2147483648</code></td><td>o inteiro "dá a volta", sem aviso (o padrão é <code>unchecked</code>)</td><td><a href="inteiros.html">Inteiros</a></td></tr>
 <tr><td><code>checked(int.MaxValue + 1)</code></td><td><code>OverflowException</code></td><td>com <code>checked</code>, o estouro vira exceção</td><td><a href="inteiros.html">Inteiros</a></td></tr>
 <tr><td><code>byte b = 255; b++;</code></td><td><code>0</code></td><td>também dá a volta</td><td><a href="incremento.html">++ e --</a></td></tr>
 <tr><td><code>(int)3.99</code>, <code>(int)-3.99</code></td><td><code>3</code>, <code>-3</code></td><td>o cast <strong>corta</strong> a parte decimal, na direção do zero; não arredonda</td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
-<tr><td><code>(int)</code> de um <code>double</code> grande demais</td><td><code>2147483647</code> no lab; <code>-2147483648</code> no editor</td><td>desde o .NET 9, o <code>dotnet</code> "satura" no limite; o editor (WebAssembly) dá outro valor. Não conte com nenhum dos dois: confira o limite antes</td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
-<tr><td><code>(int)</code> de <code>NaN</code></td><td><code>0</code> no lab; <code>-2147483648</code> no editor</td><td>idem: teste com <code>double.IsNaN</code> antes</td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
+<tr><td><code>(int)</code> de um <code>double</code> grande demais</td><td><code>2147483647</code></td><td>desde o .NET 9, a conversão "satura": para no limite do tipo (<code>int.MaxValue</code>, ou <code>int.MinValue</code> para os negativos). O editor do guia faz igual. Versões antigas do .NET davam outro valor: confira o limite antes</td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
+<tr><td><code>(int)</code> de <code>NaN</code></td><td><code>0</code></td><td>também desde o .NET 9 (igual no editor): teste com <code>double.IsNaN</code> antes</td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
 <tr><td><code>(byte)300</code> (de uma variável)</td><td><code>44</code></td><td>fica só o byte de baixo: 300 − 256 = 44</td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
 <tr><td><code>Math.Round(2.5)</code>, <code>Math.Round(3.5)</code></td><td><code>2</code>, <code>4</code></td><td>arredonda o ",5" para o <strong>par</strong> mais próximo ("arredondamento bancário"). Para o arredondamento da escola, <code>Math.Round(x, MidpointRounding.AwayFromZero)</code></td><td><a href="math.html">Math</a></td></tr>
 <tr><td><code>Convert.ToInt32(2.5)</code></td><td><code>2</code></td><td>arredonda como o <code>Math.Round</code> (ao contrário do cast, que corta)</td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
