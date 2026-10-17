@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# if e else — tomar decisões | Guia C#</title>
+<meta name="description" content="if e else em C# para quem nunca programou: rodar um bloco só quando a condição é verdadeira, o caminho alternativo com else, por que a condição tem de ser bool (CS0029), chaves sempre, if (x = 0), o ; depois do if (CS0642), variáveis dentro do bloco (CS0103) e não atribuídas (CS0165), com saídas reais do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">if e else</span></h1>
+
+<p class="intro">Até agora, todos os seus programas faziam sempre a mesma coisa, linha por linha, de cima para baixo. Um programa de verdade precisa <strong>decidir</strong>: se a senha está certa, entra; senão, mostra um erro. Se o estoque está baixo, avisa. Nesta aula você vai aprender o <code>if</code> ("se") e o <code>else</code> ("senão"), as ferramentas de decisão mais usadas do C#, e as armadilhas que pegam todo iniciante: as chaves esquecidas, o <code>=</code> no lugar do <code>==</code> e o <code>;</code> depois do <code>if</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como rodar um bloco de código só quando uma condição é verdadeira, com <code>if</code>.</li>
+  <li>Como escolher entre dois caminhos com <code>if</code> … <code>else</code>.</li>
+  <li>Por que, em C#, a condição tem de ser um <code>bool</code> (e o erro <code>CS0029</code> quando não é).</li>
+  <li>Por que usar <strong>chaves sempre</strong>, e onde colocá-las.</li>
+  <li>As armadilhas <code>if (x = 0)</code> e <code>if (x &gt; 0);</code> (aviso <code>CS0642</code>).</li>
+  <li>O que acontece com variáveis criadas dentro do bloco (<code>CS0103</code>) e com variáveis que só ganham valor num dos caminhos (<code>CS0165</code>).</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com o comando da aula <a href="dotnet-run.html">Rodar com dotnet run</a>: <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: a bifurcação na estrada</h2>
+<p>Você está dirigindo e chega numa bifurcação. Uma placa diz: "<strong>Se</strong> for para a praia, vá pela esquerda; <strong>senão</strong>, siga pela direita". Você lê a placa, responde à pergunta e segue <strong>um</strong> dos caminhos, nunca os dois. Logo depois, as duas estradas se juntam de novo e a viagem continua.</p>
+<p>Um <code>if</code> é essa placa. Ele faz uma pergunta (a <strong>condição</strong>), e a resposta, <code>true</code> (sim) ou <code>false</code> (não), decide qual trecho de código roda. As perguntas você já sabe fazer: são as comparações (<a href="operadores-comparacao.html">Operadores de Comparação</a>) e as combinações com <code>&amp;&amp;</code>, <code>||</code> e <code>!</code> (<a href="operadores-logicos.html">Operadores Lógicos</a>).</p>
+
+<hr>
+
+<h2>1. O <code>if</code> sozinho</h2>
+
+<pre class="file" data-file="estoque.cs">int estoque = 2;
+Console.WriteLine($"Estoque: {estoque}");
+if (estoque &lt; 5)
+{
+    Console.WriteLine("Atenção: estoque baixo!");
+    Console.WriteLine("Peça mais ao fornecedor.");
+}
+Console.WriteLine("Fim do relatório.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run estoque.cs
+Estoque: 2
+Atenção: estoque baixo!          « 2 &lt; 5 é true: o bloco rodou
+Peça mais ao fornecedor.
+Fim do relatório.                « esta linha está fora do if: roda sempre</pre>
+
+<dl class="anatomy">
+  <dt>if</dt><dd>Palavra reservada do C#: "se". Sempre em minúsculas (<code>If</code> ou <code>IF</code> não funcionam).</dd>
+  <dt>(estoque &lt; 5)</dt><dd>A <strong>condição</strong>, obrigatoriamente entre parênteses. Ela tem de dar um <code>bool</code>: se der <code>true</code>, o bloco roda; se der <code>false</code>, o bloco é pulado.</dd>
+  <dt>{ … }</dt><dd>O <strong>bloco</strong>: tudo o que está entre as chaves depende do <code>if</code>. Aqui são dois <code>Console.WriteLine</code>, e os dois rodam ou nenhum roda.</dd>
+  <dt>sem ; depois do )</dt><dd>A linha do <code>if</code> <strong>não</strong> termina com ponto e vírgula. O <code>if</code> só termina no fim do bloco. (A seção 5 mostra o que acontece se você puser.)</dd>
+  <dt>o recuo</dt><dd>As linhas de dentro ficam 4 espaços mais para a direita. O compilador ignora isso; é para <strong>você</strong> enxergar o que está dentro do bloco.</dd>
+</dl>
+
+<p>Mude o estoque para 10 e o programa mostra só <code>Estoque: 10</code> e <code>Fim do relatório.</code>: o bloco inteiro é pulado.</p>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> mude <code>temperatura</code> para valores acima e abaixo de 30 e veja quando o aviso aparece. Depois acrescente um segundo <code>if</code>, que mostra "Leve um casaco." quando a temperatura for menor que 15.</p>
+<pre class="script">int temperatura = 33;
+Console.WriteLine($"Hoje: {temperatura} graus");
+if (temperatura &gt; 30)
+{
+    Console.WriteLine("Beba bastante água!");
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. O caminho alternativo: <code>else</code></h2>
+<p>Com o <code>else</code> ("senão"), você diz o que fazer quando a condição dá <code>false</code>. Exatamente <strong>um</strong> dos dois blocos roda, nunca os dois e nunca nenhum.</p>
+
+<pre class="file" data-file="idade.cs">int idade = 17;
+if (idade &gt;= 18)
+{
+    Console.WriteLine("Pode tirar a carteira de motorista.");
+}
+else
+{
+    Console.WriteLine($"Faltam {18 - idade} anos para a carteira.");
+}
+Console.WriteLine("Fim do programa.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run idade.cs
+Faltam 1 anos para a carteira.          « 17 &gt;= 18 é false: rodou o else
+Fim do programa.</pre>
+
+<p>Troque o <code>17</code> por <code>30</code>, salve e rode de novo:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run idade.cs
+Pode tirar a carteira de motorista.     « 30 &gt;= 18 é true: rodou o if
+Fim do programa.</pre>
+
+<dl class="anatomy">
+  <dt>else</dt><dd>Vem logo depois da chave que fecha o bloco do <code>if</code>. Ele não tem condição própria: é "todo o resto".</dd>
+  <dt>{18 - idade}</dt><dd>Dentro do bloco você pode fazer contas e usar as variáveis normalmente. Aqui a conta vai direto na <a href="interpolacao.html">interpolação</a>.</dd>
+  <dt>Fim do programa.</dt><dd>Depois do <code>if</code>/<code>else</code>, os dois caminhos se juntam e o programa continua normalmente.</dd>
+</dl>
+
+<p>"Faltam 1 anos" ficou feio. Para escolher entre "ano" e "anos" numa linha só, existe o <a href="ternario.html">operador ternário</a>. Nesta aula a idade está escrita no código; ler do teclado é assunto de <a href="readline.html">Console.ReadLine</a>.</p>
+
+<div class="trycs" data-goal="out:7 é ímpar,src:\belse\b">
+<p class="try-task"><strong>Missão:</strong> o programa diz se o número é par, mas para números ímpares ele não mostra nada. Acrescente um <code>else</code> que mostre que o número é ímpar:</p>
+<pre class="out">7 é ímpar</pre>
+<pre class="script">int n = 7;
+if (n % 2 == 0)
+{
+    Console.WriteLine($"{n} é par");
+}
+</pre>
+<pre class="solucao">int n = 7;
+if (n % 2 == 0)
+{
+    Console.WriteLine($"{n} é par");
+}
+else
+{
+    Console.WriteLine($"{n} é ímpar");
+}
+</pre>
+</div>
+
+<p>O <code>n % 2</code> é o resto da divisão por 2 (aula <a href="operadores-aritmeticos.html">Operadores Aritméticos</a>): 0 para pares, 1 para ímpares positivos. Troque o 7 por 10 e por −3 e rode de novo. Com −3, o resto é −1, que também não é 0: cai no <code>else</code>, certinho.</p>
+
+<hr>
+
+<h2>3. A condição tem de ser <code>bool</code></h2>
+<p>Em C#, o que vai entre os parênteses do <code>if</code> tem de ser <strong>verdadeiro ou falso</strong>: uma comparação, uma variável <code>bool</code> (aula <a href="char-bool.html">char e bool</a>) ou uma combinação delas.</p>
+
+<pre class="file" data-file="condicao.cs">int mensagens = 3;
+bool chovendo = false;
+if (mensagens &gt; 0)
+{
+    Console.WriteLine($"Você tem {mensagens} mensagens novas.");
+}
+if (!chovendo)
+{
+    Console.WriteLine("Pode deixar o guarda-chuva em casa.");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run condicao.cs
+Você tem 3 mensagens novas.            « 3 &gt; 0 é true
+Pode deixar o guarda-chuva em casa.    « !false é true</pre>
+
+<p>Com uma variável <code>bool</code>, escreva <code>if (chovendo)</code> e <code>if (!chovendo)</code>, e não <code>if (chovendo == true)</code>: ela já <strong>é</strong> verdadeira ou falsa.</p>
+
+<p>Quem já viu C, JavaScript ou Python pode tentar usar um número direto como condição. Em C#, não dá:</p>
+
+<pre class="file" data-file="numcond.cs">int mensagens = 3;
+if (mensagens)
+{
+    Console.WriteLine("Você tem mensagens.");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run numcond.cs
+/home/ana/cs/numcond.cs(2,5): error CS0029: Não é possível converter implicitamente tipo "int" em "bool"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Não é possível converter <code>int</code> em <code>bool</code>" (em inglês, <code>Cannot implicitly convert type 'int' to 'bool'</code>). O <code>(2,5)</code> aponta a linha 2, coluna 5: a variável <code>mensagens</code> dentro do <code>if</code>. O C# não adivinha o que você quis perguntar ("é diferente de zero?", "é maior que zero?"); você tem de escrever a pergunta: <code>if (mensagens &gt; 0)</code>. Essa regra parece chata, mas é ela que salva você da armadilha da seção 5.</p>
+
+<hr>
+
+<h2>4. Chaves: use sempre</h2>
+<p>O C# permite tirar as chaves quando o bloco tem <strong>uma instrução só</strong>: <code>if (x &lt; 0) x = 0;</code>. Parece prático, mas é a origem de um erro traiçoeiro. A Ana quis zerar o saldo quando a compra fosse maior que ele:</p>
+
+<pre class="file" data-file="semchaves.cs">decimal saldo = 100m;
+decimal compra = 30m;
+if (compra &gt; saldo)
+    Console.WriteLine("Saldo insuficiente.");
+    saldo = 0m;
+Console.WriteLine($"Saldo: {saldo}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run semchaves.cs
+Saldo: 0         « a compra cabia no saldo, mas o saldo foi zerado!</pre>
+
+<p>Sem chaves, o <code>if</code> controla <strong>só a primeira instrução</strong> depois dele (o <code>Console.WriteLine</code>). A linha <code>saldo = 0m;</code> está fora do <code>if</code> e roda sempre. O recuo engana os olhos, mas o compilador não olha recuo. E repare: o <code>dotnet</code> compilou <strong>sem nenhum aviso</strong>. O compilador do C# não reclama do recuo enganoso; quem salva você aqui é o hábito.</p>
+
+<div class="warning">
+<strong>Regra do guia: chaves sempre</strong>
+<p>Use <code>{ }</code> em todo <code>if</code> e todo <code>else</code>, mesmo com uma linha só. Quando você (ou outra pessoa) acrescentar uma segunda linha depois, ela já vai cair dentro do bloco. Muitas equipes adotam essa regra, e os analisadores do .NET têm até uma sugestão própria para ela, a <code>IDE0011</code> ("adicionar chaves"). Um erro desse tipo (uma linha duplicada fora das chaves, o famoso <em>goto fail</em>) deixou uma falha de segurança nos aparelhos da Apple em 2014.</p>
+</div>
+
+<div class="trycs" data-goal="out:Saldo: 100,src:saldo\s*=\s*0m\s*;\s*\n\s*\}">
+<p class="try-task"><strong>Missão:</strong> conserte o programa da Ana com chaves, para o saldo só ser zerado quando a compra for maior que ele. Depois troque a compra para <code>150m</code> e confira que aí, sim, o saldo zera.</p>
+<pre class="out">Saldo: 100</pre>
+<pre class="script">decimal saldo = 100m;
+decimal compra = 30m;
+if (compra &gt; saldo)
+    Console.WriteLine("Saldo insuficiente.");
+    saldo = 0m;
+Console.WriteLine($"Saldo: {saldo}");
+</pre>
+<pre class="solucao">decimal saldo = 100m;
+decimal compra = 30m;
+if (compra &gt; saldo)
+{
+    Console.WriteLine("Saldo insuficiente.");
+    saldo = 0m;
+}
+Console.WriteLine($"Saldo: {saldo}");
+</pre>
+</div>
+
+<h3>Onde pôr as chaves</h3>
+<p>O compilador aceita a chave de abertura na linha de baixo ou na mesma linha:</p>
+
+<pre class="file">if (nota &gt;= 6)            // estilo do C#: chave na linha de baixo
+{
+    Console.WriteLine("Aprovada");
+}
+else
+{
+    Console.WriteLine("Reprovada");
+}
+
+if (nota &gt;= 6) {          // estilo do C, do Java e do JavaScript: chave na mesma linha
+    Console.WriteLine("Aprovada");
+} else {
+    Console.WriteLine("Reprovada");
+}
+</pre>
+
+<p>O primeiro estilo (chamado <strong>Allman</strong>) é o padrão do C#: é o que a Microsoft usa na documentação e no código do próprio .NET, e o que o <code>dotnet format</code> e os editores produzem. Este guia usa ele. O segundo funciona igual e aparece em código de quem veio de outras linguagens. O importante é usar sempre o mesmo no projeto.</p>
+
+<hr>
+
+<h2>5. Duas armadilhas: <code>=</code> e <code>;</code></h2>
+
+<h3><code>if (x = 0)</code>: guardar no lugar de comparar</h3>
+<p>Um <code>=</code> sozinho <strong>guarda</strong> um valor; dois, <code>==</code>, <strong>comparam</strong> (aula <a href="operadores-comparacao.html">Operadores de Comparação</a>). Em C, <code>if (vidas = 0)</code> compila e zera as vidas sem avisar. Em C#, a regra da seção 3 pega o erro: <code>vidas = 0</code> dá um <code>int</code>, e o <code>if</code> exige <code>bool</code>.</p>
+
+<pre class="file" data-file="igual.cs">int vidas = 3;
+if (vidas = 0)
+{
+    Console.WriteLine("Fim de jogo.");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run igual.cs
+/home/ana/cs/igual.cs(2,5): error CS0029: Não é possível converter implicitamente tipo "int" em "bool"
+/home/ana/cs/igual.cs(1,5): warning CS0219: A variável "vidas" é atribuída, mas seu valor nunca é usado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O conserto é <code>if (vidas == 0)</code>. O aviso <code>CS0219</code> que veio junto é consequência: como o programa só guarda valores em <code>vidas</code> e nunca lê, o compilador acha a variável inútil. Ele some junto com o erro.</p>
+
+<p>Com uma variável <code>bool</code> o compilador não tem como recusar, porque <code>pronto = true</code> dá mesmo um <code>bool</code>. Então ele <strong>avisa</strong>:</p>
+
+<pre class="file" data-file="igualbool.cs">bool pronto = false;
+if (pronto = true)
+{
+    Console.WriteLine("Pronto!");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run igualbool.cs
+/home/ana/cs/igualbool.cs(2,5): warning CS0665: Atribuição em expressão condicional é sempre constante. Deseja usar == em vez de = ?
+/home/ana/cs/igualbool.cs(1,6): warning CS0219: A variável "pronto" é atribuída, mas seu valor nunca é usado
+Pronto!          « pronto era false, mas o if guardou true e entrou</pre>
+
+<p>Um aviso não impede o programa de rodar, e o resultado está errado. O próprio aviso sugere o conserto: "Deseja usar <code>==</code> em vez de <code>=</code>?". Melhor ainda: com <code>bool</code>, escreva só <code>if (pronto)</code>.</p>
+
+<h3><code>if (…);</code>: o ponto e vírgula que desliga o <code>if</code></h3>
+
+<pre class="file" data-file="pontovirgula.cs">int temperatura = 25;
+if (temperatura &gt; 30);
+{
+    Console.WriteLine("Que calor! Ligue o ventilador.");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pontovirgula.cs
+/home/ana/cs/pontovirgula.cs(2,22): warning CS0642: Instrução empty possivelmente incorreta
+Que calor! Ligue o ventilador.     « com 25 graus?!</pre>
+
+<ol class="passo">
+  <li>O <code>;</code> sozinho é uma <strong>instrução vazia</strong>: "não faça nada".</li>
+  <li>Então o <code>if</code> ficou assim: "se a temperatura passar de 30, não faça nada".</li>
+  <li>O bloco <code>{ … }</code> da linha de baixo virou um bloco comum, fora do <code>if</code>, e roda sempre.</li>
+</ol>
+<p>O aviso, numa tradução meio torta, diz "instrução vazia possivelmente incorreta" (em inglês, <code>Possible mistaken empty statement</code>). A coluna 22 da linha 2 é justamente o <code>;</code>. Conserto: apague o <code>;</code>.</p>
+
+<p>Se houver um <code>else</code>, o mesmo <code>;</code> vira <strong>erro de compilação</strong>, porque o <code>else</code> fica sem o <code>if</code> dele:</p>
+
+<pre class="file" data-file="elsesolto.cs">int nota = 4;
+if (nota &gt;= 6);
+    Console.WriteLine("Aprovada");
+else
+    Console.WriteLine("Reprovada");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run elsesolto.cs
+/home/ana/cs/elsesolto.cs(3,35): error CS8641: 'else' não pode iniciar uma instrução.
+/home/ana/cs/elsesolto.cs(3,35): error CS1003: Erro de sintaxe, "(" esperado
+/home/ana/cs/elsesolto.cs(3,35): error CS1525: Termo de expressão inválido "else"
+/home/ana/cs/elsesolto.cs(3,35): error CS1026: ) esperado
+/home/ana/cs/elsesolto.cs(3,35): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Cinco erros para um <code>;</code> só! Leia sempre o <strong>primeiro</strong>: "<code>else</code> não pode iniciar uma instrução". O <code>if</code> terminou no <code>;</code>, o <code>Console.WriteLine("Aprovada");</code> é uma instrução solta, e o <code>else</code> chegou sem nenhum <code>if</code> logo antes. Os outros quatro erros são o compilador, já confuso, tentando entender o <code>else</code> como outra coisa. Conserte o primeiro (apague o <code>;</code> da linha 2, e ponha chaves) e todos somem.</p>
+
+<hr>
+
+<h2>6. Variáveis e o bloco</h2>
+
+<h3>Criada dentro, só existe dentro</h3>
+<p>Uma variável declarada <strong>dentro</strong> das chaves só existe ali dentro. Quando o bloco termina, ela some:</p>
+
+<pre class="file" data-file="escopo.cs">int pontos = 120;
+if (pontos &gt; 100)
+{
+    int bonus = 10;
+    pontos = pontos + bonus;
+}
+Console.WriteLine($"Pontos: {pontos}, bônus: {bonus}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run escopo.cs
+/home/ana/cs/escopo.cs(7,47): error CS0103: O nome "bonus" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Na linha 7, fora das chaves, <code>bonus</code> não existe mais. Já <code>pontos</code>, criada fora do <code>if</code>, existe nos dois lugares, e a mudança feita dentro do bloco continua valendo depois. Se você precisa do valor depois do <code>if</code>, declare a variável <strong>antes</strong> dele. A aula <a href="escopo.html">Escopo</a> explica as regras completas.</p>
+
+<h3>Valor em um caminho só: <code>CS0165</code></h3>
+<p>O C# confere se toda variável tem valor antes de ser lida. Se ela só recebe valor dentro do <code>if</code>, existe um caminho (condição falsa) em que ela fica vazia, e o compilador recusa:</p>
+
+<pre class="file" data-file="naoatribuida.cs">int nota = 8;
+string situacao;
+if (nota &gt;= 6)
+{
+    situacao = "Aprovada";
+}
+Console.WriteLine(situacao);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run naoatribuida.cs
+/home/ana/cs/naoatribuida.cs(7,19): error CS0165: Uso de variável local não atribuída "situacao"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Mesmo com a nota 8, o compilador não "roda" o programa para ver: ele olha todos os caminhos possíveis. Há dois consertos: dar um valor no <code>else</code> também (<code>else { situacao = "Reprovada"; }</code>), ou dar um valor inicial na declaração (<code>string situacao = "Reprovada";</code>). Com o <code>else</code>, todos os caminhos dão valor, e o erro some.</p>
+
+<hr>
+
+<h2>Formas diferentes de escrever a mesma decisão</h2>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Exemplo</th><th>Quando usar</th></tr>
+<tr><td><code>if</code> com chaves</td><td><code>if (x &lt; 0) { x = 0; }</code></td><td>Sempre. É o padrão deste guia.</td></tr>
+<tr><td><code>if</code> sem chaves</td><td><code>if (x &lt; 0) x = 0;</code></td><td>Compila com uma instrução só, mas evite: é a origem do erro da seção 4.</td></tr>
+<tr><td><code>if</code> + <code>else</code></td><td><code>if (n % 2 == 0) { … } else { … }</code></td><td>Quando há exatamente dois caminhos.</td></tr>
+<tr><td>Dois <code>if</code> separados</td><td><code>if (n % 2 == 0) { … }</code><br><code>if (n % 2 != 0) { … }</code></td><td>Evite para caminhos opostos: repete a pergunta e, se você errar uma das duas, os dois blocos podem rodar (ou nenhum). Use <code>else</code>.</td></tr>
+<tr><td>Mais de dois caminhos</td><td><code>if … else if … else</code></td><td>Aula <a href="else-if.html">else if</a>.</td></tr>
+<tr><td>Escolher um <strong>valor</strong></td><td><code>var maior = a &gt; b ? a : b;</code></td><td>Aula <a href="ternario.html">Operador Ternário</a>.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0029: Não é possível converter implicitamente tipo "int" em "bool"</code></strong>
+<p><strong>O que significa:</strong> a condição do <code>if</code> não é verdadeiro/falso. Ou você pôs um número sozinho (<code>if (mensagens)</code>), ou usou <code>=</code> no lugar de <code>==</code> (<code>if (vidas = 0)</code>).</p>
+<p><strong>Como consertar:</strong> escreva a pergunta completa: <code>if (mensagens &gt; 0)</code>, <code>if (vidas == 0)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS0665: Atribuição em expressão condicional é sempre constante</code></strong>
+<p><strong>O que significa:</strong> você escreveu <code>if (pronto = true)</code>, que guarda <code>true</code> em vez de comparar. O programa roda, mas sempre entra no bloco.</p>
+<p><strong>Como consertar:</strong> <code>if (pronto)</code> (ou <code>if (pronto == true)</code>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS0642: Instrução empty possivelmente incorreta</code></strong>
+<p><strong>O que significa:</strong> há um <code>;</code> logo depois do <code>)</code> do <code>if</code>. O <code>if</code> não controla nada, e o bloco de baixo roda sempre.</p>
+<p><strong>Como consertar:</strong> apague o <code>;</code>: <code>if (temperatura &gt; 30)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8641: 'else' não pode iniciar uma instrução.</code></strong>
+<p><strong>O que significa:</strong> o <code>else</code> não está logo depois de um <code>if</code> (ou do bloco dele). Causas: um <code>;</code> depois do <code>if (…)</code>, ou um <code>if</code> sem chaves com duas instruções antes do <code>else</code>. Os erros <code>CS1003</code>, <code>CS1525</code>, <code>CS1026</code> e <code>CS1002</code> que vêm na mesma linha são consequência dele.</p>
+<p><strong>Como consertar:</strong> confira se não há <code>;</code> depois do <code>)</code> e use chaves: <code>if (…) { … } else { … }</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0103: O nome "bonus" não existe no contexto atual</code> depois de um <code>if</code></strong>
+<p><strong>O que significa:</strong> a variável foi criada dentro das chaves do <code>if</code> e você a usou fora.</p>
+<p><strong>Como consertar:</strong> declare a variável antes do <code>if</code>, já com um valor inicial.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0165: Uso de variável local não atribuída "situacao"</code></strong>
+<p><strong>O que significa:</strong> a variável só recebe valor em um dos caminhos. No outro, ela seria lida sem valor nenhum.</p>
+<p><strong>Como consertar:</strong> dê um valor também no <code>else</code>, ou dê um valor inicial na declaração.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1003: Erro de sintaxe, "(" esperado</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat semparen.cs
+int nota = 8;
+if nota &gt;= 6
+{
+    Console.WriteLine("Aprovada");
+}
+$ dotnet run semparen.cs
+/home/ana/cs/semparen.cs(2,4): error CS1003: Erro de sintaxe, "(" esperado
+/home/ana/cs/semparen.cs(2,13): error CS1026: ) esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> faltaram os parênteses da condição. Em C# eles são obrigatórios (em Python e em Go, não). O compilador mostra onde esperava o <code>(</code> (linha 2, coluna 4) e o <code>)</code> (coluna 13, no fim da condição).</p>
+<p><strong>Como consertar:</strong> <code>if (nota &gt;= 6)</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Estrutura</th><th>O que faz</th></tr>
+<tr><td><code>if (cond) { A }</code></td><td>Roda A só se <code>cond</code> for <code>true</code>.</td></tr>
+<tr><td><code>if (cond) { A } else { B }</code></td><td>Roda A se <code>cond</code> for <code>true</code>; senão, roda B. Sempre exatamente um dos dois.</td></tr>
+<tr><td><code>if (ativo)</code> / <code>if (!ativo)</code></td><td>Com uma variável <code>bool</code>: "se ativo" / "se não ativo".</td></tr>
+<tr><td><code>if (a &gt; 0 &amp;&amp; b &gt; 0)</code></td><td>Condição composta (<a href="operadores-logicos.html">Operadores Lógicos</a>).</td></tr>
+<tr><td><code>if (n)</code> com <code>int n</code></td><td><strong>Erro</strong> <code>CS0029</code>: escreva <code>if (n != 0)</code> ou <code>if (n &gt; 0)</code>.</td></tr>
+<tr><td><code>if (x = 0)</code></td><td><strong>Erro</strong> <code>CS0029</code> (com <code>int</code>) ou aviso <code>CS0665</code> (com <code>bool</code>). Use <code>==</code>.</td></tr>
+<tr><td><code>if (cond);</code></td><td><strong>Errado</strong>: o <code>;</code> encerra o <code>if</code> (aviso <code>CS0642</code>). Tire o <code>;</code>.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Complete o if</h3>
+<p>Complete para mostrar a mensagem só quando <code>saldo</code> for negativo:</p>
+<div class="ex-code"><input data-answer="if" aria-label="palavra"> (saldo &lt; 0) { Console.WriteLine("Conta no vermelho"); }</div>
+</div>
+
+<div class="exercise">
+<h3>2. Senão</h3>
+<p>Complete com a palavra que introduz o caminho alternativo:</p>
+<div class="ex-code">if (nota &gt;= 6) { Console.WriteLine("Aprovada"); } <input data-answer="else" aria-label="palavra"> { Console.WriteLine("Reprovada"); }</div>
+</div>
+
+<div class="exercise">
+<h3>3. A condição</h3>
+<p>Complete a condição para o bloco rodar quando <code>vidas</code> for igual a zero:</p>
+<div class="ex-code">if (vidas <input data-answer="==" aria-label="operador"> 0) { Console.WriteLine("Fim de jogo"); }</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. O que este trecho mostra, com <code>int x = 5;</code>? <code>if (x &gt; 10) Console.Write("A"); Console.Write("B");</code></p>
+<label><input type="radio" name="q4"> <code>AB</code></label>
+<label><input type="radio" name="q4"> Nada</label>
+<label><input type="radio" name="q4"> <code>B</code></label>
+<label><input type="radio" name="q4"> <code>A</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Com <code>int pontos = 50;</code>, o que acontece com <code>if (pontos) { … }</code>?</p>
+<label><input type="radio" name="q5"> Roda o bloco, porque 50 é diferente de zero</label>
+<label><input type="radio" name="q5"> Não compila: erro <code>CS0029</code>, porque a condição tem de ser <code>bool</code></label>
+<label><input type="radio" name="q5"> Pula o bloco, porque 50 não é <code>true</code></label>
+<label><input type="radio" name="q5"> Compila, mas com o aviso <code>CS0642</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que <code>if (n &gt; 0); { Console.WriteLine("positivo"); }</code> mostra "positivo" até com <code>n = -3</code>?</p>
+<label><input type="radio" name="q6"> Porque o <code>;</code> encerrou o <code>if</code>, e o bloco ficou fora dele</label>
+<label><input type="radio" name="q6"> Porque −3 é considerado verdadeiro</label>
+<label><input type="radio" name="q6"> Porque faltou o <code>else</code></label>
+<label><input type="radio" name="q6"> Porque o <code>Console.WriteLine</code> sempre roda</label>
+</div>
+
+<h3>Missão final: o frete grátis</h3>
+
+<div class="trycs" data-goal="out:Frete grátis!,out:Total: R$ 120\,50,src:\belse\b,semaviso">
+<p class="try-task"><strong>Missão:</strong> a lojinha da Ana dá <strong>frete grátis</strong> para compras de 100 reais ou mais; abaixo disso, o frete é 15 reais. Complete com <code>if</code> e <code>else</code>: no caminho do frete grátis, mostre <code>Frete grátis!</code>; no outro, mostre <code>Frete: R$ 15,00</code> e some 15 ao total. Sem avisos. Com a compra de 120,50, a saída deve ser:</p>
+<pre class="out">Frete grátis!
+Total: R$ 120,50</pre>
+<pre class="script">decimal compra = 120.50m;
+decimal total = compra;
+
+// escreva o if e o else aqui
+
+Console.WriteLine($"Total: R$ {total:N2}");
+</pre>
+<pre class="solucao">decimal compra = 120.50m;
+decimal total = compra;
+
+if (compra &gt;= 100m)
+{
+    Console.WriteLine("Frete grátis!");
+}
+else
+{
+    Console.WriteLine("Frete: R$ 15,00");
+    total = total + 15m;
+}
+
+Console.WriteLine($"Total: R$ {total:N2}");
+</pre>
+</div>
+
+<p>Teste também com <code>99.90m</code>: a saída deve ser <code>Frete: R$ 15,00</code> e <code>Total: R$ 114,90</code>. E com <code>100m</code>: frete grátis, porque o "ou mais" pede <code>&gt;=</code>, não <code>&gt;</code>. No código, o número usa ponto (<code>120.50m</code>); na saída, o <code>N2</code> segue o costume brasileiro e mostra vírgula (aula <a href="formatacao.html">Formatar Números</a>).</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>if (condição) { … }</code> roda o bloco só quando a condição é <code>true</code>. Os parênteses são obrigatórios.</li>
+  <li><code>else { … }</code> é o caminho alternativo: com <code>if</code>/<code>else</code>, exatamente um dos blocos roda. Depois, o programa continua normalmente.</li>
+  <li>A condição tem de ser <code>bool</code>: um número sozinho dá <code>CS0029</code>. Com variável <code>bool</code>, use <code>if (x)</code> e <code>if (!x)</code>.</li>
+  <li><strong>Chaves sempre</strong>, no estilo do C# (chave na linha de baixo). Sem elas, o <code>if</code> controla só a primeira instrução, e o compilador não avisa.</li>
+  <li><code>if (x = 0)</code> dá <code>CS0029</code> (ou o aviso <code>CS0665</code> com <code>bool</code>). <code>if (…);</code> desliga o <code>if</code> (aviso <code>CS0642</code>) e, com <code>else</code>, dá <code>CS8641</code>.</li>
+  <li>Variáveis criadas dentro das chaves só existem ali dentro (<code>CS0103</code>). Uma variável lida depois do <code>if</code> precisa de valor em todos os caminhos (<code>CS0165</code>).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
