@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Encapsulamento — esconder os dados e proteger o objeto | Guia C#</title>
+<meta name="description" content="Encapsulamento em C# para iniciantes: o problema da conta com saldo negativo, campos private com propriedades públicas, validação no set, private set, propriedades calculadas, a palavra field do C# 14, recusar com exceção e os erros reais CS0200, CS0272 e o Stack overflow do set que chama a si mesmo.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Encapsulamento</span></h1>
+
+<p class="intro"><strong>Encapsular</strong> é guardar algo numa cápsula. Os dados de um objeto ficam escondidos lá dentro, e o resto do programa só consegue lê-los ou mudá-los pelas portas que a classe oferece, cada uma com as suas regras. É o primeiro pilar da orientação a objetos. Em C#, as ferramentas para isso são as que você já conhece: campos <code>private</code>, métodos e <strong>propriedades</strong>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Que problema o encapsulamento resolve (a conta com saldo negativo).</li>
+  <li>O padrão do C#: campo <code>private</code> + propriedade <code>public</code>.</li>
+  <li>Como <strong>validar</strong> no <code>set</code> e quando é melhor ter métodos como <code>Depositar</code>.</li>
+  <li>Propriedades só de leitura, <code>private set</code> e propriedades calculadas.</li>
+  <li>A palavra <code>field</code> <span class="versao">C# 14</span>, que dispensa o campo escrito à mão.</li>
+  <li>Como recusar um valor com uma <strong>exceção</strong>.</li>
+  <li>Os erros <code>CS0200</code>, <code>CS0272</code> e o <code>Stack overflow</code> do <code>set</code> que chama a si mesmo.</li>
+</ul>
+</div>
+
+<p>Esta aula junta três anteriores: <a href="propriedades.html">Propriedades (get e set)</a>, <a href="construtores.html">Construtores</a> e <a href="modificadores-acesso.html">public, private e internal</a>.</p>
+
+<hr>
+
+<h2>O problema: a conta com saldo negativo</h2>
+<p>O banco da Ana começou com uma classe <code>Conta</code> de campos abertos, como nas primeiras aulas de classes. Qualquer parte do programa mexe neles diretamente:</p>
+
+<pre class="file" data-file="aberta.cs">var conta = new Conta();
+conta.Titular = "Ana";
+conta.Saldo = 100m;
+conta.Saldo = conta.Saldo - 600m;
+conta.Titular = "";
+Console.WriteLine($"Titular: [{conta.Titular}]  Saldo: {conta.Saldo:C}");
+
+class Conta
+{
+    public string Titular = "";
+    public decimal Saldo;
+}
+</pre>
+
+<pre class="term">$ dotnet run aberta.cs
+Titular: []  Saldo: -R$ 500,00       « uma conta sem dono e com 500 negativos</pre>
+
+<p>O C# não reclamou de nada: compilou e rodou. Mas a conta ficou num estado <strong>inválido</strong>: sacaram 600 de quem tinha 100, e o titular virou um texto vazio. Num sistema grande, com centenas de lugares mexendo em <code>Saldo</code>, descobrir <strong>quem</strong> fez isso é um pesadelo.</p>
+<p>O defeito não está nas contas: é que a classe <strong>não tem como se defender</strong>. Qualquer um escreve qualquer valor nos campos dela.</p>
+
+<hr>
+
+<h2>A ideia: o cofre e o balcão</h2>
+<p>Pense no banco de verdade. Você não entra no cofre: fala com o atendente no balcão. Ele confere se o saque cabe no saldo e só então mexe no cofre. O cofre fica fechado; o balcão é a única passagem, e a passagem tem regras.</p>
+<ul>
+  <li>O <strong>cofre</strong> são os campos, marcados com <code>private</code>.</li>
+  <li>O <strong>balcão</strong> são as propriedades e os métodos <code>public</code>: <code>Saldo</code> para consultar, <code>Depositar</code> e <code>Sacar</code> para mudar, cada um com as suas conferências.</li>
+</ul>
+
+<hr>
+
+<h2>A conta encapsulada</h2>
+
+<pre class="file" data-file="conta.cs">var conta = new Conta("Ana");
+conta.Depositar(100m);
+conta.Sacar(600m);
+conta.Depositar(-50m);
+conta.Sacar(30m);
+Console.WriteLine($"{conta.Titular}: {conta.Saldo:C}");
+
+class Conta
+{
+    private decimal _saldo;
+
+    public Conta(string titular)
+    {
+        Titular = titular;
+    }
+
+    public string Titular { get; }
+
+    public decimal Saldo
+    {
+        get { return _saldo; }
+    }
+
+    public void Depositar(decimal valor)
+    {
+        if (valor &lt;= 0)
+        {
+            Console.WriteLine($"Depósito recusado: {valor:C}");
+            return;
+        }
+        _saldo += valor;
+    }
+
+    public bool Sacar(decimal valor)
+    {
+        if (valor &lt;= 0 || valor &gt; _saldo)
+        {
+            Console.WriteLine($"Saque recusado: {valor:C}");
+            return false;
+        }
+        _saldo -= valor;
+        return true;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run conta.cs
+Saque recusado: R$ 600,00
+Depósito recusado: -R$ 50,00
+Ana: R$ 70,00          « a conta continua válida</pre>
+
+<p>As mesmas tentativas do exemplo anterior agora são <strong>barradas</strong>. Peça por peça:</p>
+
+<dl class="anatomy">
+  <dt>private decimal _saldo;</dt><dd>O cofre. De fora da classe, <code>conta._saldo</code> nem compila (<code>CS0122</code>, da aula <a href="modificadores-acesso.html">anterior</a>).</dd>
+  <dt>public Conta(string titular)</dt><dd>O construtor: a conta já nasce com dono.</dd>
+  <dt>public string Titular { get; }</dt><dd>Uma propriedade <strong>só de leitura</strong>: tem <code>get</code> ("pegar") e nenhum <code>set</code> ("definir"). Só o construtor pode dar valor a ela. Depois disso, ninguém troca o titular.</dd>
+  <dt>public decimal Saldo { get { return _saldo; } }</dt><dd>A janelinha do cofre: mostra o saldo, mas não deixa escrever nele. Repare: <strong>não existe <code>set</code></strong>.</dd>
+  <dt>Depositar e Sacar</dt><dd>As únicas formas de mudar o saldo, cada uma com a sua regra. <code>Sacar</code> ainda devolve <code>true</code> ou <code>false</code>, para quem chamou saber se deu certo.</dd>
+</dl>
+
+<p>E se alguém tentar escrever no saldo por fora?</p>
+
+<pre class="file" data-file="conta-erro.cs — com erro de propósito">var conta = new Conta();
+conta.Depositar(100m);
+conta.Saldo = 1000000m;
+
+class Conta
+{
+    private decimal _saldo;
+
+    public decimal Saldo
+    {
+        get { return _saldo; }
+    }
+
+    public void Depositar(decimal valor)
+    {
+        _saldo += valor;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run conta-erro.cs
+/home/ana/cs/conta-erro.cs(3,1): error CS0200: A propriedade ou o indexador "Conta.Saldo" não pode ser atribuído, pois é somente leitura
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Somente leitura": a propriedade não tem <code>set</code>. Em inglês, <code>Property or indexer 'Conta.Saldo' cannot be assigned to -- it is read only</code>.</p>
+
+<h3>Nem todo dado precisa de set</h3>
+<p>Um erro comum é criar, por reflexo, <code>{ get; set; }</code> em tudo. Um <code>Saldo { get; set; }</code> público deixaria qualquer um escrever <code>conta.Saldo = 1000000m</code>: o campo estaria escondido só no nome. Pergunte sempre: <strong>como esse dado muda no mundo real?</strong> O saldo muda por depósito e saque, então a classe oferece <code>Depositar</code> e <code>Sacar</code>. O número da conta nunca muda, então não tem <code>set</code> nenhum.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Dado</th><th>get?</th><th>set?</th><th>Por quê</th></tr>
+<tr><td><code>Titular</code></td><td>Sim</td><td>Sim, com validação (ou nenhum)</td><td>O nome pode ser corrigido, mas nunca ficar vazio</td></tr>
+<tr><td><code>Saldo</code></td><td>Sim</td><td>Não: <code>Depositar</code>/<code>Sacar</code></td><td>Muda só por operações com regras</td></tr>
+<tr><td><code>Numero</code> da conta</td><td>Sim</td><td>Não</td><td>Definido no construtor e nunca muda</td></tr>
+<tr><td><code>Senha</code></td><td>Não</td><td><code>TrocarSenha(antiga, nova)</code></td><td>Ninguém de fora precisa ler a senha</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Validar no set</h2>
+<p>Quando um dado <strong>pode</strong> mudar livremente, desde que seja válido, o lugar da regra é o <code>set</code> da propriedade. Dentro do <code>set</code>, a palavra <code>value</code> ("valor") é o que está chegando: em <code>aluno.Nota = 12m;</code>, <code>value</code> vale <code>12</code>.</p>
+
+<div class="trycs" data-goal="out:Nota recusada: 12,out:Nota recusada: -1,out:Carla: 9\,5,src:private\s+decimal\s+_nota">
+<p class="try-task"><strong>Missão:</strong> complete o <code>set</code> da propriedade <code>Nota</code>: ele só deve aceitar notas de 0 a 10. Para valores fora disso, mostre <code>Nota recusada: </code> seguido do valor e não mude nada. O programa tenta 12, -1 e 9,5.</p>
+<pre class="script">var aluno = new Aluno("Carla");
+aluno.Nota = 12m;
+aluno.Nota = -1m;
+aluno.Nota = 9.5m;
+Console.WriteLine($"{aluno.Nome}: {aluno.Nota}");
+
+class Aluno
+{
+    private decimal _nota;
+
+    public Aluno(string nome)
+    {
+        Nome = nome;
+    }
+
+    public string Nome { get; }
+
+    public decimal Nota
+    {
+        get { return _nota; }
+        set
+        {
+            // valide aqui
+            _nota = value;
+        }
+    }
+}
+</pre>
+<pre class="solucao">var aluno = new Aluno("Carla");
+aluno.Nota = 12m;
+aluno.Nota = -1m;
+aluno.Nota = 9.5m;
+Console.WriteLine($"{aluno.Nome}: {aluno.Nota}");
+
+class Aluno
+{
+    private decimal _nota;
+
+    public Aluno(string nome)
+    {
+        Nome = nome;
+    }
+
+    public string Nome { get; }
+
+    public decimal Nota
+    {
+        get { return _nota; }
+        set
+        {
+            if (value &lt; 0 || value &gt; 10)
+            {
+                Console.WriteLine($"Nota recusada: {value}");
+                return;
+            }
+            _nota = value;
+        }
+    }
+}
+</pre>
+</div>
+
+<p>Quem usa a classe continua escrevendo <code>aluno.Nota = 9.5m;</code>, como se fosse um campo. A diferença é que agora existe um <strong>porteiro</strong> no meio do caminho. Essa é a grande vantagem das propriedades do C# sobre os métodos <code>getNota()</code>/<code>setNota()</code> de outras linguagens: a regra fica escondida, e a escrita continua simples.</p>
+
+<hr>
+
+<h2>Recusar com aviso ou com exceção?</h2>
+<p>Até aqui, o <code>set</code> mostra um aviso e ignora o valor. É simples e bom para aprender, mas tem um defeito: quem chamou pode não perceber que nada aconteceu. Em programas reais, o costume é <strong>lançar uma exceção</strong>: o programa para (a menos que alguém trate o problema) e a mensagem diz exatamente o que houve.</p>
+
+<pre class="file" data-file="excecao.cs">var aluno = new Aluno();
+aluno.Nota = 8.5m;
+Console.WriteLine($"Nota: {aluno.Nota}");
+aluno.Nota = 12m;
+Console.WriteLine("Esta linha não roda");
+
+class Aluno
+{
+    private decimal _nota;
+
+    public decimal Nota
+    {
+        get { return _nota; }
+        set
+        {
+            if (value &lt; 0 || value &gt; 10)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), $"A nota tem de ser de 0 a 10, e veio {value}.");
+            }
+            _nota = value;
+        }
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run excecao.cs
+Nota: 8,5
+Unhandled exception. System.ArgumentOutOfRangeException: A nota tem de ser de 0 a 10, e veio 12. (Parameter 'value')
+   at Aluno.set_Nota(Decimal value) in /home/ana/cs/excecao.cs:line 18
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/excecao.cs:line 4
+$ echo $?
+134                 « código de saída de um programa que parou por exceção</pre>
+
+<dl class="anatomy">
+  <dt>throw new ArgumentOutOfRangeException(…)</dt><dd><code>throw</code> = "lançar". <code>ArgumentOutOfRangeException</code> = "argumento fora do intervalo": a exceção certa para "o valor não está entre o mínimo e o máximo".</dd>
+  <dt>nameof(value)</dt><dd>O nome do parâmetro que veio errado, como texto. Aparece no fim da mensagem: <code>(Parameter 'value')</code>.</dd>
+  <dt>at Aluno.set_Nota(Decimal value) … line 18</dt><dd>Por baixo dos panos, o <code>set</code> de <code>Nota</code> é um método chamado <code>set_Nota</code>. A linha 18 é a do <code>throw</code>.</dd>
+  <dt>at Program.&lt;Main&gt;$ … line 4</dt><dd>Quem chamou: a linha 4, <code>aluno.Nota = 12m;</code>.</dd>
+</dl>
+
+<p>As mensagens das exceções saem em inglês, mesmo num Linux em português. Lançar e tratar exceções é assunto de <a href="throw.html">throw</a> e <a href="try-catch.html">try e catch</a>. Por enquanto, saiba que é a forma profissional de um <code>set</code> dizer "não".</p>
+
+<hr>
+
+<h2>private set: lê-se de fora, muda-se por dentro</h2>
+<p>Escrever o campo <code>_saldo</code> e a propriedade <code>Saldo</code> separados dá trabalho. Quando a regra está nos métodos (e não no <code>set</code>), dá para usar uma propriedade automática com o <code>set</code> fechado: <code>{ get; private set; }</code>. O <code>get</code> é público; o <code>set</code>, só a classe usa.</p>
+
+<pre class="file" data-file="privset.cs — com erro de propósito">var conta = new Conta();
+conta.Depositar(100m);
+Console.WriteLine(conta.Saldo);
+conta.Saldo = 1000000m;
+
+class Conta
+{
+    public decimal Saldo { get; private set; }
+
+    public void Depositar(decimal valor)
+    {
+        if (valor &gt; 0)
+        {
+            Saldo += valor;
+        }
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run privset.cs
+/home/ana/cs/privset.cs(4,1): error CS0272: A propriedade ou o indexador "Conta.Saldo" não pode ser usado neste contexto porque o acessador set é inacessível
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Dentro de <code>Depositar</code>, <code>Saldo += valor;</code> funciona. Na linha 4, fora da classe, o <code>set</code> é inacessível. É o mesmo efeito da conta encapsulada, com menos código. Apagando a linha 4, o programa mostra <code>100</code>.</p>
+
+<hr>
+
+<h2>Propriedades calculadas</h2>
+<p>Uma propriedade não precisa guardar nada: ela pode <strong>calcular</strong> o valor na hora em que alguém pede. A média de um aluno, por exemplo, sai das notas:</p>
+
+<pre class="file" data-file="media.cs">var bia = new Aluno("Bia", 8m, 7m);
+Console.WriteLine($"{bia.Nome}: média {bia.Media}, {bia.Situacao}");
+
+class Aluno
+{
+    private decimal _nota1;
+    private decimal _nota2;
+
+    public Aluno(string nome, decimal nota1, decimal nota2)
+    {
+        Nome = nome;
+        _nota1 = nota1;
+        _nota2 = nota2;
+    }
+
+    public string Nome { get; }
+    public decimal Media =&gt; (_nota1 + _nota2) / 2;
+    public string Situacao =&gt; Media &gt;= 7 ? "aprovada" : "em recuperação";
+}
+</pre>
+
+<pre class="term">$ dotnet run media.cs
+Bia: média 7,5, aprovada</pre>
+
+<p>O <code>=&gt;</code> depois do nome é um jeito curto de escrever <code>{ get { return …; } }</code>. A grande vantagem aparece com o tempo: se amanhã a Ana decidir guardar as notas numa lista em vez de <code>_nota1</code> e <code>_nota2</code>, só o <strong>interior</strong> da classe muda. Quem usa <code>bia.Media</code> nem fica sabendo. É isso que "esconder os detalhes" compra: liberdade para mudar por dentro sem quebrar quem está de fora.</p>
+
+<hr>
+
+<h2>A palavra field <span class="versao">C# 14</span></h2>
+<p>Às vezes você quer uma regra pequena no <code>set</code> (tirar os espaços, por exemplo), mas não quer escrever o campo <code>_nome</code> à mão. O C# 14 trouxe a palavra <code>field</code> ("campo"): dentro de um <code>get</code> ou <code>set</code>, ela é o campo escondido que o compilador cria sozinho.</p>
+
+<pre class="file" data-file="field.cs">var p = new Produto();
+p.Nome = "   Caderno  ";
+Console.WriteLine($"[{p.Nome}]");
+
+class Produto
+{
+    public string Nome
+    {
+        get;
+        set =&gt; field = value.Trim();
+    } = "";
+}
+</pre>
+
+<pre class="term">$ dotnet run field.cs
+[Caderno]</pre>
+
+<p>O <code>get;</code> sozinho devolve o campo; o <code>set</code> guarda nele o valor sem os espaços (<code>Trim</code>, veja <a href="metodos-string.html">Métodos de String</a>). O <code>= "";</code> no fim dá o valor inicial. Antes do C# 14, era preciso declarar <code>private string _nome = "";</code> e usar <code>_nome</code> no lugar de <code>field</code>. Você vai ver muito código assim, e os dois jeitos dão o mesmo resultado.</p>
+
+<hr>
+
+<h2>Formas diferentes de proteger os dados</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Como fica</th><th>Quando usar</th></tr>
+<tr><td>Campo público</td><td><code>public decimal Saldo;</code></td><td>Só em exemplos rápidos</td></tr>
+<tr><td>Propriedade automática</td><td><code>{ get; set; }</code></td><td>Dados que podem mudar sem regra nenhuma</td></tr>
+<tr><td>Propriedade com validação no <code>set</code></td><td><code>set { if (…) throw …; _nota = value; }</code></td><td>Dados que mudam livremente, desde que válidos</td></tr>
+<tr><td><code>private set</code> + métodos</td><td><code>{ get; private set; }</code>, <code>Depositar(…)</code></td><td>Dados que mudam só por operações com regras</td></tr>
+<tr><td>Só <code>get</code></td><td><code>{ get; }</code>, preenchida no construtor</td><td>Dados que nunca mudam (veja <a href="readonly.html">readonly e init</a>)</td></tr>
+<tr><td>Calculada</td><td><code>Media =&gt; …;</code></td><td>Valores que saem de outros dados</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>error CS0200: A propriedade ou o indexador "…" não pode ser atribuído, pois é somente leitura</strong>
+<p><strong>O que aconteceu:</strong> o código tentou escrever numa propriedade que só tem <code>get</code>.</p>
+<p><strong>Como resolver:</strong> use o método que a classe oferece para aquilo (<code>conta.Depositar(…)</code>). Se nenhum método faz o que você precisa, pergunte se a classe <strong>deveria</strong> permitir antes de criar um <code>set</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS0272: … não pode ser usado neste contexto porque o acessador set é inacessível</strong>
+<p><strong>O que aconteceu:</strong> a propriedade tem <code>private set</code>, e você escreveu nela de fora da classe.</p>
+<p><strong>Como resolver:</strong> o mesmo do caso anterior: mude o valor pelos métodos da classe.</p>
+</div>
+
+<div class="cenario">
+<strong>Stack overflow. (o set que chama a si mesmo)</strong>
+<p>Este bug compila sem erro nem aviso e derruba o programa:</p>
+<pre class="file" data-file="recursao.cs — com erro de propósito">var p = new Pessoa();
+p.Nome = "Ana";
+Console.WriteLine(p.Nome);
+
+class Pessoa
+{
+    public string Nome
+    {
+        get { return Nome; }
+        set { Nome = value; }
+    }
+}
+</pre>
+<pre class="term">$ dotnet run recursao.cs
+Stack overflow.
+Repeated 261732 times:          « o número muda de uma máquina para outra
+--------------------------------
+   at Pessoa.set_Nome(System.String)
+--------------------------------
+   at Program.&lt;Main&gt;$(System.String[])
+$ echo $?
+134</pre>
+<p><strong>O que aconteceu:</strong> dentro do <code>set</code>, <code>Nome = value;</code> não guarda nada: chama o <code>set</code> de <code>Nome</code> de novo, que chama de novo, centenas de milhares de vezes, até a memória das chamadas (a <em>pilha</em>, "stack") transbordar (<em>overflow</em>). Veja <a href="recursao.html">Recursão</a>.</p>
+<p><strong>Como resolver:</strong> guarde num campo de verdade: <code>private string _nome = "";</code> com <code>get { return _nome; }</code> e <code>set { _nome = value; }</code>. Ou use <code>{ get; set; }</code>, ou <code>field</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>O set "não funciona" (o valor não muda)</strong>
+<p><strong>O que aconteceu:</strong> quase sempre a validação recusou o valor em silêncio, ou o <code>set</code> guarda num campo diferente do que o <code>get</code> lê.</p>
+<p><strong>Como resolver:</strong> confira que <code>get</code> e <code>set</code> usam o <strong>mesmo</strong> campo. E faça o <code>set</code> avisar (mensagem ou exceção) quando recusar algo.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>private decimal _saldo;</code></td><td>Campo escondido; só a classe mexe</td></tr>
+<tr><td><code>public decimal Saldo { get { return _saldo; } }</code></td><td>Propriedade só de leitura sobre um campo</td></tr>
+<tr><td><code>public string Titular { get; }</code></td><td>Propriedade só de leitura; valor dado no construtor</td></tr>
+<tr><td><code>public decimal Saldo { get; private set; }</code></td><td>Lê-se de fora, muda-se só por dentro</td></tr>
+<tr><td><code>set { if (…) { … return; } _nota = value; }</code></td><td>Validação no <code>set</code>; <code>value</code> é o valor que chega</td></tr>
+<tr><td><code>throw new ArgumentOutOfRangeException(nameof(value), "…");</code></td><td>Recusa um valor fora do intervalo, interrompendo o programa</td></tr>
+<tr><td><code>public decimal Media =&gt; …;</code></td><td>Propriedade calculada</td></tr>
+<tr><td><code>set =&gt; field = value.Trim();</code> <span class="versao">C# 14</span></td><td><code>field</code> = o campo escondido criado pelo compilador</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missão final: o placar do basquete</h2>
+<div class="trycs" data-goal="out:Jogada inválida: 5,out:Pontos: 6,src:\{\s*get;\s*private\s+set;\s*\}">
+<p class="try-task"><strong>Missão:</strong> no basquete, uma cesta vale 1, 2 ou 3 pontos. Hoje qualquer um muda o <code>Pontos</code> do <code>Placar</code>, e ele aceita qualquer jogada. Encapsule: troque o campo por uma propriedade <code>public int Pontos { get; private set; }</code> e faça o <code>Marcar</code> recusar valores fora de 1 a 3, mostrando <code>Jogada inválida: </code> e o valor.</p>
+<pre class="script">var placar = new Placar();
+placar.Marcar(2);
+placar.Marcar(3);
+placar.Marcar(5);
+placar.Marcar(1);
+Console.WriteLine($"Pontos: {placar.Pontos}");
+
+class Placar
+{
+    public int Pontos;
+
+    public void Marcar(int pontos)
+    {
+        Pontos += pontos;
+    }
+}
+</pre>
+<pre class="solucao">var placar = new Placar();
+placar.Marcar(2);
+placar.Marcar(3);
+placar.Marcar(5);
+placar.Marcar(1);
+Console.WriteLine($"Pontos: {placar.Pontos}");
+
+class Placar
+{
+    public int Pontos { get; private set; }
+
+    public void Marcar(int pontos)
+    {
+        if (pontos &lt; 1 || pontos &gt; 3)
+        {
+            Console.WriteLine($"Jogada inválida: {pontos}");
+            return;
+        }
+        Pontos += pontos;
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O valor que chega</h3>
+<p>Dentro de um <code>set</code>, qual palavra representa o valor que está sendo atribuído?</p>
+<div class="ex-code"><input data-answer="value" aria-label="palavra"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Lê de fora, muda por dentro</h3>
+<p>Complete a propriedade para que todos leiam, mas só a classe mude: <code>public int Vidas { get; ___ }</code></p>
+<div class="ex-code"><input data-answer="private set;|private set" aria-label="acessador"></div>
+</div>
+
+<div class="exercise">
+<h3>3. O código do "somente leitura"</h3>
+<p>Qual é o código do erro ao atribuir a uma propriedade que só tem <code>get</code>? (como <code>CS0000</code>)</p>
+<div class="ex-code"><input data-answer="CS0200|cs0200" aria-label="código do erro"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Qual é a melhor forma de mudar o saldo de uma conta encapsulada?</p>
+<label><input type="radio" name="q4"> Deixar <code>Saldo</code> como campo público.</label>
+<label><input type="radio" name="q4"> Métodos como <code>Depositar(valor)</code> e <code>Sacar(valor)</code>, com regras.</label>
+<label><input type="radio" name="q4"> Uma propriedade <code>Saldo { get; set; }</code> sem validação.</label>
+<label><input type="radio" name="q4"> Não deixar o saldo mudar nunca.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. O que acontece com <code>public string Nome { get { return Nome; } set { Nome = value; } }</code>?</p>
+<label><input type="radio" name="q5"> Erro de compilação <code>CS0200</code>.</label>
+<label><input type="radio" name="q5"> Funciona normalmente.</label>
+<label><input type="radio" name="q5"> Compila, mas o programa cai com <code>Stack overflow.</code> quando usa a propriedade.</label>
+<label><input type="radio" name="q5"> O nome fica sempre vazio.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. No C# 14, o que é <code>field</code> dentro de <code>set =&gt; field = value.Trim();</code>?</p>
+<label><input type="radio" name="q6"> O campo escondido que o compilador cria para a propriedade.</label>
+<label><input type="radio" name="q6"> Uma variável local nova.</label>
+<label><input type="radio" name="q6"> O valor que está chegando.</label>
+<label><input type="radio" name="q6"> Um erro: <code>field</code> não existe.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><strong>Encapsular</strong> é esconder os campos (<code>private</code>) e expor só propriedades e métodos com regras (<code>public</code>). O objeto passa a se defender de valores inválidos.</li>
+  <li>Validação mora no <code>set</code> (com <code>value</code>) ou em métodos de negócio, como <code>Depositar</code> e <code>Sacar</code>.</li>
+  <li>Nem todo dado precisa de <code>set</code>: <code>{ get; }</code> (nunca muda), <code>{ get; private set; }</code> (muda só por dentro), <code>=&gt;</code> (calculado).</li>
+  <li>Para recusar, um aviso é simples; lançar <code>ArgumentOutOfRangeException</code> é o jeito profissional.</li>
+  <li><code>field</code> <span class="versao">C# 14</span> dispensa o campo escrito à mão.</li>
+  <li>Erros: <code>CS0200</code> (somente leitura), <code>CS0272</code> (<code>set</code> inacessível) e o <code>Stack overflow.</code> do <code>set</code> que chama a si mesmo.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
