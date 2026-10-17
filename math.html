@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Matemática (Math) — raiz, potência, arredondar | Guia C#</title>
+<meta name="description" content="A classe Math do C# para quem nunca programou: Abs, Max, Min, Pow, Sqrt, Cbrt, PI e E; arredondar com Round, Floor, Ceiling e Truncate, o arredondamento bancário (2,5 vira 2) e MidpointRounding.AwayFromZero, casas decimais com decimal, Clamp e Sign, seno e cosseno em radianos, logaritmos, NaN e infinito, using static, e os erros reais CS0266, CS1503, CS1501, CS0103 e OverflowException, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Matemática (Math)</span></h1>
+
+<p class="intro">Os operadores <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code> e <code>%</code> (aula <a href="operadores-aritmeticos.html">Operadores Aritméticos</a>) fazem as contas do dia a dia. Mas o C# não tem um operador para raiz quadrada, nem para potência (o <code>^</code> do C# não é potência!), nem para arredondar. Essas contas ficam na classe <strong><code>Math</code></strong> ("matemática"), a calculadora científica do .NET: <code>Math.Sqrt(81)</code> dá 9, <code>Math.Pow(2, 10)</code> dá 1024, <code>Math.Round(2.7)</code> dá 3. Nesta aula você vai conhecer as funções mais usadas, com a saída real de cada uma, e duas surpresas: o arredondamento que transforma 2,5 em <strong>2</strong>, e a raiz cúbica de 27 que não dá exatamente 3.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>As funções básicas: <code>Abs</code>, <code>Max</code>, <code>Min</code>, <code>Pow</code>, <code>Sqrt</code>, <code>Cbrt</code> e as constantes <code>PI</code> e <code>E</code>.</li>
+  <li>Os quatro jeitos de tirar as casas decimais: <code>Round</code>, <code>Floor</code>, <code>Ceiling</code> e <code>Truncate</code>.</li>
+  <li>Por que <code>Math.Round(2.5)</code> dá 2, e como pedir o arredondamento "da escola".</li>
+  <li>Como arredondar dinheiro com <code>decimal</code> e casas decimais.</li>
+  <li>Como limitar um valor com <code>Clamp</code>, e o sinal com <code>Sign</code>.</li>
+  <li>Seno, cosseno e logaritmos, e por que <code>Math.Sin(30)</code> não dá 0,5.</li>
+  <li>Quais funções aceitam <code>int</code> e <code>decimal</code>, e quais só <code>double</code>.</li>
+  <li>Os resultados especiais (<code>NaN</code>, <code>∞</code>) e os erros reais <code>CS0266</code>, <code>CS1503</code>, <code>CS1501</code> e <code>OverflowException</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas foram rodados com o <strong>.NET 10</strong> (<code>dotnet --version</code> = <code>10.0.112</code>, C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. O notebook está em português, por isso os números com casas decimais saem com <strong>vírgula</strong> (<code>1,4142…</code>).</p>
+
+<hr>
+
+<h2>A ideia: a calculadora científica</h2>
+<p>Uma calculadora comum tem as quatro operações. A científica tem uma fileira de teclas a mais: <code>√</code>, <code>xʸ</code>, <code>π</code>, <code>sin</code>, <code>log</code>… Você digita o número, aperta a tecla e lê o resultado.</p>
+<p>A classe <code>Math</code> é essa fileira de teclas. Cada tecla é um <strong>método</strong>: você escreve <code>Math.</code>, o nome da tecla e, entre parênteses, o número. O resultado volta para o seu programa, para guardar numa variável ou mostrar. Como a <code>Array</code> da aula <a href="classe-array.html">A Classe Array</a>, é uma classe <strong>estática</strong>: não precisa criar nada, é só usar.</p>
+
+<hr>
+
+<h2>1. As funções básicas</h2>
+
+<pre class="file" data-file="basico.cs">Console.WriteLine(Math.Abs(-7));
+Console.WriteLine(Math.Max(12, 45));
+Console.WriteLine(Math.Min(12, 45));
+Console.WriteLine(Math.Pow(2, 10));
+Console.WriteLine(Math.Sqrt(81));
+Console.WriteLine(Math.Sqrt(2));
+Console.WriteLine(Math.Cbrt(27));
+Console.WriteLine(Math.PI);
+Console.WriteLine(Math.E);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run basico.cs
+7
+45
+12
+1024
+9
+1,4142135623730951
+3,0000000000000004       « a raiz cúbica de 27 "quase" 3
+3,141592653589793
+2,718281828459045</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>Nome (em inglês)</th><th>O que faz</th></tr>
+<tr><td><code>Math.Abs(-7)</code></td><td><em>absolute</em>, valor absoluto</td><td>Tira o sinal: −7 vira 7, e 7 continua 7. Útil para "a diferença entre dois números", sem importar qual é maior: <code>Math.Abs(a - b)</code>.</td></tr>
+<tr><td><code>Math.Max(12, 45)</code></td><td><em>maximum</em>, máximo</td><td>O maior dos <strong>dois</strong>: 45.</td></tr>
+<tr><td><code>Math.Min(12, 45)</code></td><td><em>minimum</em>, mínimo</td><td>O menor dos dois: 12.</td></tr>
+<tr><td><code>Math.Pow(2, 10)</code></td><td><em>power</em>, potência</td><td>2 elevado a 10: 2 × 2 × … × 2, dez vezes = 1024. O resultado é <code>double</code>.</td></tr>
+<tr><td><code>Math.Sqrt(81)</code></td><td><em>square root</em>, raiz quadrada</td><td>O número que, vezes ele mesmo, dá 81: 9.</td></tr>
+<tr><td><code>Math.Sqrt(2)</code></td><td></td><td>A raiz de 2 não é um número "redondo": 1,4142135623730951 (as casas que cabem num <code>double</code>).</td></tr>
+<tr><td><code>Math.Cbrt(27)</code></td><td><em>cube root</em>, raiz cúbica</td><td>O número que, multiplicado três vezes, dá 27. Deveria ser 3, mas veio <code>3,0000000000000004</code>.</td></tr>
+<tr><td><code>Math.PI</code></td><td>π</td><td>A constante π (pi), a volta do círculo dividida pelo diâmetro. Não tem parênteses: não é uma tecla, é um número guardado.</td></tr>
+<tr><td><code>Math.E</code></td><td><em>e</em></td><td>O número de Euler, base dos logaritmos naturais.</td></tr>
+</table>
+</div>
+
+<div class="warning">
+<strong>Por que 3,0000000000000004?</strong>
+<p>O <code>double</code> guarda os números em binário, com um número limitado de casas, e a maioria das contas com ele tem um errinho na última casa (aula <a href="decimais.html">float, double e decimal</a>). Na maior parte do tempo, o errinho "some" quando o número é mostrado. Na raiz cúbica de 27, no Linux, ele apareceu. No editor do guia, que roda o .NET em WebAssembly, o mesmo <code>Math.Cbrt(27)</code> mostra <code>3</code>: as duas máquinas fazem a conta por caminhos um pouco diferentes, e as duas estão dentro do que o <code>double</code> promete. Por isso, nunca compare um resultado de <code>Math</code> com <code>==</code>; arredonde antes (<code>Math.Round(x, 6) == 3</code>) ou confira se a diferença é minúscula (<code>Math.Abs(x - 3) &lt; 0.000001</code>).</p>
+</div>
+
+<div class="tip">
+<strong>O <code>^</code> não é potência</strong>
+<p>Em muitas calculadoras e planilhas, <code>2^10</code> é "2 elevado a 10". Em C#, o <code>^</code> é outra coisa (o "ou exclusivo" de bits), e <code>2 ^ 10</code> dá <strong>8</strong>, sem erro nenhum. Para potência, sempre <code>Math.Pow(2, 10)</code>. Para elevar ao quadrado, <code>x * x</code> também serve, e é mais rápido.</p>
+</div>
+
+<div class="trycs" data-goal="out:Hipotenusa: 5,src:Math\.Sqrt">
+<p class="try-task"><strong>Missão:</strong> num triângulo retângulo com lados 3 e 4, a hipotenusa (o lado maior) é a <strong>raiz quadrada</strong> de 3² + 4². O código já calcula 3² + 4². Complete com <code>Math.Sqrt</code> para mostrar <code>Hipotenusa: 5</code>.</p>
+<pre class="out">Hipotenusa: 5</pre>
+<pre class="script">double a = 3, b = 4;
+double c = Math.Pow(a, 2) + Math.Pow(b, 2);   // falta a raiz
+Console.WriteLine($"Hipotenusa: {c}");
+</pre>
+<pre class="solucao">double a = 3, b = 4;
+double c = Math.Sqrt(Math.Pow(a, 2) + Math.Pow(b, 2));
+Console.WriteLine($"Hipotenusa: {c}");
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Tirar as casas decimais: <code>Round</code>, <code>Floor</code>, <code>Ceiling</code>, <code>Truncate</code></h2>
+<p>São quatro jeitos diferentes de transformar 2,7 num número inteiro, e cada um serve para uma coisa:</p>
+
+<pre class="file" data-file="arredondar.cs">double[] valores = [2.3, 2.5, 2.7, -2.5, 3.5];
+foreach (double x in valores)
+{
+    Console.WriteLine($"{x,5}: Round {Math.Round(x),3}  Floor {Math.Floor(x),3}  Ceiling {Math.Ceiling(x),3}  Truncate {Math.Truncate(x),3}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run arredondar.cs
+  2,3: Round   2  Floor   2  Ceiling   3  Truncate   2
+  2,5: Round   2  Floor   2  Ceiling   3  Truncate   2
+  2,7: Round   3  Floor   2  Ceiling   3  Truncate   2
+ -2,5: Round  -2  Floor  -3  Ceiling  -2  Truncate  -2
+  3,5: Round   4  Floor   3  Ceiling   4  Truncate   3</pre>
+
+<dl class="anatomy">
+  <dt>Math.Round</dt><dd>"Arredondar": vai para o inteiro <strong>mais perto</strong>. 2,3 → 2; 2,7 → 3. E no meio do caminho, o 2,5? Veja a próxima seção.</dd>
+  <dt>Math.Floor</dt><dd>"Chão": sempre <strong>para baixo</strong>, para o inteiro menor. 2,7 → 2. Com negativos, "para baixo" é para mais longe do zero: −2,5 → <strong>−3</strong>.</dd>
+  <dt>Math.Ceiling</dt><dd>"Teto": sempre <strong>para cima</strong>. 2,3 → 3. Bom para "quantas caixas eu preciso", em que sobrar um item já exige mais uma caixa.</dd>
+  <dt>Math.Truncate</dt><dd>"Truncar", cortar: joga fora as casas decimais, sem arredondar nada. 2,7 → 2; −2,5 → −2. É o que o <code>(int)</code> faz (aula <a href="conversao-tipos.html">Conversão de Tipos</a>).</dd>
+</dl>
+
+<p>Os quatro devolvem um <code>double</code> (ou um <code>decimal</code>, se você passar um <code>decimal</code>), só que sem casas. Para guardar num <code>int</code>, converta: <code>int caixas = (int)Math.Ceiling(x);</code>.</p>
+
+<div class="trycs" data-goal="out:Caixas: 4,src:Math\.Ceiling">
+<p class="try-task"><strong>Missão:</strong> a Ana vai mandar 23 potes de doce, e cada caixa leva 6. O programa diz <code>Caixas: 3</code>, mas em 3 caixas só cabem 18 potes! Use <code>Math.Ceiling</code> para arredondar <strong>para cima</strong> e mostrar <code>Caixas: 4</code>. Dica: a divisão tem de ser com casas decimais, senão o <code>23 / 6</code> já vira 3 antes do <code>Ceiling</code>.</p>
+<pre class="out">Caixas: 4</pre>
+<pre class="script">int potes = 23;
+int porCaixa = 6;
+int caixas = potes / porCaixa;
+Console.WriteLine($"Caixas: {caixas}");
+</pre>
+<pre class="solucao">int potes = 23;
+int porCaixa = 6;
+int caixas = (int)Math.Ceiling(potes / (double)porCaixa);
+Console.WriteLine($"Caixas: {caixas}");
+</pre>
+</div>
+
+<hr>
+
+<h2>3. O arredondamento bancário: 2,5 vira 2</h2>
+<p>Na tabela acima, o <code>Math.Round(2.5)</code> deu <strong>2</strong>, e o <code>Math.Round(3.5)</code> deu 4. Não é defeito. Quando o número está exatamente no meio, o <code>Round</code> vai para o <strong>inteiro par</strong> mais perto: 2,5 → 2 (par), 3,5 → 4 (par). Esse é o <strong>arredondamento bancário</strong> (ou "do par"). Ele existe porque, numa lista grande de valores, arredondar sempre para cima faria a soma crescer; indo para o par, metade das vezes sobe e metade desce, e a soma fica justa.</p>
+
+<pre class="file" data-file="bancario.cs">Console.WriteLine(Math.Round(2.5));
+Console.WriteLine(Math.Round(3.5));
+Console.WriteLine(Math.Round(2.5, MidpointRounding.AwayFromZero));
+Console.WriteLine(Math.Round(3.14159, 2));
+Console.WriteLine(Math.Round(2.665m, 2));
+Console.WriteLine(Math.Round(2.665m, 2, MidpointRounding.AwayFromZero));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run bancario.cs
+2
+4
+3
+3,14
+2,66
+2,67</pre>
+
+<dl class="anatomy">
+  <dt>MidpointRounding.AwayFromZero</dt><dd>"No ponto do meio, afaste do zero": o arredondamento que se aprende na escola. 2,5 → 3, e −2,5 → −3. Use quando a regra do seu problema for essa (notas escolares, por exemplo).</dd>
+  <dt>Math.Round(3.14159, 2)</dt><dd>O segundo número diz <strong>quantas casas decimais</strong> manter: 3,14.</dd>
+  <dt>Math.Round(2.665m, 2)</dt><dd>Com <code>decimal</code> (o <code>m</code> no fim), a conta é exata. 2,665 está bem no meio entre 2,66 e 2,67, e o bancário escolhe o par: 2,66. Com <code>AwayFromZero</code>, 2,67.</dd>
+</dl>
+
+<div class="warning">
+<strong>Dinheiro: <code>decimal</code> e uma regra escolhida de propósito</strong>
+<p>Para preços, use <code>decimal</code> e arredonde <strong>só no fim</strong> da conta: <code>Math.Round(preco * 0.85m, 2)</code>. E escolha a regra de propósito: o padrão (bancário) é o comum em sistemas financeiros; o <code>AwayFromZero</code> é o que muita gente espera ver numa nota fiscal. Só para <strong>mostrar</strong> (sem mudar o valor guardado), use a formatação: <code>{preco:C}</code> ou <code>{preco:F2}</code> (aula <a href="formatacao.html">Formatar Números</a>).</p>
+</div>
+
+<hr>
+
+<h2>4. Limitar e ver o sinal: <code>Clamp</code> e <code>Sign</code></h2>
+
+<pre class="file" data-file="clamp.cs">int[] pedidos = [-5, 3, 12];
+foreach (int volume in pedidos)
+{
+    Console.WriteLine($"{volume,3} → {Math.Clamp(volume, 0, 10)}");
+}
+Console.WriteLine(Math.Sign(-8));
+Console.WriteLine(Math.Sign(0));
+Console.WriteLine(Math.Sign(3.5));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run clamp.cs
+ -5 → 0
+  3 → 3
+ 12 → 10
+-1
+0
+1</pre>
+
+<dl class="anatomy">
+  <dt>Math.Clamp(volume, 0, 10)</dt><dd>"Prender" o valor entre um mínimo e um máximo: abaixo de 0 vira 0, acima de 10 vira 10, e o que está dentro fica como está. É o volume de um aparelho, que não passa do máximo. Faz o mesmo que <code>Math.Min(Math.Max(volume, 0), 10)</code>, só que legível.</dd>
+  <dt>Math.Sign(x)</dt><dd>O "sinal": −1 se for negativo, 0 se for zero, 1 se for positivo. Sempre um <code>int</code>, mesmo com <code>3.5</code>.</dd>
+</dl>
+
+<hr>
+
+<h2>5. Seno, cosseno e logaritmos</h2>
+
+<pre class="file" data-file="trig.cs">double graus = 30;
+double radianos = graus * Math.PI / 180;
+Console.WriteLine(Math.Sin(radianos));
+Console.WriteLine(Math.Round(Math.Sin(radianos), 4));
+Console.WriteLine(Math.Sin(30));
+Console.WriteLine(Math.Log10(1000));
+Console.WriteLine(Math.Log(Math.E));
+Console.WriteLine(Math.Log2(1024));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run trig.cs
+0,49999999999999994
+0,5
+-0,9880316240928618      « Math.Sin(30): 30 radianos, não 30 graus!
+3
+1
+10</pre>
+
+<dl class="anatomy">
+  <dt>graus * Math.PI / 180</dt><dd>O <code>Sin</code> ("seno"), o <code>Cos</code> ("cosseno") e o <code>Tan</code> ("tangente") medem os ângulos em <strong>radianos</strong>, não em graus. Uma volta inteira tem 360 graus ou 2π radianos; esta conta converte.</dd>
+  <dt>0,49999999999999994</dt><dd>O seno de 30° é 0,5. Saiu "quase" 0,5, pelo mesmo motivo do <code>Cbrt</code>. Arredondado para 4 casas, 0,5.</dd>
+  <dt>Math.Sin(30)</dt><dd>Esquecer a conversão não dá erro: dá o seno de 30 <strong>radianos</strong> (umas 4,8 voltas), que é −0,988.</dd>
+  <dt>Math.Log10(1000)</dt><dd>Logaritmo na base 10: "10 elevado a quanto dá 1000?". 3. Ele conta os dígitos de um número: <code>(int)Math.Log10(n) + 1</code>.</dd>
+  <dt>Math.Log(x)</dt><dd>Logaritmo natural, na base <em>e</em>. <code>Math.Log(x, b)</code> usa a base <code>b</code>.</dd>
+  <dt>Math.Log2(1024)</dt><dd>Na base 2: 10, porque 2¹⁰ = 1024. É quantas vezes dá para dividir por 2, a conta da busca binária da aula <a href="classe-array.html">A Classe Array</a>.</dd>
+</dl>
+
+<hr>
+
+<h2>6. <code>int</code>, <code>double</code> ou <code>decimal</code>?</h2>
+<p>Algumas funções têm uma versão para cada tipo e devolvem o mesmo tipo que receberam. Outras só existem para <code>double</code>:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Funções</th><th>Aceitam</th><th>Devolvem</th></tr>
+<tr><td><code>Abs</code>, <code>Max</code>, <code>Min</code>, <code>Clamp</code>, <code>Sign</code></td><td><code>int</code>, <code>long</code>, <code>double</code>, <code>decimal</code>…</td><td>o mesmo tipo (o <code>Sign</code>, sempre <code>int</code>)</td></tr>
+<tr><td><code>Round</code>, <code>Floor</code>, <code>Ceiling</code>, <code>Truncate</code></td><td><code>double</code> e <code>decimal</code></td><td>o mesmo tipo</td></tr>
+<tr><td><code>Pow</code>, <code>Sqrt</code>, <code>Cbrt</code>, <code>Sin</code>, <code>Cos</code>, <code>Log</code>…</td><td>só <code>double</code> (um <code>int</code> vira <code>double</code> sozinho)</td><td><code>double</code></td></tr>
+</table>
+</div>
+
+<pre class="file" data-file="tipos.cs">decimal area = 49m;
+double lado = Math.Sqrt((double)area);
+Console.WriteLine(lado);
+Console.WriteLine(Math.Abs(-19.90m));
+Console.WriteLine(Math.Max(4.99m, 6.50m));
+Console.WriteLine(Math.Round(16.9915m, 2));
+int resultado = (int)Math.Pow(2, 3);
+Console.WriteLine(resultado);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tipos.cs
+7
+19,90
+6,50
+16,99
+8</pre>
+
+<dl class="anatomy">
+  <dt>Math.Sqrt((double)area)</dt><dd>O <code>Sqrt</code> não aceita <code>decimal</code>: é preciso converter para <code>double</code> antes (sem isso, erro <code>CS1503</code>).</dd>
+  <dt>Math.Abs(-19.90m)</dt><dd>Com <code>decimal</code>, o resultado também é <code>decimal</code> e mantém as casas: <code>19,90</code>.</dd>
+  <dt>(int)Math.Pow(2, 3)</dt><dd>O <code>Pow</code> sempre devolve <code>double</code>, mesmo com dois <code>int</code>. Para guardar num <code>int</code>, converta (sem isso, erro <code>CS0266</code>).</dd>
+</dl>
+
+<h3>Escrever menos: <code>using static</code></h3>
+<p>Num programa cheio de contas, repetir <code>Math.</code> cansa. Com <code>using static System.Math;</code> na <strong>primeira linha</strong> do arquivo, as funções podem ser chamadas pelo nome (aula <a href="namespaces.html">Namespaces e using</a>):</p>
+
+<pre class="term" data-cwd="~/cs">$ cat staticusing.cs
+using static System.Math;
+Console.WriteLine(Sqrt(16) + Pow(2, 3) + PI);
+$ dotnet run staticusing.cs
+15,141592653589793</pre>
+
+<p>Sem essa linha, escrever só <code>Sqrt(16)</code> dá <code>error CS0103: O nome "Sqrt" não existe no contexto atual</code>. O guia continua escrevendo <code>Math.</code>, que deixa claro de onde a função vem.</p>
+
+<hr>
+
+<h2>7. Resultados especiais: <code>NaN</code> e <code>∞</code></h2>
+<p>Com <code>double</code>, algumas contas impossíveis <strong>não</strong> dão erro: dão um valor especial.</p>
+
+<pre class="file" data-file="especiais.cs">Console.WriteLine(Math.Sqrt(-1));
+Console.WriteLine(Math.Log(0));
+Console.WriteLine(1.0 / 0);
+Console.WriteLine(double.IsNaN(Math.Sqrt(-1)));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run especiais.cs
+NaN
+-∞
+∞
+True</pre>
+
+<dl class="anatomy">
+  <dt>NaN</dt><dd><em>Not a Number</em>, "não é um número": a raiz de −1 não existe entre os números reais. Qualquer conta com <code>NaN</code> dá <code>NaN</code>, e ele "contamina" tudo o que vem depois.</dd>
+  <dt>-∞ e ∞</dt><dd>Infinito negativo e positivo: o logaritmo de 0 e a divisão de um <code>double</code> por zero. (Com <code>int</code>, dividir por zero é exceção: <code>DivideByZeroException</code>.)</dd>
+  <dt>double.IsNaN(x)</dt><dd>O jeito certo de perguntar "é NaN?". O <code>x == double.NaN</code> dá sempre <code>false</code>, até quando <code>x</code> é <code>NaN</code>.</dd>
+</dl>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0266: Não é possível converter implicitamente tipo "double" em "int". Existe uma conversão explícita (há uma conversão ausente?)</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat potencia.cs
+int resultado = Math.Pow(2, 3);
+$ dotnet run potencia.cs
+/home/ana/cs/potencia.cs(1,17): error CS0266: Não é possível converter implicitamente tipo "double" em "int". Existe uma conversão explícita (há uma conversão ausente?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>Math.Pow</code> (e o <code>Sqrt</code>, o <code>Round</code>, o <code>Ceiling</code>…) devolve <code>double</code>, e um <code>double</code> não cabe num <code>int</code> sem você pedir, porque poderia perder as casas.</p>
+<p><strong>Como consertar:</strong> guarde num <code>double</code>, ou converta: <code>int resultado = (int)Math.Pow(2, 3);</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1503: Argumento 1: não é possível converter de "decimal" para "double"</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat raiz-decimal.cs
+decimal area = 49m;
+decimal lado = Math.Sqrt(area);
+$ dotnet run raiz-decimal.cs
+/home/ana/cs/raiz-decimal.cs(2,26): error CS1503: Argumento 1: não é possível converter de "decimal" para "double"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>Math.Sqrt</code> só existe para <code>double</code>, e o C# não converte <code>decimal</code> em <code>double</code> sozinho.</p>
+<p><strong>Como consertar:</strong> <code>double lado = Math.Sqrt((double)area);</code>. Se precisa do resultado em <code>decimal</code>, converta de volta: <code>(decimal)Math.Sqrt((double)area)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1501: Nenhuma sobrecarga para o método "Max" leva 3 argumentos</code></strong>
+<p><strong>O que significa:</strong> você escreveu <code>Math.Max(3, 9, 5)</code>. O <code>Max</code> e o <code>Min</code> comparam <strong>dois</strong> números de cada vez.</p>
+<p><strong>Como consertar:</strong> encadeie, <code>Math.Max(3, Math.Max(9, 5))</code>, ou ponha num array e use o LINQ: <code>new[] { 3, 9, 5 }.Max()</code> (aula <a href="linq-agregar.html">Agregar</a>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0103: O nome "Sqrt" não existe no contexto atual</code></strong>
+<p><strong>O que significa:</strong> faltou o <code>Math.</code> antes do nome da função.</p>
+<p><strong>Como consertar:</strong> <code>Math.Sqrt(16)</code>, ou <code>using static System.Math;</code> na primeira linha.</p>
+</div>
+
+<div class="cenario">
+<strong><code>Unhandled exception. System.OverflowException: Negating the minimum value of a twos complement number is invalid.</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat abs-min.cs
+int menor = int.MinValue;
+Console.WriteLine(menor);
+Console.WriteLine(Math.Abs(menor));
+$ dotnet run abs-min.cs
+-2147483648
+Unhandled exception. System.OverflowException: Negating the minimum value of a twos complement number is invalid.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/abs-min.cs:line 3</pre>
+<p><strong>O que significa:</strong> "inverter o sinal do menor valor não é válido". O menor <code>int</code> é −2.147.483.648, mas o maior é 2.147.483.647: o positivo dele não cabe num <code>int</code> (aula <a href="inteiros.html">Inteiros</a>). Em vez de dar um número errado, o <code>Math.Abs</code> para o programa (código 134).</p>
+<p><strong>Como consertar:</strong> se os valores podem chegar perto dos limites, use <code>long</code>: <code>Math.Abs((long)menor)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Resultado estranho, sem erro: <code>Math.Round(2.5)</code> deu 2, <code>Math.Sin(30)</code> deu −0,988</strong>
+<p><strong>O que significa:</strong> o <code>Round</code> usa o arredondamento bancário (o meio vai para o par), e as funções de ângulo usam radianos.</p>
+<p><strong>Como consertar:</strong> <code>Math.Round(x, MidpointRounding.AwayFromZero)</code> para o arredondamento da escola, e <code>graus * Math.PI / 180</code> para converter os ângulos.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>Exemplo</th><th>Resultado</th></tr>
+<tr><td><code>Math.Abs(x)</code></td><td><code>Math.Abs(-7)</code></td><td>7</td></tr>
+<tr><td><code>Math.Max(a, b)</code> / <code>Math.Min(a, b)</code></td><td><code>Math.Max(12, 45)</code></td><td>45</td></tr>
+<tr><td><code>Math.Pow(x, y)</code></td><td><code>Math.Pow(2, 10)</code></td><td>1024 (<code>double</code>)</td></tr>
+<tr><td><code>Math.Sqrt(x)</code> / <code>Math.Cbrt(x)</code></td><td><code>Math.Sqrt(81)</code></td><td>9</td></tr>
+<tr><td><code>Math.Round(x)</code></td><td><code>Math.Round(2.5)</code></td><td>2 (bancário)</td></tr>
+<tr><td><code>Math.Round(x, MidpointRounding.AwayFromZero)</code></td><td><code>Math.Round(2.5, …)</code></td><td>3</td></tr>
+<tr><td><code>Math.Round(x, casas)</code></td><td><code>Math.Round(3.14159, 2)</code></td><td>3,14</td></tr>
+<tr><td><code>Math.Floor(x)</code> / <code>Math.Ceiling(x)</code></td><td><code>Math.Floor(2.7)</code> / <code>Math.Ceiling(2.3)</code></td><td>2 / 3</td></tr>
+<tr><td><code>Math.Truncate(x)</code></td><td><code>Math.Truncate(-2.7)</code></td><td>−2</td></tr>
+<tr><td><code>Math.Clamp(x, min, max)</code></td><td><code>Math.Clamp(12, 0, 10)</code></td><td>10</td></tr>
+<tr><td><code>Math.Sign(x)</code></td><td><code>Math.Sign(-8)</code></td><td>−1</td></tr>
+<tr><td><code>Math.Sin</code> / <code>Cos</code> / <code>Tan</code></td><td><code>Math.Sin(Math.PI / 2)</code></td><td>1 (ângulos em radianos)</td></tr>
+<tr><td><code>Math.Log(x)</code> / <code>Log10</code> / <code>Log2</code></td><td><code>Math.Log10(1000)</code></td><td>3</td></tr>
+<tr><td><code>Math.PI</code> / <code>Math.E</code></td><td></td><td>3,14159… / 2,71828…</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Potência</h3>
+<p>Complete para calcular 5 elevado a 3:</p>
+<div class="ex-code">double cubo = Math.<input data-answer="Pow" aria-label="método">(5, 3);</div>
+</div>
+
+<div class="exercise">
+<h3>2. Para baixo</h3>
+<p>Qual método transforma 9,99 em 9 e −9,99 em −10?</p>
+<div class="ex-code">Math.<input data-answer="Floor" aria-label="método">(x)</div>
+</div>
+
+<div class="exercise">
+<h3>3. Limitar</h3>
+<p>Complete para a nota ficar sempre entre 0 e 10:</p>
+<div class="ex-code">nota = Math.<input data-answer="Clamp" aria-label="método">(nota, 0, 10);</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Quanto vale <code>Math.Round(4.5)</code>?</p>
+<label><input type="radio" name="q4"> 5</label>
+<label><input type="radio" name="q4"> 4</label>
+<label><input type="radio" name="q4"> 4,5</label>
+<label><input type="radio" name="q4"> Dá erro</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Quanto vale <code>2 ^ 3</code> em C#?</p>
+<label><input type="radio" name="q5"> 8</label>
+<label><input type="radio" name="q5"> 6</label>
+<label><input type="radio" name="q5"> 1, porque o <code>^</code> não é potência</label>
+<label><input type="radio" name="q5"> Não compila</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. A Ana precisa de ônibus de 40 lugares para 130 pessoas. Qual conta dá o número certo de ônibus?</p>
+<label><input type="radio" name="q6"> <code>Math.Ceiling(130 / 40.0)</code></label>
+<label><input type="radio" name="q6"> <code>Math.Floor(130 / 40.0)</code></label>
+<label><input type="radio" name="q6"> <code>Math.Round(130 / 40.0)</code></label>
+<label><input type="radio" name="q6"> <code>130 / 40</code></label>
+</div>
+
+<h3>Missão final: uma pizza grande ou duas médias?</h3>
+
+<div class="trycs" data-goal="out:Grande: 962\,11 cm²,out:Duas médias: 981\,75 cm²,src:Math\.PI">
+<p class="try-task"><strong>Missão:</strong> na pizzaria, a grande tem 35 cm de diâmetro e a média, 25 cm. O que dá mais pizza: uma grande ou duas médias? A área de um círculo é <strong>π × raio²</strong>, e o raio é metade do diâmetro. O programa usa 3.14 no lugar de π e erra a grande. Troque pelo <code>Math.PI</code> e calcule a área das <strong>duas</strong> médias juntas. A saída tem de ser <code>Grande: 962,11 cm²</code> e <code>Duas médias: 981,75 cm²</code>.</p>
+<pre class="out">Grande: 962,11 cm²
+Duas médias: 981,75 cm²</pre>
+<pre class="script">double grande = 3.14 * (35 / 2.0) * (35 / 2.0);
+double duasMedias = 0;   // calcule aqui
+Console.WriteLine($"Grande: {grande:F2} cm²");
+Console.WriteLine($"Duas médias: {duasMedias:F2} cm²");
+</pre>
+<pre class="solucao">double grande = Math.PI * Math.Pow(35 / 2.0, 2);
+double duasMedias = 2 * Math.PI * Math.Pow(25 / 2.0, 2);
+Console.WriteLine($"Grande: {grande:F2} cm²");
+Console.WriteLine($"Duas médias: {duasMedias:F2} cm²");
+</pre>
+</div>
+
+<p>Surpresa: as duas médias dão um pouco mais de pizza. Com o 3.14, a grande saía <code>961,62 cm²</code>, meio centímetro quadrado a menos: o <code>Math.PI</code> tem muito mais casas (<code>3,141592653589793</code>). O <code>35 / 2.0</code>, com o <code>.0</code>, garante a divisão com casas decimais (17,5); com <code>35 / 2</code>, daria 17 e uma pizza menor.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>A classe <code>Math</code> é a calculadora científica do .NET: <code>Math.Abs</code>, <code>Max</code>, <code>Min</code>, <code>Pow</code>, <code>Sqrt</code>, <code>Cbrt</code>, e as constantes <code>Math.PI</code> e <code>Math.E</code>. Potência é <code>Math.Pow</code>, nunca <code>^</code>.</li>
+  <li>Para tirar as casas: <code>Round</code> (o mais perto), <code>Floor</code> (para baixo), <code>Ceiling</code> (para cima) e <code>Truncate</code> (corta).</li>
+  <li>O <code>Round</code> usa o arredondamento bancário: 2,5 → 2, 3,5 → 4. Para o da escola, <code>MidpointRounding.AwayFromZero</code>. Com dinheiro, <code>decimal</code> e <code>Math.Round(valor, 2)</code> no fim.</li>
+  <li><code>Clamp</code> prende um valor entre um mínimo e um máximo; <code>Sign</code> dá o sinal.</li>
+  <li><code>Sin</code>, <code>Cos</code> e <code>Tan</code> usam radianos (<code>graus * Math.PI / 180</code>).</li>
+  <li><code>Pow</code>, <code>Sqrt</code> e as funções científicas trabalham com <code>double</code>: converta para guardar em <code>int</code> (<code>CS0266</code>) ou para passar um <code>decimal</code> (<code>CS1503</code>). Os resultados podem ter um errinho na última casa, que pode até mudar entre o editor e o Linux: não compare com <code>==</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
