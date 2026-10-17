@@ -72,6 +72,8 @@ Unhandled exception. System.InvalidCastException: Unable to cast object of type 
 $ echo $?
 134</pre>
 
+<p>(No editor do guia, a mesma exceção sai com uma mensagem mais curta, <code>Specified cast is not valid.</code>, "a conversão indicada não é válida". O erro é o mesmo.)</p>
+
 <p>O programa <strong>compilou</strong>: para o compilador, a caixa guarda <code>object</code>, e um <code>(int)</code> (um <a href="conversao-tipos.html">cast</a>) de <code>object</code> é permitido. Só na hora de rodar o .NET descobriu que dentro havia um texto, e lançou a <code>InvalidCastException</code>: "não é possível converter um objeto do tipo <code>String</code> no tipo <code>Int32</code>". Com <code>object</code>, você:</p>
 <ul>
   <li>tem de converter (<code>(int)</code>, <code>(string)</code>) toda vez que tira algo da caixa;</li>
