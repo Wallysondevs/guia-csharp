@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Soluções — dotnet new sln, .slnx e vários projetos | Guia C#</title>
+<meta name="description" content="Soluções e vários projetos em C# para quem está começando: dotnet new sln e o formato .slnx do .NET 10, a pasta src, dotnet sln add, list e remove, compilar tudo de uma vez, dotnet run --project, dotnet reference add, o formato antigo .sln e dotnet sln migrate, e os erros MSB1011, MSB4006 e projeto não encontrado, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Soluções e Vários Projetos</span></h1>
+
+<p class="intro">Um programa de verdade raramente é um projeto só. A lojinha da Ana vai ter o programa de console, uma parte com as regras do estoque (que um dia também vai servir a um site), e os testes. Cada parte é um projeto, com o seu <code>.csproj</code>. Para juntar tudo e compilar de uma vez, o .NET usa uma <strong>solução</strong>: um arquivo que lista os projetos que andam juntos. Nesta aula você vai criar uma solução no formato novo do .NET 10, o <code>.slnx</code>, pôr dois projetos nela e fazer um usar o outro.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma solução e para que ela serve.</li>
+  <li>A criar uma com <code>dotnet new sln</code> e a ler o arquivo <code>.slnx</code> <span class="versao">.NET 10</span>.</li>
+  <li>A organizar os projetos na pasta <code>src</code> e a pô-los na solução com <code>dotnet sln add</code>, <code>list</code> e <code>remove</code>.</li>
+  <li>A compilar tudo com um <code>dotnet build</code> e a rodar um projeto com <code>dotnet run --project</code>.</li>
+  <li>A fazer um projeto usar o outro com <code>dotnet reference add</code>.</li>
+  <li>O formato antigo <code>.sln</code>, o <code>dotnet sln migrate</code> e os erros <code>MSB1011</code> e <code>MSB4006</code>.</li>
+</ul>
+</div>
+
+<p>Todas as saídas desta aula são reais, feitas com o <strong>.NET 10 SDK</strong> (<code>10.0.112</code>) na máquina fictícia da Ana, na pasta <code>~/projetos/Loja</code>. Você precisa já conhecer <a href="projetos-console.html">Projetos</a> e <a href="csproj.html">O Arquivo .csproj</a>.</p>
+
+<hr>
+
+<h2>A ideia: o fichário e os cadernos</h2>
+<p>Na escola, a Ana tinha um caderno para cada matéria e um <strong>fichário</strong> que juntava todos. O fichário não tem conteúdo próprio: ele só diz quais cadernos fazem parte do ano. Para levar o ano inteiro para casa, ela pega o fichário.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na escola</th><th>No .NET</th><th>Arquivo</th></tr>
+<tr><td>Um caderno</td><td>Um <strong>projeto</strong>: um programa ou uma biblioteca</td><td><code>Loja.App.csproj</code></td></tr>
+<tr><td>O fichário</td><td>A <strong>solução</strong>: a lista dos projetos</td><td><code>Loja.slnx</code></td></tr>
+<tr><td>Levar o fichário para casa</td><td><code>dotnet build</code> na pasta da solução compila <strong>todos</strong> os projetos</td><td></td></tr>
+</table>
+</div>
+
+<p>Solução, em inglês, é <em>solution</em>, e por isso a extensão <code>.sln</code> (a antiga) e <code>.slnx</code> (a nova, com o <code>x</code> de XML). Editores como o Visual Studio e o Rider abrem a solução para mostrar todos os projetos de uma vez; o VS Code, com a extensão C# Dev Kit, também.</p>
+
+<hr>
+
+<h2>1. Criar a solução: <code>dotnet new sln</code></h2>
+<p>A Ana cria a pasta da lojinha e, dentro dela, a solução:</p>
+
+<pre class="term" data-cwd="~/projetos">$ mkdir Loja &amp;&amp; cd Loja
+$ dotnet new sln
+O modelo "Arquivo de Solução" foi criado com êxito.
+
+$ ls
+Loja.slnx
+$ cat Loja.slnx
+&lt;Solution&gt;
+&lt;/Solution&gt;</pre>
+
+<dl class="anatomy">
+  <dt>dotnet new sln</dt><dd>Cria uma solução a partir do modelo "Arquivo de Solução". O nome vem da pasta (<code>Loja</code>); para outro, use <code>-n Nome</code>.</dd>
+  <dt>Loja.slnx</dt><dd>No .NET 10, o formato padrão é o <code>.slnx</code> <span class="versao">.NET 10</span>. Até o .NET 9, o mesmo comando criava um <code>.sln</code> (seção 6).</dd>
+  <dt>&lt;Solution&gt; &lt;/Solution&gt;</dt><dd>Uma solução vazia: ainda não há nenhum projeto no fichário. O <code>.slnx</code> é XML, como o <code>.csproj</code>.</dd>
+</dl>
+
+<hr>
+
+<h2>2. Criar os projetos na pasta <code>src</code></h2>
+<p>O costume é guardar os projetos numa pasta <code>src</code> (de <em>source</em>, "código-fonte"), e os testes numa pasta <code>tests</code> (veja <a href="testes.html">Testes</a>). Os nomes dos projetos começam com o nome da solução e um ponto: <code>Loja.App</code> (o programa) e <code>Loja.Estoque</code> (as regras do estoque, uma biblioteca, veja <a href="bibliotecas-classe.html">Bibliotecas de Classes</a>):</p>
+
+<pre class="term" data-cwd="~/projetos/Loja">$ dotnet new console -o src/Loja.App
+O modelo "Aplicativo do Console" foi criado com êxito.
+
+Processando ações pós-criação...
+Restaurando /home/ana/projetos/Loja/src/Loja.App/Loja.App.csproj:
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Loja/src/Loja.App/Loja.App.csproj restaurado (em 109 ms).
+A restauração foi bem-sucedida.
+
+
+$ dotnet new classlib -o src/Loja.Estoque
+O modelo "Biblioteca de Classes" foi criado com êxito.
+
+Processando ações pós-criação...
+Restaurando /home/ana/projetos/Loja/src/Loja.Estoque/Loja.Estoque.csproj:
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Loja/src/Loja.Estoque/Loja.Estoque.csproj restaurado (em 111 ms).
+A restauração foi bem-sucedida.</pre>
+
+<p>O <code>-o src/Loja.App</code> cria as duas pastas de uma vez, e o nome do projeto vem da última (<code>Loja.App</code>). O modelo <code>classlib</code> ("biblioteca de classes") cria um projeto sem <code>Program.cs</code>, com um arquivo de exemplo <code>Class1.cs</code>. Por enquanto, os dois projetos só estão na mesma pasta: a solução ainda não sabe deles.</p>
+
+<hr>
+
+<h2>3. Pôr os projetos na solução: <code>dotnet sln add</code></h2>
+<pre class="term" data-cwd="~/projetos/Loja">$ dotnet sln add src/Loja.App src/Loja.Estoque
+O projeto ‘src/Loja.App/Loja.App.csproj’ foi adicionado à solução.
+O projeto ‘src/Loja.Estoque/Loja.Estoque.csproj’ foi adicionado à solução.
+$ cat Loja.slnx
+&lt;Solution&gt;
+  &lt;Folder Name="/src/"&gt;
+    &lt;Project Path="src/Loja.App/Loja.App.csproj" /&gt;
+    &lt;Project Path="src/Loja.Estoque/Loja.Estoque.csproj" /&gt;
+  &lt;/Folder&gt;
+&lt;/Solution&gt;
+$ dotnet sln list
+Projetos
+--------
+src/Loja.App/Loja.App.csproj
+src/Loja.Estoque/Loja.Estoque.csproj</pre>
+
+<dl class="anatomy">
+  <dt>dotnet sln add src/Loja.App src/Loja.Estoque</dt><dd>"Solução, acrescente": põe os projetos na solução da pasta atual. Pode ser a pasta do projeto (o <code>dotnet</code> acha o <code>.csproj</code> dentro dela) ou o caminho do próprio <code>.csproj</code>. Vários de uma vez, separados por espaço.</dd>
+  <dt>&lt;Folder Name="/src/"&gt;</dt><dd>Uma "pasta da solução": um grupo que os editores mostram como uma pastinha. O <code>dotnet sln add</code> criou o grupo <code>/src/</code> porque os projetos estão na pasta <code>src</code>.</dd>
+  <dt>&lt;Project Path="…" /&gt;</dt><dd>Um projeto da solução: só o caminho do <code>.csproj</code>, a partir da pasta da solução. É tudo o que o <code>.slnx</code> precisa guardar.</dd>
+  <dt>dotnet sln list</dt><dd>Lista os projetos da solução.</dd>
+</dl>
+
+<p>A estrutura de pastas da lojinha ficou assim:</p>
+<pre class="file" data-file="estrutura">Loja/
+├── Loja.slnx                  « a solução (o fichário)
+└── src/
+    ├── Loja.App/              « o programa
+    │   ├── Loja.App.csproj
+    │   └── Program.cs
+    └── Loja.Estoque/          « a biblioteca
+        ├── Loja.Estoque.csproj
+        └── Class1.cs</pre>
+
+<hr>
+
+<h2>4. Compilar tudo de uma vez</h2>
+<p>Na pasta da solução, o <code>dotnet build</code> encontra o <code>Loja.slnx</code> e compila <strong>todos</strong> os projetos dele:</p>
+
+<pre class="term" data-cwd="~/projetos/Loja">$ dotnet build
+  Determinando os projetos a serem restaurados...
+  Todos os projetos estão atualizados para restauração.
+  Loja.Estoque -&gt; /home/ana/projetos/Loja/src/Loja.Estoque/bin/Debug/net10.0/Loja.Estoque.dll
+  Loja.App -&gt; /home/ana/projetos/Loja/src/Loja.App/bin/Debug/net10.0/Loja.App.dll
+
+Compilação com êxito.
+    0 Aviso(s)
+    0 Erro(s)
+
+Tempo Decorrido 00:00:08.43</pre>
+
+<p>Uma linha <code>Projeto -&gt; …dll</code> para cada projeto. Cada um continua com a sua própria pasta <code>bin</code>. Repare que a biblioteca virou só um <code>.dll</code> (sem executável): ela não roda sozinha. O mesmo vale para <code>dotnet test</code>, <code>dotnet clean</code> e <code>dotnet format</code>: na pasta da solução, eles agem sobre todos os projetos.</p>
+
+<h3>Rodar: <code>dotnet run --project</code></h3>
+<p>Já o <code>dotnet run</code> precisa saber <strong>qual</strong> programa rodar:</p>
+
+<pre class="term" data-cwd="~/projetos/Loja">$ dotnet run
+Não foi possível localizar um projeto para executar. Verifique se existe um projeto em /home/ana/projetos/Loja ou passe o caminho para o projeto usando --project.
+$ dotnet run --project src/Loja.App
+Hello, World!</pre>
+
+<p>Com <code>--project</code>, a Ana continua na pasta da solução. A outra forma é entrar na pasta do projeto (<code>cd src/Loja.App</code>) e rodar <code>dotnet run</code> lá.</p>
+
+<hr>
+
+<h2>5. Um projeto usar o outro: <code>dotnet reference add</code></h2>
+<p>Agora o conteúdo. A Ana apaga o <code>Class1.cs</code> e escreve a classe <code>Produto</code> na biblioteca:</p>
+
+<pre class="file" data-file="src/Loja.Estoque/Produto.cs">namespace Loja.Estoque;
+
+public class Produto(string nome, decimal preco, int quantidade)
+{
+    public string Nome { get; } = nome;
+    public decimal Preco { get; } = preco;
+    public int Quantidade { get; } = quantidade;
+
+    public decimal Total =&gt; Preco * Quantidade;
+}
+</pre>
+
+<p>E o programa usa essa classe:</p>
+
+<pre class="file" data-file="src/Loja.App/Program.cs">using Loja.Estoque;
+
+Produto[] produtos =
+[
+    new("Caderno", 12.50m, 10),
+    new("Lápis", 1.99m, 40),
+];
+
+foreach (Produto p in produtos)
+{
+    Console.WriteLine($"{p.Nome,-8} {p.Quantidade,3} x {p.Preco,8:C} = {p.Total,9:C}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Loja">$ dotnet build 2&gt;&amp;1 | grep -E "error" | sort -u
+/home/ana/projetos/Loja/src/Loja.App/Program.cs(1,7): error CS0246: O nome do tipo ou do namespace "Loja" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?) [/home/ana/projetos/Loja/src/Loja.App/Loja.App.csproj]</pre>
+
+<p>Estar na mesma solução <strong>não basta</strong>. A solução é só o fichário: cada projeto é compilado separado e só enxerga o que está nele mesmo. Para o <code>Loja.App</code> enxergar o <code>Loja.Estoque</code>, é preciso uma <strong>referência de projeto</strong>:</p>
+
+<pre class="term" data-cwd="~/projetos/Loja">$ dotnet reference add src/Loja.Estoque --project src/Loja.App
+A referência ‘..\Loja.Estoque\Loja.Estoque.csproj’ foi adicionada ao projeto.
+$ cat src/Loja.App/Loja.App.csproj
+&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+
+  &lt;ItemGroup&gt;
+    &lt;ProjectReference Include="..\Loja.Estoque\Loja.Estoque.csproj" /&gt;
+  &lt;/ItemGroup&gt;
+
+  &lt;PropertyGroup&gt;
+    &lt;OutputType&gt;Exe&lt;/OutputType&gt;
+    &lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;
+    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+    &lt;Nullable&gt;enable&lt;/Nullable&gt;
+  &lt;/PropertyGroup&gt;
+
+&lt;/Project&gt;
+$ dotnet build
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Loja/src/Loja.App/Loja.App.csproj restaurado (em 206 ms).
+  1 de 2 projetos estão atualizados para restauração.
+  Loja.Estoque -&gt; /home/ana/projetos/Loja/src/Loja.Estoque/bin/Debug/net10.0/Loja.Estoque.dll
+  Loja.App -&gt; /home/ana/projetos/Loja/src/Loja.App/bin/Debug/net10.0/Loja.App.dll
+
+Compilação com êxito.
+    0 Aviso(s)
+    0 Erro(s)
+
+Tempo Decorrido 00:00:02.12
+$ dotnet run --project src/Loja.App
+Caderno   10 x R$ 12,50 = R$ 125,00
+Lápis     40 x  R$ 1,99 =  R$ 79,60</pre>
+
+<dl class="anatomy">
+  <dt>dotnet reference add src/Loja.Estoque</dt><dd>"Referência, acrescente": o projeto a ser <strong>usado</strong>.</dd>
+  <dt>--project src/Loja.App</dt><dd>O projeto que vai <strong>usar</strong>. Leia assim: "o <code>Loja.App</code> passa a usar o <code>Loja.Estoque</code>". (A ordem antiga, <code>dotnet add src/Loja.App reference src/Loja.Estoque</code>, também funciona.)</dd>
+  <dt>&lt;ProjectReference Include="..\Loja.Estoque\Loja.Estoque.csproj" /&gt;</dt><dd>A linha que o comando escreveu no <code>.csproj</code> do <code>Loja.App</code>. O caminho é a partir da pasta do próprio <code>Loja.App</code> (<code>..</code> = "a pasta de cima"). A barra invertida <code>\</code> é costume do Windows; no Linux o <code>dotnet</code> entende igual. O comando pôs o <code>ItemGroup</code> antes do <code>PropertyGroup</code>: a ordem não importa.</dd>
+  <dt>Loja.Estoque -&gt; … antes de Loja.App -&gt; …</dt><dd>O <code>dotnet</code> descobre a ordem sozinho: quem é usado é compilado primeiro.</dd>
+</dl>
+
+<p>A classe da biblioteca precisa ser <code>public</code> para o outro projeto enxergá-la (veja <a href="modificadores-acesso.html">Modificadores de Acesso</a>). Os detalhes de bibliotecas (o que fica visível, como organizar) estão em <a href="bibliotecas-classe.html">Bibliotecas de Classes</a>.</p>
+
+<p>No editor do guia não há solução nem projetos separados: os arquivos das abas são compilados juntos, como se fossem um projeto só. Mas o <code>namespace</code> e o <code>using</code> funcionam igual:</p>
+
+<div class="trycs" data-goal="compila,out:Caderno,out:R$ 125\,00">
+<p class="try-task"><strong>Missão:</strong> a aba <code>Produto.cs</code> está no namespace <code>Loja.Estoque</code>, e o <code>Program.cs</code> não o importou: rode e veja o <code>CS0246</code>. Acrescente a linha que falta no começo do <code>Program.cs</code> e rode de novo.</p>
+<pre class="script" data-file="Program.cs">Produto[] produtos =
+[
+    new("Caderno", 12.50m, 10),
+    new("Lápis", 1.99m, 40),
+];
+
+foreach (Produto p in produtos)
+{
+    Console.WriteLine($"{p.Nome,-8} {p.Quantidade,3} x {p.Preco,8:C} = {p.Total,9:C}");
+}
+</pre>
+<pre class="script" data-file="Produto.cs">namespace Loja.Estoque;
+
+public class Produto(string nome, decimal preco, int quantidade)
+{
+    public string Nome { get; } = nome;
+    public decimal Preco { get; } = preco;
+    public int Quantidade { get; } = quantidade;
+
+    public decimal Total =&gt; Preco * Quantidade;
+}
+</pre>
+<pre class="solucao" data-file="Program.cs">using Loja.Estoque;
+
+Produto[] produtos =
+[
+    new("Caderno", 12.50m, 10),
+    new("Lápis", 1.99m, 40),
+];
+
+foreach (Produto p in produtos)
+{
+    Console.WriteLine($"{p.Nome,-8} {p.Quantidade,3} x {p.Preco,8:C} = {p.Total,9:C}");
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>6. O formato antigo: <code>.sln</code></h2>
+<p>Quase todo projeto feito antes do .NET 10, e quase todo tutorial, usa o formato <code>.sln</code>. Para ver como ele é, a Ana criou um com <code>--format sln</code>:</p>
+
+<pre class="term" data-cwd="~/projetos/Loja">$ dotnet new sln --format sln -n Antiga
+O modelo "Arquivo de Solução" foi criado com êxito.
+
+$ cat Antiga.sln
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal</pre>
+
+<p>São 14 linhas (a primeira, em branco) para uma solução <strong>vazia</strong>, num formato próprio do Visual Studio. Depois de <code>dotnet sln Antiga.sln add src/Loja.Estoque</code>, com <strong>um</strong> projeto, o arquivo foi para 39 linhas. Um pedaço:</p>
+
+<pre class="term" data-cwd="~/projetos/Loja">$ cat Antiga.sln
+«… as 5 primeiras linhas, iguais …»
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Loja.Estoque", "src\Loja.Estoque\Loja.Estoque.csproj", "{EB621F30-53E9-43A3-9021-E43CBC4574F9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+«…»
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EB621F30-53E9-43A3-9021-E43CBC4574F9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB621F30-53E9-43A3-9021-E43CBC4574F9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+«… mais 10 linhas como essas …»
+EndGlobal
+$ wc -l Antiga.sln
+39 Antiga.sln</pre>
+
+<p>Cada projeto ganha um código de identificação longo (um <em>GUID</em>, como <code>{EB621F30-…}</code>), repetido em uma dúzia de linhas de configuração. Era difícil de ler e de juntar quando duas pessoas mexiam no mesmo arquivo. O <code>.slnx</code> guarda a mesma informação em XML simples, e foi por isso que virou o padrão. (Para seguir a aula, a Ana apagou essa <code>Antiga.sln</code> e criou outra vazia, logo abaixo.)</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th><code>.sln</code> (antigo)</th><th><code>.slnx</code> (novo) <span class="versao">.NET 10</span></th></tr>
+<tr><td>Formato</td><td>Texto próprio do Visual Studio, com GUIDs</td><td>XML simples</td></tr>
+<tr><td>Solução vazia</td><td>14 linhas</td><td>2 linhas</td></tr>
+<tr><td>Com um projeto</td><td>39 linhas</td><td>5 linhas</td></tr>
+<tr><td>Padrão do <code>dotnet new sln</code></td><td>até o .NET 9</td><td>no .NET 10</td></tr>
+<tr><td>Quem abre</td><td>Todos os editores e versões do .NET</td><td>Só as versões recentes do <code>dotnet</code> (a partir do SDK 9.0.200) e dos editores</td></tr>
+</table>
+</div>
+
+<h3>Converter: <code>dotnet sln migrate</code></h3>
+<p>Para passar um <code>.sln</code> para o formato novo (aqui, uma <code>Antiga.sln</code> vazia, criada de novo com <code>dotnet new sln --format sln -n Antiga</code>):</p>
+
+<pre class="term" data-cwd="~/projetos/Loja">$ dotnet sln Antiga.sln add src/Loja.App
+O projeto ‘src/Loja.App/Loja.App.csproj’ foi adicionado à solução.
+O projeto ‘src/Loja.Estoque/Loja.Estoque.csproj’ foi adicionado à solução.
+$ dotnet sln Antiga.sln migrate
+Arquivo .slnx /home/ana/projetos/Loja/Antiga.slnx gerado.
+$ ls
+Antiga.sln
+Antiga.slnx
+Loja.slnx
+src</pre>
+
+<dl class="anatomy">
+  <dt>dotnet sln Antiga.sln add …</dt><dd>Com duas soluções na pasta, diga qual logo depois do <code>sln</code>. Repare: a Ana pediu só o <code>Loja.App</code>, e o <code>Loja.Estoque</code> veio junto. É que o <code>Loja.App</code> usa o <code>Loja.Estoque</code> (a referência da seção 5), e o <code>dotnet sln add</code> acrescenta também os projetos usados.</dd>
+  <dt>dotnet sln Antiga.sln migrate</dt><dd>"Migre": cria o <code>Antiga.slnx</code> ao lado. O <code>.sln</code> original não é apagado: confira o novo e apague o velho você mesmo.</dd>
+</dl>
+
+<p>A Ana apagou as duas (<code>rm Antiga.sln Antiga.slnx</code>), porque a lojinha já tem a <code>Loja.slnx</code>. Uma pasta deve ter <strong>uma</strong> solução só (veja "Quando dá errado").</p>
+
+<hr>
+
+<h2>7. Tirar um projeto: <code>dotnet sln remove</code></h2>
+<pre class="term" data-cwd="~/projetos/Loja">$ dotnet sln remove src/Loja.Estoque
+O projeto `src/Loja.Estoque/Loja.Estoque.csproj` foi removido da solução.
+$ dotnet sln list
+Projetos
+--------
+src/Loja.App/Loja.App.csproj</pre>
+
+<p>O <code>remove</code> só tira o projeto da lista: a pasta <code>src/Loja.Estoque</code> e os arquivos continuam no disco. A Ana pôs de volta com <code>dotnet sln add src/Loja.Estoque</code>.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error MSB1011</code>: duas soluções na mesma pasta</strong>
+<pre class="term" data-cwd="~/projetos/Loja">$ ls
+Antiga.sln
+Loja.slnx
+src
+$ dotnet build
+MSBUILD : error MSB1011: Especifique o arquivo de solução ou de projeto a usar porque esta pasta contém mais de um arquivo de solução ou de projeto.</pre>
+<p><strong>O que aconteceu:</strong> com duas soluções (ou uma solução e um <code>.csproj</code>) na pasta, o <code>dotnet</code> não sabe qual usar. Acontece muito logo depois de um <code>migrate</code>.</p>
+<p><strong>Como resolver:</strong> diga qual (<code>dotnet build Loja.slnx</code>) ou, melhor, deixe uma só. Nunca ponha a solução na mesma pasta de um <code>.csproj</code>: a solução fica em cima, os projetos em <code>src/</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>Não foi possível encontrar o projeto ou diretório</code> e <code>já contém o projeto</code></strong>
+<pre class="term" data-cwd="~/projetos/Loja">$ dotnet sln add src/Loja.Relatorios
+Não foi possível encontrar o projeto ou diretório ‘src/Loja.Relatorios’.
+$ dotnet sln add src/Loja.App
+A solução /home/ana/projetos/Loja/Loja.slnx já contém o projeto src/Loja.App/Loja.App.csproj.</pre>
+<p><strong>O que aconteceu:</strong> no primeiro, o projeto ainda não existe (ou o caminho está errado). No segundo, nada de errado: o projeto já estava na solução e não foi duplicado.</p>
+<p><strong>Como resolver:</strong> crie o projeto antes (<code>dotnet new … -o src/Loja.Relatorios</code>) e confira o caminho com <code>ls src</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0246</code>: está na solução, mas o outro projeto não enxerga</strong>
+<p><strong>O que aconteceu:</strong> é o erro da seção 5: <code>O nome do tipo ou do namespace "Loja" não pode ser encontrado</code>. A solução junta os projetos para compilar, mas não faz um usar o outro.</p>
+<p><strong>Como resolver:</strong> <code>dotnet reference add src/Loja.Estoque --project src/Loja.App</code>, o <code>using Loja.Estoque;</code> no arquivo e a classe <code>public</code> na biblioteca.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error MSB4006: Há uma dependência circular</code></strong>
+<pre class="term" data-cwd="~/projetos/Loja">$ dotnet reference add src/Loja.App --project src/Loja.Estoque
+A referência ‘..\Loja.App\Loja.App.csproj’ foi adicionada ao projeto.
+$ dotnet build 2&gt;&amp;1 | tail -5
+/usr/lib/dotnet/sdk/10.0.112/NuGet.targets(1294,5): error MSB4006: Há uma dependência circular no elemento gráfico de dependência circular de destino envolvendo o destino "_GenerateRestoreProjectPathWalk". [/home/ana/projetos/Loja/src/Loja.Estoque/Loja.Estoque.csproj]
+    0 Aviso(s)
+    1 Erro(s)
+
+Tempo Decorrido 00:00:00.95</pre>
+<p><strong>O que aconteceu:</strong> o <code>Loja.App</code> já usava o <code>Loja.Estoque</code>, e a Ana fez o <code>Loja.Estoque</code> usar o <code>Loja.App</code> também. Agora cada um precisa do outro pronto para ser compilado: um círculo sem começo. A tradução está confusa, mas a palavra-chave é "circular" (em inglês, <code>There is a circular dependency</code>).</p>
+<p><strong>Como resolver:</strong> as referências só podem ir num sentido: o programa usa a biblioteca, nunca o contrário. Tire a referência errada passando o caminho do <strong>arquivo</strong> <code>.csproj</code>:</p>
+<pre class="term" data-cwd="~/projetos/Loja">$ dotnet reference remove --project src/Loja.Estoque/Loja.Estoque.csproj src/Loja.App/Loja.App.csproj
+Referência de projeto ‘../Loja.App/Loja.App.csproj’ removida.</pre>
+<p>Cuidado: com o caminho da <strong>pasta</strong> (<code>dotnet reference remove src/Loja.App --project src/Loja.Estoque</code>), o SDK 10.0.112 calcula o caminho errado e responde <code>Não foi possível encontrar a referência de projeto ‘../../Loja.App/Loja.App.csproj’</code>, sem remover nada. Se a biblioteca precisar de algo do programa, esse algo deve mudar para a biblioteca.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>O que faz</th></tr>
+<tr><td><code>dotnet new sln</code></td><td>Cria a solução <code>.slnx</code> (o nome vem da pasta; <code>-n Nome</code> para outro).</td></tr>
+<tr><td><code>dotnet new sln --format sln</code></td><td>Cria no formato antigo <code>.sln</code>.</td></tr>
+<tr><td><code>dotnet sln add caminho…</code></td><td>Põe projetos na solução (e os que eles usam).</td></tr>
+<tr><td><code>dotnet sln list</code></td><td>Lista os projetos.</td></tr>
+<tr><td><code>dotnet sln remove caminho</code></td><td>Tira um projeto da lista (não apaga nada).</td></tr>
+<tr><td><code>dotnet sln Antiga.sln migrate</code></td><td>Cria um <code>.slnx</code> a partir de um <code>.sln</code>.</td></tr>
+<tr><td><code>dotnet build</code> (na pasta da solução)</td><td>Compila todos os projetos, na ordem certa.</td></tr>
+<tr><td><code>dotnet run --project src/Loja.App</code></td><td>Roda um projeto da solução.</td></tr>
+<tr><td><code>dotnet reference add A --project B</code></td><td>O projeto B passa a usar o A.</td></tr>
+<tr><td><code>dotnet reference list --project B</code></td><td>Lista os projetos que o B usa.</td></tr>
+<tr><td><code>dotnet reference remove --project B.csproj A.csproj</code></td><td>Tira a referência (use os caminhos dos arquivos).</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Criar a solução</h3>
+<p>Complete o comando que cria a solução na pasta atual:</p>
+<div class="ex-code">dotnet new <input data-answer="sln|solution" aria-label="modelo"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Pôr um projeto</h3>
+<p>Complete para pôr o projeto <code>src/Loja.Web</code> na solução:</p>
+<div class="ex-code">dotnet sln <input data-answer="add" aria-label="subcomando"> src/Loja.Web</div>
+</div>
+
+<div class="exercise">
+<h3>3. Rodar da pasta da solução</h3>
+<p>Complete para rodar o <code>Loja.App</code> sem sair da pasta da solução:</p>
+<div class="ex-code">dotnet run <input data-answer="--project src/Loja.App|--project src/Loja.App/Loja.App.csproj" aria-label="opção"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Os projetos <code>Loja.App</code> e <code>Loja.Estoque</code> estão na mesma solução, mas o <code>Loja.App</code> não acha a classe <code>Produto</code>. Por quê?</p>
+<label><input type="radio" name="q4"> A solução está no formato <code>.slnx</code>.</label>
+<label><input type="radio" name="q4"> Falta a referência de projeto: estar na solução não faz um projeto usar o outro.</label>
+<label><input type="radio" name="q4"> Falta rodar <code>dotnet sln list</code>.</label>
+<label><input type="radio" name="q4"> Bibliotecas não podem ter classes.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. O que tem dentro de um <code>.slnx</code>?</p>
+<label><input type="radio" name="q5"> A lista dos projetos (os caminhos dos <code>.csproj</code>), agrupados em pastas.</label>
+<label><input type="radio" name="q5"> O código de todos os projetos.</label>
+<label><input type="radio" name="q5"> Os pacotes NuGet baixados.</label>
+<label><input type="radio" name="q5"> Os executáveis compilados.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. A biblioteca <code>Loja.Estoque</code> passou a usar o programa <code>Loja.App</code>, que já usava a biblioteca. O que acontece?</p>
+<label><input type="radio" name="q6"> Compila normalmente.</label>
+<label><input type="radio" name="q6"> Só o <code>dotnet run</code> falha.</label>
+<label><input type="radio" name="q6"> Aparece o <code>CS0246</code>.</label>
+<label><input type="radio" name="q6"> O build falha com <code>MSB4006</code>: dependência circular.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma <strong>solução</strong> é o fichário: a lista dos projetos que andam juntos. Ela não tem código.</li>
+  <li><code>dotnet new sln</code> cria um <code>.slnx</code> <span class="versao">.NET 10</span>: XML simples com <code>&lt;Project Path="…" /&gt;</code>. O formato antigo é o <code>.sln</code>; <code>dotnet sln migrate</code> converte.</li>
+  <li>Estrutura comum: a solução em cima, os projetos em <code>src/</code> e os testes em <code>tests/</code>.</li>
+  <li><code>dotnet sln add</code>, <code>list</code> e <code>remove</code> mexem na lista.</li>
+  <li>Na pasta da solução, <code>dotnet build</code> compila tudo, na ordem certa; para rodar, <code>dotnet run --project src/Loja.App</code>.</li>
+  <li>Para um projeto usar outro: <code>dotnet reference add A --project B</code>, que escreve um <code>&lt;ProjectReference&gt;</code>. As referências vão num sentido só.</li>
+</ul>
+
+<div class="pager"></div>
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
