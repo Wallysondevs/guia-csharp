@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Interfaces — contratos, várias interfaces e métodos padrão | Guia C#</title>
+<meta name="description" content="Interfaces em C# para quem está começando: interface e o prefixo I, implementar com dois-pontos, propriedades na interface, várias interfaces numa classe, métodos padrão (C# 8) e por que eles só aparecem pela interface, o teste com is e os erros reais CS0535, CS0737, CS0144, CS0525, CS1722 e CS1061 do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Interfaces</span></h1>
+
+<p class="intro">Uma <a href="abstratas.html">classe abstrata</a> junta uma <strong>família</strong>: retângulo e círculo são formas. Mas às vezes coisas que não têm nada de parentes precisam saber fazer a mesma coisa: um pássaro, um avião e um drone voam. Uma conta de luz, um boleto e um aluguel são pagos. Para isso existem as <strong>interfaces</strong>: um contrato que diz "quem assinar aqui sabe fazer isto", sem se importar com a família de cada um.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma interface (<code>interface</code>) e a convenção do <code>I</code> no nome.</li>
+  <li>Como uma classe implementa uma interface (<code>class Aviao : IVoador</code>) e por que o método tem de ser <code>public</code>.</li>
+  <li>Os erros que o compilador cobra: <code>CS0535</code>, <code>CS0737</code>, <code>CS0144</code> e <code>CS0525</code>.</li>
+  <li>Propriedades na interface.</li>
+  <li>Uma classe com uma mãe e várias interfaces ao mesmo tempo.</li>
+  <li>Métodos padrão (código pronto na interface), que só aparecem pela interface.</li>
+  <li>Como perguntar se um objeto tem uma habilidade (<code>is</code>) e quando usar interface ou classe abstrata.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com <code>dotnet run arquivo.cs</code> no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: uma tomada</h2>
+<p>A tomada da parede é um <strong>contrato</strong>: qualquer aparelho com o plugue certo funciona nela. A tomada não sabe se você vai ligar um abajur, uma geladeira ou um carregador de celular, e nem precisa saber. Ela só exige o plugue. Do outro lado, o fabricante do abajur não precisa conhecer a sua casa: basta fazer o plugue no formato combinado.</p>
+
+<p>Uma interface é essa tomada:</p>
+<ul>
+  <li>ela diz <strong>o que</strong> tem de existir (os métodos e as propriedades), mas não <strong>como</strong>;</li>
+  <li>cada classe que a <strong>implementa</strong> escreve o "como" do seu jeito;</li>
+  <li>e o resto do programa pode trabalhar com "qualquer coisa que tenha esse plugue".</li>
+</ul>
+
+<p><em>Interface</em>, em inglês, é "a superfície de contato entre duas coisas": o que um lado mostra para o outro.</p>
+
+<hr>
+
+<h2><code>interface</code> e a implementação</h2>
+
+<pre class="file" data-file="voadores.cs">IVoador[] voadores = [new Passaro("Piu"), new Aviao("PT-ANA")];
+foreach (IVoador v in voadores)
+{
+    v.Voar();
+}
+
+interface IVoador
+{
+    void Voar();
+}
+
+class Passaro : IVoador
+{
+    public string Nome { get; }
+
+    public Passaro(string nome)
+    {
+        Nome = nome;
+    }
+
+    public void Voar()
+    {
+        Console.WriteLine($"{Nome} bate as asas.");
+    }
+}
+
+class Aviao : IVoador
+{
+    public string Prefixo { get; }
+
+    public Aviao(string prefixo)
+    {
+        Prefixo = prefixo;
+    }
+
+    public void Voar()
+    {
+        Console.WriteLine($"O avião {Prefixo} liga as turbinas.");
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>interface IVoador</dt><dd>Declara uma interface chamada <code>IVoador</code> ("voador"). Em C#, todo nome de interface começa com <strong><code>I</code> maiúsculo</strong>, seguido de PascalCase: <code>IVoador</code>, <code>IPagavel</code>, <code>IComparable</code>, <code>IDisposable</code>. Não é obrigatório para o compilador, mas é a convenção de todo código C#, e ajuda a ver na hora que aquilo é uma interface.</dd>
+  <dt>void Voar();</dt><dd>Um membro da interface: só a assinatura, terminada em <code>;</code>. Não precisa de <code>public</code> nem de <code>abstract</code>: dentro da interface, os membros já são públicos e sem corpo.</dd>
+  <dt>class Passaro : IVoador</dt><dd>"<code>Passaro</code> implementa <code>IVoador</code>". É o mesmo <code>:</code> da herança. A classe assina o contrato: promete ter um <code>Voar()</code>.</dd>
+  <dt>public void Voar() { … }</dt><dd>A implementação. Tem de ser <strong><code>public</code></strong> e ter a mesma assinatura. Repare: aqui <strong>não</strong> se escreve <code>override</code> (isso é só para <code>virtual</code> e <code>abstract</code> de uma classe mãe).</dd>
+  <dt>IVoador[] voadores</dt><dd>Um array do tipo da interface. Ele aceita qualquer objeto de uma classe que implemente <code>IVoador</code>, por mais diferentes que sejam.</dd>
+  <dt>v.Voar();</dt><dd>Para cada objeto, o C# chama o <code>Voar()</code> da classe dele. É o <a href="polimorfismo.html">polimorfismo</a>, agora sem herança nenhuma: <code>Passaro</code> e <code>Aviao</code> não são parentes.</dd>
+</dl>
+
+<pre class="term">$ dotnet run voadores.cs
+Piu bate as asas.
+O avião PT-ANA liga as turbinas.</pre>
+
+<div class="trycs" data-goal="out:O drone gira as hélices.,src:class\s+Drone\s*:\s*IVoador">
+<p class="try-task"><strong>Missão:</strong> crie a classe <code>Drone</code>, que implementa <code>IVoador</code>, com um <code>Voar()</code> que escreve a frase <code>O drone gira as hélices.</code> e coloque um <code>new Drone()</code> no array. Depois, para ver o compilador cobrando o contrato, rode uma vez com o <code>Drone</code> sem o método.</p>
+<pre class="script">IVoador[] voadores = [new Passaro("Piu")];
+foreach (IVoador v in voadores)
+{
+    v.Voar();
+}
+
+interface IVoador
+{
+    void Voar();
+}
+
+class Passaro : IVoador
+{
+    public string Nome { get; }
+
+    public Passaro(string nome)
+    {
+        Nome = nome;
+    }
+
+    public void Voar()
+    {
+        Console.WriteLine($"{Nome} bate as asas.");
+    }
+}
+
+// crie aqui a classe Drone
+</pre>
+<pre class="solucao">IVoador[] voadores = [new Passaro("Piu"), new Drone()];
+foreach (IVoador v in voadores)
+{
+    v.Voar();
+}
+
+interface IVoador
+{
+    void Voar();
+}
+
+class Passaro : IVoador
+{
+    public string Nome { get; }
+
+    public Passaro(string nome)
+    {
+        Nome = nome;
+    }
+
+    public void Voar()
+    {
+        Console.WriteLine($"{Nome} bate as asas.");
+    }
+}
+
+class Drone : IVoador
+{
+    public void Voar()
+    {
+        Console.WriteLine("O drone gira as hélices.");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>As regras que o compilador cobra</h2>
+
+<h3>1. Assinou, tem de cumprir</h3>
+<p>A Ana apagou o <code>Voar()</code> do <code>Aviao</code>:</p>
+
+<pre class="term">$ dotnet run semvoar.cs
+/home/ana/cs/semvoar.cs(27,15): error CS0535: "Aviao" não implementa membro de interface "IVoador.Voar()"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A posição <code>(27,15)</code> aponta o <code>IVoador</code> da linha <code>class Aviao : IVoador</code>: o contrato que não foi cumprido. Em inglês: <em>'Aviao' does not implement interface member 'IVoador.Voar()'</em>.</p>
+
+<h3>2. A implementação tem de ser <code>public</code></h3>
+<p>Agora o método existe, mas a Ana esqueceu o <code>public</code> (sem ele, o método é <code>private</code>):</p>
+
+<pre class="term">$ dotnet run sempublic.cs
+/home/ana/cs/sempublic.cs(27,15): error CS0737: "Aviao" não implementa membro de interface "IVoador.Voar()". "Aviao.Voar()" não pode implementar um membro de interface, pois não é público.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Faz sentido: o contrato promete que <strong>qualquer um</strong> pode chamar <code>Voar()</code>. Um método escondido não cumpre a promessa. Escreva <code>public void Voar()</code>.</p>
+
+<h3>3. Interface não vira objeto</h3>
+<p>Como a classe abstrata, uma interface não tem <code>new</code>: não existe "um voador genérico".</p>
+
+<pre class="term">$ dotnet run newif.cs
+/home/ana/cs/newif.cs(1,14): error CS0144: Não é possível criar uma instância do tipo abstrato ou da interface 'IVoador'
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A linha era <code>IVoador v1 = new IVoador();</code>. A variável do tipo <code>IVoador</code> é permitida; o que falta é escolher uma classe de verdade: <code>IVoador v1 = new Passaro("Piu");</code>.</p>
+
+<h3>4. Interface não guarda dados</h3>
+<p>Uma interface descreve o que o objeto <strong>sabe fazer</strong>, não o que ele <strong>guarda</strong>. Um campo, como <code>int altitude;</code>, é proibido:</p>
+
+<pre class="term">$ dotnet run campo.cs
+/home/ana/cs/campo.cs(9,9): error CS0525: As interfaces não podem conter campos de instância
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Se todo voador precisa informar a altitude, declare uma <strong>propriedade</strong>: <code>int Altitude { get; }</code>. Cada classe decide onde guardar o valor.</p>
+
+<hr>
+
+<h2>Propriedades na interface</h2>
+<p>A interface pode exigir propriedades, além de métodos. A Ana quer somar as contas do mês, que são de tipos bem diferentes:</p>
+
+<pre class="file" data-file="contas.cs">List&lt;IPagavel&gt; contas = [new ContaDeLuz(150.75m), new Boleto("Internet", 99.90m)];
+decimal total = 0;
+foreach (IPagavel c in contas)
+{
+    Console.WriteLine($"{c.Descricao}: {c.Valor:C}");
+    total += c.Valor;
+}
+Console.WriteLine($"Total: {total:C}");
+
+interface IPagavel
+{
+    string Descricao { get; }
+    decimal Valor { get; }
+}
+
+class ContaDeLuz : IPagavel
+{
+    public string Descricao =&gt; "Conta de luz";
+    public decimal Valor { get; }
+
+    public ContaDeLuz(decimal valor)
+    {
+        Valor = valor;
+    }
+}
+
+class Boleto : IPagavel
+{
+    public string Descricao { get; }
+    public decimal Valor { get; }
+
+    public Boleto(string descricao, decimal valor)
+    {
+        Descricao = descricao;
+        Valor = valor;
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>string Descricao { get; }</dt><dd>"Todo pagável tem uma descrição que se pode ler." Na interface, o <code>{ get; }</code> não cria nada: só exige.</dd>
+  <dt>public string Descricao =&gt; "Conta de luz";</dt><dd>A <code>ContaDeLuz</code> cumpre com uma propriedade calculada: toda conta de luz tem a mesma descrição.</dd>
+  <dt>public string Descricao { get; }</dt><dd>O <code>Boleto</code> cumpre com uma propriedade automática, preenchida no construtor. As duas formas valem: a interface só exige que exista um <code>get</code> público.</dd>
+  <dt>{c.Valor:C}</dt><dd>Formato de moeda (<code>C</code>, de <em>currency</em>), que na cultura pt-BR mostra <code>R$</code>.</dd>
+</dl>
+
+<pre class="term">$ dotnet run contas.cs
+Conta de luz: R$ 150,75
+Internet: R$ 99,90
+Total: R$ 250,65</pre>
+
+<p>O laço não sabe e não quer saber o que é cada conta. Amanhã a Ana pode criar <code>Aluguel</code>, <code>Mensalidade</code>, <code>Fatura</code>: se a classe assinar <code>IPagavel</code>, o laço funciona sem mudar uma linha.</p>
+
+<hr>
+
+<h2>Uma mãe e várias interfaces</h2>
+<p>Uma classe só pode ter <strong>uma</strong> classe mãe, mas pode implementar <strong>quantas interfaces quiser</strong>. O pato é um animal (herança), voa e nada (duas habilidades):</p>
+
+<pre class="file" data-file="pato.cs">Pato donald = new Pato("Donald");
+donald.Voar();
+donald.Nadar();
+donald.Comer();
+
+IVoador v = donald;
+INadador n = donald;
+v.Voar();
+n.Nadar();
+
+interface IVoador
+{
+    void Voar();
+}
+
+interface INadador
+{
+    void Nadar();
+}
+
+class Animal
+{
+    public string Nome { get; }
+
+    public Animal(string nome)
+    {
+        Nome = nome;
+    }
+
+    public void Comer()
+    {
+        Console.WriteLine($"{Nome} come.");
+    }
+}
+
+class Pato : Animal, IVoador, INadador
+{
+    public Pato(string nome) : base(nome) { }
+
+    public void Voar() =&gt; Console.WriteLine($"{Nome} voa baixinho.");
+    public void Nadar() =&gt; Console.WriteLine($"{Nome} nada no lago.");
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>class Pato : Animal, IVoador, INadador</dt><dd>Depois do <code>:</code>, uma lista separada por vírgulas: <strong>primeiro a classe mãe</strong> (se houver), depois as interfaces, em qualquer ordem.</dd>
+  <dt>public void Voar() =&gt; …</dt><dd>Um método de uma linha só, com <code>=&gt;</code> (veja <a href="metodos.html">Métodos</a>). Cumpre o contrato de <code>IVoador</code>.</dd>
+  <dt>IVoador v = donald;</dt><dd>O mesmo pato, visto como "um voador". Pela variável <code>v</code>, só dá para usar o que <code>IVoador</code> tem: <code>v.Voar()</code>.</dd>
+</dl>
+
+<pre class="term">$ dotnet run pato.cs
+Donald voa baixinho.
+Donald nada no lago.
+Donald come.
+Donald voa baixinho.      « pela variável IVoador
+Donald nada no lago.      « pela variável INadador</pre>
+
+<p>Duas coisas que dão erro aqui. Se a interface vier antes da mãe (<code>class Pato : IVoador, Animal, INadador</code>):</p>
+
+<pre class="term">$ dotnet run ordem.cs
+/home/ana/cs/ordem.cs(36,23): error CS1722: Classe base "Animal" deve vir antes de quaisquer interfaces
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>E, se a Ana tentar <code>v.Nadar()</code> pela variável do tipo <code>IVoador</code>:</p>
+
+<pre class="term">$ dotnet run visao.cs
+/home/ana/cs/visao.cs(9,3): error CS1061: ‘IVoador’ não contém uma definição para "Nadar" e não foi possível encontrar nenhum método de extensão "Nadar" que aceite um primeiro argumento do tipo ‘IVoador’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O objeto <strong>é</strong> um pato e sabe nadar, mas a variável é uma "janela" do tipo <code>IVoador</code>, e por essa janela só se vê o <code>Voar()</code>. O compilador olha o tipo da <strong>variável</strong>, não o do objeto. Guarde essa ideia: ela volta já, nos métodos padrão.</p>
+
+<hr>
+
+<h2>Métodos padrão: código pronto na interface <span class="versao">C# 8</span></h2>
+<p>Desde o C# 8 (.NET Core 3.0, 2019), uma interface pode trazer um método <strong>com corpo</strong>, chamado <strong>método padrão</strong> (em inglês, <em>default interface method</em>). Quem implementa a interface ganha esse método pronto e não precisa escrevê-lo. Um aparelho que liga e desliga sabe "reiniciar" sem esforço: é desligar e ligar.</p>
+
+<pre class="file" data-file="padrao.cs">Lampada sala = new Lampada();
+sala.Ligar();
+
+ILigavel l = sala;
+l.Ligar();
+l.Reiniciar();
+
+interface ILigavel
+{
+    void Ligar();
+    void Desligar();
+
+    void Reiniciar()
+    {
+        Desligar();
+        Ligar();
+    }
+}
+
+class Lampada : ILigavel
+{
+    public void Ligar() =&gt; Console.WriteLine("Lâmpada acesa.");
+    public void Desligar() =&gt; Console.WriteLine("Lâmpada apagada.");
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>void Ligar(); void Desligar();</dt><dd>Membros comuns: sem corpo, toda classe tem de escrever.</dd>
+  <dt>void Reiniciar() { Desligar(); Ligar(); }</dt><dd>O método padrão: tem corpo, dentro da interface. Ele usa os outros membros da interface, sem saber como cada classe os escreveu.</dd>
+  <dt>class Lampada : ILigavel</dt><dd>A lâmpada só escreve <code>Ligar</code> e <code>Desligar</code>. O <code>Reiniciar</code> vem de graça.</dd>
+  <dt>ILigavel l = sala; l.Reiniciar();</dt><dd>O método padrão é chamado <strong>pela interface</strong>. (Veja abaixo por quê.)</dd>
+</dl>
+
+<pre class="term">$ dotnet run padrao.cs
+Lâmpada acesa.        « sala.Ligar()
+Lâmpada acesa.        « l.Ligar()
+Lâmpada apagada.      « l.Reiniciar(): Desligar…
+Lâmpada acesa.        « …e Ligar</pre>
+
+<h3>A pegadinha: o método padrão não aparece na classe</h3>
+<p>Quem vem do Java estranha: em C#, o método padrão <strong>não é herdado pela classe</strong>. Ele pertence à interface. Se a Ana chamar <code>sala.Reiniciar()</code>, com a variável do tipo <code>Lampada</code>:</p>
+
+<pre class="term">$ dotnet run padrao-erro.cs
+/home/ana/cs/padrao-erro.cs(7,6): error CS1061: ‘Lampada’ não contém uma definição para "Reiniciar" e não foi possível encontrar nenhum método de extensão "Reiniciar" que aceite um primeiro argumento do tipo ‘Lampada’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"<code>Lampada</code> não contém uma definição para <code>Reiniciar</code>": é verdade, a classe nunca escreveu esse método. Para usá-lo, olhe o objeto pela "janela" da interface: <code>ILigavel l = sala; l.Reiniciar();</code>. Na prática, isso quase nunca incomoda: quem usa interfaces costuma guardar os objetos em variáveis, listas e parâmetros do tipo da interface.</p>
+
+<h3>A classe pode escrever a própria versão</h3>
+<p>O padrão é só um padrão. Se a classe tem um método <code>public</code> com a mesma assinatura, é ele que vale, também pela interface. O computador precisa salvar os arquivos antes de reiniciar:</p>
+
+<pre class="file" data-file="aparelhos.cs">ILigavel[] aparelhos = [new Lampada(), new Computador()];
+foreach (ILigavel a in aparelhos)
+{
+    a.Reiniciar();
+    Console.WriteLine("---");
+}
+
+interface ILigavel
+{
+    void Ligar();
+    void Desligar();
+
+    void Reiniciar()
+    {
+        Desligar();
+        Ligar();
+    }
+}
+
+class Lampada : ILigavel
+{
+    public void Ligar() =&gt; Console.WriteLine("Lâmpada acesa.");
+    public void Desligar() =&gt; Console.WriteLine("Lâmpada apagada.");
+}
+
+class Computador : ILigavel
+{
+    public void Ligar() =&gt; Console.WriteLine("Computador ligado.");
+    public void Desligar() =&gt; Console.WriteLine("Computador desligado.");
+
+    public void Reiniciar()
+    {
+        Console.WriteLine("Salvando os arquivos...");
+        Desligar();
+        Ligar();
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run aparelhos.cs
+Lâmpada apagada.
+Lâmpada acesa.
+---
+Salvando os arquivos...       « a versão do Computador
+Computador desligado.
+Computador ligado.
+---</pre>
+
+<div class="note">
+<strong>Para que servem os métodos padrão?</strong>
+<p>O motivo original é <strong>evoluir</strong> uma interface sem quebrar ninguém. Se a interface <code>ILigavel</code> já é usada por 50 classes e alguém acrescenta um <code>void Reiniciar();</code> sem corpo, as 50 deixam de compilar (<code>CS0535</code>). Com um corpo padrão, todas continuam funcionando, e quem quiser escreve a sua versão. Use com moderação: a maior parte das interfaces do dia a dia só tem membros sem corpo.</p>
+</div>
+
+<hr>
+
+<h2>Esse objeto sabe voar? O <code>is</code></h2>
+<p>Às vezes você recebe um objeto qualquer e quer saber se ele tem certa habilidade. O <code>is</code> testa e, se der certo, já entrega uma variável do tipo da interface (veja mais em <a href="pattern-matching.html">Pattern Matching</a>):</p>
+
+<pre class="file" data-file="is.cs">object[] coisas = [new Passaro(), "texto", new Pedra()];
+foreach (object o in coisas)
+{
+    if (o is IVoador v)
+    {
+        v.Voar();
+    }
+    else
+    {
+        Console.WriteLine($"{o} não voa.");
+    }
+}
+
+interface IVoador
+{
+    void Voar();
+}
+
+class Passaro : IVoador
+{
+    public void Voar() =&gt; Console.WriteLine("O pássaro voa.");
+}
+
+class Pedra
+{
+    public override string ToString() =&gt; "A pedra";
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>object[] coisas</dt><dd>Um array de <code>object</code>, o tipo que aceita qualquer coisa (veja <a href="object.html">A Classe object</a>).</dd>
+  <dt>o is IVoador v</dt><dd>"<code>o</code> implementa <code>IVoador</code>? Se sim, chame-o de <code>v</code>." Dentro do <code>if</code>, <code>v</code> é um <code>IVoador</code> e tem <code>Voar()</code>.</dd>
+  <dt>public override string ToString()</dt><dd>Diz como a pedra aparece num texto. É o assunto da aula <a href="object.html">A Classe object</a>.</dd>
+</dl>
+
+<pre class="term">$ dotnet run is.cs
+O pássaro voa.
+texto não voa.
+A pedra não voa.</pre>
+
+<hr>
+
+<h2>Interface × classe abstrata</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Classe abstrata</th><th>Interface</th></tr>
+<tr><td>Ideia</td><td>Uma família ("é um")</td><td>Uma habilidade ("sabe fazer")</td></tr>
+<tr><td>Quantas uma classe pode ter</td><td>Uma só</td><td>Quantas quiser</td></tr>
+<tr><td>Campos (dados guardados)</td><td>Sim</td><td>Não (<code>CS0525</code>)</td></tr>
+<tr><td>Construtor</td><td>Sim</td><td>Não</td></tr>
+<tr><td>Membros sem corpo</td><td><code>abstract</code>, com <code>override</code> na filha</td><td>O normal, sem <code>override</code> na classe</td></tr>
+<tr><td>Membros com corpo</td><td>Sim, herdados pelas filhas</td><td>Métodos padrão <span class="versao">C# 8</span>, vistos só pela interface</td></tr>
+<tr><td>Instanciar com <code>new</code></td><td>Não (<code>CS0144</code>)</td><td>Não (<code>CS0144</code>)</td></tr>
+<tr><td>Nome</td><td><code>Forma</code>, <code>Funcionario</code></td><td><code>IVoador</code>, <code>IPagavel</code></td></tr>
+</table>
+</div>
+
+<p><strong>Qual usar?</strong> Comece pela pergunta: "as classes são parentes, com dados e código em comum?" Se sim, classe abstrata. "Coisas diferentes precisam de uma mesma habilidade?" Interface. Na dúvida, prefira a interface: ela não "gasta" a única mãe da classe, e as duas podem andar juntas (<code>class Pato : Animal, IVoador</code>).</p>
+
+<div class="tip">
+<strong>As interfaces da biblioteca</strong>
+<p>O .NET está cheio de interfaces, e você vai implementá-las nas próximas aulas: <code>IComparable&lt;T&gt;</code> ("sei me comparar", para ordenar: veja <a href="comparacao.html">IComparable e IComparer</a>), <code>IDisposable</code> ("tenho algo para fechar": veja <a href="using-dispose.html">using e IDisposable</a>) e <code>IEnumerable&lt;T&gt;</code> ("posso ser percorrido com <code>foreach</code>": veja <a href="ienumerable.html">IEnumerable e foreach</a>).</p>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS0535: "… não implementa membro de interface …"</strong>
+<pre class="term">$ dotnet run semvoar.cs
+/home/ana/cs/semvoar.cs(27,15): error CS0535: "Aviao" não implementa membro de interface "IVoador.Voar()"</pre>
+<p><strong>O que aconteceu:</strong> a classe assinou a interface e não escreveu um dos membros (ou escreveu com outro nome ou outros parâmetros).</p>
+<p><strong>Como resolver:</strong> escreva o membro com a assinatura exata e <code>public</code>. Num editor como o VS Code, a lâmpada de "ações rápidas" sobre o erro oferece "Implementar interface", que cria os esqueletos.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0737: "… não pode implementar um membro de interface, pois não é público"</strong>
+<pre class="term">$ dotnet run sempublic.cs
+/home/ana/cs/sempublic.cs(27,15): error CS0737: "Aviao" não implementa membro de interface "IVoador.Voar()". "Aviao.Voar()" não pode implementar um membro de interface, pois não é público.</pre>
+<p><strong>O que aconteceu:</strong> o método existe, mas sem <code>public</code>.</p>
+<p><strong>Como resolver:</strong> acrescente <code>public</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1061 num método padrão</strong>
+<pre class="term">$ dotnet run padrao-erro.cs
+/home/ana/cs/padrao-erro.cs(7,6): error CS1061: ‘Lampada’ não contém uma definição para "Reiniciar" …</pre>
+<p><strong>O que aconteceu:</strong> o método padrão foi chamado por uma variável do tipo da classe.</p>
+<p><strong>Como resolver:</strong> use uma variável do tipo da interface (<code>ILigavel l = sala;</code>) ou escreva o método na classe, se ela precisar dele diretamente.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1722: "Classe base … deve vir antes de quaisquer interfaces"</strong>
+<pre class="term">$ dotnet run ordem.cs
+/home/ana/cs/ordem.cs(36,23): error CS1722: Classe base "Animal" deve vir antes de quaisquer interfaces</pre>
+<p><strong>Como resolver:</strong> a mãe primeiro: <code>class Pato : Animal, IVoador, INadador</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>interface IVoador { void Voar(); }</code></td><td>Declara uma interface com um método (público e sem corpo)</td></tr>
+<tr><td><code>decimal Valor { get; }</code></td><td>Propriedade exigida pela interface</td></tr>
+<tr><td><code>class Aviao : IVoador</code></td><td>A classe implementa a interface</td></tr>
+<tr><td><code>class Pato : Animal, IVoador, INadador</code></td><td>Uma mãe (primeiro) e várias interfaces</td></tr>
+<tr><td><code>public void Voar() { … }</code></td><td>Implementação: <code>public</code>, mesma assinatura, sem <code>override</code></td></tr>
+<tr><td><code>void Reiniciar() { … }</code> na interface</td><td>Método padrão <span class="versao">C# 8</span>; chamado pela interface</td></tr>
+<tr><td><code>IVoador v = new Aviao("PT-ANA");</code></td><td>Variável do tipo da interface</td></tr>
+<tr><td><code>if (o is IVoador v)</code></td><td>Testa se o objeto implementa a interface</td></tr>
+<tr><td>Nome começando com <code>I</code></td><td>Convenção de todo código C#</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Declarar a interface</h3>
+<p>Complete para declarar a interface <code>INadador</code>:</p>
+<div class="ex-code"><input data-answer="interface" aria-label="palavra-chave"> INadador { void Nadar(); }</div>
+</div>
+
+<div class="exercise">
+<h3>2. Assinar o contrato</h3>
+<p>Complete para a classe <code>Peixe</code> implementar <code>INadador</code>:</p>
+<div class="ex-code">class Peixe <input data-answer=": INadador|:INadador" aria-label="implementação"></div>
+</div>
+
+<div class="exercise">
+<h3>3. O modificador obrigatório</h3>
+<p>Complete a primeira linha do método que cumpre o contrato:</p>
+<div class="ex-code"><input data-answer="public" aria-label="modificador"> void Nadar()</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Qual destas declarações compila?</p>
+<label><input type="radio" name="q4"> <code>class Pato : IVoador, Animal</code></label>
+<label><input type="radio" name="q4"> <code>class Pato : Animal, Ave</code> (duas classes)</label>
+<label><input type="radio" name="q4"> <code>class Pato : Animal, IVoador, INadador</code></label>
+<label><input type="radio" name="q4"> <code>IVoador v = new IVoador();</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. <code>ILigavel</code> tem o método padrão <code>Reiniciar()</code>, e <code>Lampada</code> implementa <code>ILigavel</code> sem escrever <code>Reiniciar</code>. Com <code>Lampada sala = new Lampada();</code>, o que acontece em <code>sala.Reiniciar();</code>?</p>
+<label><input type="radio" name="q5"> Funciona: a classe herdou o método</label>
+<label><input type="radio" name="q5"> Erro <code>CS1061</code>: a classe não tem <code>Reiniciar</code>; é preciso chamar pela interface</label>
+<label><input type="radio" name="q5"> Erro <code>CS0535</code></label>
+<label><input type="radio" name="q5"> Exceção ao rodar</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. O que uma interface <strong>não</strong> pode ter?</p>
+<label><input type="radio" name="q6"> Métodos sem corpo</label>
+<label><input type="radio" name="q6"> Propriedades</label>
+<label><input type="radio" name="q6"> Métodos padrão, com corpo</label>
+<label><input type="radio" name="q6"> Campos de instância, como <code>int altitude;</code></label>
+</div>
+
+<div class="trycs" data-goal="outre:Total: R\$\s1\.299\,90,src:class\s+Aluguel\s*:\s*IPagavel">
+<p class="try-task"><strong>Missão final:</strong> a Ana quer incluir o aluguel nas contas do mês. Crie a classe <code>Aluguel</code>, que implementa <code>IPagavel</code>: a <code>Descricao</code> é sempre <code>"Aluguel"</code> e o <code>Valor</code> é sempre <code>1200m</code> (use propriedades com <code>=&gt;</code>). Coloque um <code>new Aluguel()</code> na lista. A última linha deve ser <code>Total: R$ 1.299,90</code>.</p>
+<pre class="script">List&lt;IPagavel&gt; contas = [new Boleto("Internet", 99.90m)];
+decimal total = 0;
+foreach (IPagavel c in contas)
+{
+    Console.WriteLine($"{c.Descricao}: {c.Valor:C}");
+    total += c.Valor;
+}
+Console.WriteLine($"Total: {total:C}");
+
+interface IPagavel
+{
+    string Descricao { get; }
+    decimal Valor { get; }
+}
+
+class Boleto : IPagavel
+{
+    public string Descricao { get; }
+    public decimal Valor { get; }
+
+    public Boleto(string descricao, decimal valor)
+    {
+        Descricao = descricao;
+        Valor = valor;
+    }
+}
+
+// crie aqui a classe Aluguel
+</pre>
+<pre class="solucao">List&lt;IPagavel&gt; contas = [new Boleto("Internet", 99.90m), new Aluguel()];
+decimal total = 0;
+foreach (IPagavel c in contas)
+{
+    Console.WriteLine($"{c.Descricao}: {c.Valor:C}");
+    total += c.Valor;
+}
+Console.WriteLine($"Total: {total:C}");
+
+interface IPagavel
+{
+    string Descricao { get; }
+    decimal Valor { get; }
+}
+
+class Boleto : IPagavel
+{
+    public string Descricao { get; }
+    public decimal Valor { get; }
+
+    public Boleto(string descricao, decimal valor)
+    {
+        Descricao = descricao;
+        Valor = valor;
+    }
+}
+
+class Aluguel : IPagavel
+{
+    public string Descricao =&gt; "Aluguel";
+    public decimal Valor =&gt; 1200m;
+}
+</pre>
+</div>
+
+<pre class="term">$ dotnet run aluguel.cs      « a solução
+Internet: R$ 99,90
+Aluguel: R$ 1.200,00
+Total: R$ 1.299,90</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma <code>interface</code> é um contrato: diz o que uma classe sabe fazer, sem dizer como. O nome começa com <code>I</code>: <code>IVoador</code>, <code>IPagavel</code>.</li>
+  <li><code>class Aviao : IVoador</code> assina o contrato. Cada membro tem de ser escrito, <code>public</code> e com a mesma assinatura (<code>CS0535</code>, <code>CS0737</code>), sem <code>override</code>.</li>
+  <li>Interfaces podem exigir métodos e propriedades, mas não guardam campos (<code>CS0525</code>) e não viram objeto (<code>CS0144</code>).</li>
+  <li>Uma classe tem uma mãe só, mas quantas interfaces quiser: <code>class Pato : Animal, IVoador, INadador</code>, com a mãe primeiro (<code>CS1722</code>).</li>
+  <li>Métodos padrão <span class="versao">C# 8</span> trazem código pronto na interface. Eles são chamados pela interface, não pela classe (<code>CS1061</code>), e a classe pode escrever a própria versão.</li>
+  <li><code>o is IVoador v</code> pergunta se o objeto tem a habilidade. Família com dados em comum: classe abstrata. Habilidade compartilhada: interface. Próxima aula: <a href="sealed.html">sealed</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
