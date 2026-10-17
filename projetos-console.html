@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Projetos (dotnet new console) — criar, rodar e compilar um projeto | Guia C#</title>
+<meta name="description" content="Projetos de console em C# para quem nunca programou: dotnet new console -o Ola, o que tem no .csproj e no Program.cs gerados, dotnet run, dotnet build, as pastas bin/Debug/net10.0 e obj, -o e -n, dotnet run --project e os erros mais comuns, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Projetos (dotnet new console)</span></h1>
+
+<p class="intro">Até aqui, a Ana escreveu um arquivo <code>ola.cs</code> e rodou com <code>dotnet run ola.cs</code>. Para programas pequenos, isso basta. Mas quase todo programa de verdade em C# é um <strong>projeto</strong>: uma pasta com um arquivo de configuração (o <code>.csproj</code>) e um ou mais arquivos de código. É assim que funcionam os tutoriais, os livros, o Visual Studio e o trabalho em equipe. Nesta aula você cria o seu primeiro projeto com <code>dotnet new console</code>, conhece cada arquivo que ele gera, roda com <code>dotnet run</code>, compila com <code>dotnet build</code> e descobre o que fica guardado nas pastas <code>bin</code> e <code>obj</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Criar um projeto com <code>dotnet new console -o Ola</code> e entender cada linha da saída.</li>
+  <li>O que tem no <code>Ola.csproj</code> e no <code>Program.cs</code> gerados, linha por linha.</li>
+  <li>Rodar o projeto com <code>dotnet run</code> e compilar sem rodar com <code>dotnet build</code>.</li>
+  <li>O que são as pastas <code>bin/Debug/net10.0</code> e <code>obj</code>, e os arquivos <code>.dll</code>, <code>.pdb</code> e <code>.json</code>.</li>
+  <li>A diferença entre <code>-o</code> (a pasta) e <code>-n</code> (o nome), e como rodar um projeto de fora da pasta dele.</li>
+  <li>Quando usar um arquivo solto e quando usar um projeto.</li>
+  <li>Os erros mais comuns: rodar fora da pasta, criar por cima de um projeto, erro no <code>Program.cs</code>.</li>
+</ul>
+</div>
+
+<p>Todos os comandos desta aula foram executados na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), com o <strong>.NET 10 SDK</strong> do Ubuntu 26.04 (<code>dotnet --version</code> = <code>10.0.112</code>). Os projetos ficam em <code>~/projetos</code>. As saídas foram copiadas da tela, em português, como aparecem num Ubuntu em pt-BR.</p>
+
+<hr>
+
+<h2>A ideia: o bilhete e o fichário</h2>
+<p>Um arquivo <code>ola.cs</code> solto é como um <strong>bilhete</strong>: uma folha só, que você escreve e entrega. Rápido e prático.</p>
+
+<p>Um projeto é como um <strong>fichário</strong> de escola. Ele tem uma <strong>capa</strong> com as informações do dono (o nome, a turma, as regras da matéria) e, dentro, quantas folhas você quiser. No C#:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>No fichário</th><th>No projeto</th><th>Exemplo</th></tr>
+<tr><td>O fichário inteiro</td><td>A <strong>pasta</strong> do projeto</td><td><code>~/projetos/Ola</code></td></tr>
+<tr><td>A capa, com as regras</td><td>O arquivo de projeto, <code>.csproj</code></td><td><code>Ola.csproj</code></td></tr>
+<tr><td>As folhas</td><td>Os arquivos de código, <code>.cs</code></td><td><code>Program.cs</code></td></tr>
+<tr><td>A pasta de rascunhos que o professor devolve</td><td>As pastas <code>bin</code> e <code>obj</code>, criadas pelo <code>dotnet</code></td><td><code>bin/Debug/net10.0/Ola.dll</code></td></tr>
+</table>
+</div>
+
+<p>O <code>.csproj</code> diz ao <code>dotnet</code> que tipo de programa é aquele, qual versão do .NET usar e quais recursos ligar. Os arquivos de código são todos os <code>.cs</code> da pasta: o <code>dotnet</code> pega todos sozinho, sem você precisar listá-los.</p>
+
+<hr>
+
+<h2>1. Criar o projeto: <code>dotnet new console</code></h2>
+<p>A Ana entra na pasta <code>~/projetos</code> (criando-a, se ainda não existe) e pede um projeto novo:</p>
+
+<pre class="term" data-cwd="~">$ mkdir -p projetos &amp;&amp; cd projetos
+$ dotnet new console -o Ola
+O modelo "Aplicativo do Console" foi criado com êxito.
+
+Processando ações pós-criação...
+Restaurando /home/ana/projetos/Ola/Ola.csproj:
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Ola/Ola.csproj restaurado (em 106 ms).
+A restauração foi bem-sucedida.</pre>
+
+<dl class="anatomy">
+  <dt>dotnet</dt><dd>A ferramenta do .NET, a mesma que você já usou com <code>dotnet run ola.cs</code> (aula <a href="dotnet-run.html">Rodar com dotnet run</a>).</dd>
+  <dt>new</dt><dd>"Novo": crie algo novo a partir de um <strong>modelo</strong> (em inglês, <em>template</em>), uma espécie de forma de bolo com os arquivos já prontos.</dd>
+  <dt>console</dt><dd>O nome do modelo: um <strong>aplicativo de console</strong>, ou seja, um programa que roda no terminal, escrevendo e lendo texto. É o tipo de programa de todo o Nível 1.</dd>
+  <dt>-o Ola</dt><dd><em>output</em> = "saída": crie tudo numa pasta nova chamada <code>Ola</code>. Sem o <code>-o</code>, os arquivos cairiam na pasta atual (seção 6).</dd>
+</dl>
+
+<p>E a saída, linha por linha:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que quer dizer</th></tr>
+<tr><td><code>O modelo "Aplicativo do Console" foi criado com êxito.</code></td><td>Os arquivos foram criados. "Aplicativo do Console" é o nome completo do modelo <code>console</code>.</td></tr>
+<tr><td><code>Processando ações pós-criação...</code></td><td>Depois de criar, o modelo pede mais uma tarefa: a <strong>restauração</strong>.</td></tr>
+<tr><td><code>Restaurando /home/ana/projetos/Ola/Ola.csproj:</code></td><td><strong>Restaurar</strong> (<em>restore</em>) é conferir de quais bibliotecas o projeto precisa e baixar as que faltam. Este projeto não usa nenhuma biblioteca extra, então foi rápido (106 milissegundos). Os pacotes extras, chamados <strong>NuGet</strong>, têm aula própria no Nível 3.</td></tr>
+<tr><td><code>A restauração foi bem-sucedida.</code></td><td>Pronto: o projeto pode ser compilado.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>2. O que foi criado</h2>
+<p>Dentro da pasta nova:</p>
+
+<pre class="term" data-cwd="~/projetos">$ cd Ola
+$ ls -la
+total 20
+drwxrwxr-x 3 ana ana 4096 out 17 12:37 .
+drwxrwxr-x 3 ana ana 4096 out 17 12:37 ..
+drwxrwxr-x 2 ana ana 4096 out 17 12:37 obj
+-rw-rw-r-- 1 ana ana  243 out 17 12:37 Ola.csproj
+-rw-rw-r-- 1 ana ana  103 out 17 12:37 Program.cs</pre>
+
+<p>São só três coisas: o arquivo de projeto <code>Ola.csproj</code> (243 bytes), o código <code>Program.cs</code> (103 bytes) e uma pasta <code>obj</code>, criada pela restauração. Repare que o <code>.csproj</code> ganhou o nome da pasta: <code>Ola</code>.</p>
+
+<h3>O arquivo de projeto: <code>Ola.csproj</code></h3>
+
+<pre class="term" data-cwd="~/projetos/Ola">$ cat Ola.csproj
+&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+
+  &lt;PropertyGroup&gt;
+    &lt;OutputType&gt;Exe&lt;/OutputType&gt;
+    &lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;
+    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+    &lt;Nullable&gt;enable&lt;/Nullable&gt;
+  &lt;/PropertyGroup&gt;
+
+&lt;/Project&gt;</pre>
+
+<p>Ele é escrito em <strong>XML</strong>, um formato de texto com <strong>etiquetas</strong> entre <code>&lt; &gt;</code>. Cada informação fica entre uma etiqueta que abre (<code>&lt;OutputType&gt;</code>) e uma que fecha, com barra (<code>&lt;/OutputType&gt;</code>). Você não precisa saber XML: basta ler.</p>
+
+<dl class="anatomy">
+  <dt>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;</dt><dd>"Projeto que usa o SDK do .NET". O <strong>SDK</strong> (aula <a href="dotnet.html">.NET: SDK, Runtime e CLR</a>) traz as regras de como compilar um projeto C#. Por isso o arquivo é tão curto: o resto vem pronto do SDK.</dd>
+  <dt>&lt;PropertyGroup&gt;</dt><dd>"Grupo de propriedades": as configurações do projeto ficam aqui dentro.</dd>
+  <dt>&lt;OutputType&gt;Exe&lt;/OutputType&gt;</dt><dd>"Tipo de saída: executável". O resultado é um programa que se pode rodar. (Uma biblioteca, que só serve para outros programas usarem, não teria essa linha. Aula <a href="bibliotecas-classe.html">Bibliotecas de Classes</a>.)</dd>
+  <dt>&lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;</dt><dd>"Plataforma de destino: .NET 10". O programa vai rodar no .NET 10, e a versão da linguagem é a que vem com ele: C# 14 (aula <a href="versoes.html">Versões do C# e do .NET</a>).</dd>
+  <dt>&lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;</dt><dd>"<code>using</code> implícitos: ligado". É por causa dessa linha que você escreve <code>Console.WriteLine</code> sem pôr <code>using System;</code> no topo do arquivo. O <code>using</code> tem aula própria: <a href="namespaces.html">Namespaces e using</a>.</dd>
+  <dt>&lt;Nullable&gt;enable&lt;/Nullable&gt;</dt><dd>"Anuláveis: ligado". Liga os avisos que protegem você de um dos erros mais comuns da programação, o valor <code>null</code> onde não devia (aula <a href="referencias-anulaveis.html">Referências Anuláveis</a>). Deixe sempre ligado.</dd>
+</dl>
+
+<div class="note">
+<strong>O <code>dotnet run ola.cs</code> usa essas mesmas regras</strong>
+<p>Quando você roda um arquivo solto, o <code>dotnet</code> monta, escondido, um projeto com estas mesmas configurações (<code>Exe</code>, <code>net10.0</code>, <code>ImplicitUsings</code> e <code>Nullable</code> ligados). Por isso o mesmo código funciona igualzinho nas duas formas.</p>
+</div>
+
+<h3>O código: <code>Program.cs</code></h3>
+
+<pre class="term" data-cwd="~/projetos/Ola">$ cat Program.cs
+// See https://aka.ms/new-console-template for more information
+Console.WriteLine("Hello, World!");</pre>
+
+<dl class="anatomy">
+  <dt>// See https://aka.ms/…</dt><dd>Um <strong>comentário</strong>: tudo depois de <code>//</code> é ignorado pelo compilador. Diz "veja este endereço para mais informações" (sobre o modelo). Pode apagar. Aula <a href="comentarios.html">Comentários</a>.</dd>
+  <dt>Console.WriteLine("Hello, World!");</dt><dd>A única instrução do programa: escreve <code>Hello, World!</code> ("Olá, mundo!") no terminal. É o mesmo programa da aula <a href="primeiro-programa.html">Olá, Mundo</a>, em inglês.</dd>
+</dl>
+
+<p>O nome <code>Program.cs</code> é só um costume: o <code>dotnet</code> não exige esse nome. Repare também que não há <code>class Program</code> nem <code>static void Main</code>, que você vai ver em muitos livros e tutoriais. Esse jeito curto se chama <strong>instruções de nível superior</strong>, e a próxima aula, <a href="top-level.html">Program.cs e o Main</a>, mostra as duas formas lado a lado.</p>
+
+<hr>
+
+<h2>3. Rodar: <code>dotnet run</code></h2>
+<p>Dentro da pasta do projeto, basta <code>dotnet run</code>, <strong>sem</strong> nome de arquivo:</p>
+
+<pre class="term" data-cwd="~/projetos/Ola">$ dotnet run
+Hello, World!</pre>
+
+<p>O <code>dotnet run</code> procura um <code>.csproj</code> na pasta atual, compila todos os <code>.cs</code> do projeto e, se não houver erro, roda o programa. Agora a Ana troca o conteúdo do <code>Program.cs</code> pela lista de compras dela. (Aqui ela usa o <code>cat &gt;</code> do terminal, que grava tudo o que vem até a linha <code>FIM</code>; você pode usar qualquer editor de texto, como mostra a aula <a href="editores.html">Editores e IDEs</a>.)</p>
+
+<pre class="term" data-cwd="~/projetos/Ola">$ cat &gt; Program.cs &lt;&lt;'FIM'
+&gt; Console.WriteLine("Lista de compras da Ana");
+&gt; Console.WriteLine("- arroz");
+&gt; Console.WriteLine("- café");
+&gt; FIM
+$ dotnet run
+Lista de compras da Ana
+- arroz
+- café
+$ ls
+bin                      « pasta nova, criada pelo dotnet run
+obj
+Ola.csproj
+Program.cs</pre>
+
+<p>Duas coisas para reparar:</p>
+<ul>
+  <li>O <code>dotnet run</code> percebeu que o código mudou e <strong>compilou de novo</strong> antes de rodar. Você nunca precisa compilar "na mão" antes do <code>dotnet run</code>.</li>
+  <li>Apareceu uma pasta <code>bin</code>. É lá que fica o programa compilado (seção 4).</li>
+</ul>
+
+<p>No editor do guia, cada caixa "Experimente" funciona como um projeto: o código fica num arquivo <code>Program.cs</code>, e o botão <strong>Rodar</strong> faz o papel do <code>dotnet run</code>.</p>
+
+<div class="trycs" data-goal="out:Lista de compras da Ana,out:- feijão">
+<p class="try-task"><strong>Missão:</strong> este é o <code>Program.cs</code> do projeto da Ana. Clique em <strong>Rodar</strong> e veja o <code>Hello, World!</code>. Depois troque o texto para <code>Lista de compras da Ana</code> e acrescente uma linha que escreva <code>- feijão</code>, copiando a primeira linha e trocando só o texto entre aspas.</p>
+<pre class="script">// See https://aka.ms/new-console-template for more information
+Console.WriteLine("Hello, World!");
+</pre>
+<pre class="solucao">Console.WriteLine("Lista de compras da Ana");
+Console.WriteLine("- feijão");
+</pre>
+</div>
+
+<hr>
+
+<h2>4. Compilar sem rodar: <code>dotnet build</code> e a pasta <code>bin</code></h2>
+<p><strong>Compilar</strong> é traduzir o seu código C# para uma forma que o .NET sabe executar. O <code>dotnet run</code> compila e roda; o <code>dotnet build</code> ("construir") só compila, e mostra um relatório:</p>
+
+<pre class="term" data-cwd="~/projetos/Ola">$ dotnet build
+  Determinando os projetos a serem restaurados...
+  Todos os projetos estão atualizados para restauração.
+  Ola -&gt; /home/ana/projetos/Ola/bin/Debug/net10.0/Ola.dll
+
+Compilação com êxito.
+    0 Aviso(s)
+    0 Erro(s)
+
+Tempo Decorrido 00:00:01.26</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que quer dizer</th></tr>
+<tr><td><code>Determinando os projetos a serem restaurados...</code><br><code>Todos os projetos estão atualizados para restauração.</code></td><td>Antes de compilar, o <code>build</code> faz a restauração (seção 1). Como nada mudou nas bibliotecas, não havia o que baixar.</td></tr>
+<tr><td><code>Ola -&gt; /home/ana/projetos/Ola/bin/Debug/net10.0/Ola.dll</code></td><td>O projeto <code>Ola</code> virou o arquivo <code>Ola.dll</code>, nessa pasta. A seta quer dizer "virou".</td></tr>
+<tr><td><code>Compilação com êxito.</code></td><td>Compilou sem erros.</td></tr>
+<tr><td><code>0 Aviso(s)</code> / <code>0 Erro(s)</code></td><td>A contagem de avisos e erros. Os dois têm aula própria: <a href="erros-compilacao.html">Lendo Erros do Compilador</a> e <a href="avisos.html">Avisos do Compilador</a>.</td></tr>
+<tr><td><code>Tempo Decorrido 00:00:01.26</code></td><td>Quanto tempo levou: 1,26 segundo.</td></tr>
+</table>
+</div>
+
+<h3>O que tem em <code>bin/Debug/net10.0</code></h3>
+<p>O caminho conta uma história: <code>bin</code> (de <em>binary</em>, "binário", o programa já traduzido), <code>Debug</code> (a configuração usada, explicada logo abaixo) e <code>net10.0</code> (a plataforma do <code>.csproj</code>).</p>
+
+<pre class="term" data-cwd="~/projetos/Ola">$ ls bin/Debug/net10.0
+Ola
+Ola.deps.json
+Ola.dll
+Ola.pdb
+Ola.runtimeconfig.json</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Arquivo</th><th>O que é</th></tr>
+<tr><td><code>Ola.dll</code></td><td><strong>O seu programa compilado.</strong> Não é código de máquina: é uma linguagem intermediária, a <strong>IL</strong>, que o .NET traduz para o processador na hora de rodar (aula <a href="dotnet.html">.NET: SDK, Runtime e CLR</a>). <em>DLL</em> vem de <em>dynamic-link library</em>, "biblioteca de ligação dinâmica".</td></tr>
+<tr><td><code>Ola</code></td><td>Um pequeno <strong>executável</strong> do Linux (no Windows, seria <code>Ola.exe</code>). Ele só liga o .NET e manda rodar o <code>Ola.dll</code>.</td></tr>
+<tr><td><code>Ola.pdb</code></td><td>Os <strong>símbolos de depuração</strong> (<em>program database</em>). É graças a ele que um erro mostra o arquivo e a linha, como em <code>in /home/ana/projetos/Ola/Program.cs:line 2</code>.</td></tr>
+<tr><td><code>Ola.runtimeconfig.json</code></td><td>Diz qual versão do .NET deve rodar o programa (a 10).</td></tr>
+<tr><td><code>Ola.deps.json</code></td><td>A lista das bibliotecas de que o programa depende (<em>dependencies</em>).</td></tr>
+</table>
+</div>
+
+<p>Dá para rodar o programa compilado de dois jeitos, sem compilar de novo:</p>
+
+<pre class="term" data-cwd="~/projetos/Ola">$ ./bin/Debug/net10.0/Ola
+Lista de compras da Ana
+- arroz
+- café
+$ dotnet bin/Debug/net10.0/Ola.dll
+Lista de compras da Ana
+- arroz
+- café
+$ echo $?
+0                        « código de saída 0: deu tudo certo</pre>
+
+<p>O primeiro usa o executável; o segundo entrega o <code>.dll</code> direto para o <code>dotnet</code>. No dia a dia, porém, use <code>dotnet run</code>: ele confere se o código mudou e recompila quando precisa. Rodar o arquivo da pasta <code>bin</code> depois de mudar o código mostra a versão <strong>antiga</strong>, até você rodar <code>dotnet build</code> de novo.</p>
+
+<h3>A pasta <code>obj</code></h3>
+<p><code>obj</code> (de <em>object</em>, "objeto") guarda os arquivos <strong>intermediários</strong>: o resultado da restauração e as peças que o compilador usa para não recompilar tudo do zero a cada vez.</p>
+
+<pre class="term" data-cwd="~/projetos/Ola">$ ls obj
+Debug
+Ola.csproj.nuget.dgspec.json
+Ola.csproj.nuget.g.props
+Ola.csproj.nuget.g.targets
+project.assets.json
+project.nuget.cache</pre>
+
+<p>Você nunca precisa abrir nem editar nada em <code>bin</code> e <code>obj</code>. As duas pastas podem ser apagadas a qualquer momento: o próximo <code>dotnet build</code> cria tudo de novo. Por isso elas também <strong>não</strong> vão para o controle de versão (o Git), nem para o pendrive quando você leva o projeto para outro computador: leve só o <code>.csproj</code> e os <code>.cs</code>.</p>
+
+<h3>Debug e Release, e o <code>dotnet clean</code></h3>
+<p><strong>Debug</strong> ("depuração") é a configuração padrão, feita para quem está programando: compila rápido e guarda tudo o que ajuda a achar erros. <strong>Release</strong> ("lançamento") é a versão otimizada, para entregar aos usuários. Para escolher, use <code>-c</code> (<em>configuration</em>):</p>
+
+<pre class="term" data-cwd="~/projetos/Ola">$ dotnet build -c Release
+  Determinando os projetos a serem restaurados...
+  Todos os projetos estão atualizados para restauração.
+  Ola -&gt; /home/ana/projetos/Ola/bin/Release/net10.0/Ola.dll
+
+Compilação com êxito.
+    0 Aviso(s)
+    0 Erro(s)
+
+Tempo Decorrido 00:00:01.22
+$ ls bin
+Debug
+Release                  « uma pasta para cada configuração</pre>
+
+<p>E o <code>dotnet clean</code> ("limpar") apaga o que o build gerou na configuração Debug (a pasta <code>bin/Debug/net10.0</code> fica vazia; a <code>Release</code> continua lá). A saída dele é mais falante, no estilo do MSBuild, a ferramenta que o <code>dotnet</code> usa por baixo para compilar, mas termina do mesmo jeito: <code>Compilação com êxito.</code>. Durante o Nível 1, você vai usar sempre o Debug, sem precisar pensar nisso. Publicar um programa para outras pessoas é assunto da aula <a href="publicar.html">Publicar</a>.</p>
+
+<hr>
+
+<h2>5. Rodar de fora da pasta: <code>--project</code></h2>
+<p>O <code>dotnet run</code> procura o projeto na pasta <strong>atual</strong>. Para rodar um projeto que está em outra pasta, diga onde ele está com <code>--project</code>:</p>
+
+<pre class="term" data-cwd="~/projetos">$ dotnet run --project Ola
+Lista de compras da Ana
+- arroz
+- café</pre>
+
+<p>Esquecer de entrar na pasta é o erro número 1 com projetos (veja em <a href="#errado">Quando dá errado</a>).</p>
+
+<hr>
+
+<h2>6. Escolher o nome: <code>-o</code>, <code>-n</code> e a pasta atual</h2>
+<p>O <code>-o</code> escolhe a <strong>pasta</strong>. O <code>-n</code> (<em>name</em>) escolhe o <strong>nome do projeto</strong>, que vira o nome do <code>.csproj</code> e do programa. Sem o <code>-n</code>, o nome é o da pasta. A Ana quer uma pasta <code>Lojinha</code> com um programa chamado <code>Caixa</code>:</p>
+
+<pre class="term" data-cwd="~/projetos">$ dotnet new console -o Lojinha -n Caixa
+O modelo "Aplicativo do Console" foi criado com êxito.
+
+Processando ações pós-criação...
+Restaurando /home/ana/projetos/Lojinha/Caixa.csproj:
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Lojinha/Caixa.csproj restaurado (em 107 ms).
+A restauração foi bem-sucedida.
+$ ls Lojinha
+Caixa.csproj
+obj
+Program.cs</pre>
+
+<p>Sem <code>-o</code>, o projeto é criado na pasta em que você está, e ganha o nome dela. Útil quando a pasta já existe:</p>
+
+<pre class="term" data-cwd="~/projetos">$ mkdir Agenda &amp;&amp; cd Agenda
+$ dotnet new console
+O modelo "Aplicativo do Console" foi criado com êxito.
+
+Processando ações pós-criação...
+Restaurando /home/ana/projetos/Agenda/Agenda.csproj:
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Agenda/Agenda.csproj restaurado (em 106 ms).
+A restauração foi bem-sucedida.
+$ ls
+Agenda.csproj
+obj
+Program.cs</pre>
+
+<div class="tip">
+<strong>Nomes de projeto em PascalCase</strong>
+<p>O costume do C# é dar nomes de projeto com <strong>cada palavra começando em maiúscula</strong> e sem espaços nem acentos: <code>Ola</code>, <code>ListaDeCompras</code>, <code>JogoDaVelha</code>. Esse estilo se chama PascalCase (aula <a href="identificadores.html">Nomes e Convenções</a>). Espaços no nome da pasta atrapalham no terminal, e o nome do projeto também vira o nome do <em>namespace</em> do código.</p>
+</div>
+
+<h3>Todas as opções: <code>--help</code></h3>
+<p>O próprio <code>dotnet</code> explica as opções de cada modelo. Um pedaço:</p>
+
+<pre class="term" data-cwd="~/projetos">$ dotnet new console --help
+Aplicativo do Console (C#)
+Autor: Microsoft
+Descrição: Um projeto para criar um aplicativo de linha de comando que pode ser executado no .NET no Windows, Linux e macOS
+
+Uso:
+  dotnet new console [options] [opções de modelo]
+
+Opções:
+  -n, --name &lt;name&gt;       O nome da saída que está sendo criada. Se nenhum nome
+                          for especificado, o nome do diretório de saída será
+                          usado.
+  -o, --output &lt;output&gt;   Local para colocar a saída gerada.
+  --dry-run               Exibe um resumo do que aconteceria se a linha de
+                          comando especificada fosse executada se resultar em
+                          uma criação de modelo. [default: False]
+  --force                 Força o conteúdo a ser gerado mesmo que ele altere
+                          arquivos existentes. [default: False]
+…
+Opções do modelo:
+…
+  --use-program-main           Se deve gerar uma classe de Programa explícita e
+                               um método principal em vez de instruções de
+                               nível superior.</pre>
+
+<p>A última opção, <code>--use-program-main</code>, gera o <code>Program.cs</code> no estilo antigo, com <code>class Program</code> e <code>static void Main</code>. Ela aparece na próxima aula.</p>
+
+<hr>
+
+<h2>Arquivo solto ou projeto: qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Arquivo solto (<code>dotnet run ola.cs</code>) <span class="versao">.NET 10</span></th><th>Projeto (<code>dotnet new console</code>)</th></tr>
+<tr><td>Arquivos</td><td>Um <code>.cs</code>, nada mais</td><td>Uma pasta com <code>.csproj</code> e quantos <code>.cs</code> quiser</td></tr>
+<tr><td>Como rodar</td><td><code>dotnet run ola.cs</code></td><td><code>dotnet run</code> (dentro da pasta)</td></tr>
+<tr><td>Configuração</td><td>A padrão (a mesma do modelo <code>console</code>)</td><td>No <code>.csproj</code>, do jeito que você quiser</td></tr>
+<tr><td>Bom para</td><td>Aprender, testar uma ideia, scripts curtos</td><td>Programas com vários arquivos, pacotes NuGet, testes, trabalho em equipe</td></tr>
+<tr><td>Existe desde</td><td>.NET 10 (novembro de 2025)</td><td>Sempre: é o que você vai ver em todo livro e tutorial</td></tr>
+</table>
+</div>
+
+<p>No guia, as aulas dos Níveis 1 e 2 usam o arquivo solto, que é mais rápido. Quando um programa precisar de vários arquivos ou de pacotes, a aula cria um projeto. E um arquivo solto que cresceu pode virar projeto: o comando <code>dotnet project convert ola.cs</code> cria uma pasta <code>ola</code> com o <code>.cs</code> e um <code>ola.csproj</code> (com algumas configurações a mais, que você pode apagar).</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>Não foi possível localizar um projeto para executar.</code></strong>
+<p><strong>O que significa:</strong> você rodou <code>dotnet run</code> numa pasta sem <code>.csproj</code>. Aqui a Ana estava na pasta pessoal, e não na do projeto:</p>
+<pre class="term" data-cwd="~">$ dotnet run
+Não foi possível localizar um projeto para executar. Verifique se existe um projeto em /home/ana ou passe o caminho para o projeto usando --project.</pre>
+<p><strong>Como consertar:</strong> entre na pasta do projeto (<code>cd ~/projetos/Ola</code>) ou diga onde ele está: <code>dotnet run --project ~/projetos/Ola</code>. Se a ideia era rodar um arquivo solto, dê o nome dele: <code>dotnet run ola.cs</code>. Em inglês, para pesquisar: <code>Couldn't find a project to run.</code></p>
+</div>
+
+<div class="cenario">
+<strong><code>A criação deste modelo fará alterações nos arquivos existentes</code></strong>
+<p><strong>O que significa:</strong> a pasta já tem um projeto com aqueles nomes. O <code>dotnet new</code> se recusa a apagar o seu trabalho e termina com o código de saída 73:</p>
+<pre class="term" data-cwd="~/projetos">$ dotnet new console -o Ola
+A criação deste modelo fará alterações nos arquivos existentes:
+  Sobrescrever   Ola/Ola.csproj
+  Sobrescrever   Ola/Program.cs
+
+Para criar o modelo mesmo assim, execute o comando com a opção “--force”:
+   dotnet new console -o Ola --force
+
+
+Para obter detalhes sobre o código de saída, consulte https://aka.ms/templating-exit-codes#73
+$ echo $?
+73</pre>
+<p><strong>Como consertar:</strong> escolha outro nome de pasta. Só use <code>--force</code> se quiser mesmo <strong>trocar o seu <code>Program.cs</code> pelo "Hello, World!"</strong> do modelo: o que você escreveu nele se perde.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1002: ; esperado [/home/ana/projetos/Ola/Ola.csproj]</code></strong>
+<p><strong>O que significa:</strong> um erro no código. Num projeto, a mensagem termina com o caminho do <code>.csproj</code> entre colchetes, para dizer de qual projeto ela veio. Aqui faltou o <code>;</code> no fim da linha 1:</p>
+<pre class="term" data-cwd="~/projetos/Ola">$ dotnet run; echo "código de saída: $?"
+/home/ana/projetos/Ola/Program.cs(1,45): error CS1002: ; esperado [/home/ana/projetos/Ola/Ola.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.
+código de saída: 1</pre>
+<p>Com erro, o programa <strong>não roda</strong>: nem a primeira linha aparece. O <code>dotnet build</code> mostra o mesmo erro duas vezes, uma no meio da compilação e outra no resumo do fim, junto da contagem (<code>FALHA da compilação.</code>, <code>1 Erro(s)</code>).</p>
+<p><strong>Como consertar:</strong> leia o arquivo e a posição <code>(linha,coluna)</code> e corrija ali. Como ler cada parte da mensagem é o assunto de <a href="erros-compilacao.html">Lendo Erros do Compilador</a>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8802: Apenas uma unidade de compilação pode ter instruções de nível superior.</code></strong>
+<p><strong>O que significa:</strong> o projeto compila <strong>todos</strong> os <code>.cs</code> da pasta juntos. A Ana criou um segundo arquivo, <code>Outro.cs</code>, também com um <code>Console.WriteLine</code> solto, e agora o projeto tem dois "começos". (Em inglês: <code>Only one compilation unit can have top-level statements.</code>)</p>
+<p><strong>Como consertar:</strong> só um arquivo do projeto pode ter instruções soltas. Os outros arquivos guardam classes e métodos, que aparecem no Nível 2. Se o arquivo extra era só um teste, apague-o ou rode-o à parte, como arquivo solto, fora da pasta do projeto. A aula <a href="top-level.html">Program.cs e o Main</a> explica o que é esse "começo".</p>
+</div>
+
+<div class="cenario">
+<strong>"Mudei o código, mas aparece o resultado antigo"</strong>
+<p><strong>O que significa:</strong> ou o arquivo não foi salvo (o <code>dotnet</code> lê o disco, não a tela do editor), ou você rodou o programa direto da pasta <code>bin</code>, que só muda depois de um novo build.</p>
+<p><strong>Como consertar:</strong> salve (<kbd>Ctrl</kbd>+<kbd>S</kbd>) e use sempre <code>dotnet run</code>, que recompila quando precisa.</p>
+</div>
+
+<div class="trycs" data-goal="outre:^Lista de compras da Ana\n- arroz\n- café\n$,compila">
+<p class="try-task"><strong>Missão:</strong> a Ana mudou o <code>Program.cs</code> e o projeto parou de compilar. Rode, leia o <code>error CS1002</code> e a posição <code>(linha,coluna)</code>, e conserte para o programa mostrar as três linhas abaixo.</p>
+<pre class="out">Lista de compras da Ana
+- arroz
+- café</pre>
+<pre class="script">Console.WriteLine("Lista de compras da Ana")
+Console.WriteLine("- arroz");
+Console.WriteLine("- café");
+</pre>
+<pre class="solucao">Console.WriteLine("Lista de compras da Ana");
+Console.WriteLine("- arroz");
+Console.WriteLine("- café");
+</pre>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>O que faz</th></tr>
+<tr><td><code>dotnet new console -o Nome</code></td><td>Cria um projeto de console na pasta nova <code>Nome</code></td></tr>
+<tr><td><code>dotnet new console -o Pasta -n Nome</code></td><td>Pasta e nome do projeto diferentes</td></tr>
+<tr><td><code>dotnet new console</code></td><td>Cria o projeto na pasta atual, com o nome dela</td></tr>
+<tr><td><code>dotnet new console --use-program-main</code></td><td>Gera o <code>Program.cs</code> com <code>class Program</code> e <code>Main</code></td></tr>
+<tr><td><code>dotnet run</code></td><td>Compila (se mudou) e roda o projeto da pasta atual</td></tr>
+<tr><td><code>dotnet run --project Pasta</code></td><td>Roda o projeto de outra pasta</td></tr>
+<tr><td><code>dotnet build</code></td><td>Só compila; o resultado vai para <code>bin/Debug/net10.0</code></td></tr>
+<tr><td><code>dotnet build -c Release</code></td><td>Compila a versão otimizada, em <code>bin/Release/net10.0</code></td></tr>
+<tr><td><code>dotnet clean</code></td><td>Apaga o que o build gerou</td></tr>
+<tr><td><code>dotnet project convert ola.cs</code></td><td>Transforma um arquivo solto num projeto</td></tr>
+<tr><td><code>dotnet new console --help</code></td><td>Mostra todas as opções do modelo</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Criar</h3>
+<p>Complete o comando que cria um projeto de console numa pasta nova chamada <code>Notas</code>:</p>
+<div class="ex-code">dotnet new <input data-answer="console" aria-label="modelo"> -o Notas</div>
+</div>
+
+<div class="exercise">
+<h3>2. Rodar</h3>
+<p>Já dentro da pasta <code>Notas</code>, qual comando compila e roda o projeto?</p>
+<div class="ex-code"><input data-answer="dotnet run" aria-label="comando"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Onde fica o programa?</h3>
+<p>Depois de <code>dotnet build</code> no projeto <code>Notas</code>, complete o caminho do programa compilado:</p>
+<div class="ex-code">bin/<input data-answer="Debug" aria-label="configuração">/net10.0/Notas.dll</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Qual arquivo diz que o projeto usa o .NET 10?</p>
+<label><input type="radio" name="q4"> <code>Program.cs</code></label>
+<label><input type="radio" name="q4"> <code>Notas.pdb</code></label>
+<label><input type="radio" name="q4"> <code>Notas.csproj</code>, na linha <code>&lt;TargetFramework&gt;</code></label>
+<label><input type="radio" name="q4"> A pasta <code>obj</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. A Ana apagou as pastas <code>bin</code> e <code>obj</code> sem querer. O que acontece?</p>
+<label><input type="radio" name="q5"> O projeto se perdeu e precisa ser criado de novo.</label>
+<label><input type="radio" name="q5"> Nada grave: o próximo <code>dotnet build</code> ou <code>dotnet run</code> cria as duas de novo.</label>
+<label><input type="radio" name="q5"> O <code>Program.cs</code> volta a ser o "Hello, World!".</label>
+<label><input type="radio" name="q5"> O projeto passa a usar o .NET 8.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Com <code>dotnet new console -o Loja -n Caixa</code>, qual é o nome do arquivo de projeto?</p>
+<label><input type="radio" name="q6"> <code>Loja/Caixa.csproj</code></label>
+<label><input type="radio" name="q6"> <code>Caixa/Loja.csproj</code></label>
+<label><input type="radio" name="q6"> <code>Loja/Loja.csproj</code></label>
+<label><input type="radio" name="q6"> <code>Caixa.cs</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">7. Na pasta pessoal, a Ana digitou <code>dotnet run</code> e apareceu <code>Não foi possível localizar um projeto para executar.</code> Qual é a causa?</p>
+<label><input type="radio" name="q7"> O .NET não está instalado.</label>
+<label><input type="radio" name="q7"> O <code>Program.cs</code> tem um erro.</label>
+<label><input type="radio" name="q7"> Falta o <code>dotnet build</code> antes.</label>
+<label><input type="radio" name="q7"> Não há um <code>.csproj</code> na pasta atual: ela precisa entrar na pasta do projeto ou usar <code>--project</code>.</label>
+</div>
+
+<h3>Missão final: o projeto da agenda</h3>
+
+<div class="trycs" data-goal="outre:^Agenda da Ana\nSegunda: dentista\nQuarta: feira\n$">
+<p class="try-task"><strong>Missão:</strong> a Ana criou o projeto <code>Agenda</code> com <code>dotnet new console</code>, e o <code>Program.cs</code> ainda é o do modelo. Apague o comentário e o <code>Hello, World!</code> e escreva um programa que mostre exatamente estas três linhas:</p>
+<pre class="out">Agenda da Ana
+Segunda: dentista
+Quarta: feira</pre>
+<pre class="script">// See https://aka.ms/new-console-template for more information
+Console.WriteLine("Hello, World!");
+</pre>
+<pre class="solucao">Console.WriteLine("Agenda da Ana");
+Console.WriteLine("Segunda: dentista");
+Console.WriteLine("Quarta: feira");
+</pre>
+</div>
+
+<p>No computador, depois de escrever esse código no <code>Program.cs</code>, a Ana rodaria <code>dotnet run</code> dentro de <code>~/projetos/Agenda</code> e veria as mesmas três linhas.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um <strong>projeto</strong> é uma pasta com um arquivo <code>.csproj</code> (a configuração) e arquivos <code>.cs</code> (o código). Crie com <code>dotnet new console -o Nome</code>.</li>
+  <li>O <code>.csproj</code> do modelo diz: programa executável (<code>Exe</code>), .NET 10 (<code>net10.0</code>), <code>using</code> implícitos e anuláveis ligados.</li>
+  <li>O <code>Program.cs</code> do modelo é um <code>Console.WriteLine("Hello, World!");</code> com instruções de nível superior, sem <code>Main</code>.</li>
+  <li><code>dotnet run</code>, dentro da pasta, compila quando precisa e roda. Fora dela, use <code>--project</code>.</li>
+  <li><code>dotnet build</code> só compila. O programa vai para <code>bin/Debug/net10.0</code> (<code>Nome.dll</code>, o executável <code>Nome</code>, o <code>.pdb</code> e dois <code>.json</code>); <code>obj</code> guarda os intermediários. As duas pastas podem ser apagadas.</li>
+  <li><code>-o</code> escolhe a pasta, <code>-n</code> escolhe o nome. O <code>dotnet new</code> não sobrescreve um projeto existente sem <code>--force</code>.</li>
+  <li>Num projeto, as mensagens de erro terminam com <code>[caminho/Nome.csproj]</code>, e só um arquivo pode ter instruções de nível superior.</li>
+  <li>Próximo passo: <a href="top-level.html">Program.cs e o Main</a>, o mesmo programa na forma curta e na forma clássica.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
