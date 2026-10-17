@@ -102,14 +102,76 @@ No `.exercise`, `data-answer="a|b"` aceita respostas alternativas. Para uma barr
 ## 4. O editor do guia: C# real no navegador (`assets/csharpsim.js`)
 > **Esta seção é mantida pelo agente do simulador.** Tudo aqui foi conferido no motor final com `tools/sim.js` e `--nativo` (o `dotnet` do laboratório). Antes de escrever uma frase do tipo "no editor…" que não esteja aqui, confira com `tools/sim.js`.
 
-*(Em construção. O objetivo é que o editor dê a **mesma saída** que o `dotnet run` do laboratório: mensagens do compilador em português, cultura pt-BR (`3,5`, `R$ 1.234,50`), exceções como no Linux.)*
+**Testador pronto (17/10/2026, 16:00).** O motor atual é o do commit mais recente de `assets/cs/` (o testador mostra a versão no fim: `motor …`).
+
+### O que é o motor
+- **Compilador:** o Roslyn **do próprio SDK 10.0.112 do laboratório** (`5.0.0-2.26422.108`), com as opções do `dotnet run arquivo.cs`: C# 14, `Nullable` enable, os mesmos `global using` do ImplicitUsings (`System`, `System.Collections.Generic`, `System.IO`, `System.Linq`, `System.Net.Http`, `System.Threading`, `System.Threading.Tasks`), `/warn:10`, Debug (`DEBUG` e `TRACE` definidos), `/nowarn:1701,1702`, `/features:FileBasedProgram`. Mensagens **em pt-BR** (os satélites do mesmo SDK).
+- **Analisadores e geradores do SDK**, como no `dotnet run`: os avisos `CA…` do nível padrão e, num arquivo só (que liga o `PublishAot`), os `IL2026`/`IL3050`; os geradores `[GeneratedRegex]`, `JsonSerializerContext`, `[LibraryImport]`.
+- **Etapas como o `csc`:** se há erro de sintaxe, só os erros de sintaxe aparecem; depois os de declaração; só então os do corpo dos métodos. A ordem das linhas é a do `dotnet`. `CS5001` (sem `Main`) só aparece quando não há outro erro.
+- **`#:property`** (num arquivo só) vale: `CheckForOverflowUnderflow`, `Nullable`, `LangVersion`, `AllowUnsafeBlocks`, `TreatWarningsAsErrors`, `WarningsAsErrors`, `NoWarn`, `WarningLevel`, `ImplicitUsings`, `DefineConstants`, `Optimize`, `PublishAot=false` e `InvariantGlobalization=true` (aproximado: cultura invariante). **`#:package` não**: o editor não baixa pacotes (dá `CS0246`).
+- **Runtime:** .NET 10.0.13 (Mono) em WebAssembly, com a biblioteca inteira (sem trimming), ICU com pt-BR, fuso `America/Sao_Paulo`, cultura **pt-BR** (`3,5`, `R$ 1.234,50`, datas em português), usuário `/home/ana`. **Cada execução usa um runtime novo** (estado limpo).
+- Num arquivo só, as chaves de runtime do `PublishAot` também valem: `JsonSerializer` sem contexto lança `InvalidOperationException: Reflection-based serialization has been disabled…` (igual ao lab). Com 2 ou mais `.cs` (projeto) ou `#:property PublishAot=false`, funciona.
+
+### O que a caixa mostra
+- Um `.cs`: `ana@notebook:~/cs$ dotnet run Program.cs` (ou o `data-file`), e os caminhos `/home/ana/cs/ARQUIVO.cs(linha,coluna): error CSxxxx: …`.
+- Dois ou mais `.cs` (abas): `ana@notebook:~/projetos/Exemplo$ dotnet run`, e cada diagnóstico termina com ` [/home/ana/projetos/Exemplo/Exemplo.csproj]`, como no lab.
+- Build com erro: as linhas do compilador, uma linha em branco, `Ocorreu uma falha no build. Corrija os erros de build e execute novamente.` e `[código de saída: 1]` (o `$?` do lab também é 1).
+- Depois da saída: `[código de saída: N]` (0, o `return N`, `Environment.Exit(N)`, `Environment.ExitCode`, 134 para exceção não tratada, estouro de pilha, `Debug.Assert`).
+- Exceção não tratada: `Unhandled exception. System.…: mensagem` + `   at … in /home/ana/cs/ARQ.cs:line N` (em inglês, como no Linux) e 134. O relatório sai antes dos `finally`, como no lab. `async void` também dá o relatório e 134.
+- Estouro de pilha: `Stack overflow.`, `Repeated N times:`, o bloco repetido e o `Main`, código 134 (o N é outro: ~999 no editor).
+- `Console.ForegroundColor`/`BackgroundColor`/`ResetColor`: **as cores aparecem no terminal da caixa**. As metas `out:`/`outre:` e o testador olham o texto **sem** os códigos de cor (como o lab com `-i`, que não mostra cor). `Console.WindowWidth` = 80, `WindowHeight` = 24.
+
+### Entrada digitada (sem `data-stdin`)
+- Quando o programa chama `Console.ReadLine()` (ou `Read`, `ReadKey`) e a caixa não tem `data-stdin`, aparece **um campo no terminal da caixa**, logo depois da pergunta. O leitor digita e tecla **Enter**. **Ctrl+D** = fim da entrada (`ReadLine()` devolve `null`); **Ctrl+C** ou **Parar** interrompe.
+- **Como funciona ("repetição"):** o navegador não deixa o programa WebAssembly esperar o teclado. Quando ele pede uma linha que ainda não foi digitada, o editor o encerra, mostra o campo e, depois do Enter, **roda o programa de novo desde o começo** com as linhas já digitadas. A saída é a mesma, e o `Random` usa a **mesma semente** nas repetições (um jogo de adivinhação mantém o número secreto). Só muda o que depende do relógio (`DateTime.Now`, tempo medido) e o que o programa faz "por fora" antes de perguntar (por exemplo, um arquivo escrito é escrito de novo, numa pasta limpa).
+- `Console.ReadKey()`: digitando, devolve a primeira letra da linha (o resto da linha é descartado); com `data-stdin` (entrada redirecionada), dá `InvalidOperationException: Cannot read keys when either application does not have a console or when console input has been redirected. Try Console.Read.`, igual ao lab com `-i`.
+- No testador e no `sim.js`, sem `data-stdin`/`--stdin`, o programa recebe **fim da entrada** (`null`) e o testador avisa ("lê a entrada sem data-stdin").
+
+### HTML dentro do `.trycs`
+- Os `pre.script` viram as abas e os `pre.solucao` ficam escondidos (botão Ver solução). O editor é acrescentado **no fim** da caixa; todo o resto do HTML da caixa fica onde está, acima dele: `p.try-task`, `ul`, `ol`, `div.note`, `div.tip`, `table`, `code` etc. funcionam.
+- Não ponha outro `pre` (`pre.file`, `pre.term`) dentro do `.trycs`: ele apareceria no meio da caixa. Ponha antes ou depois dela.
+
+### Download e tempo (conferidos no Chromium da VPS)
+- **Primeiro clique em Rodar:** baixa **≈ 17 MB** (`assets/cs/motor.pak.gz` 12,8 MB + `refs.pak.gz` 4,4 MB, gzip), uma vez só: fica na Cache API do navegador (as outras caixas, páginas e visitas não baixam de novo). Barra de progresso na caixa; depois, "Preparando o compilador…" (2 a 5 s).
+- **Depois:** compilar leva 0,1 a 0,5 s (o primeiro de cada página, ~1 s); cada programa roda num runtime novo, que já fica pronto em segundo plano (0,2 a 0,5 s). No testador (Node), cada caixa leva ~0,3 s, e a primeira de cada execução, ~3 s.
+- O programa é **interpretado**: contas pesadas são ~5 a 10× mais lentas que no lab (50 milhões de somas: 1,4 s × 0,18 s). O editor para o programa depois de **15 s** (o testador, depois de 10 s) e com mais de 2 MB de saída.
+- Precisa de um navegador atual com Web Workers de módulo e `DecompressionStream` (Chrome/Edge 80+, Firefox 114+, Safari 16.4+). Não usa JSPI nem `SharedArrayBuffer` (conferido com e sem JSPI no Chromium).
+
+### Editor × `dotnet` do laboratório (conferido com `--nativo`, 48 programas)
+**Iguais:** mensagens e códigos `CSxxxx` (erros e avisos, pt-BR, mesma ordem), avisos `CA`/`IL`, cultura pt-BR (números, `C`/`N2`/`P1`, datas, nomes dos meses, `string.Compare`, ordenação com acento, `ToUpper`), fuso e `ToLocalTime`, `en-US`/`de-DE`/`InvariantCulture`, `double`/`float`/`decimal`/`BigInteger`/`Int128`/`Half`, LINQ, `record`, `ToString()` de coleções e tuplas, `Random(42)` com semente, `File`/`StreamReader`/`StreamWriter`/`Directory` (em `/home/ana/cs`), `args`, `ReadLine`/`Read`/`In.ReadToEnd`, `Environment.Exit`/`ExitCode`/`return N`, exceções (tipo, mensagem, `InnerException`, linhas do código do leitor, 134, `ex.ToString()` no `catch`), `finally`, `Debug.Assert` (`Process terminated.` / `Assertion failed.` + 134), `async`/`await`, `Task.Delay`, `Task.WhenAll`, cancelamento, `Task.Run` + `await`, `Parallel.For`/PLINQ (rodam em sequência, mesmo resultado), `Thread.Sleep`, `Regex` e `[GeneratedRegex]`, `JsonSerializer` (inclusive a exceção do `PublishAot`), `field` e `extension` do C# 14, `Console.Clear()`.
+
+| Situação | `dotnet` do lab | Editor |
+| --- | --- | --- |
+| `(long)(object)5` e outros "unboxing" errados | `Unable to cast object of type 'System.Int32' to type 'System.Int64'.` | `Specified cast is not valid.` (mesma exceção `InvalidCastException`) |
+| Linhas **internas do .NET** no rastro (`int.Parse`, `List.Sort`, `JsonSerializer`…) | poucas; genéricos como `GetTypeInfo[T]`, `Dictionary`2.get_Item(TKey key)` | às vezes outras ou mais; `GetTypeInfo[Pessoa]`, `get_Item(String key)`. As linhas do código do leitor são iguais |
+| `throw;` (relançar) | a linha do método que relança é a da chamada | a linha do `throw;` |
+| Estouro de pilha | `Repeated 261941 times:` | `Repeated 999 times:` (o resto igual) |
+| `async void` que lança | rastro com `ThreadPoolWorkQueue.Dispatch()` etc. | rastro mais curto (mensagem e 134 iguais) |
+| `Math.Cbrt(27)` | `3,0000000000000004` | `3` (as outras funções de `Math` testadas são iguais) |
+| `double` → inteiro fora da faixa, numa variável (`(int)x` com `x = 1e20`, `NaN`, `∞`; `(long)nan`) | `2147483647`, `0`, `2147483647`; `0` (conversão saturante do .NET 9+) | `-2147483648` nos três; `-9223372036854775808`. Com constantes, os dois dão o erro `CS0221` |
+| Moeda/formatos de culturas asiáticas (`ja-JP`…) | `￥1,235` | `￥ 1.235` (dados ICU diferentes; pt-BR, en-US, de-DE iguais) |
+| `Environment.UserName`, `MachineName`, `OSVersion.Platform` | `ana`, `notebook`, `Unix` | `Browser`, `localhost`, `Other` |
+| `Environment.ProcessorCount`, `Is64BitProcess`, `IntPtr.Size`/`nint.Size` | 8, `True`, 8 | 1, `False`, 4 |
+| `Environment.Version`, `RuntimeInformation.FrameworkDescription` | `10.0.12`, `.NET 10.0.12` | `10.0.13`, `.NET 10.0.13` |
+| `Assembly.GetEntryAssembly()`, `AppContext.BaseDirectory` | o programa, `~/.local/share/dotnet/runfile/…/bin/debug/` | `null`/`Motor`, `/` |
+| `new Thread(…).Start()` | roda | `PlatformNotSupportedException: Operation is not supported on this platform.` (o navegador tem uma thread só) |
+| `.Wait()`/`.Result` de uma tarefa que ainda **não terminou** (ex.: `Task.Delay(100).Wait()`) | espera | `PlatformNotSupportedException: Cannot wait on monitors on this runtime.` (use `await`) |
+| `Process.Start` | roda | `PlatformNotSupportedException: System.Diagnostics.Process is not supported on this platform.` |
+| `HttpClient` | funciona | no **navegador**, só sites com CORS liberado (os outros: `HttpRequestException`); no **testador** (Node) funciona. Não use internet em missões |
+| `#:package` | baixa e compila | `CS0246` (o editor não baixa pacotes) |
+| `Console.ForegroundColor` (get) | `-1` até escolher uma cor | igual (`-1`); as cores **aparecem** na caixa (no lab `-i`, não) |
+| `Console.ReadKey()` digitando | lê uma tecla (`lab -t`) | a 1ª letra da linha digitada + Enter |
+| O mesmo aviso de novo, sem mudar o arquivo | some (build incremental) | aparece sempre |
+| Falta de memória sem tratamento (`new int[int.MaxValue]`) | `Out of memory.` e 134 | igual |
+| Tempo medido (`Stopwatch`) | rápido | 5 a 10× mais lento |
+
+**Regras para as metas** (além das da seção 3): não use em `out:`/`outre:` linhas internas do .NET num rastro, nem o texto do `InvalidCastException` de unboxing, nem o `N` do estouro de pilha, nem nada da tabela acima. Prefira o tipo da exceção (`out:IndexOutOfRangeException`), `exit:134` e as linhas do código do leitor.
 
 ### Ferramentas (Node 24 na VPS)
-- `node tools/sim.js arquivo.cs`: compila e roda como o editor. Opções: `--stdin "Ana\n29"`, `--com outro.cs` (aba), `--args …`, `--nativo` (mostra também o `dotnet` do laboratório e as diferenças).
-- `node tools/testar-missoes.js páginas.html` (atalho no notebook: `~/guia-csharp-lab/testar`): o código inicial **não** cumpre a meta e a solução **cumpre**; confere `&lt;`/`&amp;` em todos os `<pre>`; `--nativo` compara com o `dotnet` do laboratório.
-
-**Testador pronto (17/10/2026, 16:00).** `~/guia-csharp-lab/testar pagina.html` (e `--nativo`) já funciona com o motor de verdade (Roslyn do laboratório + .NET 10 WebAssembly). A caixa no navegador vem logo depois; o resto desta seção será completado.
-
+- `node tools/sim.js arquivo.cs`: compila e roda como o editor. Opções: `--stdin "Ana\n29"`, `--com outro.cs` (aba; com 2+ `.cs` vira projeto), `--args "Ana 'Maria Clara' 29"` (ou os argumentos soltos, ou depois de `--`), `--nativo` (mostra também o `dotnet` do laboratório e as diferenças).
+- `node tools/testar-missoes.js páginas.html` (atalho no notebook: `~/guia-csharp-lab/testar`): o código inicial **não** cumpre a meta e a solução **cumpre**; confere `&lt;`/`&amp;` em todos os `<pre>`, metas e regex válidas, `pre.solucao` presente; guarda um cache (`--sem-cache` ignora). `-v` mostra as saídas. `--nativo` compara com o `dotnet` do laboratório (pasta própria por execução, apagada no fim; um processo por vez; `timeout`): diferença é só informação, mas **meta não cumprida no lab conta como falha**.
+- Página de teste com um exemplo de cada recurso: `tools/demo.html`.
+- Reconstruir o motor (só o agente do simulador): `bash tools/construir-cs.sh` (ver `assets/cs/LEIA.md`).
 
 ## 5. Fidelidade: o laboratório (`~/guia-csharp-lab/lab`, na VPS)
 É a máquina da Ana do Guia Bash: usuária `ana`, computador `notebook`, `/home/ana`, pt_BR, Ubuntu 26.04 com o **.NET 10 SDK do próprio Ubuntu** (`dotnet --version` = `10.0.112`, C# 14).
