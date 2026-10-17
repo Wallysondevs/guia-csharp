@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Parallel e PLINQ — Parallel.For, ForEach e AsParallel | Guia C#</title>
+<meta name="description" content="Paralelismo em C# para quem nunca programou: Parallel.For, Parallel.ForEach e Parallel.Invoke para usar todos os núcleos, MaxDegreeOfParallelism, PLINQ com AsParallel e AsOrdered, quanto fica mais rápido (1,1 s → 0,3 s em 8 núcleos), quando fica mais lento, a ordem que muda, e os erros da List compartilhada, da condição de corrida e da AggregateException, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Parallel e PLINQ</span></h1>
+
+<p class="intro">Na aula <a href="threads.html">Threads</a>, você criou threads uma a uma. Mas o caso mais comum é bem mais simples: você tem uma <strong>lista grande</strong> e quer fazer <strong>a mesma conta</strong> em cada item, usando todos os núcleos do processador. Para isso, o .NET tem o <code>Parallel</code> (laços paralelos) e o <strong>PLINQ</strong> (LINQ paralelo), que dividem o trabalho entre as threads sozinhos. Nesta aula você vai contar os números primos até 3 milhões em um terço do tempo, reduzir fotos ao mesmo tempo e ver por que uma <code>List</code> comum não aguenta várias threads.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Trocar um <code>for</code> por <code>Parallel.For</code> e um <code>foreach</code> por <code>Parallel.ForEach</code>.</li>
+  <li>Rodar ações diferentes ao mesmo tempo com <code>Parallel.Invoke</code>, e limitar quantas rodam juntas com <code>MaxDegreeOfParallelism</code>.</li>
+  <li>Deixar uma consulta LINQ paralela com <code>AsParallel</code>, e manter a ordem com <code>AsOrdered</code>.</li>
+  <li>Medir o ganho, e quando o paralelo fica <strong>mais lento</strong>.</li>
+  <li>Guardar resultados sem condição de corrida: posições de um array, <code>Interlocked</code>, <code>ConcurrentBag</code> e o <code>ToList</code> do PLINQ.</li>
+  <li>O que acontece com as exceções: a <code>AggregateException</code>.</li>
+</ul>
+</div>
+
+<p>Esta aula usa <a href="for.html">for</a>, <a href="foreach.html">foreach</a>, <a href="lambdas.html">lambdas</a>, <a href="linq.html">LINQ</a> e a condição de corrida da aula <a href="threads.html">Threads</a>. Os programas rodam com <code>dotnet run</code> no notebook da Ana, com <strong>8 núcleos</strong>. Os tempos e a ordem de algumas linhas mudam a cada execução.</p>
+
+<div class="warning">
+<strong>No editor do guia, uma thread só</strong>
+<p>O .NET do editor roda em WebAssembly, com uma thread só. O <code>Parallel</code> e o PLINQ funcionam lá e dão os mesmos resultados, mas as voltas rodam uma depois da outra, na ordem, e o tempo não cai. Para ver a velocidade e a ordem misturada, rode os exemplos no seu computador. As missões conferem os resultados, que são iguais nos dois lugares.</p>
+</div>
+
+<hr>
+
+<h2>A ideia: a correção das provas</h2>
+<p>A professora tem 300 provas para corrigir. Sozinha, leva a tarde inteira. Ela chama mais 7 professores, divide a pilha em montinhos e cada um corrige o seu. A tarde vira meia hora. Ninguém precisa conversar com ninguém: cada prova é independente, e no fim basta juntar as notas.</p>
+<p>O <code>Parallel.For</code> é essa divisão: ele reparte as voltas do laço entre as threads do pool (aula <a href="tasks.html">Task</a>), uma por núcleo, mais ou menos, e só termina quando todas acabarem. Funciona bem quando as voltas são <strong>independentes</strong>, como as provas. Se cada volta depende da anterior (um saldo que vai sendo atualizado, por exemplo), o laço não pode ser dividido assim.</p>
+
+<hr>
+
+<h2>1. Parallel.For: um for dividido entre os núcleos</h2>
+
+<pre class="file" data-file="ordem.cs">Parallel.For(0, 8, i =&gt;
+{
+    Console.WriteLine($"Volta {i} na thread {Environment.CurrentManagedThreadId}");
+});
+Console.WriteLine("Todas as voltas terminaram");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ordem.cs
+Volta 4 na thread 4
+Volta 6 na thread 10
+Volta 7 na thread 11
+Volta 5 na thread 7
+Volta 1 na thread 8
+Volta 0 na thread 1
+Volta 2 na thread 9
+Volta 3 na thread 6
+Todas as voltas terminaram
+$ dotnet run ordem.cs
+Volta 2 na thread 5
+Volta 4 na thread 8
+Volta 1 na thread 1
+Volta 3 na thread 7
+Volta 0 na thread 4
+Volta 5 na thread 9
+Volta 6 na thread 10
+Volta 7 na thread 11
+Todas as voltas terminaram</pre>
+
+<dl class="anatomy">
+  <dt>Parallel.For(0, 8, i =&gt; { … })</dt><dd>O mesmo que <code>for (int i = 0; i &lt; 8; i++) { … }</code>, mas com as voltas espalhadas entre threads. O primeiro número é o começo (incluído), o segundo é o fim (<strong>não</strong> incluído), e a lambda é o corpo do laço, que recebe o <code>i</code>. A classe <code>Parallel</code> fica em <code>System.Threading.Tasks</code>, já incluído.</dd>
+  <dt>a ordem das voltas</dt><dd>As 8 voltas rodaram em 8 threads, e a ordem da saída mudou de uma execução para a outra. Não há "volta 0 primeiro": todas acontecem ao mesmo tempo. A própria thread principal (a 1) também ajuda.</dd>
+  <dt>Todas as voltas terminaram</dt><dd>O <code>Parallel.For</code> só devolve o controle quando <strong>todas</strong> as voltas acabaram. Não precisa de <code>Join</code> nem de <code>await</code>.</dd>
+</dl>
+
+<h3>Guardar os resultados: cada volta na sua posição</h3>
+<p>Para guardar o que cada volta calculou, o jeito mais simples e seguro é um array do tamanho do laço: a volta <code>i</code> escreve só na posição <code>i</code>. Como nenhuma volta mexe na posição de outra, não há corrida, e o array termina na ordem certa, mesmo que as voltas tenham rodado misturadas.</p>
+
+<div class="trycs" data-goal="out:Soma dos quadrados: 338350,src:Parallel\.For\s*\(">
+<p class="try-task"><strong>Missão:</strong> o programa calcula os quadrados de 1 a 100 com um <code>for</code> comum. Troque o <code>for</code> por <code>Parallel.For(0, quadrados.Length, i =&gt; { … });</code>, com a mesma linha dentro. O resultado deve continuar <code>Soma dos quadrados: 338350</code>.</p>
+<pre class="script" data-file="quadrados.cs">int[] quadrados = new int[100];
+for (int i = 0; i &lt; quadrados.Length; i++)
+{
+    quadrados[i] = (i + 1) * (i + 1);
+}
+Console.WriteLine($"Primeiros: {quadrados[0]}, {quadrados[1]}, {quadrados[2]}");
+Console.WriteLine($"Soma dos quadrados: {quadrados.Sum()}");
+</pre>
+<pre class="solucao" data-file="quadrados.cs">int[] quadrados = new int[100];
+Parallel.For(0, quadrados.Length, i =&gt;
+{
+    quadrados[i] = (i + 1) * (i + 1);
+});
+Console.WriteLine($"Primeiros: {quadrados[0]}, {quadrados[1]}, {quadrados[2]}");
+Console.WriteLine($"Soma dos quadrados: {quadrados.Sum()}");
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Quanto fica mais rápido?</h2>
+<p>Contar os números primos até 3 milhões dá bastante trabalho: para cada número, o programa tenta dividi-lo por vários outros. É o caso ideal: muitas contas independentes. O mesmo trabalho de três jeitos:</p>
+
+<pre class="file" data-file="primos.cs">using System.Diagnostics;
+
+const int Limite = 3_000_000;
+Stopwatch relogio = Stopwatch.StartNew();
+int sequencial = 0;
+for (int n = 2; n &lt;= Limite; n++)
+{
+    if (EhPrimo(n)) sequencial++;
+}
+Console.WriteLine($"for:          {sequencial} primos em {relogio.Elapsed.TotalSeconds:F2} s");
+
+relogio.Restart();
+int paralelo = 0;
+Parallel.For(2, Limite + 1, n =&gt;
+{
+    if (EhPrimo(n)) Interlocked.Increment(ref paralelo);
+});
+Console.WriteLine($"Parallel.For: {paralelo} primos em {relogio.Elapsed.TotalSeconds:F2} s");
+
+relogio.Restart();
+int plinq = Enumerable.Range(2, Limite - 1).AsParallel().Count(EhPrimo);
+Console.WriteLine($"PLINQ:        {plinq} primos em {relogio.Elapsed.TotalSeconds:F2} s");
+
+bool EhPrimo(int n)
+{
+    if (n &lt; 2) return false;
+    for (int d = 2; d * d &lt;= n; d++)
+    {
+        if (n % d == 0) return false;
+    }
+    return true;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run primos.cs
+for:          216816 primos em 1,10 s
+Parallel.For: 216816 primos em 0,33 s
+PLINQ:        216816 primos em 0,32 s
+$ dotnet run primos.cs
+for:          216816 primos em 1,08 s
+Parallel.For: 216816 primos em 0,23 s
+PLINQ:        216816 primos em 0,35 s</pre>
+
+<dl class="anatomy">
+  <dt>EhPrimo(n)</dt><dd>"É primo?": tenta dividir <code>n</code> por 2, 3, 4… até a raiz quadrada de <code>n</code> (<code>d * d &lt;= n</code>). Se alguma divisão for exata, não é primo.</dd>
+  <dt>Interlocked.Increment(ref paralelo)</dt><dd>Várias voltas somam no mesmo contador ao mesmo tempo. Com <code>paralelo++</code>, haveria a condição de corrida da aula <a href="threads.html">Threads</a> e o total sairia errado. O <code>Interlocked</code> soma de forma atômica.</dd>
+  <dt>Enumerable.Range(2, Limite - 1).AsParallel().Count(EhPrimo)</dt><dd>A mesma conta em PLINQ (seção 4): os números de 2 a 3 milhões, contados em paralelo. O PLINQ cuida de juntar as contagens das threads, sem <code>Interlocked</code>.</dd>
+  <dt>1,1 s → 0,3 s</dt><dd>Três a quatro vezes mais rápido em 8 núcleos, e o mesmo resultado: 216816 primos. Não chega a 8 vezes porque dividir e juntar o trabalho custa um pouco, e os núcleos dividem outras coisas (memória, outros programas).</dd>
+</dl>
+
+<h3>Quando o paralelo fica mais lento</h3>
+<p>Dividir o trabalho tem um custo fixo: acordar threads, repartir a lista, juntar os resultados. Se cada conta é muito rápida e há poucas, o custo de dividir é maior que o ganho:</p>
+
+<pre class="file" data-file="pequeno.cs">using System.Diagnostics;
+
+int[] numeros = Enumerable.Range(1, 1000).ToArray();
+Stopwatch r = Stopwatch.StartNew();
+long a = numeros.Sum(n =&gt; (long)n * n);
+double t1 = r.Elapsed.TotalMilliseconds;
+r.Restart();
+long b = numeros.AsParallel().Sum(n =&gt; (long)n * n);
+double t2 = r.Elapsed.TotalMilliseconds;
+Console.WriteLine($"LINQ:  {a} em {t1:F3} ms");
+Console.WriteLine($"PLINQ: {b} em {t2:F3} ms");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pequeno.cs
+LINQ:  333833500 em 1,360 ms
+PLINQ: 333833500 em 17,901 ms</pre>
+
+<p>Somar mil quadrados é instantâneo, e o PLINQ foi <strong>13 vezes mais lento</strong>. A regra: paralelize quando houver <strong>muito</strong> trabalho (muitos itens, ou cada item demorado), e meça antes e depois com o <code>Stopwatch</code>.</p>
+
+<hr>
+
+<h2>3. Parallel.ForEach e Parallel.Invoke</h2>
+<p>O <code>Parallel.ForEach</code> é o <code>foreach</code> paralelo, para qualquer lista. A Ana precisa reduzir 16 fotos para mandar por mensagem; cada uma leva 0,25 s (aqui simulado com <code>Thread.Sleep</code>):</p>
+
+<pre class="file" data-file="fotos.cs">using System.Diagnostics;
+
+string[] fotos = Enumerable.Range(1, 16).Select(i =&gt; $"foto{i:00}.jpg").ToArray();
+Stopwatch relogio = Stopwatch.StartNew();
+foreach (string foto in fotos)
+{
+    Reduzir(foto);
+}
+Console.WriteLine($"foreach: {relogio.Elapsed.TotalSeconds:F1} s");
+
+relogio.Restart();
+Parallel.ForEach(fotos, foto =&gt; Reduzir(foto));
+Console.WriteLine($"Parallel.ForEach: {relogio.Elapsed.TotalSeconds:F1} s");
+
+relogio.Restart();
+ParallelOptions opcoes = new ParallelOptions { MaxDegreeOfParallelism = 2 };
+Parallel.ForEach(fotos, opcoes, foto =&gt; Reduzir(foto));
+Console.WriteLine($"Parallel.ForEach com 2 de cada vez: {relogio.Elapsed.TotalSeconds:F1} s");
+
+void Reduzir(string foto)
+{
+    Thread.Sleep(250);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fotos.cs
+foreach: 4,0 s
+Parallel.ForEach: 0,5 s
+Parallel.ForEach com 2 de cada vez: 2,0 s</pre>
+
+<dl class="anatomy">
+  <dt>Parallel.ForEach(fotos, foto =&gt; Reduzir(foto))</dt><dd>Cada foto da lista vai para uma volta, e as voltas se espalham entre as threads. 16 fotos em 8 núcleos: duas "rodadas" de 0,25 s.</dd>
+  <dt>new ParallelOptions { MaxDegreeOfParallelism = 2 }</dt><dd>"Grau máximo de paralelismo": no máximo 2 voltas ao mesmo tempo. Serve para não sobrecarregar algo que não aguenta muitos pedidos juntos (o disco, um servidor). 16 fotos, 2 de cada vez: 8 rodadas, 2 s.</dd>
+</dl>
+
+<p>Para fazer <strong>coisas diferentes</strong> ao mesmo tempo, e não a mesma coisa em vários itens, existe o <code>Parallel.Invoke</code> ("invocar"):</p>
+
+<pre class="file" data-file="invoke.cs">Parallel.Invoke(
+    () =&gt; Console.WriteLine("Lavar a louça"),
+    () =&gt; Console.WriteLine("Varrer a casa"),
+    () =&gt; Console.WriteLine("Regar as plantas"));
+Console.WriteLine("Faxina terminada");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run invoke.cs
+Lavar a louça
+Varrer a casa
+Regar as plantas
+Faxina terminada</pre>
+
+<p>Cada lambda é uma ação. Desta vez, a ordem saiu igual à do código, mas ela não é garantida. A única garantia é que <code>Faxina terminada</code> vem por último: o <code>Invoke</code> espera todas.</p>
+
+<hr>
+
+<h2>4. PLINQ: AsParallel</h2>
+<p>Se a conta já está escrita em LINQ, deixá-la paralela é uma palavra: <code>AsParallel()</code> ("como paralelo"). Tudo o que vem depois dele roda em várias threads:</p>
+
+<pre class="file" data-file="plinq.cs">int[] numeros = Enumerable.Range(1, 12).ToArray();
+Console.WriteLine(string.Join(" ", numeros.AsParallel().Select(n =&gt; n * n)));
+Console.WriteLine(string.Join(" ", numeros.AsParallel().AsOrdered().Select(n =&gt; n * n)));
+Console.WriteLine(numeros.AsParallel().Sum(n =&gt; n * n));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run plinq.cs
+1 4 9 25 49 81 100 121 144 16 36 64
+1 4 9 16 25 36 49 64 81 100 121 144
+650
+$ dotnet run plinq.cs
+1 9 25 49 81 100 121 144 4 16 36 64
+1 4 9 16 25 36 49 64 81 100 121 144
+650</pre>
+
+<dl class="anatomy">
+  <dt>numeros.AsParallel().Select(n =&gt; n * n)</dt><dd>Os quadrados, calculados em paralelo. A ordem do resultado <strong>embaralhou</strong>, e mudou entre as execuções: cada thread entregou o seu pedaço quando terminou.</dd>
+  <dt>.AsOrdered()</dt><dd>"Ordenado": as contas continuam em paralelo, mas o PLINQ devolve os resultados na ordem original. Custa um pouco de velocidade, por isso não é o padrão.</dd>
+  <dt>.Sum(…), .Count(…), .Max(…)</dt><dd>As agregações (aula <a href="linq-agregar.html">Agregar</a>) juntam os resultados das threads com segurança. Como somar não depende da ordem, o total é sempre o mesmo: 650.</dd>
+</dl>
+
+<p>O PLINQ também tem <code>.WithDegreeOfParallelism(2)</code>, o equivalente do <code>MaxDegreeOfParallelism</code>, e <code>.ToList()</code> e <code>.ToArray()</code>, que juntam os resultados numa coleção com segurança (seção "Quando dá errado").</p>
+
+<hr>
+
+<h2>Qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você tem…</th><th>Use</th></tr>
+<tr><td>Um <code>for</code> com voltas independentes e pesadas</td><td><code>Parallel.For</code>, guardando cada resultado na sua posição de um array</td></tr>
+<tr><td>Um <code>foreach</code> pesado sobre uma lista</td><td><code>Parallel.ForEach</code></td></tr>
+<tr><td>Uma consulta LINQ pesada (<code>Where</code>, <code>Select</code>, <code>Count</code>, <code>Sum</code>)</td><td><code>.AsParallel()</code>; com <code>.AsOrdered()</code> se a ordem importa</td></tr>
+<tr><td>Algumas ações diferentes, ao mesmo tempo</td><td><code>Parallel.Invoke</code></td></tr>
+<tr><td>Esperas (internet, disco, banco de dados)</td><td>Não é paralelismo: <code>async</code>/<code>await</code> e <code>Task.WhenAll</code> (aulas <a href="async-await.html">async e await</a> e <a href="tasks.html">Task</a>)</td></tr>
+<tr><td>Pouco trabalho, ou voltas que dependem umas das outras</td><td>O <code>for</code> comum</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>A <code>List</code> perdeu itens (ou o programa quebrou)</strong>
+<pre class="file" data-file="lista.cs">List&lt;int&gt; lista = [];
+Parallel.For(0, 100_000, i =&gt;
+{
+    lista.Add(i);
+});
+Console.WriteLine($"Itens na lista: {lista.Count}");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run lista.cs; echo "código: $?"
+Itens na lista: 85308
+código: 0
+$ dotnet run lista.cs; echo "código: $?"
+Unhandled exception. System.AggregateException: One or more errors occurred. (Source array was not long enough. Check the source index, length, and the array's lower bounds. (Parameter 'sourceArray')) (Source array was not long enough. Check the source index, length, and the array's lower bounds. (Parameter 'sourceArray')) (Source array was not long enough. Check the source index, length, and the array's lower bounds. (Parameter 'sourceArray'))
+ ---&gt; System.ArgumentException: Source array was not long enough. Check the source index, length, and the array's lower bounds. (Parameter 'sourceArray')
+   at System.Array.CopyImpl(Array sourceArray, Int32 sourceIndex, Array destinationArray, Int32 destinationIndex, Int32 length, Boolean reliable)
+   at System.Collections.Generic.List`1.set_Capacity(Int32 value)
+   at System.Collections.Generic.List`1.AddWithResize(T item)
+   at Program.&lt;&gt;c__DisplayClass0_0.&lt;&lt;Main&gt;$&gt;b__0(Int32 i) in /home/ana/cs/lista.cs:line 4
+   …                                                « mais 34 linhas, com as outras duas exceções
+código: 134
+$ dotnet run lista.cs; echo "código: $?"
+Itens na lista: 16403
+código: 0</pre>
+<p><strong>O que aconteceu:</strong> três execuções, três resultados: faltaram 15 mil itens, o programa quebrou, faltaram 84 mil. A <code>List&lt;T&gt;</code> (aula <a href="list.html">List</a>) não foi feita para várias threads ao mesmo tempo. Quando ela enche, o <code>Add</code> cria um array maior e copia tudo para lá; se duas threads fazem isso juntas, uma atrapalha a outra. A <code>AggregateException</code> ("ocorreram um ou mais erros") junta as exceções de várias voltas.</p>
+<p><strong>Como resolver:</strong> três caminhos, do melhor para o pior:</p>
+<ol class="passo">
+  <li>Deixe o PLINQ montar a lista: <code>List&lt;int&gt; lista = numeros.AsParallel().Where(…).ToList();</code>.</li>
+  <li>Use um array do tamanho certo e grave cada volta na sua posição (<code>resultado[i] = …</code>), como na missão da seção 1.</li>
+  <li>Use uma coleção feita para threads, do namespace <code>System.Collections.Concurrent</code>: <code>ConcurrentBag&lt;int&gt;</code> ("saco concorrente", sem ordem), <code>ConcurrentQueue&lt;T&gt;</code> ou <code>ConcurrentDictionary&lt;TKey, TValue&gt;</code>.</li>
+</ol>
+<pre class="file" data-file="lista2.cs">using System.Collections.Concurrent;
+
+ConcurrentBag&lt;int&gt; saco = [];
+Parallel.For(0, 100_000, i =&gt; saco.Add(i));
+Console.WriteLine($"ConcurrentBag: {saco.Count}");
+
+List&lt;int&gt; lista = Enumerable.Range(0, 100_000).AsParallel().Where(i =&gt; i % 2 == 0).ToList();
+Console.WriteLine($"PLINQ ToList: {lista.Count}");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run lista2.cs
+ConcurrentBag: 100000
+PLINQ ToList: 50000</pre>
+</div>
+
+<div class="cenario">
+<strong>A soma deu um número diferente a cada vez</strong>
+<p><strong>O que aconteceu:</strong> é a condição de corrida da aula <a href="threads.html">Threads</a>: um <code>total += x;</code> (ou <code>contador++</code>) dentro do <code>Parallel.For</code>, com todas as voltas mexendo na mesma variável. No <code>primos.cs</code>, trocar o <code>Interlocked.Increment(ref paralelo)</code> por <code>paralelo++</code> faz o total sair menor que 216816. No editor do guia, que tem uma thread só, o total sai certo, e o erro fica escondido até o programa rodar num computador de verdade.</p>
+<pre class="term" data-cwd="~/cs">$ sed -i "s/Interlocked.Increment(ref paralelo)/paralelo++/" primos.cs
+$ grep -n "paralelo++" primos.cs
+16:    if (EhPrimo(n)) paralelo++;
+$ dotnet run primos.cs
+for:          216816 primos em 1,07 s
+Parallel.For: 215244 primos em 0,22 s
+PLINQ:        216816 primos em 0,26 s
+$ dotnet run primos.cs
+for:          216816 primos em 1,11 s
+Parallel.For: 200636 primos em 0,19 s
+PLINQ:        216816 primos em 0,33 s</pre>
+<p><strong>Como resolver:</strong> <code>Interlocked.Increment</code> ou <code>Interlocked.Add</code> para contadores; ou, melhor, uma agregação do PLINQ (<code>.Count(…)</code>, <code>.Sum(…)</code>), que junta os resultados das threads sem você se preocupar.</p>
+</div>
+
+<div class="cenario">
+<strong><code>AggregateException</code>: uma volta lançou uma exceção</strong>
+<pre class="file" data-file="exc.cs">try
+{
+    Parallel.For(0, 10, i =&gt;
+    {
+        if (i == 7) throw new InvalidOperationException($"Falhou na volta {i}");
+    });
+}
+catch (AggregateException e)
+{
+    Console.WriteLine($"{e.InnerExceptions.Count} erro(s):");
+    foreach (Exception erro in e.InnerExceptions)
+    {
+        Console.WriteLine($" - {erro.Message}");
+    }
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run exc.cs
+1 erro(s):
+ - Falhou na volta 7</pre>
+<p><strong>O que aconteceu:</strong> quando uma volta lança uma exceção, o <code>Parallel</code> para de começar voltas novas, espera as que estão rodando e lança uma <code>AggregateException</code> com todas as exceções que aconteceram (várias voltas podem falhar ao mesmo tempo). Um <code>catch (InvalidOperationException)</code> não pegaria nada: o tipo que chega é <code>AggregateException</code>.</p>
+<p><strong>Como resolver:</strong> pegue <code>AggregateException</code> e olhe as <code>InnerExceptions</code>, ou trate o erro <strong>dentro</strong> da lambda, com um <code>try</code> em volta do trabalho de cada item.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>Parallel.For(inicio, fim, i =&gt; { … })</code></td><td><code>for</code> paralelo (o <code>fim</code> não entra)</td></tr>
+<tr><td><code>Parallel.ForEach(lista, item =&gt; { … })</code></td><td><code>foreach</code> paralelo</td></tr>
+<tr><td><code>Parallel.Invoke(() =&gt; …, () =&gt; …)</code></td><td>Ações diferentes ao mesmo tempo</td></tr>
+<tr><td><code>new ParallelOptions { MaxDegreeOfParallelism = n }</code></td><td>No máximo <code>n</code> voltas juntas</td></tr>
+<tr><td><code>lista.AsParallel()</code></td><td>O LINQ que vem depois roda em paralelo</td></tr>
+<tr><td><code>.AsOrdered()</code></td><td>Resultados na ordem original</td></tr>
+<tr><td><code>.WithDegreeOfParallelism(n)</code></td><td>No máximo <code>n</code> threads no PLINQ</td></tr>
+<tr><td><code>.Count(…)</code>, <code>.Sum(…)</code>, <code>.ToList()</code>, <code>.ToArray()</code></td><td>Juntam os resultados com segurança</td></tr>
+<tr><td><code>Interlocked.Increment(ref x)</code>, <code>Interlocked.Add(ref x, n)</code></td><td>Contadores compartilhados sem corrida</td></tr>
+<tr><td><code>ConcurrentBag&lt;T&gt;</code>, <code>ConcurrentQueue&lt;T&gt;</code>, <code>ConcurrentDictionary&lt;K, V&gt;</code></td><td>Coleções para várias threads (<code>System.Collections.Concurrent</code>)</td></tr>
+<tr><td><code>catch (AggregateException e)</code>, <code>e.InnerExceptions</code></td><td>As exceções das voltas</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O for paralelo</h3>
+<p>Complete para as voltas de 0 a 99 rodarem em paralelo:</p>
+<div class="ex-code">Parallel.<input data-answer="For" aria-label="método">(0, 100, i =&gt; Processar(i));</div>
+</div>
+
+<div class="exercise">
+<h3>2. LINQ paralelo</h3>
+<p>Complete para a contagem rodar em várias threads:</p>
+<div class="ex-code">int total = numeros.<input data-answer="AsParallel()" aria-label="chamada">.Count(EhPrimo);</div>
+</div>
+
+<div class="exercise">
+<h3>3. Manter a ordem</h3>
+<p>Complete para os quadrados saírem na ordem original:</p>
+<div class="ex-code">numeros.AsParallel().<input data-answer="AsOrdered()" aria-label="chamada">.Select(n =&gt; n * n)</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Em qual destes casos o <code>Parallel.For</code> mais ajuda?</p>
+<label><input type="radio" name="q4"> Somar 10 números.</label>
+<label><input type="radio" name="q4"> Baixar 5 páginas da internet.</label>
+<label><input type="radio" name="q4"> Aplicar um filtro demorado em 2000 fotos, cada uma independente das outras.</label>
+<label><input type="radio" name="q4"> Calcular o saldo dia a dia, em que cada dia depende do anterior.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Num <code>Parallel.For</code>, várias voltas fazem <code>lista.Add(x)</code> numa <code>List&lt;int&gt;</code> comum. O que pode acontecer?</p>
+<label><input type="radio" name="q5"> Nada de errado: a <code>List</code> se protege sozinha.</label>
+<label><input type="radio" name="q5"> Itens perdidos, ou uma exceção, mudando a cada execução.</label>
+<label><input type="radio" name="q5"> Erro de compilação.</label>
+<label><input type="radio" name="q5"> A lista sai ordenada.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Uma volta de um <code>Parallel.ForEach</code> lança <code>InvalidOperationException</code>. Que exceção chega a quem chamou?</p>
+<label><input type="radio" name="q6"> <code>AggregateException</code>, com a original em <code>InnerExceptions</code>.</label>
+<label><input type="radio" name="q6"> <code>InvalidOperationException</code>.</label>
+<label><input type="radio" name="q6"> Nenhuma: a volta é ignorada.</label>
+<label><input type="radio" name="q6"> <code>ThreadStateException</code>.</label>
+</div>
+
+<h3>Missão final: os primos em paralelo</h3>
+<div class="trycs" data-goal="out:9592 primos até 100000,out:Os 10 primeiros: 2 3 5 7 11 13 17 19 23 29,src:AsParallel,src:AsOrdered">
+<p class="try-task"><strong>Missão:</strong> o programa conta os primos até 100 mil com LINQ comum. Deixe-o paralelo e complete-o:</p>
+<ol class="passo">
+  <li>ponha <code>.AsParallel()</code> antes do <code>.Count(EhPrimo)</code>;</li>
+  <li>mostre os 10 primeiros primos, <strong>em ordem</strong>, com <code>numeros.AsParallel().AsOrdered().Where(EhPrimo).Take(10)</code> e o <code>string.Join(" ", …)</code>.</li>
+</ol>
+<p class="try-task">A saída deve ser:</p>
+<pre class="out">9592 primos até 100000
+Os 10 primeiros: 2 3 5 7 11 13 17 19 23 29</pre>
+<pre class="script" data-file="primos.cs">IEnumerable&lt;int&gt; numeros = Enumerable.Range(2, 99_999);
+
+int total = numeros.Count(EhPrimo);
+Console.WriteLine($"{total} primos até 100000");
+// os 10 primeiros, em ordem
+
+bool EhPrimo(int n)
+{
+    for (int d = 2; d * d &lt;= n; d++)
+    {
+        if (n % d == 0) return false;
+    }
+    return n &gt;= 2;
+}
+</pre>
+<pre class="solucao" data-file="primos.cs">IEnumerable&lt;int&gt; numeros = Enumerable.Range(2, 99_999);
+
+int total = numeros.AsParallel().Count(EhPrimo);
+Console.WriteLine($"{total} primos até 100000");
+IEnumerable&lt;int&gt; primeiros = numeros.AsParallel().AsOrdered().Where(EhPrimo).Take(10);
+Console.WriteLine($"Os 10 primeiros: {string.Join(" ", primeiros)}");
+
+bool EhPrimo(int n)
+{
+    for (int d = 2; d * d &lt;= n; d++)
+    {
+        if (n % d == 0) return false;
+    }
+    return n &gt;= 2;
+}
+</pre>
+</div>
+
+<p>O <code>Enumerable.Range(2, 99_999)</code> são os 99.999 números de 2 a 100.000. Sem o <code>AsOrdered</code>, num computador com vários núcleos, os "10 primeiros" poderiam vir fora de ordem, ou nem ser os 10 menores, porque cada thread acha os seus primos no seu pedaço da lista. Se quiser ir além: ponha um <code>Stopwatch</code> e aumente o limite para 3 milhões, como na seção 2, e compare o tempo com e sem <code>AsParallel</code> no seu computador.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>Parallel.For</code> e <code>Parallel.ForEach</code> dividem as voltas de um laço entre os núcleos e só terminam quando todas acabam. As voltas precisam ser independentes, e a ordem entre elas não é garantida.</li>
+  <li><code>Parallel.Invoke</code> roda ações diferentes ao mesmo tempo; <code>MaxDegreeOfParallelism</code> limita quantas rodam juntas.</li>
+  <li><code>AsParallel()</code> deixa uma consulta LINQ paralela; <code>AsOrdered()</code> mantém a ordem. <code>Count</code>, <code>Sum</code> e <code>ToList</code> juntam os resultados com segurança.</li>
+  <li>Com muito trabalho, o ganho é grande (1,1 s → 0,3 s em 8 núcleos); com pouco, o paralelo fica mais lento. Meça.</li>
+  <li>Nada de <code>List.Add</code> ou <code>total++</code> compartilhados: use posições de um array, <code>Interlocked</code>, coleções <code>Concurrent…</code> ou as agregações do PLINQ.</li>
+  <li>Exceções das voltas chegam juntas numa <code>AggregateException</code>. Para esperas (rede, disco), o caminho é <code>async</code>/<code>await</code>, e não o <code>Parallel</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
