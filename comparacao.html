@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# IComparable e IComparer — ensinar o C# a ordenar objetos seus | Guia C#</title>
+<meta name="description" content="IComparable e IComparer em C# para quem nunca programou: o CompareTo (negativo, zero, positivo), a InvalidOperationException real de ordenar objetos sem IComparable, implementar IComparable<T>, comparadores IComparer<T>, Sort com lambda, Comparer.Create, ordem decrescente e desempate, Ordinal × cultura pt-BR, o SortedSet que some com empates e os erros CS0535 e CS8767, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">IComparable e IComparer</span></h1>
+
+<p class="intro">Ordenar números e nomes é fácil: <code>lista.Sort()</code> e pronto. Mas a professora Ana tem uma lista de <strong>alunos</strong>, cada um com nome e nota, e quer o ranking da turma. Maior nota primeiro? Ordem alfabética? O C# não tem como adivinhar. Nesta aula você vai ensinar o C# a <strong>comparar</strong> dois objetos seus, de dois jeitos: com <code>IComparable&lt;T&gt;</code> (a ordem "natural" da classe) e com <code>IComparer&lt;T&gt;</code> (quantas ordens diferentes você quiser).</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que o <code>CompareTo</code> responde: negativo, zero ou positivo.</li>
+  <li>O erro real de ordenar objetos que não sabem se comparar.</li>
+  <li>Implementar <code>IComparable&lt;T&gt;</code>: a ordem natural de uma classe.</li>
+  <li>Criar comparadores com <code>IComparer&lt;T&gt;</code>, com lambda e com <code>Comparer&lt;T&gt;.Create</code>.</li>
+  <li>Ordem decrescente e desempate (por nota e, empatou, por nome).</li>
+  <li>Textos: a ordem da cultura pt-BR × <code>StringComparer.Ordinal</code>.</li>
+  <li>A armadilha do <code>SortedSet</code>: "empate" vira "repetido".</li>
+</ul>
+</div>
+
+<p>Antes, é bom conhecer <a href="interfaces.html">Interfaces</a>, <a href="list.html">List</a> e <a href="lambdas.html">Lambdas</a>. Todos os programas desta aula rodaram com o <strong>.NET 10</strong> na máquina da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: só uma pergunta</h2>
+<p>Para pôr uma fila de pessoas em ordem de altura, você não precisa saber a altura exata de ninguém. Basta, repetidas vezes, colocar duas pessoas lado a lado e perguntar: <strong>"quem vem antes?"</strong>. Os métodos de ordenação fazem isso: comparam pares de itens, muitas vezes, até tudo estar no lugar.</p>
+
+<p>No C#, a resposta a "quem vem antes?" é um <strong>número inteiro</strong>:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th><code>a.CompareTo(b)</code> devolve…</th><th>Quer dizer</th></tr>
+<tr><td>um número <strong>negativo</strong> (como -1)</td><td><code>a</code> vem <strong>antes</strong> de <code>b</code></td></tr>
+<tr><td><strong>zero</strong></td><td>empate: tanto faz a ordem</td></tr>
+<tr><td>um número <strong>positivo</strong> (como 1)</td><td><code>a</code> vem <strong>depois</strong> de <code>b</code></td></tr>
+</table>
+</div>
+
+<p>Um truque para lembrar: pense em <code>a - b</code>. Se <code>a</code> é menor, a conta dá negativo; se são iguais, zero; se <code>a</code> é maior, positivo. Só o <strong>sinal</strong> importa, não o valor: -1 e -57 querem dizer a mesma coisa.</p>
+
+<hr>
+
+<h2>1. Os tipos que já sabem se comparar</h2>
+
+<pre class="file" data-file="prontos.cs">List&lt;int&gt; notas = [7, 10, 5, 8];
+notas.Sort();
+Console.WriteLine(string.Join(", ", notas));
+
+List&lt;string&gt; nomes = ["Carla", "ana", "Bruno", "Ágata", "Zé"];
+nomes.Sort();
+Console.WriteLine(string.Join(", ", nomes));
+
+Console.WriteLine(5.CompareTo(8));
+Console.WriteLine(8.CompareTo(8));
+Console.WriteLine(8.CompareTo(5));
+Console.WriteLine("Ana".CompareTo("Bruno"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run prontos.cs
+5, 7, 8, 10
+Ágata, ana, Bruno, Carla, Zé       « ordem de dicionário do português
+-1                                 « 5 vem antes de 8
+0                                  « empate
+1                                  « 8 vem depois de 5
+-1                                 « "Ana" vem antes de "Bruno"</pre>
+
+<p><code>int</code>, <code>double</code>, <code>decimal</code>, <code>string</code>, <code>DateTime</code> e muitos outros já implementam a interface <code>IComparable&lt;T&gt;</code>, que tem um único método, o <code>CompareTo</code> ("comparar com"). É ele que o <code>Sort</code> chama por baixo. Repare que os textos saíram na ordem de um dicionário de papel: o "Ágata" com acento ficou junto do "ana", e o "ana" minúsculo não foi para o fim. Isso é a <a href="cultura.html">cultura</a> pt-BR trabalhando (mais na <a href="#textos">seção 4</a>).</p>
+
+<hr>
+
+<h2 id="falha">2. Objetos seus: o erro e o <code>IComparable&lt;T&gt;</code></h2>
+<p>Com uma classe sua, o <code>Sort</code> não sabe o que fazer:</p>
+
+<pre class="file" data-file="falha.cs">List&lt;Aluno&gt; turma =
+[
+    new Aluno("Carla", 8.5),
+    new Aluno("Ana", 9.0),
+    new Aluno("Bruno", 7.0),
+];
+turma.Sort();
+
+record Aluno(string Nome, double Nota);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run falha.cs
+Unhandled exception. System.InvalidOperationException: Failed to compare two elements in the array.
+ ---&gt; System.ArgumentException: At least one object must implement IComparable.
+   at System.Collections.Comparer.Compare(Object a, Object b)
+   at System.Collections.Generic.ArraySortHelper`1.SwapIfGreater(Span`1 keys, Comparison`1 comparer, Int32 i, Int32 j)
+   at System.Collections.Generic.ArraySortHelper`1.IntroSort(Span`1 keys, Int32 depthLimit, Comparison`1 comparer)
+   at System.Collections.Generic.ArraySortHelper`1.Sort(Span`1 keys, IComparer`1 comparer)
+   --- End of inner exception stack trace ---
+   at System.Collections.Generic.ArraySortHelper`1.Sort(Span`1 keys, IComparer`1 comparer)
+   at System.Collections.Generic.List`1.Sort(Int32 index, Int32 count, IComparer`1 comparer)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/falha.cs:line 7
+$ echo $?
+134</pre>
+
+<dl class="anatomy">
+  <dt>InvalidOperationException: Failed to compare two elements in the array.</dt><dd>"Falha ao comparar dois elementos do array." O <code>Sort</code> tentou perguntar "quem vem antes?" e não conseguiu.</dd>
+  <dt>---&gt; System.ArgumentException: At least one object must implement IComparable.</dt><dd>A <strong>causa</strong> (a "exceção interna", marcada com <code>---&gt;</code>): "pelo menos um dos objetos tem de implementar <code>IComparable</code>". Nenhum aluno sabe se comparar.</dd>
+  <dt>falha.cs:line 7</dt><dd>A linha do <code>turma.Sort();</code>. O programa compilou sem reclamar: o problema só aparece quando ele roda.</dd>
+  <dt>record Aluno(…)</dt><dd>Um <a href="records.html">record</a> sabe dizer se dois alunos são <strong>iguais</strong> (<code>Equals</code>), mas não qual vem <strong>antes</strong>. Com uma <code>class</code> o erro seria o mesmo.</dd>
+</dl>
+
+<p>A primeira solução é dar à classe uma ordem <strong>natural</strong>, implementando <code>IComparable&lt;Aluno&gt;</code>. Para a professora, a ordem natural de alunos é pela nota:</p>
+
+<pre class="file" data-file="icomparable.cs">List&lt;Aluno&gt; turma =
+[
+    new Aluno("Carla", 8.5),
+    new Aluno("Ana", 9.0),
+    new Aluno("Bruno", 7.0),
+];
+
+turma.Sort();
+foreach (Aluno a in turma)
+    Console.WriteLine(a);
+
+Console.WriteLine($"Maior nota: {turma.Max()}");
+Console.WriteLine(turma[0].CompareTo(turma[1]));
+
+class Aluno : IComparable&lt;Aluno&gt;
+{
+    public string Nome { get; }
+    public double Nota { get; }
+
+    public Aluno(string nome, double nota)
+    {
+        Nome = nome;
+        Nota = nota;
+    }
+
+    public int CompareTo(Aluno? outro)
+    {
+        if (outro is null) return 1;
+        return Nota.CompareTo(outro.Nota);
+    }
+
+    public override string ToString() =&gt; $"{Nome} ({Nota})";
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run icomparable.cs
+Bruno (7)
+Carla (8,5)
+Ana (9)
+Maior nota: Ana (9)              « o Max do LINQ também usa o CompareTo
+-1                               « Bruno (7) vem antes de Carla (8,5)</pre>
+
+<dl class="anatomy">
+  <dt>class Aluno : IComparable&lt;Aluno&gt;</dt><dd>"Um aluno sabe se comparar com outro aluno." A interface exige um método: <code>int CompareTo(Aluno? outro)</code>.</dd>
+  <dt>Aluno? outro</dt><dd>O <code>?</code> diz que <code>outro</code> pode ser <code>null</code>: é assim que a interface está escrita no .NET com as <a href="referencias-anulaveis.html">referências anuláveis</a> ligadas.</dd>
+  <dt>if (outro is null) return 1;</dt><dd>A convenção do .NET: qualquer objeto vem <strong>depois</strong> de <code>null</code> (o <code>null</code> fica no começo).</dd>
+  <dt>return Nota.CompareTo(outro.Nota);</dt><dd>O coração do método. Em vez de fazer contas, <strong>repasse</strong> a pergunta para um tipo que já sabe responder: o <code>double</code> compara as notas e devolve o sinal certo.</dd>
+  <dt>public override string ToString()</dt><dd>Só para o <code>Console.WriteLine(a)</code> mostrar algo legível (veja <a href="object.html">A Classe object</a>).</dd>
+</dl>
+
+<p>Com o <code>IComparable</code>, o aluno passou a funcionar em <strong>tudo</strong> que ordena ou procura o maior: <code>Sort</code>, <code>Max</code>, <code>Min</code>, <code>Order()</code>, <code>SortedSet</code>, <code>SortedDictionary</code>…</p>
+
+<div class="trycs" data-goal="outre:^Pão: R\$ 0\,75\nLeite: R\$ 5\,49\nCafé: R\$ 18\,90\n$,src:IComparable\s*&lt;\s*Produto\s*&gt;,src:CompareTo">
+<p class="try-task"><strong>Missão:</strong> rode e veja a <code>InvalidOperationException</code>. Faça a classe <code>Produto</code> implementar <code>IComparable&lt;Produto&gt;</code>, comparando pelo <code>Preco</code>, para que o <code>Sort</code> ponha os produtos do mais barato para o mais caro.</p>
+<pre class="out">Pão: R$ 0,75
+Leite: R$ 5,49
+Café: R$ 18,90</pre>
+<pre class="script">List&lt;Produto&gt; produtos =
+[
+    new Produto("Café", 18.90m),
+    new Produto("Pão", 0.75m),
+    new Produto("Leite", 5.49m),
+];
+
+produtos.Sort();
+foreach (Produto p in produtos)
+    Console.WriteLine($"{p.Nome}: {p.Preco:C}");
+
+class Produto
+{
+    public string Nome { get; }
+    public decimal Preco { get; }
+
+    public Produto(string nome, decimal preco)
+    {
+        Nome = nome;
+        Preco = preco;
+    }
+}
+</pre>
+<pre class="solucao">List&lt;Produto&gt; produtos =
+[
+    new Produto("Café", 18.90m),
+    new Produto("Pão", 0.75m),
+    new Produto("Leite", 5.49m),
+];
+
+produtos.Sort();
+foreach (Produto p in produtos)
+    Console.WriteLine($"{p.Nome}: {p.Preco:C}");
+
+class Produto : IComparable&lt;Produto&gt;
+{
+    public string Nome { get; }
+    public decimal Preco { get; }
+
+    public Produto(string nome, decimal preco)
+    {
+        Nome = nome;
+        Preco = preco;
+    }
+
+    public int CompareTo(Produto? outro)
+    {
+        if (outro is null) return 1;
+        return Preco.CompareTo(outro.Preco);
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="icomparer">3. Outras ordens: <code>IComparer&lt;T&gt;</code></h2>
+<p>Uma classe só tem uma ordem natural. Mas a professora quer a lista de chamada <strong>por nome</strong> e o ranking <strong>pela maior nota</strong>. Para cada ordem extra, você cria um <strong>comparador</strong>: um objeto separado, que sabe comparar dois alunos de um jeito. Ele implementa <code>IComparer&lt;T&gt;</code> ("comparador de T"), que tem o método <code>Compare(x, y)</code>, com o mesmo significado do sinal.</p>
+
+<pre class="file" data-file="icomparer.cs">List&lt;Aluno&gt; turma =
+[
+    new Aluno("Carla", 8.5),
+    new Aluno("Ana", 9.0),
+    new Aluno("Bruno", 7.0),
+    new Aluno("Davi", 9.0),
+];
+
+turma.Sort(new PorNome());
+Console.WriteLine(string.Join(", ", turma));
+
+turma.Sort((a, b) =&gt; b.Nota.CompareTo(a.Nota));
+Console.WriteLine(string.Join(", ", turma));
+
+var porNotaDepoisNome = Comparer&lt;Aluno&gt;.Create((a, b) =&gt;
+{
+    int r = b.Nota.CompareTo(a.Nota);
+    if (r != 0) return r;
+    return a.Nome.CompareTo(b.Nome);
+});
+turma.Sort(porNotaDepoisNome);
+Console.WriteLine(string.Join(", ", turma));
+
+class PorNome : IComparer&lt;Aluno&gt;
+{
+    public int Compare(Aluno? x, Aluno? y) =&gt; string.Compare(x?.Nome, y?.Nome);
+}
+
+record Aluno(string Nome, double Nota)
+{
+    public override string ToString() =&gt; $"{Nome} {Nota}";
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run icomparer.cs
+Ana 9, Bruno 7, Carla 8,5, Davi 9        « PorNome: A → Z
+Ana 9, Davi 9, Carla 8,5, Bruno 7        « maior nota primeiro
+Ana 9, Davi 9, Carla 8,5, Bruno 7        « maior nota; empate, por nome</pre>
+
+<dl class="anatomy">
+  <dt>class PorNome : IComparer&lt;Aluno&gt;</dt><dd>Um comparador: uma classe pequena, só com o método <code>Compare</code>. O <code>Aluno</code> nem precisa saber que ele existe.</dd>
+  <dt>string.Compare(x?.Nome, y?.Nome)</dt><dd>Repassa a pergunta para a comparação de textos (na cultura atual, pt-BR). O <code>?.</code> evita erro se algum aluno for <code>null</code> (veja <a href="operadores-null.html">Operadores ??, ?. e ??=</a>).</dd>
+  <dt>turma.Sort(new PorNome())</dt><dd>Ordena usando o comparador, em vez da ordem natural.</dd>
+  <dt>turma.Sort((a, b) =&gt; b.Nota.CompareTo(a.Nota))</dt><dd>O atalho: uma <a href="lambdas.html">lambda</a> que recebe dois alunos e devolve o sinal. Repare na <strong>troca</strong>: <code>b</code> antes de <code>a</code>. Isso inverte a resposta e dá a ordem <strong>decrescente</strong> (maior nota primeiro).</dd>
+  <dt>Comparer&lt;Aluno&gt;.Create(…)</dt><dd>Transforma uma lambda num <code>IComparer&lt;Aluno&gt;</code> de verdade, que você pode guardar numa variável e passar para um <code>SortedSet</code>, por exemplo.</dd>
+  <dt>if (r != 0) return r; return a.Nome.CompareTo(b.Nome);</dt><dd>O <strong>desempate</strong>: compare pela nota; se deu zero (empate), compare pelo nome.</dd>
+</dl>
+
+<div class="warning">
+<strong>Sem desempate, a ordem dos empatados não é garantida</strong>
+<p>Na segunda linha, a Ana saiu antes do Davi (os dois com 9), mas o <code>Sort</code> da <code>List</code> <strong>não promete</strong> manter a ordem dos empatados: ele pode trocá-los, dependendo dos dados. Se a ordem dos empates importa, escreva o desempate, como na terceira ordenação. (O <code>OrderBy</code> do <a href="linq-ordenar.html">LINQ</a> é "estável": ele mantém os empatados na ordem em que estavam.)</p>
+</div>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th><code>IComparable&lt;T&gt;</code></th><th><code>IComparer&lt;T&gt;</code></th></tr>
+<tr><td>Quem implementa</td><td>A própria classe (<code>class Aluno : IComparable&lt;Aluno&gt;</code>)</td><td>Uma classe separada, ou uma lambda com <code>Comparer&lt;T&gt;.Create</code></td></tr>
+<tr><td>Método</td><td><code>a.CompareTo(b)</code></td><td><code>comparador.Compare(a, b)</code></td></tr>
+<tr><td>Quantas ordens</td><td>Uma: a natural</td><td>Quantas você quiser</td></tr>
+<tr><td>Uso</td><td><code>lista.Sort()</code></td><td><code>lista.Sort(comparador)</code> ou <code>lista.Sort((a, b) =&gt; …)</code></td></tr>
+<tr><td>Classe que não é sua</td><td>Não dá para mudar</td><td>Funciona: o comparador fica de fora</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="textos">4. Comparar textos: cultura × <code>Ordinal</code></h2>
+<p>Comparar textos tem uma pegadinha. A comparação padrão segue as regras da língua (a cultura pt-BR na máquina da Ana): acentos e maiúsculas pesam pouco, como num dicionário. Já o <code>StringComparer.Ordinal</code> compara o <strong>código</strong> de cada letra, um por um:</p>
+
+<pre class="file" data-file="ordinal.cs">List&lt;string&gt; nomes = ["Carla", "ana", "Bruno", "Ágata", "Zé"];
+nomes.Sort(StringComparer.Ordinal);
+Console.WriteLine(string.Join(", ", nomes));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ordinal.cs
+Bruno, Carla, Zé, ana, Ágata</pre>
+
+<p>No código das letras, todas as maiúsculas sem acento (A–Z) vêm antes das minúsculas (a–z), e as letras acentuadas vêm depois de todas elas. Por isso "ana" e "Ágata" foram para o fim. Para mostrar uma lista a uma pessoa, use a ordem da cultura (o padrão do <code>Sort()</code>). O <code>Ordinal</code> é mais rápido e não muda de máquina para máquina, por isso serve para comparações "técnicas": nomes de arquivos, códigos, chaves.</p>
+
+<hr>
+
+<h2 id="sortedset">5. A armadilha: empate num <code>SortedSet</code></h2>
+<p>Coleções ordenadas como <code>SortedSet&lt;T&gt;</code> e <code>SortedDictionary&lt;TKey, TValue&gt;</code> usam o comparador também para saber se dois itens são <strong>o mesmo</strong>. Para elas, <code>CompareTo</code> igual a zero quer dizer "repetido":</p>
+
+<pre class="file" data-file="sortedset.cs">var porNota = Comparer&lt;Aluno&gt;.Create((a, b) =&gt; a.Nota.CompareTo(b.Nota));
+var ranking = new SortedSet&lt;Aluno&gt;(porNota);
+Console.WriteLine(ranking.Add(new Aluno("Ana", 9.0)));
+Console.WriteLine(ranking.Add(new Aluno("Bruno", 7.0)));
+Console.WriteLine(ranking.Add(new Aluno("Davi", 9.0)));
+Console.WriteLine(string.Join(", ", ranking));
+
+record Aluno(string Nome, double Nota);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sortedset.cs
+True
+True
+False                                                         « o Davi foi recusado!
+Aluno { Nome = Bruno, Nota = 7 }, Aluno { Nome = Ana, Nota = 9 }</pre>
+
+<p>O Davi tem nota 9, como a Ana. O comparador disse "empate" (zero), e o <code>SortedSet</code> entendeu "já tenho esse aluno". O <code>Add</code> devolveu <code>false</code> e o Davi sumiu, sem erro nenhum. O conserto é o mesmo desempate da seção 3: se a nota empatar, compare pelo nome. Assim, só dá zero quando o aluno é o mesmo de verdade.</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>InvalidOperationException: Failed to compare two elements in the array.</code> → <code>At least one object must implement IComparable.</code></strong>
+<p><strong>O que significa:</strong> você chamou <code>Sort()</code>, <code>Max()</code>, <code>Order()</code> ou criou um <code>SortedSet</code> de objetos que não sabem se comparar (<a href="#falha">seção 2</a>).</p>
+<p><strong>Como consertar:</strong> implemente <code>IComparable&lt;T&gt;</code> na classe, ou passe um comparador: <code>lista.Sort((a, b) =&gt; a.Nota.CompareTo(b.Nota))</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0535: "Aluno" não implementa membro de interface "IComparable&lt;Aluno&gt;.CompareTo(Aluno?)"</code></strong>
+<p><strong>O que significa:</strong> a classe diz <code>: IComparable&lt;Aluno&gt;</code>, mas não tem o método <code>CompareTo</code> (ou ele tem outro nome ou outro tipo de parâmetro).</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run semmetodo.cs
+/home/ana/cs/semmetodo.cs(1,15): error CS0535: "Aluno" não implementa membro de interface "IComparable&lt;Aluno&gt;.CompareTo(Aluno?)"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>Como consertar:</strong> escreva <code>public int CompareTo(Aluno? outro)</code>. A mensagem mostra a assinatura exata que falta.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS8767: A nulidade de tipos de referência no tipo de parâmetro 'outro' … não corresponde ao membro implementado implicitamente 'int IComparable&lt;Aluno&gt;.CompareTo(Aluno? other)'</code></strong>
+<p><strong>O que significa:</strong> você escreveu <code>CompareTo(Aluno outro)</code>, sem o <code>?</code>. A interface diz que o parâmetro pode ser <code>null</code>; o seu método diz que não pode. Compila, mas com aviso.</p>
+<p><strong>Como consertar:</strong> use <code>Aluno? outro</code> e trate o <code>null</code> na primeira linha: <code>if (outro is null) return 1;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>A ordem ficou ao contrário</strong>
+<p><strong>O que significa:</strong> o sinal está invertido. <code>a.X.CompareTo(b.X)</code> dá a ordem crescente; <code>b.X.CompareTo(a.X)</code>, a decrescente.</p>
+<p><strong>Como consertar:</strong> troque <code>a</code> e <code>b</code> de lugar (ou chame <code>lista.Reverse()</code> depois do <code>Sort</code>).</p>
+</div>
+
+<div class="cenario">
+<strong>Um item sumiu do <code>SortedSet</code> (ou do <code>SortedDictionary</code>)</strong>
+<p><strong>O que significa:</strong> o comparador deu zero para dois itens diferentes, e a coleção os tratou como repetidos (<a href="#sortedset">seção 5</a>).</p>
+<p><strong>Como consertar:</strong> acrescente um desempate que só dá zero para o mesmo item.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>a.CompareTo(b)</code></td><td>Negativo: <code>a</code> antes; zero: empate; positivo: <code>a</code> depois</td></tr>
+<tr><td><code>class T : IComparable&lt;T&gt;</code> + <code>public int CompareTo(T? outro)</code></td><td>Ordem natural da classe</td></tr>
+<tr><td><code>return Campo.CompareTo(outro.Campo);</code></td><td>Repassa a comparação para um tipo pronto</td></tr>
+<tr><td><code>class C : IComparer&lt;T&gt;</code> + <code>public int Compare(T? x, T? y)</code></td><td>Comparador separado</td></tr>
+<tr><td><code>Comparer&lt;T&gt;.Create((a, b) =&gt; …)</code></td><td>Comparador a partir de uma lambda</td></tr>
+<tr><td><code>lista.Sort()</code> / <code>lista.Sort(comparador)</code> / <code>lista.Sort((a, b) =&gt; …)</code></td><td>Ordena: natural / com comparador / com lambda</td></tr>
+<tr><td><code>(a, b) =&gt; b.X.CompareTo(a.X)</code></td><td>Ordem decrescente</td></tr>
+<tr><td><code>int r = …; if (r != 0) return r; return …;</code></td><td>Desempate por um segundo critério</td></tr>
+<tr><td><code>StringComparer.Ordinal</code> / <code>OrdinalIgnoreCase</code></td><td>Compara textos pelo código das letras</td></tr>
+<tr><td><code>new SortedSet&lt;T&gt;(comparador)</code></td><td>Conjunto ordenado; <code>Compare</code> zero = repetido</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A interface da ordem natural</h3>
+<p>Complete para os produtos terem uma ordem natural:</p>
+<div class="ex-code">class Produto : <input data-answer="IComparable&lt;Produto&gt;|IComparable &lt;Produto&gt;" aria-label="interface"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Repassar a pergunta</h3>
+<p>Complete o <code>CompareTo</code> que compara pelo preço:</p>
+<div class="ex-code">return Preco.<input data-answer="CompareTo" aria-label="método">(outro.Preco);</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">3. <code>a.CompareTo(b)</code> devolveu <code>-12</code>. O que isso quer dizer?</p>
+<label><input type="radio" name="q3"> <code>a</code> vem 12 posições antes de <code>b</code></label>
+<label><input type="radio" name="q3"> Deu erro</label>
+<label><input type="radio" name="q3"> <code>a</code> vem antes de <code>b</code> (só o sinal importa)</label>
+<label><input type="radio" name="q3"> <code>a</code> vem depois de <code>b</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">4. Qual lambda ordena os alunos da <strong>maior</strong> nota para a menor?</p>
+<label><input type="radio" name="q4"> <code>(a, b) =&gt; b.Nota.CompareTo(a.Nota)</code></label>
+<label><input type="radio" name="q4"> <code>(a, b) =&gt; a.Nota.CompareTo(b.Nota)</code></label>
+<label><input type="radio" name="q4"> <code>(a, b) =&gt; a.Nota &gt; b.Nota</code></label>
+<label><input type="radio" name="q4"> <code>(a, b) =&gt; 0</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. Você precisa ordenar objetos de uma classe de uma biblioteca, que você não pode mudar. O que usa?</p>
+<label><input type="radio" name="q5"> <code>IComparable&lt;T&gt;</code> na classe</label>
+<label><input type="radio" name="q5"> Não tem jeito</label>
+<label><input type="radio" name="q5"> <code>StringComparer.Ordinal</code></label>
+<label><input type="radio" name="q5"> Um <code>IComparer&lt;T&gt;</code> ou uma lambda no <code>Sort</code></label>
+</div>
+
+<h3>Missão final: o ranking da turma</h3>
+
+<div class="trycs" data-goal="outre:^1º Ana 9\n2º Davi 9\n3º Carla 8\,5\n4º Bruno 7\n$,src:CompareTo">
+<p class="try-task"><strong>Missão:</strong> o ranking está em ordem de nome. Troque o <code>Sort</code> por um com lambda (ou com <code>Comparer&lt;Aluno&gt;.Create</code>) que ponha a <strong>maior nota primeiro</strong> e, quando a nota empatar, a ordem alfabética do nome. Repare que o Davi vem antes da Ana na lista: sem o desempate, ele fica na frente dela.</p>
+<pre class="out">1º Ana 9
+2º Davi 9
+3º Carla 8,5
+4º Bruno 7</pre>
+<pre class="script">List&lt;Aluno&gt; turma =
+[
+    new Aluno("Davi", 9.0),
+    new Aluno("Bruno", 7.0),
+    new Aluno("Ana", 9.0),
+    new Aluno("Carla", 8.5),
+];
+
+turma.Sort((a, b) =&gt; a.Nome.CompareTo(b.Nome));
+
+for (int i = 0; i &lt; turma.Count; i++)
+    Console.WriteLine($"{i + 1}º {turma[i].Nome} {turma[i].Nota}");
+
+record Aluno(string Nome, double Nota);
+</pre>
+<pre class="solucao">List&lt;Aluno&gt; turma =
+[
+    new Aluno("Davi", 9.0),
+    new Aluno("Bruno", 7.0),
+    new Aluno("Ana", 9.0),
+    new Aluno("Carla", 8.5),
+];
+
+turma.Sort((a, b) =&gt;
+{
+    int r = b.Nota.CompareTo(a.Nota);
+    if (r != 0) return r;
+    return a.Nome.CompareTo(b.Nome);
+});
+
+for (int i = 0; i &lt; turma.Count; i++)
+    Console.WriteLine($"{i + 1}º {turma[i].Nome} {turma[i].Nota}");
+
+record Aluno(string Nome, double Nota);
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Ordenar é responder muitas vezes "quem vem antes?". A resposta é um <code>int</code>: negativo (antes), zero (empate), positivo (depois).</li>
+  <li>Ordenar objetos que não sabem se comparar dá <code>InvalidOperationException: Failed to compare two elements in the array.</code></li>
+  <li><code>IComparable&lt;T&gt;</code> dá à classe uma ordem natural (<code>CompareTo</code>); repasse a pergunta para um campo: <code>Nota.CompareTo(outro.Nota)</code>.</li>
+  <li><code>IComparer&lt;T&gt;</code>, <code>Comparer&lt;T&gt;.Create</code> ou uma lambda no <code>Sort</code> dão outras ordens, sem mexer na classe. Trocar <code>a</code> e <code>b</code> inverte a ordem.</li>
+  <li>Escreva o desempate: o <code>Sort</code> não garante a ordem dos empatados, e um <code>SortedSet</code> descarta itens com comparação zero.</li>
+  <li>Textos: a comparação padrão segue a cultura (pt-BR); <code>StringComparer.Ordinal</code> segue o código das letras.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
