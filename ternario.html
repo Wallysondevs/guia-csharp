@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Operador Ternário (? :) — escolher um valor numa linha | Guia C#</title>
+<meta name="description" content="O operador ternário (? :) do C# para quem nunca programou: condição ? valor1 : valor2, o mesmo que um if/else que dá valor a uma variável, os parênteses dentro de $&quot;…&quot; (CS8361), os dois lados com tipos compatíveis (CS0173), por que ele não serve para ações (CS0201), a precedência com + (CS0029) e ternários encadeados, com saídas reais do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Operador Ternário (? :)</span></h1>
+
+<p class="intro">Na aula de <a href="if-else.html">if e else</a>, o programa da Ana mostrou "Faltam 1 anos para a carteira". Para escolher entre "ano" e "anos", daria para escrever um <code>if</code>/<code>else</code> de oito linhas. O <strong>operador ternário</strong> faz isso numa linha: ele faz uma pergunta e <strong>devolve um de dois valores</strong>. Chama-se "ternário" porque é o único operador do C# com <strong>três</strong> partes: a condição, o valor do "sim" e o valor do "não".</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como escrever <code>condição ? valorSeSim : valorSeNão</code>.</li>
+  <li>Por que ele é o mesmo que um <code>if</code>/<code>else</code> que dá valor a uma variável.</li>
+  <li>Como usá-lo dentro de <code>$"…"</code> (com parênteses, senão: <code>CS8361</code>).</li>
+  <li>Por que os dois valores precisam ser do mesmo tipo (<code>CS0173</code>).</li>
+  <li>Quando <strong>não</strong> usar: para ações (<code>CS0201</code>) e em cadeias longas.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana, na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: "se chover, guarda-chuva; senão, boné"</h2>
+<p>De manhã, a Ana olha pela janela e decide o que levar: "se estiver chovendo, o guarda-chuva; senão, o boné". Ela não faz duas coisas diferentes, ela <strong>escolhe uma coisa</strong> para levar. A resposta da pergunta é um <strong>valor</strong>.</p>
+<p>O <code>if</code> escolhe qual <strong>trecho de código</strong> roda. O ternário escolhe qual <strong>valor</strong> usar. Em C#, a frase da Ana fica assim:</p>
+
+<pre class="file">string levar = chovendo ? "guarda-chuva" : "boné";
+</pre>
+
+<p>Leia em voz alta: "<code>levar</code> recebe: está chovendo? então guarda-chuva; senão, boné".</p>
+
+<hr>
+
+<h2>1. O primeiro ternário</h2>
+
+<pre class="file" data-file="ano.cs">int idade = 17;
+int faltam = 18 - idade;
+string palavra = faltam == 1 ? "ano" : "anos";
+Console.WriteLine($"Faltam {faltam} {palavra} para a carteira.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ano.cs
+Faltam 1 ano para a carteira.        « faltam == 1 é true: escolheu "ano"</pre>
+
+<dl class="anatomy">
+  <dt>faltam == 1</dt><dd>A <strong>condição</strong>, que tem de dar <code>bool</code>, como no <code>if</code>. Aqui os parênteses são opcionais.</dd>
+  <dt>?</dt><dd>"Então…": separa a pergunta das respostas.</dd>
+  <dt>"ano"</dt><dd>O valor que a expressão inteira <strong>vale</strong> quando a condição é <code>true</code>.</dd>
+  <dt>:</dt><dd>"Senão…": separa as duas respostas.</dd>
+  <dt>"anos"</dt><dd>O valor quando a condição é <code>false</code>.</dd>
+  <dt>string palavra =</dt><dd>O resultado (um dos dois textos) é guardado na variável, como o resultado de qualquer conta.</dd>
+</dl>
+
+<p>Mude a idade para 15 e a saída vira <code>Faltam 3 anos para a carteira.</code>. Só <strong>um</strong> dos dois valores é calculado: o C# olha a condição primeiro e depois avalia só o lado escolhido.</p>
+
+<h3>O mesmo programa com <code>if</code>/<code>else</code></h3>
+<p>O ternário não faz nada que um <code>if</code> não faça. É só mais curto. Este programa é equivalente:</p>
+
+<pre class="file" data-file="ifelse_valor.cs">int faltam = 3;
+string palavra;
+if (faltam == 1)
+{
+    palavra = "ano";
+}
+else
+{
+    palavra = "anos";
+}
+Console.WriteLine($"Faltam {faltam} {palavra}.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ifelse_valor.cs
+Faltam 3 anos.</pre>
+
+<p>Nove linhas contra uma. Quando a decisão é só "qual valor guardar", o ternário deixa o código mais limpo.</p>
+
+<div class="trycs" data-goal="out:O maior é 30,src:\?[^\n]*:">
+<p class="try-task"><strong>Missão:</strong> complete a linha de <code>maior</code> com um ternário que escolha o maior entre <code>a</code> e <code>b</code>. Depois troque os valores (por exemplo, <code>a = 50</code>) e confira.</p>
+<pre class="out">O maior é 30</pre>
+<pre class="script">int a = 12;
+int b = 30;
+int maior = a;  // troque por um ternário
+Console.WriteLine($"O maior é {maior}");
+</pre>
+<pre class="solucao">int a = 12;
+int b = 30;
+int maior = a &gt; b ? a : b;
+Console.WriteLine($"O maior é {maior}");
+</pre>
+</div>
+
+<p>(Para o maior de dois números, o .NET também tem <code>Math.Max(a, b)</code>, que você vai ver em <a href="math.html">Matemática</a>.)</p>
+
+<hr>
+
+<h2>2. Dentro de <code>$"…"</code>: use parênteses</h2>
+<p>É muito comum querer o ternário direto na interpolação. Mas veja o que acontece:</p>
+
+<pre class="file" data-file="interp.cs">int n = 7;
+Console.WriteLine($"{n} é {n % 2 == 0 ? "par" : "ímpar"}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run interp.cs
+/home/ana/cs/interp.cs(2,26): error CS8076: Delimitador de fechamento ausente '}' para expressão interpolada iniciada com '{'.
+/home/ana/cs/interp.cs(2,28): error CS8361: Uma expressão condicional não pode ser usada diretamente em uma interpolação de cadeia de caracteres porque ‘:’ encerra a interpolação. Use parênteses na expressão condicional.
+/home/ana/cs/interp.cs(2,50): error CS1003: Erro de sintaxe, "," esperado
+/home/ana/cs/interp.cs(2,55): error CS1003: Erro de sintaxe, "," esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Lembra do <code>{total:N2}</code> da aula <a href="formatacao.html">Formatar Números</a>? Dentro das chaves de uma interpolação, o <code>:</code> quer dizer "agora vem o formato". O compilador vê o <code>:</code> do ternário e acha que é o começo de um formato. O erro <code>CS8361</code> explica isso e já diz o conserto: "Use parênteses na expressão condicional".</p>
+
+<pre class="file" data-file="interp2.cs">int n = 7;
+Console.WriteLine($"{n} é {(n % 2 == 0 ? "par" : "ímpar")}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run interp2.cs
+7 é ímpar</pre>
+
+<p>Com os parênteses, o <code>:</code> fica "protegido" lá dentro, e o compilador entende que ele é parte do ternário.</p>
+
+<hr>
+
+<h2>3. Os dois lados precisam combinar</h2>
+<p>O resultado de um ternário tem <strong>um</strong> tipo só. Por isso, os dois valores precisam ser do mesmo tipo, ou de tipos que o C# saiba converter um no outro. A Ana quis mostrar a quantidade em estoque ou a palavra "esgotado":</p>
+
+<pre class="file" data-file="tipos.cs">int estoque = 0;
+var mostrar = estoque &gt; 0 ? estoque : "esgotado";
+Console.WriteLine(mostrar);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tipos.cs
+/home/ana/cs/tipos.cs(2,15): error CS0173: Tipo de expressão condicional não pode ser determinado porque não há conversão implícita entre "int" e "string"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Um lado é <code>int</code> (número), o outro é <code>string</code> (texto), e o compilador não sabe qual deve ser o tipo de <code>mostrar</code>. O conserto é deixar os dois lados como texto, com <code>ToString()</code>:</p>
+
+<pre class="file" data-file="tipos2.cs">int estoque = 0;
+string mostrar = estoque &gt; 0 ? estoque.ToString() : "esgotado";
+Console.WriteLine(mostrar);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tipos2.cs
+esgotado</pre>
+
+<p>Tipos numéricos "parentes" combinam sem problema: em <code>decimal frete = total &gt;= 100m ? 0m : 15m;</code> os dois lados são <code>decimal</code>, e em <code>double x = ok ? 1 : 2.5;</code> o <code>1</code> vira <code>double</code> sozinho (aula <a href="conversao-tipos.html">Conversão de Tipos</a>).</p>
+
+<hr>
+
+<h2>4. Ternário é para valores, não para ações</h2>
+<p>Quem acabou de aprender o ternário tenta usá-lo no lugar de qualquer <code>if</code>:</p>
+
+<pre class="file" data-file="acao.cs">int nota = 8;
+nota &gt;= 6 ? Console.WriteLine("Aprovada") : Console.WriteLine("Reprovada");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run acao.cs
+/home/ana/cs/acao.cs(2,1): error CS0201: Somente as expressões de atribuição, chamada, incremento, diminuição, espera e novo objeto podem ser utilizadas como uma instrução
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O ternário <strong>produz um valor</strong>, e uma linha que só produz um valor, sem guardar nem usar, não faz nada. Por isso o C# não aceita um ternário sozinho como instrução (em inglês: <code>Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement</code>). Além disso, <code>Console.WriteLine</code> não devolve valor nenhum. Há duas formas certas:</p>
+
+<pre class="file">// 1. if/else: para fazer coisas diferentes
+if (nota &gt;= 6)
+{
+    Console.WriteLine("Aprovada");
+}
+else
+{
+    Console.WriteLine("Reprovada");
+}
+
+// 2. ternário: para escolher o valor, e uma ação só
+Console.WriteLine(nota &gt;= 6 ? "Aprovada" : "Reprovada");
+</pre>
+
+<p>A segunda forma funciona porque o ternário agora está <strong>dentro</strong> de uma chamada: ele escolhe o texto, e o <code>Console.WriteLine</code> mostra.</p>
+
+<hr>
+
+<h2>5. Cuidado com a precedência</h2>
+<p>O ternário tem precedência muito baixa: quase tudo é calculado <strong>antes</strong> dele (aula <a href="precedencia.html">Precedência</a>). Isso pega quem junta texto com <code>+</code>:</p>
+
+<pre class="file" data-file="precedencia.cs">bool logado = true;
+string saudacao = "Olá, " + logado ? "Ana" : "visitante";
+Console.WriteLine(saudacao);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run precedencia.cs
+/home/ana/cs/precedencia.cs(2,19): error CS0029: Não é possível converter implicitamente tipo "string" em "bool"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O <code>+</code> roda primeiro: <code>"Olá, " + logado</code> vira o texto <code>"Olá, True"</code>. Depois, esse <strong>texto</strong> vira a condição do ternário, e uma condição tem de ser <code>bool</code>. Daí o <code>CS0029</code>, apontando a coluna 19, o começo de <code>"Olá, "</code>. Conserto: parênteses em volta do ternário.</p>
+
+<pre class="file" data-file="precedencia2.cs">bool logado = true;
+string saudacao = "Olá, " + (logado ? "Ana" : "visitante");
+Console.WriteLine(saudacao);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run precedencia2.cs
+Olá, Ana</pre>
+
+<div class="tip">
+<strong>Regra prática</strong>
+<p>Se o ternário não é a única coisa do lado direito do <code>=</code>, ponha parênteses em volta dele. Nunca atrapalha, e evita os erros desta seção e da seção 2.</p>
+</div>
+
+<hr>
+
+<h2>6. Ternários encadeados</h2>
+<p>O "valor do senão" pode ser outro ternário. Assim dá para escolher entre mais de dois valores, como a cadeia de <a href="else-if.html">else if</a>:</p>
+
+<pre class="file" data-file="encadeado.cs">double nota = 7.5;
+string conceito = nota &gt;= 9 ? "A"
+                : nota &gt;= 7 ? "B"
+                : nota &gt;= 5 ? "C"
+                : "D";
+Console.WriteLine($"Conceito {conceito}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run encadeado.cs
+Conceito B</pre>
+
+<p>Funciona, e escrito assim, um por linha, até dá para ler. Mas numa linha só (<code>nota &gt;= 9 ? "A" : nota &gt;= 7 ? "B" : nota &gt;= 5 ? "C" : "D"</code>), vira um quebra-cabeça. Para escolher um valor entre várias faixas, o C# moderno tem uma ferramenta feita para isso, a <a href="switch-expressoes.html">expressão switch</a>:</p>
+
+<pre class="file">string conceito = nota switch
+{
+    &gt;= 9 =&gt; "A",
+    &gt;= 7 =&gt; "B",
+    &gt;= 5 =&gt; "C",
+    _ =&gt; "D"
+};
+</pre>
+
+<hr>
+
+<h2>Qual usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th><th>Exemplo</th></tr>
+<tr><td>Escolher entre <strong>dois valores</strong></td><td>Ternário</td><td><code>var palavra = n == 1 ? "item" : "itens";</code></td></tr>
+<tr><td><strong>Fazer</strong> coisas diferentes (várias linhas, ações)</td><td><code>if</code>/<code>else</code></td><td><code>if (erro) { avisar(); parar(); } else { … }</code></td></tr>
+<tr><td>Escolher entre <strong>três ou mais</strong> valores</td><td>Expressão <code>switch</code></td><td><code>nota switch { &gt;= 9 =&gt; "A", … }</code></td></tr>
+<tr><td>Valor padrão quando algo é <code>null</code></td><td>Operador <code>??</code></td><td><code>nome ?? "visitante"</code> (aula <a href="operadores-null.html">Operadores ??, ?. e ??=</a>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS8361: Uma expressão condicional não pode ser usada diretamente em uma interpolação…</code></strong>
+<p><strong>O que significa:</strong> você pôs um ternário dentro de <code>{ }</code> num <code>$"…"</code>, e o <code>:</code> dele foi lido como o começo de um formato. Vem acompanhado de <code>CS8076</code> e <code>CS1003</code>, que são consequência.</p>
+<p><strong>Como consertar:</strong> parênteses em volta do ternário: <code>{(cond ? "a" : "b")}</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0173: Tipo de expressão condicional não pode ser determinado…</code></strong>
+<p><strong>O que significa:</strong> os dois valores têm tipos que não combinam, como <code>int</code> e <code>string</code>.</p>
+<p><strong>Como consertar:</strong> deixe os dois do mesmo tipo: <code>estoque.ToString()</code> no lugar de <code>estoque</code>, ou <code>"0"</code> no lugar de <code>0</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0201: Somente as expressões de atribuição, chamada… podem ser utilizadas como uma instrução</code></strong>
+<p><strong>O que significa:</strong> um ternário sozinho na linha, sem guardar o resultado em lugar nenhum, normalmente com uma ação em cada lado.</p>
+<p><strong>Como consertar:</strong> use <code>if</code>/<code>else</code>, ou ponha o ternário dentro da ação: <code>Console.WriteLine(ok ? "sim" : "não");</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0029: Não é possível converter implicitamente tipo "string" em "bool"</code> num ternário</strong>
+<p><strong>O que significa:</strong> algo antes do <code>?</code> (normalmente um <code>+</code>) foi calculado primeiro e virou a condição.</p>
+<p><strong>Como consertar:</strong> parênteses em volta do ternário: <code>"Olá, " + (logado ? "Ana" : "visitante")</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1003: Erro de sintaxe, ":" esperado</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat semtres.cs
+int n = 7;
+string tipo = n % 2 == 0 ? "par";
+Console.WriteLine(tipo);
+$ dotnet run semtres.cs
+/home/ana/cs/semtres.cs(2,33): error CS1003: Erro de sintaxe, ":" esperado
+/home/ana/cs/semtres.cs(2,33): error CS1525: Termo de expressão inválido ";"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o ternário está sem a terceira parte. Diferente do <code>if</code>, que pode ficar sem <code>else</code>, o ternário <strong>sempre</strong> precisa do valor do "senão": a variável tem de receber alguma coisa nos dois casos.</p>
+<p><strong>Como consertar:</strong> <code>n % 2 == 0 ? "par" : "ímpar"</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>O que faz</th></tr>
+<tr><td><code>cond ? a : b</code></td><td>Vale <code>a</code> se <code>cond</code> for <code>true</code>; senão, vale <code>b</code>. Só o lado escolhido é calculado.</td></tr>
+<tr><td><code>var x = cond ? a : b;</code></td><td>O mesmo que um <code>if</code>/<code>else</code> que dá valor a <code>x</code>.</td></tr>
+<tr><td><code>$"{(cond ? a : b)}"</code></td><td>Dentro da interpolação, sempre com parênteses.</td></tr>
+<tr><td><code>"texto" + (cond ? a : b)</code></td><td>Com <code>+</code> ou outra conta, parênteses em volta.</td></tr>
+<tr><td><code>c1 ? a : c2 ? b : c</code></td><td>Encadeado: funciona, mas prefira a expressão <code>switch</code>.</td></tr>
+<tr><td>Tipos de <code>a</code> e <code>b</code></td><td>Precisam combinar (<code>CS0173</code> se não).</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Complete o ternário</h3>
+<p>Complete os dois símbolos que faltam:</p>
+<div class="ex-code">string status = idade &gt;= 18 <input data-answer="?" aria-label="símbolo" size="2"> "maior" <input data-answer=":" aria-label="símbolo" size="2"> "menor";</div>
+</div>
+
+<div class="exercise">
+<h3>2. Qual o valor?</h3>
+<p>Com <code>int x = 4;</code>, quanto vale <code>x &gt; 5 ? 10 : 20</code>?</p>
+<div class="ex-code">Resposta: <input data-answer="20" aria-label="valor"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Na interpolação</h3>
+<p>Complete o que falta para esta linha compilar (dois caracteres, um de cada lado):</p>
+<div class="ex-code">Console.WriteLine($"Status: {<input data-answer="(" aria-label="abre" size="2">ok ? "ligado" : "desligado"<input data-answer=")" aria-label="fecha" size="2">}");</div>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">4. Por que <code>var x = ok ? 1 : "um";</code> não compila?</p>
+<label><input type="radio" name="q4"> Porque falta o <code>else</code></label>
+<label><input type="radio" name="q4"> Porque <code>ok</code> precisa estar entre parênteses</label>
+<label><input type="radio" name="q4"> Porque <code>var</code> não aceita ternários</label>
+<label><input type="radio" name="q4"> Porque <code>1</code> é <code>int</code> e <code>"um"</code> é <code>string</code>: o resultado não tem um tipo único (<code>CS0173</code>)</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Qual destas linhas é um bom uso do ternário?</p>
+<label><input type="radio" name="q5"> <code>ok ? Console.WriteLine("sim") : Console.WriteLine("não");</code></label>
+<label><input type="radio" name="q5"> <code>Console.WriteLine(ok ? "sim" : "não");</code></label>
+<label><input type="radio" name="q5"> <code>string r = ok ? "sim";</code></label>
+<label><input type="radio" name="q5"> <code>if (ok ? "sim" : "não") { }</code></label>
+</div>
+
+<h3>Missão final: o carrinho da lojinha</h3>
+
+<div class="trycs" data-goal="out:Você tem 1 item no carrinho.,out:Frete: grátis,src:\?\s*&quot;item&quot;\s*:,src:frete\s*=[^=;\n][^;\n]*\?,semaviso">
+<p class="try-task"><strong>Missão:</strong> o carrinho da Ana tem 1 item e R$ 120 de compras. O programa está com dois erros: mostra "1 itens" e cobra frete de quem passou de R$ 100. Use <strong>dois ternários</strong>:</p>
+<ul>
+  <li>um que escolha <code>"item"</code> ou <code>"itens"</code> (dentro da interpolação, não esqueça os parênteses);</li>
+  <li>um que dê ao <code>frete</code> o valor <code>0m</code> quando <code>total &gt;= 100m</code>, e <code>15m</code> senão.</li>
+</ul>
+<p>A linha do <code>textoFrete</code> já está pronta (e é um ternário também). A saída deve ser:</p>
+<pre class="out">Você tem 1 item no carrinho.
+Frete: grátis</pre>
+<pre class="script">int itens = 1;
+decimal total = 120m;
+Console.WriteLine($"Você tem {itens} itens no carrinho.");
+
+decimal frete = 15m;
+string textoFrete = frete == 0m ? "grátis" : $"R$ {frete:N2}";
+Console.WriteLine($"Frete: {textoFrete}");
+</pre>
+<pre class="solucao">int itens = 1;
+decimal total = 120m;
+Console.WriteLine($"Você tem {itens} {(itens == 1 ? "item" : "itens")} no carrinho.");
+
+decimal frete = total &gt;= 100m ? 0m : 15m;
+string textoFrete = frete == 0m ? "grátis" : $"R$ {frete:N2}";
+Console.WriteLine($"Frete: {textoFrete}");
+</pre>
+</div>
+
+<p>Depois, troque para <code>itens = 3</code> e <code>total = 59.90m</code>: a saída deve virar <code>Você tem 3 itens no carrinho.</code> e <code>Frete: R$ 15,00</code>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>condição ? valorSeSim : valorSeNão</code> escolhe um de dois <strong>valores</strong>. É o único operador do C# com três partes.</li>
+  <li>É o mesmo que um <code>if</code>/<code>else</code> que dá valor a uma variável, só que numa linha. Só o lado escolhido é calculado.</li>
+  <li>Dentro de <code>$"…"</code>, ponha parênteses (<code>CS8361</code>). Junto com <code>+</code>, também (<code>CS0029</code>).</li>
+  <li>Os dois valores precisam ter tipos que combinem (<code>CS0173</code>), e a terceira parte é obrigatória.</li>
+  <li>Para <strong>ações</strong>, use <code>if</code>/<code>else</code> (<code>CS0201</code>). Para três ou mais valores, prefira a <a href="switch-expressoes.html">expressão switch</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
