@@ -205,8 +205,8 @@ $ echo $?
 <p>O relatório da exceção apareceu <strong>antes</strong> do <code>Fechando o caixa</code>. O .NET trabalha em duas etapas: primeiro ele procura um <code>catch</code> em toda a pilha; como não achou nenhum, já escreve o relatório. Depois ele desce a pilha rodando os <code>finally</code> e, por fim, encerra o programa com 134. O <code>Fim</code>, que está fora do <code>try</code>, nunca roda.</p>
 
 <div class="note">
-<strong>No editor do guia, a ordem é outra</strong>
-<p>Rodando este programa no editor desta página, o <code>Fechando o caixa</code> aparece <strong>antes</strong> do relatório. O resultado é o mesmo (o <code>finally</code> rodou e o código de saída é 134); só a ordem das linhas muda. Isso só acontece com exceção <strong>não tratada</strong>; quando há um <code>catch</code>, a ordem é igual nos dois.</p>
+<strong>No editor do guia, o rastro é mais comprido</strong>
+<p>Rodando este programa no editor desta página, a ordem é a mesma: o relatório, depois o <code>Fechando o caixa</code> e o código de saída 134. Só o rastro muda um pouco: aparecem mais linhas <code>at System.…</code> de dentro do <code>int.Parse</code> (seis em vez de duas). A linha do <strong>seu</strong> arquivo (<code>naotratada.cs:line 4</code>) e a mensagem são iguais nos dois.</p>
 </div>
 
 <hr>
