@@ -1,0 +1,1262 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Projeto Estoque da Lojinha — List, records e LINQ (Where, Sum, GroupBy) | Guia C#</title>
+<meta name="description" content="Projeto passo a passo em C#: o estoque da lojinha da Ana. Um record Produto numa List, perguntas com LINQ (Where, OrderBy, Select, Count, Sum, MaxBy), um relatório por categoria com GroupBy, a busca com FirstOrDefault, um menu de entrada e saída com TryParse e with, e o estoque guardado em estoque.csv com InvariantCulture. Cinco versões com saídas reais do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Projeto <span class="hl">Estoque da Lojinha</span></h1>
+
+<p class="intro">A Ana tem uma lojinha de papelaria e controla o estoque num caderno: quantos cadernos, canetas e mochilas ainda tem, e quanto custa cada um. Toda semana ela faz as mesmas perguntas: "o que está acabando?", "quanto vale tudo o que está na prateleira?", "qual categoria dá mais dinheiro?". Neste projeto, ela troca o caderno por um programa em C# que responde a essas perguntas com <strong>LINQ</strong>, em uma linha cada, e que guarda o estoque num arquivo para não esquecer nada de um dia para o outro.</p>
+
+<div class="note">
+<strong>Você vai praticar</strong>
+<ul>
+  <li>Descrever um produto com um <a href="records.html">record</a> e guardar todos numa <a href="list.html"><code>List&lt;T&gt;</code></a>.</li>
+  <li>Mostrar uma tabela alinhada com <a href="interpolacao.html">interpolação</a> e o formato de dinheiro <code>:C</code> (<a href="formatacao.html">Formatar Números</a>).</li>
+  <li>Fazer perguntas à lista com <a href="linq.html">LINQ</a>: <code>Where</code>, <code>OrderBy</code>, <code>Select</code>, <code>Count</code>, <code>Sum</code> e <code>MaxBy</code>.</li>
+  <li>Agrupar por categoria com <a href="linq-agrupar.html"><code>GroupBy</code></a> e procurar com <code>FirstOrDefault</code>.</li>
+  <li>Fazer um menu com <a href="readline.html"><code>Console.ReadLine</code></a> e <a href="parse.html"><code>int.TryParse</code></a>, e "mudar" um record com <code>with</code>.</li>
+  <li>Guardar o estoque em <code>estoque.csv</code> sem perder os centavos por causa da <a href="cultura.html">cultura pt-BR</a>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2 id="construir">O que vamos construir</h2>
+<p>O programa pronto, na máquina da Ana. Na primeira vez, ainda não existe o arquivo, e ele começa com os produtos do caderno de papel. Ela vê o que está acabando, recebe 20 borrachas, vende 5 canetas, tenta vender 3 mochilas (só há 2) e sai:</p>
+
+<pre class="term" data-cwd="~/projetos/Estoque">$ dotnet run
+estoque.csv não existe: começando do caderno de papel.
+=== Estoque da Lojinha ===
+7 produtos carregados.
+
+1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair
+Opção: 2
+Cód  Produto     Qtd       Preço
+  3  Borracha      3     R$ 1,75
+  4  Mochila       2    R$ 89,90
+  6  Papel A4      4    R$ 27,50
+
+1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair
+Opção: 3
+Código: 3
+Quantas unidades? 20
+Borracha: agora são 23.
+
+1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair
+Opção: 4
+Código: 2
+Quantas unidades? 5
+Caneta: agora são 35.
+
+1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair
+Opção: 4
+Código: 4
+Quantas unidades? 3
+Só há 2 de Mochila.
+
+1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair
+Opção: 0
+Salvei 7 produtos em estoque.csv. Até amanhã!</pre>
+
+<p>No dia seguinte, o programa lê o arquivo e continua de onde parou: a caneta tem 35, e a borracha, 23.</p>
+
+<ol class="passo">
+  <li><a href="#versao1">A ficha do produto e a lista</a> (<code>record</code>, <code>List</code> e a tabela).</li>
+  <li><a href="#versao2">Perguntas ao estoque com LINQ</a> (<code>Where</code>, <code>OrderBy</code>, <code>Sum</code>…).</li>
+  <li><a href="#versao3">O relatório por categoria e a busca</a> (<code>GroupBy</code> e <code>FirstOrDefault</code>).</li>
+  <li><a href="#versao4">O menu: entrada e saída</a> (<code>TryParse</code>, <code>FindIndex</code> e <code>with</code>).</li>
+  <li><a href="#versao5">O estoque guardado num arquivo</a> (<code>estoque.csv</code>).</li>
+</ol>
+
+<h3>Antes de começar</h3>
+<p>Você precisa ter visto <a href="list.html">List&lt;T&gt;</a>, <a href="records.html">Records</a>, <a href="lambdas.html">Lambdas</a> e as aulas de LINQ, a partir de <a href="linq.html">O que é LINQ</a>. Como o programa vai crescer, a Ana cria um projeto (aula <a href="projetos-console.html">Projetos</a>):</p>
+
+<pre class="term">$ mkdir -p projetos &amp;&amp; cd projetos
+$ dotnet new console -o Estoque
+O modelo "Aplicativo do Console" foi criado com êxito.
+
+Processando ações pós-criação...
+Restaurando /home/ana/projetos/Estoque/Estoque.csproj:
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Estoque/Estoque.csproj restaurado (em 107 ms).
+A restauração foi bem-sucedida.
+
+$ cd Estoque</pre>
+
+<p>Em cada versão, ela troca todo o conteúdo do <code>Program.cs</code> pelo código novo e roda com <code>dotnet run</code>, dentro da pasta <code>~/projetos/Estoque</code>.</p>
+
+<hr>
+
+<h2 id="versao1">Versão 1 · A ficha do produto e a lista</h2>
+<p>Pense nas fichas de papel da Ana: cada produto tem uma, com os mesmos campos na mesma ordem (código, nome, categoria, quantidade e preço). Em C#, o desenho da ficha é um <strong>record</strong>, e a caixa com todas as fichas é uma <code>List&lt;Produto&gt;</code> ("lista de produtos").</p>
+<p>A primeira versão não pergunta nada ao usuário. Ela só monta a lista e mostra a tabela do estoque:</p>
+
+<pre class="file" data-file="Program.cs">// Estoque da Lojinha — versão 1: a ficha e a lista
+List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(2, "Caneta", "Escrita", 40, 2.50m),
+    new(3, "Borracha", "Escrita", 3, 1.75m),
+    new(4, "Mochila", "Bolsas", 2, 89.90m),
+    new(5, "Lápis", "Escrita", 60, 1.20m),
+    new(6, "Papel A4", "Papelaria", 4, 27.50m),
+    new(7, "Estojo", "Bolsas", 6, 19.90m),
+];
+
+Console.WriteLine("=== Estoque da Lojinha ===");
+Console.WriteLine("Cód  Produto     Categoria   Qtd       Preço");
+foreach (Produto p in estoque)
+{
+    Console.WriteLine($"{p.Codigo,3}  {p.Nome,-10}  {p.Categoria,-10}  {p.Quantidade,3}  {p.Preco,10:C}");
+}
+Console.WriteLine($"{estoque.Count} produtos cadastrados.");
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>record Produto(int Codigo, string Nome, …, decimal Preco);</code></td><td>O desenho da ficha, na última linha do arquivo. Esta linha cria o tipo <code>Produto</code>, com cinco propriedades e um construtor que recebe as cinco, na ordem. Em <code>Program.cs</code>, os tipos ficam <strong>depois</strong> das instruções (aula <a href="top-level.html">Program.cs e o Main</a>). <span class="versao">C# 9</span></td></tr>
+<tr><td><code>decimal Preco</code></td><td>Dinheiro é sempre <code>decimal</code>: ele guarda 15,90 exato, e o <code>double</code> não (aula <a href="decimais.html">float, double e decimal</a>).</td></tr>
+<tr><td><code>List&lt;Produto&gt; estoque = [ … ];</code></td><td>Cria a lista já com sete produtos. Os colchetes são uma <strong>expressão de coleção</strong> <span class="versao">C# 12</span>; antes dela, escrevia-se <code>new List&lt;Produto&gt; { … }</code>.</td></tr>
+<tr><td><code>new(1, "Caderno", "Papelaria", 12, 15.90m)</code></td><td>Cria um <code>Produto</code>. O C# já sabe o tipo (é uma lista de <code>Produto</code>), por isso basta <code>new(…)</code> <span class="versao">C# 9</span>. O <code>m</code> no fim de <code>15.90m</code> diz "isto é um <code>decimal</code>". No código, o separador decimal é sempre o <strong>ponto</strong>.</td></tr>
+<tr><td><code>foreach (Produto p in estoque)</code></td><td>Passa por cada ficha, da primeira à última. Dentro do laço, <code>p</code> é o produto da vez (aula <a href="foreach.html">foreach</a>).</td></tr>
+<tr><td><code>{p.Codigo,3}</code></td><td>O número depois da vírgula é a <strong>largura</strong>: o código ocupa 3 posições, alinhado à direita.</td></tr>
+<tr><td><code>{p.Nome,-10}</code></td><td>Largura negativa alinha à <strong>esquerda</strong>: o nome ocupa 10 posições, e o que sobra vira espaço.</td></tr>
+<tr><td><code>{p.Preco,10:C}</code></td><td>Largura 10 e o formato <code>C</code> ("currency", moeda). Na máquina da Ana, em pt-BR, <code>15.90m</code> sai <code>R$ 15,90</code>.</td></tr>
+<tr><td><code>estoque.Count</code></td><td>Quantos itens a lista tem agora. É uma propriedade (sem parênteses).</td></tr>
+</table>
+</div>
+
+<pre class="term" data-cwd="~/projetos/Estoque">$ dotnet run
+=== Estoque da Lojinha ===
+Cód  Produto     Categoria   Qtd       Preço
+  1  Caderno     Papelaria    12    R$ 15,90
+  2  Caneta      Escrita      40     R$ 2,50
+  3  Borracha    Escrita       3     R$ 1,75
+  4  Mochila     Bolsas        2    R$ 89,90
+  5  Lápis       Escrita      60     R$ 1,20
+  6  Papel A4    Papelaria     4    R$ 27,50
+  7  Estojo      Bolsas        6    R$ 19,90
+7 produtos cadastrados.</pre>
+
+<p>Repare nos preços: todos terminam na mesma coluna, porque cada um ocupa 10 posições. É o mesmo que a Ana faria no caderno, com uma régua.</p>
+
+<h3>A ficha não se apaga: records são imutáveis</h3>
+<p>A Ana vendeu um caderno e tentou diminuir a quantidade como faria numa variável comum:</p>
+
+<div class="cenario">
+<strong>CS8852: a propriedade só pode ser atribuída na criação</strong>
+<pre class="file" data-file="Program.cs">List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+];
+
+estoque[0].Quantidade = 11;     // vendeu um caderno
+Console.WriteLine(estoque[0]);
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+<pre class="term" data-cwd="~/projetos/Estoque">$ dotnet run
+/home/ana/projetos/Estoque/Program.cs(6,1): error CS8852: A propriedade somente de inicialização ou o indexador 'Produto.Quantidade' só pode ser atribuído em um inicializador de objeto, em 'this' ou 'base' em um construtor de instância ou em um acessador 'init'. [/home/ana/projetos/Estoque/Estoque.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> as propriedades de um <code>record</code> posicional são <code>init</code>: recebem o valor quando a ficha é criada e depois não mudam mais (aula <a href="readonly.html">readonly e init</a>). Em inglês, a mensagem começa com <code>Init-only property or indexer 'Produto.Quantidade' can only be assigned…</code>.</p>
+<p><strong>Como consertar:</strong> em vez de rasurar a ficha, a Ana preenche uma ficha nova, igual à velha, com a quantidade trocada, e põe a nova no lugar. É isso que o <code>with</code> faz:</p>
+<pre class="file" data-file="Program.cs">List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+];
+
+estoque[0] = estoque[0] with { Quantidade = 11 };
+Console.WriteLine(estoque[0]);
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+<pre class="term" data-cwd="~/projetos/Estoque">$ dotnet run
+Produto { Codigo = 1, Nome = Caderno, Categoria = Papelaria, Quantidade = 11, Preco = 15,90 }</pre>
+<p>De quebra, o <code>Console.WriteLine</code> de um record mostra todos os campos, com nome: ótimo para conferir o que está dentro.</p>
+</div>
+
+<p>Por que não usar uma <code>class</code> com <code>set</code>, que deixaria mudar? Daria certo também. O record foi escolhido porque, com LINQ, a maior parte do trabalho é <strong>ler</strong> o estoque, e uma ficha que ninguém muda por engano é mais segura. Só a versão 4 vai mudar quantidades, e sempre num lugar só.</p>
+
+<div class="trycs" data-goal="out:8 produtos cadastrados.,out:Cola">
+<p class="try-task"><strong>Missão (versão 1):</strong> chegou um produto novo, a cola. Acrescente na lista o produto de código <code>8</code>, nome <code>"Cola"</code>, categoria <code>"Escrita"</code>, 10 unidades a R$ 3,50 (lembre do <code>m</code>), e rode. A tabela deve ganhar uma linha e o total deve dizer <code>8 produtos cadastrados.</code></p>
+<pre class="script">// Estoque da Lojinha — versão 1: a ficha e a lista
+List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(2, "Caneta", "Escrita", 40, 2.50m),
+    new(3, "Borracha", "Escrita", 3, 1.75m),
+    new(4, "Mochila", "Bolsas", 2, 89.90m),
+    new(5, "Lápis", "Escrita", 60, 1.20m),
+    new(6, "Papel A4", "Papelaria", 4, 27.50m),
+    new(7, "Estojo", "Bolsas", 6, 19.90m),
+];
+
+Console.WriteLine("=== Estoque da Lojinha ===");
+Console.WriteLine("Cód  Produto     Categoria   Qtd       Preço");
+foreach (Produto p in estoque)
+{
+    Console.WriteLine($"{p.Codigo,3}  {p.Nome,-10}  {p.Categoria,-10}  {p.Quantidade,3}  {p.Preco,10:C}");
+}
+Console.WriteLine($"{estoque.Count} produtos cadastrados.");
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+<pre class="solucao">// Estoque da Lojinha — versão 1: a ficha e a lista
+List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(2, "Caneta", "Escrita", 40, 2.50m),
+    new(3, "Borracha", "Escrita", 3, 1.75m),
+    new(4, "Mochila", "Bolsas", 2, 89.90m),
+    new(5, "Lápis", "Escrita", 60, 1.20m),
+    new(6, "Papel A4", "Papelaria", 4, 27.50m),
+    new(7, "Estojo", "Bolsas", 6, 19.90m),
+    new(8, "Cola", "Escrita", 10, 3.50m),
+];
+
+Console.WriteLine("=== Estoque da Lojinha ===");
+Console.WriteLine("Cód  Produto     Categoria   Qtd       Preço");
+foreach (Produto p in estoque)
+{
+    Console.WriteLine($"{p.Codigo,3}  {p.Nome,-10}  {p.Categoria,-10}  {p.Quantidade,3}  {p.Preco,10:C}");
+}
+Console.WriteLine($"{estoque.Count} produtos cadastrados.");
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao2">Versão 2 · Perguntas ao estoque com LINQ</h2>
+<p>Com a lista pronta, chegam as perguntas da Ana. Sem LINQ, cada pergunta seria um <code>foreach</code> com um <code>if</code> e uma variável para ir somando. Com LINQ, cada pergunta vira uma frase: "do estoque, <strong>onde</strong> a quantidade é menor que 5"; "do estoque, a <strong>soma</strong> de quantidade vezes preço".</p>
+
+<pre class="file" data-file="Program.cs">// Estoque da Lojinha — versão 2: perguntas com LINQ
+List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(2, "Caneta", "Escrita", 40, 2.50m),
+    new(3, "Borracha", "Escrita", 3, 1.75m),
+    new(4, "Mochila", "Bolsas", 2, 89.90m),
+    new(5, "Lápis", "Escrita", 60, 1.20m),
+    new(6, "Papel A4", "Papelaria", 4, 27.50m),
+    new(7, "Estojo", "Bolsas", 6, 19.90m),
+];
+
+// 1. Quais produtos estão acabando? (menos de 5 unidades)
+var acabando = estoque.Where(p =&gt; p.Quantidade &lt; 5);
+Console.WriteLine("Comprar logo:");
+foreach (Produto p in acabando)
+{
+    Console.WriteLine($"  {p.Nome} (só {p.Quantidade})");
+}
+
+// 2. Os nomes em ordem alfabética
+var nomes = estoque.OrderBy(p =&gt; p.Nome).Select(p =&gt; p.Nome);
+Console.WriteLine($"Em ordem: {string.Join(", ", nomes)}");
+
+// 3. Contas sobre o estoque inteiro
+int unidades = estoque.Sum(p =&gt; p.Quantidade);
+decimal valor = estoque.Sum(p =&gt; p.Quantidade * p.Preco);
+int caros = estoque.Count(p =&gt; p.Preco &gt; 10m);
+Produto maisCaro = estoque.MaxBy(p =&gt; p.Preco)!;
+
+Console.WriteLine($"Unidades: {unidades}");
+Console.WriteLine($"Valor do estoque: {valor:C}");
+Console.WriteLine($"Produtos acima de R$ 10: {caros}");
+Console.WriteLine($"Mais caro: {maisCaro.Nome}, {maisCaro.Preco:C}");
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>estoque.Where(p =&gt; p.Quantidade &lt; 5)</code></td><td><strong>Filtra</strong>: fica só com os produtos em que a condição é verdadeira. O <code>p =&gt; p.Quantidade &lt; 5</code> é uma <a href="lambdas.html">lambda</a>: "dado um produto <code>p</code>, diga se a quantidade dele é menor que 5". Aula: <a href="linq-filtrar.html">Filtrar e Projetar</a>.</td></tr>
+<tr><td><code>var acabando = …;</code></td><td>O resultado é um <code>IEnumerable&lt;Produto&gt;</code>, uma sequência que se percorre com <code>foreach</code>. O <code>var</code> poupa escrever esse nome comprido.</td></tr>
+<tr><td><code>.OrderBy(p =&gt; p.Nome)</code></td><td><strong>Ordena</strong> pelo nome, de A a Z (aula <a href="linq-ordenar.html">Ordenar</a>). A lista original continua na ordem de antes.</td></tr>
+<tr><td><code>.Select(p =&gt; p.Nome)</code></td><td><strong>Projeta</strong>: troca cada produto por outra coisa, aqui só o nome. O resultado é uma sequência de <code>string</code>.</td></tr>
+<tr><td><code>string.Join(", ", nomes)</code></td><td>Junta os textos numa linha só, com <code>", "</code> entre eles.</td></tr>
+<tr><td><code>estoque.Sum(p =&gt; p.Quantidade)</code></td><td><strong>Soma</strong> o que a lambda devolve para cada produto: todas as unidades.</td></tr>
+<tr><td><code>estoque.Sum(p =&gt; p.Quantidade * p.Preco)</code></td><td>O valor do estoque: para cada produto, quantidade × preço, e a soma de tudo. <code>int</code> vezes <code>decimal</code> dá <code>decimal</code>, e a conta é exata. Aula: <a href="linq-agregar.html">Agregar</a>.</td></tr>
+<tr><td><code>estoque.Count(p =&gt; p.Preco &gt; 10m)</code></td><td><strong>Conta</strong> quantos produtos cumprem a condição. Sem lambda, <code>Count()</code> conta todos.</td></tr>
+<tr><td><code>estoque.MaxBy(p =&gt; p.Preco)!</code></td><td>Devolve o <strong>produto</strong> de maior preço (o <code>Max</code> devolveria só o preço). Numa lista vazia, ele devolveria <code>null</code>; o <code>!</code> diz ao compilador "aqui não está vazia" e evita um aviso (aula <a href="referencias-anulaveis.html">Referências Anuláveis</a>). <span class="versao">.NET 6</span></td></tr>
+</table>
+</div>
+
+<pre class="term" data-cwd="~/projetos/Estoque">$ dotnet run
+Comprar logo:
+  Borracha (só 3)
+  Mochila (só 2)
+  Papel A4 (só 4)
+Em ordem: Borracha, Caderno, Caneta, Estojo, Lápis, Mochila, Papel A4
+Unidades: 127
+Valor do estoque: R$ 777,25
+Produtos acima de R$ 10: 4
+Mais caro: Mochila, R$ 89,90</pre>
+
+<p>Confira uma conta na mão: o caderno vale 12 × 15,90 = 190,80; a caneta, 40 × 2,50 = 100,00; somando os sete, dá R$ 777,25. Repare também no <code>Lápis</code> entre <code>Estojo</code> e <code>Mochila</code>: o <code>OrderBy</code> de texto segue as regras do português, e o <code>á</code> conta como <code>a</code>.</p>
+
+<div class="cenario">
+<strong>CS1061: a sequência não tem <code>Nome</code></strong>
+<p>A Ana quis mostrar o nome do que está acabando direto do resultado do <code>Where</code>:</p>
+<pre class="file" data-file="Program.cs">List&lt;Produto&gt; estoque =
+[
+    new(3, "Borracha", "Escrita", 3, 1.75m),
+    new(4, "Mochila", "Bolsas", 2, 89.90m),
+];
+
+var acabando = estoque.Where(p =&gt; p.Quantidade &lt; 5);
+Console.WriteLine(acabando.Nome);
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+<pre class="term" data-cwd="~/projetos/Estoque">$ dotnet run
+/home/ana/projetos/Estoque/Program.cs(8,28): error CS1061: ‘IEnumerable&lt;Produto&gt;’ não contém uma definição para "Nome" e não foi possível encontrar nenhum método de extensão "Nome" que aceite um primeiro argumento do tipo ‘IEnumerable&lt;Produto&gt;’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?) [/home/ana/projetos/Estoque/Estoque.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>Where</code> não devolve <strong>um</strong> produto, devolve uma <strong>sequência</strong> de produtos (podem ser zero, um ou vários). Uma sequência não tem nome; cada produto dentro dela, sim. A dica do fim (<code>diretiva ou referência de assembly</code>) não ajuda aqui: ela aparece em todo CS1061.</p>
+<p><strong>Como consertar:</strong> percorra com <code>foreach</code>, como na versão 2; ou projete os nomes: <code>string.Join(", ", acabando.Select(p =&gt; p.Nome))</code>; ou, se quer só o primeiro, <code>acabando.First().Nome</code>.</p>
+</div>
+
+<h3>A consulta é uma receita, não uma foto</h3>
+<p>Um detalhe do LINQ que surpreende: a linha do <code>Where</code> <strong>não</strong> separa os produtos naquela hora. Ela guarda a "receita" do filtro, e a receita roda de novo a cada vez que alguém percorre o resultado. Veja o que acontece quando o estoque muda depois da consulta:</p>
+<pre class="file" data-file="Program.cs">List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(3, "Borracha", "Escrita", 3, 1.75m),
+    new(4, "Mochila", "Bolsas", 2, 89.90m),
+];
+
+var acabando = estoque.Where(p =&gt; p.Quantidade &lt; 5);
+Console.WriteLine($"Acabando: {acabando.Count()}");
+
+estoque[1] = estoque[1] with { Quantidade = 30 };   // chegou uma caixa de borrachas
+Console.WriteLine($"Acabando: {acabando.Count()}");
+
+var foto = estoque.Where(p =&gt; p.Quantidade &lt; 5).ToList();
+estoque[2] = estoque[2] with { Quantidade = 10 };   // chegaram mochilas
+Console.WriteLine($"Acabando (consulta): {acabando.Count()}");
+Console.WriteLine($"Acabando (ToList):   {foto.Count}");
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+<pre class="term" data-cwd="~/projetos/Estoque">$ dotnet run
+Acabando: 2
+Acabando: 1
+Acabando (consulta): 0
+Acabando (ToList):   1</pre>
+<p>A mesma variável <code>acabando</code> deu 2, depois 1, depois 0, porque cada <code>Count()</code> refez o filtro na lista do momento. Isso se chama <strong>execução adiada</strong>. Quando você quer guardar o resultado <strong>daquele</strong> momento, termine a consulta com <code>.ToList()</code>: ela roda na hora e copia os produtos para uma lista nova. Aula: <a href="linq.html">O que é LINQ</a>.</p>
+
+<div class="trycs" data-goal="out:Papelaria vale R$ 300\,80,src:\.Where\s*\(">
+<p class="try-task"><strong>Missão (versão 2):</strong> a Ana quer saber quanto vale só a <strong>Papelaria</strong>. Troque o <code>0m</code> por uma consulta: primeiro um <code>Where</code> que fica com a categoria <code>"Papelaria"</code>, depois um <code>Sum</code> de quantidade × preço. O resultado certo é <code>Papelaria vale R$ 300,80</code>.</p>
+<pre class="script">List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(2, "Caneta", "Escrita", 40, 2.50m),
+    new(3, "Borracha", "Escrita", 3, 1.75m),
+    new(4, "Mochila", "Bolsas", 2, 89.90m),
+    new(5, "Lápis", "Escrita", 60, 1.20m),
+    new(6, "Papel A4", "Papelaria", 4, 27.50m),
+    new(7, "Estojo", "Bolsas", 6, 19.90m),
+];
+
+decimal total = estoque.Sum(p =&gt; p.Quantidade * p.Preco);
+Console.WriteLine($"Estoque inteiro: {total:C}");
+
+// Troque o 0m por uma consulta: Where (só a Papelaria) e depois Sum
+decimal papelaria = 0m;
+Console.WriteLine($"Papelaria vale {papelaria:C}");
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+<pre class="solucao">List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(2, "Caneta", "Escrita", 40, 2.50m),
+    new(3, "Borracha", "Escrita", 3, 1.75m),
+    new(4, "Mochila", "Bolsas", 2, 89.90m),
+    new(5, "Lápis", "Escrita", 60, 1.20m),
+    new(6, "Papel A4", "Papelaria", 4, 27.50m),
+    new(7, "Estojo", "Bolsas", 6, 19.90m),
+];
+
+decimal total = estoque.Sum(p =&gt; p.Quantidade * p.Preco);
+Console.WriteLine($"Estoque inteiro: {total:C}");
+
+// Troque o 0m por uma consulta: Where (só a Papelaria) e depois Sum
+decimal papelaria = estoque.Where(p =&gt; p.Categoria == "Papelaria").Sum(p =&gt; p.Quantidade * p.Preco);
+Console.WriteLine($"Papelaria vale {papelaria:C}");
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao3">Versão 3 · O relatório por categoria e a busca</h2>
+<p>Agora a Ana quer o relatório do fim do mês: para cada categoria, quantos produtos, quantas unidades e quanto vale. No caderno, ela faria três pilhas de fichas (Papelaria, Escrita, Bolsas) e somaria cada pilha. O <code>GroupBy</code> ("agrupar por") faz exatamente as pilhas.</p>
+
+<pre class="file" data-file="Program.cs">// Estoque da Lojinha — versão 3: relatório por categoria e busca
+List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(2, "Caneta", "Escrita", 40, 2.50m),
+    new(3, "Borracha", "Escrita", 3, 1.75m),
+    new(4, "Mochila", "Bolsas", 2, 89.90m),
+    new(5, "Lápis", "Escrita", 60, 1.20m),
+    new(6, "Papel A4", "Papelaria", 4, 27.50m),
+    new(7, "Estojo", "Bolsas", 6, 19.90m),
+];
+
+// Relatório: uma linha por categoria, da que vale mais para a que vale menos
+var relatorio = estoque
+    .GroupBy(p =&gt; p.Categoria)
+    .Select(g =&gt; new
+    {
+        Categoria = g.Key,
+        Produtos = g.Count(),
+        Unidades = g.Sum(p =&gt; p.Quantidade),
+        Valor = g.Sum(p =&gt; p.Quantidade * p.Preco)
+    })
+    .OrderByDescending(c =&gt; c.Valor);
+
+Console.WriteLine("Categoria   Produtos  Unidades       Valor");
+foreach (var c in relatorio)
+{
+    Console.WriteLine($"{c.Categoria,-10}  {c.Produtos,8}  {c.Unidades,8}  {c.Valor,10:C}");
+}
+
+// Busca pelo nome, sem ligar para maiúsculas
+Mostrar(Buscar(estoque, "caneta"));
+Mostrar(Buscar(estoque, "régua"));
+
+bool temBolsa = estoque.Any(p =&gt; p.Categoria == "Bolsas");
+bool tudoTem = estoque.All(p =&gt; p.Quantidade &gt; 0);
+Console.WriteLine($"Vende bolsas? {temBolsa}. Nada esgotado? {tudoTem}.");
+
+static Produto? Buscar(List&lt;Produto&gt; lista, string nome) =&gt;
+    lista.FirstOrDefault(p =&gt; p.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase));
+
+static void Mostrar(Produto? p)
+{
+    if (p is null)
+    {
+        Console.WriteLine("Não temos esse produto.");
+        return;
+    }
+    Console.WriteLine($"{p.Nome}: {p.Quantidade} unidades a {p.Preco:C}");
+}
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>.GroupBy(p =&gt; p.Categoria)</code></td><td>Faz uma pilha para cada categoria diferente. Cada pilha <code>g</code> tem uma <strong>chave</strong>, <code>g.Key</code> (o nome da categoria), e é ela mesma uma sequência com os produtos daquela categoria. Aula: <a href="linq-agrupar.html">Agrupar</a>.</td></tr>
+<tr><td><code>.Select(g =&gt; new { Categoria = g.Key, … })</code></td><td>Troca cada pilha por um resumo dela. O <code>new { … }</code> sem nome de tipo cria um <strong>tipo anônimo</strong>: um objeto só com esses campos, que serve só para este relatório.</td></tr>
+<tr><td><code>g.Count()</code>, <code>g.Sum(p =&gt; p.Quantidade)</code></td><td>As mesmas contas da versão 2, mas só com os produtos da pilha.</td></tr>
+<tr><td><code>.OrderByDescending(c =&gt; c.Valor)</code></td><td>Ordena do maior valor para o menor ("descending" = decrescente).</td></tr>
+<tr><td><code>foreach (var c in relatorio)</code></td><td>Aqui o <code>var</code> é obrigatório: o tipo anônimo não tem nome para escrever.</td></tr>
+<tr><td><code>static Produto? Buscar(…) =&gt; lista.FirstOrDefault(…)</code></td><td>Uma <a href="funcoes-locais.html">função local</a> que devolve o <strong>primeiro</strong> produto que combina, ou <code>null</code> se nenhum combina (o "OrDefault"). O <code>?</code> em <code>Produto?</code> avisa que pode vir <code>null</code>.</td></tr>
+<tr><td><code>p.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase)</code></td><td>Compara ignorando maiúsculas e minúsculas: <code>"caneta"</code> acha <code>"Caneta"</code> (aula <a href="metodos-string.html">Métodos de String</a>).</td></tr>
+<tr><td><code>if (p is null)</code></td><td>Antes de usar o resultado de <code>FirstOrDefault</code>, confira se veio alguma coisa (aula <a href="null.html">null</a>).</td></tr>
+<tr><td><code>estoque.Any(…)</code>, <code>estoque.All(…)</code></td><td><code>Any</code>: "algum produto cumpre?". <code>All</code>: "todos cumprem?". Os dois devolvem <code>bool</code>, que o <code>Console</code> mostra como <code>True</code> ou <code>False</code>.</td></tr>
+</table>
+</div>
+
+<pre class="term" data-cwd="~/projetos/Estoque">$ dotnet run
+Categoria   Produtos  Unidades       Valor
+Papelaria          2        16   R$ 300,80
+Bolsas             2         8   R$ 299,20
+Escrita            3       103   R$ 177,25
+Caneta: 40 unidades a R$ 2,50
+Não temos esse produto.
+Vende bolsas? True. Nada esgotado? True.</pre>
+
+<p>A Escrita tem quase todas as unidades (103 de 127), mas é a que vale menos: são canetas e lápis baratos. A Papelaria, com só 16 unidades, vale mais. É o tipo de coisa que o relatório mostra e o olho não vê.</p>
+
+<div class="cenario">
+<strong><code>First</code> sem resultado: InvalidOperationException</strong>
+<p>Na primeira busca, a Ana usou <code>First</code> em vez de <code>FirstOrDefault</code>, e procurou um produto que a loja não tem:</p>
+<pre class="file" data-file="Program.cs">List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(2, "Caneta", "Escrita", 40, 2.50m),
+];
+
+Produto regua = estoque.First(p =&gt; p.Nome == "Régua");
+Console.WriteLine(regua.Preco);
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+<pre class="term" data-cwd="~/projetos/Estoque">$ dotnet run
+Unhandled exception. System.InvalidOperationException: Sequence contains no matching element
+   at System.Linq.ThrowHelper.ThrowNoMatchException()
+   at System.Linq.Enumerable.First[TSource](IEnumerable`1 source, Func`2 predicate)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/projetos/Estoque/Program.cs:line 7
+$ echo $?
+134</pre>
+<p><strong>O que significa:</strong> "a sequência não contém nenhum elemento que combine". O <code>First</code> promete devolver um produto; quando não há nenhum, ele não tem o que devolver e lança uma <a href="excecoes.html">exceção</a>. O programa cai na linha 7, com o código de saída 134.</p>
+<p><strong>Como consertar:</strong> quando pode não haver resultado (busca pelo que o usuário digitou, por exemplo), use <code>FirstOrDefault</code> e confira o <code>null</code>, como na versão 3. Deixe o <code>First</code> para quando "não achar" seria mesmo um defeito do programa.</p>
+</div>
+
+<div class="trycs" data-goal="out:Escrita: Caneta\, Borracha\, Lápis,out:Bolsas: Mochila\, Estojo">
+<p class="try-task"><strong>Missão (versão 3):</strong> este programa deveria mostrar uma linha por categoria, com os nomes dos produtos dela, mas mostra uma linha por produto. O defeito está na chave do <code>GroupBy</code>. Conserte para a saída ter <code>Escrita: Caneta, Borracha, Lápis</code>.</p>
+<pre class="script">List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(2, "Caneta", "Escrita", 40, 2.50m),
+    new(3, "Borracha", "Escrita", 3, 1.75m),
+    new(4, "Mochila", "Bolsas", 2, 89.90m),
+    new(5, "Lápis", "Escrita", 60, 1.20m),
+    new(6, "Papel A4", "Papelaria", 4, 27.50m),
+    new(7, "Estojo", "Bolsas", 6, 19.90m),
+];
+
+// Uma linha por categoria, com os nomes dos produtos dela
+var grupos = estoque.GroupBy(p =&gt; p.Nome);
+foreach (var g in grupos)
+{
+    Console.WriteLine($"{g.Key}: {string.Join(", ", g.Select(p =&gt; p.Nome))}");
+}
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+<pre class="solucao">List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(2, "Caneta", "Escrita", 40, 2.50m),
+    new(3, "Borracha", "Escrita", 3, 1.75m),
+    new(4, "Mochila", "Bolsas", 2, 89.90m),
+    new(5, "Lápis", "Escrita", 60, 1.20m),
+    new(6, "Papel A4", "Papelaria", 4, 27.50m),
+    new(7, "Estojo", "Bolsas", 6, 19.90m),
+];
+
+// Uma linha por categoria, com os nomes dos produtos dela
+var grupos = estoque.GroupBy(p =&gt; p.Categoria);
+foreach (var g in grupos)
+{
+    Console.WriteLine($"{g.Key}: {string.Join(", ", g.Select(p =&gt; p.Nome))}");
+}
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao4">Versão 4 · O menu: entrada e saída</h2>
+<p>Até aqui, o programa só olha. Agora ele vai <strong>mudar</strong> o estoque: quando chega mercadoria (entrada) e quando a Ana vende (saída). Um menu pergunta o que fazer, até ela digitar <code>0</code>. As consultas da versão 2 continuam úteis: a opção "Acabando" é o mesmo <code>Where</code>, passado para a função que lista.</p>
+
+<pre class="file" data-file="Program.cs">// Estoque da Lojinha — versão 4: o menu, a entrada e a saída
+List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(2, "Caneta", "Escrita", 40, 2.50m),
+    new(3, "Borracha", "Escrita", 3, 1.75m),
+    new(4, "Mochila", "Bolsas", 2, 89.90m),
+    new(5, "Lápis", "Escrita", 60, 1.20m),
+    new(6, "Papel A4", "Papelaria", 4, 27.50m),
+    new(7, "Estojo", "Bolsas", 6, 19.90m),
+];
+
+Console.WriteLine("=== Estoque da Lojinha ===");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair");
+    string opcao = Perguntar("Opção: ");
+    if (opcao == "0")
+    {
+        break;
+    }
+    switch (opcao)
+    {
+        case "1": Listar(estoque); break;
+        case "2": Listar(estoque.Where(p =&gt; p.Quantidade &lt; 5)); break;
+        case "3": Movimentar(estoque, +1); break;
+        case "4": Movimentar(estoque, -1); break;
+        default: Console.WriteLine("Opção inválida."); break;
+    }
+}
+Console.WriteLine($"Até amanhã! Valor do estoque: {estoque.Sum(p =&gt; p.Quantidade * p.Preco):C}");
+
+static string Perguntar(string texto)
+{
+    Console.Write(texto);
+    return Console.ReadLine()?.Trim() ?? "0";     // fim da entrada = sair
+}
+
+static void Listar(IEnumerable&lt;Produto&gt; produtos)
+{
+    Console.WriteLine("Cód  Produto     Qtd       Preço");
+    foreach (Produto p in produtos)
+    {
+        Console.WriteLine($"{p.Codigo,3}  {p.Nome,-10}  {p.Quantidade,3}  {p.Preco,10:C}");
+    }
+}
+
+// sinal = +1 (chegou mercadoria) ou -1 (vendeu)
+static void Movimentar(List&lt;Produto&gt; lista, int sinal)
+{
+    if (!int.TryParse(Perguntar("Código: "), out int codigo))
+    {
+        Console.WriteLine("Código inválido.");
+        return;
+    }
+    int i = lista.FindIndex(p =&gt; p.Codigo == codigo);
+    if (i == -1)
+    {
+        Console.WriteLine($"Não há produto com o código {codigo}.");
+        return;
+    }
+    if (!int.TryParse(Perguntar("Quantas unidades? "), out int qtd) || qtd &lt;= 0)
+    {
+        Console.WriteLine("Quantidade inválida.");
+        return;
+    }
+    Produto p = lista[i];
+    if (sinal &lt; 0 &amp;&amp; qtd &gt; p.Quantidade)
+    {
+        Console.WriteLine($"Só há {p.Quantidade} de {p.Nome}.");
+        return;
+    }
+    lista[i] = p with { Quantidade = p.Quantidade + sinal * qtd };
+    Console.WriteLine($"{p.Nome}: agora são {lista[i].Quantidade}.");
+}
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>while (true) { … break; }</code></td><td>Repete o menu para sempre; o <code>break</code> sai do laço quando a opção é <code>"0"</code> (aulas <a href="while.html">while</a> e <a href="break-continue.html">break</a>).</td></tr>
+<tr><td><code>switch (opcao) { case "1": … }</code></td><td>Escolhe o que fazer pelo texto digitado. O <code>default</code> pega tudo o que não é opção (aula <a href="switch.html">switch</a>).</td></tr>
+<tr><td><code>Console.ReadLine()?.Trim() ?? "0"</code></td><td>Lê uma linha. Quando a entrada acaba (o usuário apertou <kbd>Ctrl</kbd>+<kbd>D</kbd>), o <code>ReadLine</code> devolve <code>null</code>: o <code>?.</code> não chama o <code>Trim</code>, e o <code>??</code> troca o <code>null</code> por <code>"0"</code>, que sai do programa (aula <a href="operadores-null.html">Operadores ??, ?. e ??=</a>).</td></tr>
+<tr><td><code>static void Listar(IEnumerable&lt;Produto&gt; produtos)</code></td><td>O parâmetro é <code>IEnumerable</code>, e não <code>List</code>: assim, a mesma função lista a <code>List</code> inteira <strong>e</strong> o resultado de um <code>Where</code> (aula <a href="ienumerable.html">IEnumerable e foreach</a>).</td></tr>
+<tr><td><code>int.TryParse(…, out int codigo)</code></td><td>Tenta converter o texto em número. Devolve <code>false</code> se a Ana digitou <code>abc</code>, em vez de derrubar o programa como o <code>int.Parse</code> faria (aula <a href="parse.html">Parse e TryParse</a>).</td></tr>
+<tr><td><code>lista.FindIndex(p =&gt; p.Codigo == codigo)</code></td><td>A <strong>posição</strong> do produto na lista, ou <code>-1</code> se não há. É um método da própria <code>List</code>, não do LINQ: precisamos da posição para trocar a ficha.</td></tr>
+<tr><td><code>if (sinal &lt; 0 &amp;&amp; qtd &gt; p.Quantidade)</code></td><td>Na saída, não deixa vender mais do que há.</td></tr>
+<tr><td><code>lista[i] = p with { Quantidade = … };</code></td><td>Uma ficha nova, cópia da velha com a quantidade nova, no mesmo lugar da lista. <code>sinal * qtd</code> soma na entrada e subtrai na saída.</td></tr>
+</table>
+</div>
+
+<p>A Ana rodou e fez uma tarde de trabalho (os números depois de <code>Opção:</code>, <code>Código:</code> e <code>Quantas unidades?</code> são o que ela digitou):</p>
+
+<pre class="term" data-cwd="~/projetos/Estoque">$ dotnet run
+=== Estoque da Lojinha ===
+
+1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair
+Opção: 2
+Cód  Produto     Qtd       Preço
+  3  Borracha      3     R$ 1,75
+  4  Mochila       2    R$ 89,90
+  6  Papel A4      4    R$ 27,50
+
+1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair
+Opção: 3
+Código: 3
+Quantas unidades? 20
+Borracha: agora são 23.
+
+1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair
+Opção: 4
+Código: 4
+Quantas unidades? 3
+Só há 2 de Mochila.
+
+1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair
+Opção: 4
+Código: abc
+Código inválido.
+
+1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair
+Opção: 4
+Código: 2
+Quantas unidades? 5
+Caneta: agora são 35.
+
+1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair
+Opção: 1
+Cód  Produto     Qtd       Preço
+  1  Caderno      12    R$ 15,90
+  2  Caneta       35     R$ 2,50
+  3  Borracha     23     R$ 1,75
+  4  Mochila       2    R$ 89,90
+  5  Lápis        60     R$ 1,20
+  6  Papel A4      4    R$ 27,50
+  7  Estojo        6    R$ 19,90
+
+1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair
+Opção: 0
+Até amanhã! Valor do estoque: R$ 799,75</pre>
+
+<div class="cenario">
+<strong>Apagar dentro do <code>foreach</code>: "Collection was modified"</strong>
+<p>A Ana pensou numa opção para tirar da lista os produtos esgotados e escreveu o jeito mais direto:</p>
+<pre class="file" data-file="Program.cs">List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(4, "Mochila", "Bolsas", 0, 89.90m),
+    new(7, "Estojo", "Bolsas", 6, 19.90m),
+];
+
+// tirar da lista o que esgotou
+foreach (Produto p in estoque)
+{
+    if (p.Quantidade == 0)
+    {
+        estoque.Remove(p);
+    }
+}
+Console.WriteLine(estoque.Count);
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+<pre class="term" data-cwd="~/projetos/Estoque">$ dotnet run
+Unhandled exception. System.InvalidOperationException: Collection was modified; enumeration operation may not execute.
+   at System.Collections.Generic.List`1.Enumerator.MoveNext()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/projetos/Estoque/Program.cs:line 9</pre>
+<p><strong>O que significa:</strong> "a coleção foi modificada; a enumeração não pode continuar". O <code>foreach</code> vai andando pela lista; quando ela muda no meio do caminho, ele não sabe mais onde está e para com uma exceção (na linha 9, a do <code>foreach</code>).</p>
+<p><strong>Como consertar:</strong> não mexa na lista que o <code>foreach</code> está percorrendo. Para apagar, a <code>List</code> tem um método pronto, que faz o laço por dentro: <code>estoque.RemoveAll(p =&gt; p.Quantidade == 0);</code>. Ou, no estilo LINQ, crie uma lista nova só com o que fica: <code>estoque = estoque.Where(p =&gt; p.Quantidade &gt; 0).ToList();</code>. O mesmo vale para <code>Add</code> dentro do <code>foreach</code>.</p>
+</div>
+
+<div class="trycs" data-stdin="4\n4\n3\n1\n0" data-goal="out:Só há 2 de Mochila.,out:R$ 777\,25">
+<p class="try-task"><strong>Missão (versão 4):</strong> a função <code>Movimentar</code> está sem o teste da saída, e a Ana consegue vender 3 mochilas quando só tem 2 (o estoque fica em <code>-1</code>). Escreva o teste no lugar do comentário. A entrada já vem pronta: opção 4 (saída), código 4, 3 unidades; depois lista (1) e sai (0). Com o teste certo, aparece <code>Só há 2 de Mochila.</code> e o valor final continua <code>R$ 777,25</code>.</p>
+<pre class="script">// Estoque da Lojinha — versão 4: o menu, a entrada e a saída
+List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(2, "Caneta", "Escrita", 40, 2.50m),
+    new(3, "Borracha", "Escrita", 3, 1.75m),
+    new(4, "Mochila", "Bolsas", 2, 89.90m),
+    new(5, "Lápis", "Escrita", 60, 1.20m),
+    new(6, "Papel A4", "Papelaria", 4, 27.50m),
+    new(7, "Estojo", "Bolsas", 6, 19.90m),
+];
+
+Console.WriteLine("=== Estoque da Lojinha ===");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair");
+    string opcao = Perguntar("Opção: ");
+    if (opcao == "0")
+    {
+        break;
+    }
+    switch (opcao)
+    {
+        case "1": Listar(estoque); break;
+        case "2": Listar(estoque.Where(p =&gt; p.Quantidade &lt; 5)); break;
+        case "3": Movimentar(estoque, +1); break;
+        case "4": Movimentar(estoque, -1); break;
+        default: Console.WriteLine("Opção inválida."); break;
+    }
+}
+Console.WriteLine($"Até amanhã! Valor do estoque: {estoque.Sum(p =&gt; p.Quantidade * p.Preco):C}");
+
+static string Perguntar(string texto)
+{
+    Console.Write(texto);
+    return Console.ReadLine()?.Trim() ?? "0";     // fim da entrada = sair
+}
+
+static void Listar(IEnumerable&lt;Produto&gt; produtos)
+{
+    Console.WriteLine("Cód  Produto     Qtd       Preço");
+    foreach (Produto p in produtos)
+    {
+        Console.WriteLine($"{p.Codigo,3}  {p.Nome,-10}  {p.Quantidade,3}  {p.Preco,10:C}");
+    }
+}
+
+// sinal = +1 (chegou mercadoria) ou -1 (vendeu)
+static void Movimentar(List&lt;Produto&gt; lista, int sinal)
+{
+    if (!int.TryParse(Perguntar("Código: "), out int codigo))
+    {
+        Console.WriteLine("Código inválido.");
+        return;
+    }
+    int i = lista.FindIndex(p =&gt; p.Codigo == codigo);
+    if (i == -1)
+    {
+        Console.WriteLine($"Não há produto com o código {codigo}.");
+        return;
+    }
+    if (!int.TryParse(Perguntar("Quantas unidades? "), out int qtd) || qtd &lt;= 0)
+    {
+        Console.WriteLine("Quantidade inválida.");
+        return;
+    }
+    Produto p = lista[i];
+    // FALTA AQUI: na saída (sinal &lt; 0), não deixe vender mais do que há.
+    // Mostre "Só há 2 de Mochila." (com p.Quantidade e p.Nome) e saia com return.
+
+    lista[i] = p with { Quantidade = p.Quantidade + sinal * qtd };
+    Console.WriteLine($"{p.Nome}: agora são {lista[i].Quantidade}.");
+}
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+<pre class="solucao">// Estoque da Lojinha — versão 4: o menu, a entrada e a saída
+List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(2, "Caneta", "Escrita", 40, 2.50m),
+    new(3, "Borracha", "Escrita", 3, 1.75m),
+    new(4, "Mochila", "Bolsas", 2, 89.90m),
+    new(5, "Lápis", "Escrita", 60, 1.20m),
+    new(6, "Papel A4", "Papelaria", 4, 27.50m),
+    new(7, "Estojo", "Bolsas", 6, 19.90m),
+];
+
+Console.WriteLine("=== Estoque da Lojinha ===");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair");
+    string opcao = Perguntar("Opção: ");
+    if (opcao == "0")
+    {
+        break;
+    }
+    switch (opcao)
+    {
+        case "1": Listar(estoque); break;
+        case "2": Listar(estoque.Where(p =&gt; p.Quantidade &lt; 5)); break;
+        case "3": Movimentar(estoque, +1); break;
+        case "4": Movimentar(estoque, -1); break;
+        default: Console.WriteLine("Opção inválida."); break;
+    }
+}
+Console.WriteLine($"Até amanhã! Valor do estoque: {estoque.Sum(p =&gt; p.Quantidade * p.Preco):C}");
+
+static string Perguntar(string texto)
+{
+    Console.Write(texto);
+    return Console.ReadLine()?.Trim() ?? "0";     // fim da entrada = sair
+}
+
+static void Listar(IEnumerable&lt;Produto&gt; produtos)
+{
+    Console.WriteLine("Cód  Produto     Qtd       Preço");
+    foreach (Produto p in produtos)
+    {
+        Console.WriteLine($"{p.Codigo,3}  {p.Nome,-10}  {p.Quantidade,3}  {p.Preco,10:C}");
+    }
+}
+
+// sinal = +1 (chegou mercadoria) ou -1 (vendeu)
+static void Movimentar(List&lt;Produto&gt; lista, int sinal)
+{
+    if (!int.TryParse(Perguntar("Código: "), out int codigo))
+    {
+        Console.WriteLine("Código inválido.");
+        return;
+    }
+    int i = lista.FindIndex(p =&gt; p.Codigo == codigo);
+    if (i == -1)
+    {
+        Console.WriteLine($"Não há produto com o código {codigo}.");
+        return;
+    }
+    if (!int.TryParse(Perguntar("Quantas unidades? "), out int qtd) || qtd &lt;= 0)
+    {
+        Console.WriteLine("Quantidade inválida.");
+        return;
+    }
+    Produto p = lista[i];
+    if (sinal &lt; 0 &amp;&amp; qtd &gt; p.Quantidade)
+    {
+        Console.WriteLine($"Só há {p.Quantidade} de {p.Nome}.");
+        return;
+    }
+    lista[i] = p with { Quantidade = p.Quantidade + sinal * qtd };
+    Console.WriteLine($"{p.Nome}: agora são {lista[i].Quantidade}.");
+}
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao5">Versão 5 · O estoque guardado num arquivo</h2>
+<p>A versão 4 tem um problema grave: ao sair, tudo o que a Ana fez some, e no dia seguinte a caneta volta a ter 40. A memória do programa acaba junto com ele. Para lembrar, o estoque vai para um arquivo de texto, <code>estoque.csv</code>, uma linha por produto, com os campos separados por <code>;</code>. O formato CSV ("valores separados por vírgula") abre até numa planilha.</p>
+
+<h3>Antes: o centavo que virou milhar</h3>
+<p>A primeira tentativa da Ana usou vírgula entre os campos e escreveu o preço do jeito normal, com <code>{p.Preco}</code>:</p>
+
+<div class="cenario">
+<strong>O preço perdeu os centavos, sem nenhuma mensagem de erro</strong>
+<pre class="file" data-file="Program.cs">// errado.cs — a primeira tentativa da Ana de salvar em CSV
+List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(2, "Caneta", "Escrita", 40, 2.50m),
+];
+
+// salvar: uma linha por produto, campos separados por vírgula
+File.WriteAllLines("estoque.csv",
+    estoque.Select(p =&gt; $"{p.Codigo},{p.Nome},{p.Categoria},{p.Quantidade},{p.Preco}"));
+
+// carregar de volta
+List&lt;Produto&gt; lido = File.ReadLines("estoque.csv")
+    .Select(linha =&gt; linha.Split(','))
+    .Select(c =&gt; new Produto(int.Parse(c[0]), c[1], c[2], int.Parse(c[3]), decimal.Parse(c[4])))
+    .ToList();
+
+foreach (Produto p in lido)
+{
+    Console.WriteLine($"{p.Nome}: {p.Preco:C}");
+}
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+<pre class="term" data-cwd="~/projetos/Estoque">$ dotnet run
+Caderno: R$ 15,00
+Caneta: R$ 2,00
+$ cat estoque.csv
+1,Caderno,Papelaria,12,15,90
+2,Caneta,Escrita,40,2,50</pre>
+<p><strong>O que aconteceu:</strong> na máquina da Ana, em pt-BR, <code>15.90m</code> vira o texto <code>15,90</code>, com <strong>vírgula</strong>. A linha do caderno ficou com seis pedaços, e não cinco: <code>…,12,15,90</code>. Na leitura, o <code>Split(',')</code> separou o preço em <code>"15"</code> e <code>"90"</code>; o programa leu só o <code>"15"</code>, e os centavos sumiram. Não houve erro nenhum, e esse é o pior tipo de defeito.</p>
+<p><strong>Como consertar:</strong> duas mudanças, e a versão 5 usa as duas. Separe os campos com <code>;</code>, que não aparece em números. E grave e leia os números sempre do mesmo jeito, independente do país do computador, com <code>CultureInfo.InvariantCulture</code> (a "cultura invariante", que usa ponto): o preço vai para o arquivo como <code>15.90</code> (aula <a href="cultura.html">Cultura</a>).</p>
+</div>
+
+<p>A versão 5 é a 4 com duas funções novas, <code>Carregar</code> e <code>Salvar</code>, e duas linhas novas no começo e no fim:</p>
+
+<pre class="file" data-file="Program.cs">// Estoque da Lojinha — versão 5: o estoque guardado em estoque.csv
+using System.Globalization;
+
+const string Arquivo = "estoque.csv";
+List&lt;Produto&gt; estoque = Carregar();
+
+Console.WriteLine("=== Estoque da Lojinha ===");
+Console.WriteLine($"{estoque.Count} produtos carregados.");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair");
+    string opcao = Perguntar("Opção: ");
+    if (opcao == "0")
+    {
+        break;
+    }
+    switch (opcao)
+    {
+        case "1": Listar(estoque); break;
+        case "2": Listar(estoque.Where(p =&gt; p.Quantidade &lt; 5)); break;
+        case "3": Movimentar(estoque, +1); break;
+        case "4": Movimentar(estoque, -1); break;
+        default: Console.WriteLine("Opção inválida."); break;
+    }
+}
+Salvar(estoque);
+Console.WriteLine($"Salvei {estoque.Count} produtos em {Arquivo}. Até amanhã!");
+
+static string Perguntar(string texto)
+{
+    Console.Write(texto);
+    return Console.ReadLine()?.Trim() ?? "0";     // fim da entrada = sair
+}
+
+static void Listar(IEnumerable&lt;Produto&gt; produtos)
+{
+    Console.WriteLine("Cód  Produto     Qtd       Preço");
+    foreach (Produto p in produtos)
+    {
+        Console.WriteLine($"{p.Codigo,3}  {p.Nome,-10}  {p.Quantidade,3}  {p.Preco,10:C}");
+    }
+}
+
+// sinal = +1 (chegou mercadoria) ou -1 (vendeu)
+static void Movimentar(List&lt;Produto&gt; lista, int sinal)
+{
+    if (!int.TryParse(Perguntar("Código: "), out int codigo))
+    {
+        Console.WriteLine("Código inválido.");
+        return;
+    }
+    int i = lista.FindIndex(p =&gt; p.Codigo == codigo);
+    if (i == -1)
+    {
+        Console.WriteLine($"Não há produto com o código {codigo}.");
+        return;
+    }
+    if (!int.TryParse(Perguntar("Quantas unidades? "), out int qtd) || qtd &lt;= 0)
+    {
+        Console.WriteLine("Quantidade inválida.");
+        return;
+    }
+    Produto p = lista[i];
+    if (sinal &lt; 0 &amp;&amp; qtd &gt; p.Quantidade)
+    {
+        Console.WriteLine($"Só há {p.Quantidade} de {p.Nome}.");
+        return;
+    }
+    lista[i] = p with { Quantidade = p.Quantidade + sinal * qtd };
+    Console.WriteLine($"{p.Nome}: agora são {lista[i].Quantidade}.");
+}
+
+static List&lt;Produto&gt; Carregar()
+{
+    if (!File.Exists(Arquivo))
+    {
+        Console.WriteLine($"{Arquivo} não existe: começando do caderno de papel.");
+        return
+        [
+            new(1, "Caderno", "Papelaria", 12, 15.90m),
+            new(2, "Caneta", "Escrita", 40, 2.50m),
+            new(3, "Borracha", "Escrita", 3, 1.75m),
+            new(4, "Mochila", "Bolsas", 2, 89.90m),
+            new(5, "Lápis", "Escrita", 60, 1.20m),
+            new(6, "Papel A4", "Papelaria", 4, 27.50m),
+            new(7, "Estojo", "Bolsas", 6, 19.90m),
+        ];
+    }
+    return File.ReadLines(Arquivo)
+        .Skip(1)                                   // pula o cabeçalho
+        .Where(linha =&gt; linha.Trim() != "")        // ignora linhas vazias
+        .Select(LerLinha)
+        .ToList();
+}
+
+static Produto LerLinha(string linha)
+{
+    string[] c = linha.Split(';');
+    return new Produto(int.Parse(c[0]), c[1], c[2], int.Parse(c[3]),
+                       decimal.Parse(c[4], CultureInfo.InvariantCulture));
+}
+
+static void Salvar(List&lt;Produto&gt; lista)
+{
+    var linhas = lista.Select(p =&gt; string.Join(";", p.Codigo, p.Nome, p.Categoria, p.Quantidade,
+                                               p.Preco.ToString(CultureInfo.InvariantCulture)));
+    File.WriteAllLines(Arquivo, linhas.Prepend("codigo;nome;categoria;quantidade;preco"));
+}
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>using System.Globalization;</code></td><td>Traz o <code>CultureInfo</code>. Fica na primeira linha do arquivo (aula <a href="namespaces.html">Namespaces e using</a>).</td></tr>
+<tr><td><code>const string Arquivo = "estoque.csv";</code></td><td>O nome do arquivo num lugar só. Por ser <code>const</code>, as funções <code>static</code> podem usá-lo (aula <a href="constantes.html">Constantes</a>). O arquivo fica na pasta em que a Ana roda o programa.</td></tr>
+<tr><td><code>if (!File.Exists(Arquivo))</code></td><td>Na primeira vez, o arquivo não existe, e o programa começa com os produtos do caderno de papel (aula <a href="arquivos.html">Arquivos</a>).</td></tr>
+<tr><td><code>File.ReadLines(Arquivo)</code></td><td>Lê o arquivo linha por linha, como uma sequência de <code>string</code>. Por ser uma sequência, aceita LINQ.</td></tr>
+<tr><td><code>.Skip(1)</code></td><td>Pula a primeira linha, o cabeçalho <code>codigo;nome;…</code>.</td></tr>
+<tr><td><code>.Where(linha =&gt; linha.Trim() != "")</code></td><td>Ignora linhas em branco (um Enter a mais no fim do arquivo, por exemplo).</td></tr>
+<tr><td><code>.Select(LerLinha)</code></td><td>Transforma cada linha num <code>Produto</code>. Passar o nome do método é o mesmo que <code>.Select(linha =&gt; LerLinha(linha))</code>.</td></tr>
+<tr><td><code>.ToList()</code></td><td>Roda a consulta na hora e devolve a <code>List</code> que o menu vai mudar.</td></tr>
+<tr><td><code>linha.Split(';')</code></td><td>Corta a linha em pedaços no <code>;</code>: <code>"1;Caderno;Papelaria;12;15.90"</code> vira um array de 5 textos.</td></tr>
+<tr><td><code>decimal.Parse(c[4], CultureInfo.InvariantCulture)</code></td><td>Lê <code>"15.90"</code> com ponto, do jeito que foi gravado, em qualquer computador.</td></tr>
+<tr><td><code>string.Join(";", p.Codigo, p.Nome, …)</code></td><td>Monta a linha com <code>;</code> entre os campos.</td></tr>
+<tr><td><code>p.Preco.ToString(CultureInfo.InvariantCulture)</code></td><td>Escreve o preço com ponto: <code>15.90</code>.</td></tr>
+<tr><td><code>linhas.Prepend("codigo;nome;…")</code></td><td>Põe o cabeçalho <strong>antes</strong> das linhas dos produtos.</td></tr>
+<tr><td><code>File.WriteAllLines(Arquivo, …)</code></td><td>Cria o arquivo (ou apaga o que havia) e grava uma linha para cada texto da sequência.</td></tr>
+</table>
+</div>
+
+<p>Na primeira vez, o arquivo não existe. A Ana faz a tarde de trabalho do começo da página (<a href="#construir">O que vamos construir</a>) e sai; o programa grava o arquivo. No dia seguinte, ela olha o arquivo e roda de novo:</p>
+
+<pre class="term" data-cwd="~/projetos/Estoque">$ cat estoque.csv
+codigo;nome;categoria;quantidade;preco
+1;Caderno;Papelaria;12;15.90
+2;Caneta;Escrita;35;2.50
+3;Borracha;Escrita;23;1.75
+4;Mochila;Bolsas;2;89.90
+5;Lápis;Escrita;60;1.20
+6;Papel A4;Papelaria;4;27.50
+7;Estojo;Bolsas;6;19.90
+$ dotnet run
+=== Estoque da Lojinha ===
+7 produtos carregados.
+
+1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair
+Opção: 1
+Cód  Produto     Qtd       Preço
+  1  Caderno      12    R$ 15,90
+  2  Caneta       35     R$ 2,50          « lembrou da venda de ontem
+  3  Borracha     23     R$ 1,75          « e da entrada
+  4  Mochila       2    R$ 89,90
+  5  Lápis        60     R$ 1,20
+  6  Papel A4      4    R$ 27,50
+  7  Estojo        6    R$ 19,90
+
+1) Listar  2) Acabando  3) Entrada  4) Saída  0) Sair
+Opção: 0
+Salvei 7 produtos em estoque.csv. Até amanhã!</pre>
+
+<p>Desta vez não apareceu a linha <code>estoque.csv não existe</code>: os 7 produtos vieram do arquivo. No arquivo, os preços estão com ponto (<code>15.90</code>); na tela, com vírgula (<code>R$ 15,90</code>). O arquivo é para o programa; a tela é para a Ana.</p>
+
+<div class="trycs" data-goal="out:Caderno: R$ 15\,90,out:Caneta: R$ 2\,50">
+<p class="try-task"><strong>Missão (versão 5):</strong> este programa grava dois produtos em <code>estoque.csv</code>, mostra o arquivo e lê de volta. A leitura já usa <code>InvariantCulture</code>, mas a gravação não: o preço vai para o arquivo como <code>15,90</code>, e a leitura invariante entende a vírgula como separador de milhar (o caderno sai a R$ 1.590,00!). Conserte a gravação para o preço ir com ponto, e a saída mostrar <code>Caderno: R$ 15,90</code>.</p>
+<pre class="script">using System.Globalization;
+
+List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(2, "Caneta", "Escrita", 40, 2.50m),
+];
+
+// Salvar: o preço tem de ir com ponto, do jeito "invariante"
+File.WriteAllLines("estoque.csv",
+    estoque.Select(p =&gt; $"{p.Codigo};{p.Nome};{p.Categoria};{p.Quantidade};{p.Preco}"));
+
+// Carregar: lê o preço com ponto (InvariantCulture)
+List&lt;Produto&gt; lido = File.ReadLines("estoque.csv")
+    .Select(linha =&gt; linha.Split(';'))
+    .Select(c =&gt; new Produto(int.Parse(c[0]), c[1], c[2], int.Parse(c[3]),
+                             decimal.Parse(c[4], CultureInfo.InvariantCulture)))
+    .ToList();
+
+Console.WriteLine(File.ReadAllText("estoque.csv"));
+foreach (Produto p in lido)
+{
+    Console.WriteLine($"{p.Nome}: {p.Preco:C}");
+}
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+<pre class="solucao">using System.Globalization;
+
+List&lt;Produto&gt; estoque =
+[
+    new(1, "Caderno", "Papelaria", 12, 15.90m),
+    new(2, "Caneta", "Escrita", 40, 2.50m),
+];
+
+// Salvar: o preço tem de ir com ponto, do jeito "invariante"
+File.WriteAllLines("estoque.csv",
+    estoque.Select(p =&gt; $"{p.Codigo};{p.Nome};{p.Categoria};{p.Quantidade};{p.Preco.ToString(CultureInfo.InvariantCulture)}"));
+
+// Carregar: lê o preço com ponto (InvariantCulture)
+List&lt;Produto&gt; lido = File.ReadLines("estoque.csv")
+    .Select(linha =&gt; linha.Split(';'))
+    .Select(c =&gt; new Produto(int.Parse(c[0]), c[1], c[2], int.Parse(c[3]),
+                             decimal.Parse(c[4], CultureInfo.InvariantCulture)))
+    .ToList();
+
+Console.WriteLine(File.ReadAllText("estoque.csv"));
+foreach (Produto p in lido)
+{
+    Console.WriteLine($"{p.Nome}: {p.Preco:C}");
+}
+
+record Produto(int Codigo, string Nome, string Categoria, int Quantidade, decimal Preco);
+</pre>
+</div>
+
+<hr>
+
+<h2 id="formas">Formas diferentes</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Em vez de…</th><th>Daria para…</th><th>Por que o projeto não fez</th></tr>
+<tr><td><code>estoque.Where(p =&gt; p.Quantidade &lt; 5)</code></td><td>Sintaxe de consulta: <code>from p in estoque where p.Quantidade &lt; 5 select p</code></td><td>É o mesmo programa depois de compilado. A forma com métodos é a mais usada e tem todos os operadores (<code>MaxBy</code>, <code>Prepend</code>… não existem na sintaxe de consulta). Veja <a href="linq.html">O que é LINQ</a>.</td></tr>
+<tr><td><code>record Produto(…)</code> e <code>with</code></td><td><code>class Produto</code> com <code>{ get; set; }</code> e <code>p.Quantidade -= qtd</code></td><td>Funciona. O record impede mudanças por engano e já mostra os campos no <code>WriteLine</code>. O <a href="projeto-tarefas.html">projeto Lista de Tarefas</a> usa uma classe com <code>set</code>.</td></tr>
+<tr><td><code>estoque.csv</code> com <code>;</code></td><td><code>estoque.json</code> com <code>System.Text.Json</code></td><td>O JSON resolve as vírgulas e a cultura sozinho; o <a href="projeto-agenda.html">projeto Agenda</a> usa JSON. O CSV foi escolhido aqui porque se lê com LINQ, linha por linha, e abre numa planilha.</td></tr>
+<tr><td><code>FindIndex</code> + <code>lista[i] = …</code></td><td><code>Dictionary&lt;int, Produto&gt;</code> com o código como chave</td><td>Com milhares de produtos, o dicionário acha o código mais rápido (aula <a href="dictionary.html">Dictionary</a>). Para sete, a lista é mais simples e mantém a ordem.</td></tr>
+</table>
+</div>
+
+<h2>Desafios extras</h2>
+<ul>
+  <li><strong>Cadastrar:</strong> uma opção 5 que pede nome, categoria, quantidade e preço e acrescenta o produto com o código seguinte: <code>estoque.Max(p =&gt; p.Codigo) + 1</code>. Leia o preço com <code>decimal.TryParse</code> (em pt-BR, a Ana digita <code>3,50</code>).</li>
+  <li><strong>Relatório no menu:</strong> leve o <code>GroupBy</code> da versão 3 para uma opção 6.</li>
+  <li><strong>Arquivo estragado:</strong> abra o <code>estoque.csv</code> num editor, troque um preço por <code>abc</code> e rode. O <code>decimal.Parse</code> lança <code>FormatException</code>. Troque por <code>TryParse</code> e pule a linha com um aviso.</li>
+  <li><strong>Busca por pedaço do nome:</strong> <code>p.Nome.Contains(texto, StringComparison.OrdinalIgnoreCase)</code> acha "Papel A4" digitando "papel".</li>
+</ul>
+
+<h2>Exercícios</h2>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">1. O que <code>estoque.Where(p =&gt; p.Quantidade &lt; 5)</code> devolve?</p>
+<label><input type="radio" name="q1"> O primeiro produto com menos de 5 unidades.</label>
+<label><input type="radio" name="q1"> Uma sequência com todos os produtos de menos de 5 unidades (pode ser vazia).</label>
+<label><input type="radio" name="q1"> Um <code>bool</code>: se existe algum produto com menos de 5.</label>
+<label><input type="radio" name="q1"> O número de produtos com menos de 5 unidades.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">2. A Ana procura um produto pelo nome que o cliente falou. Qual método é o certo?</p>
+<label><input type="radio" name="q2"> <code>First</code>, porque é mais curto.</label>
+<label><input type="radio" name="q2"> <code>Single</code>, porque só existe um de cada.</label>
+<label><input type="radio" name="q2"> <code>FirstOrDefault</code>, conferindo o <code>null</code> depois, porque o produto pode não existir.</label>
+<label><input type="radio" name="q2"> <code>Where</code>, e depois <code>.Nome</code> no resultado.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">3. Por que <code>estoque[0].Quantidade = 11;</code> não compila neste projeto?</p>
+<label><input type="radio" name="q3"> Porque as propriedades de um record posicional são <code>init</code>: só recebem valor na criação. Use <code>with</code>.</label>
+<label><input type="radio" name="q3"> Porque <code>estoque[0]</code> não existe.</label>
+<label><input type="radio" name="q3"> Porque não se pode guardar um <code>int</code> numa <code>List</code>.</label>
+<label><input type="radio" name="q3"> Porque faltou o <code>m</code> depois do 11.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">4. Na máquina da Ana, <code>$"{15.90m}"</code> vira <code>15,90</code>. O que isso causa num CSV separado por vírgula?</p>
+<label><input type="radio" name="q4"> Nada: o C# sabe que aquela vírgula é do número.</label>
+<label><input type="radio" name="q4"> Um erro CS na compilação.</label>
+<label><input type="radio" name="q4"> Uma exceção na hora de gravar.</label>
+<label><input type="radio" name="q4"> O preço vira dois campos, e a leitura perde os centavos sem avisar.</label>
+</div>
+
+<div class="exercise">
+<p>5. Complete para somar o valor da categoria Bolsas:</p>
+<div class="ex-code">decimal bolsas = estoque.<input data-answer="Where">(p =&gt; p.Categoria == "Bolsas").<input data-answer="Sum">(p =&gt; p.Quantidade * p.Preco);</div>
+</div>
+
+<div class="exercise">
+<p>6. Complete para trocar a ficha da posição <code>i</code> por uma cópia com 5 unidades a menos:</p>
+<div class="ex-code">lista[i] = lista[i] <input data-answer="with"> { Quantidade = lista[i].Quantidade - 5 };</div>
+</div>
+
+<div class="exercise">
+<p>7. Complete para pular o cabeçalho do arquivo antes de ler os produtos:</p>
+<div class="ex-code">File.ReadLines("estoque.csv").<input data-answer="Skip">(1).Select(LerLinha).<input data-answer="ToList">();</div>
+</div>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um <code>record</code> descreve a ficha; uma <code>List&lt;Produto&gt;</code> guarda todas. Para "mudar" um record, crie uma cópia com <code>with</code>.</li>
+  <li><code>Where</code> filtra, <code>OrderBy</code> ordena, <code>Select</code> transforma, <code>Count</code> e <code>Sum</code> fazem contas, <code>MaxBy</code> acha o maior, <code>Any</code> e <code>All</code> respondem sim ou não.</li>
+  <li><code>GroupBy</code> faz uma pilha por chave (<code>g.Key</code>); cada pilha aceita as mesmas contas.</li>
+  <li><code>First</code> lança exceção se não acha; <code>FirstOrDefault</code> devolve <code>null</code>, e você confere.</li>
+  <li>Uma consulta LINQ roda de novo a cada uso; <code>ToList()</code> tira uma "foto" na hora.</li>
+  <li>Não mude a lista dentro do <code>foreach</code> que a percorre: use <code>RemoveAll</code> ou crie uma lista nova.</li>
+  <li>Em arquivos, grave e leia números com <code>CultureInfo.InvariantCulture</code>, e separe campos com um caractere que não aparece nos dados.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
