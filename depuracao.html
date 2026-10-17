@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Depuração — Console.WriteLine, Debug, Trace e o depurador | Guia C#</title>
+<meta name="description" content="Depurar programas C# para quem está começando: o método do detetive, Console.WriteLine estratégico, ler o stack trace, Debug.WriteLine e Trace.WriteLine com ConsoleTraceListener, Debug.Assert, #if DEBUG, dotnet run -c Debug × -c Release (e a linha errada no Release) e o depurador do VS Code e do Rider: pontos de parada, F10, F11, variáveis e pilha de chamadas, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Depuração</span></h1>
+
+<p class="intro">O programa compila, roda e dá a resposta <strong>errada</strong>. Ou para no meio com uma exceção. Achar o porquê se chama <strong>depurar</strong> (em inglês, <em>debug</em>, "tirar os insetos": o nome vem de quando um inseto de verdade travou um computador, em 1947). Nesta aula você vai aprender o método e as ferramentas: mensagens estratégicas, a leitura do <em>stack trace</em>, as classes <code>Debug</code> e <code>Trace</code>, a diferença entre Debug e Release, e o depurador do VS Code, que para o programa no meio para você olhar dentro dele.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O método do detetive: reproduzir, suspeitar, conferir, consertar.</li>
+  <li>A pôr <code>Console.WriteLine</code> nos lugares certos para ver os valores por dentro.</li>
+  <li>A ler o <em>stack trace</em> de uma exceção até a linha do erro.</li>
+  <li><code>Debug.WriteLine</code>, <code>Trace.WriteLine</code>, <code>Debug.Assert</code> e <code>#if DEBUG</code>.</li>
+  <li>A diferença entre <code>dotnet run -c Debug</code> e <code>-c Release</code>, e por que se depura em Debug.</li>
+  <li>O depurador do VS Code (e do Rider): pontos de parada, passo a passo, variáveis e pilha de chamadas.</li>
+</ul>
+</div>
+
+<p>As saídas desta aula são reais, feitas com o <strong>.NET 10</strong> (<code>10.0.112</code>) na máquina fictícia da Ana, na pasta <code>~/cs/depurar</code>, com <code>dotnet run arquivo.cs</code>. A parte do depurador gráfico (seção 6) descreve as telas do VS Code; ela não tem saída de terminal para mostrar.</p>
+
+<hr>
+
+<h2>A ideia: o detetive não chuta</h2>
+<p>Um detetive não prende o primeiro suspeito que vê. Ele <strong>junta pistas</strong>, levanta uma suspeita, confere se ela bate com as pistas e só então aponta o culpado. Depurar é igual. O erro de quem começa é "chutar": mudar uma linha qualquer, rodar, mudar outra… e às vezes criar um segundo defeito.</p>
+
+<ol class="passo">
+  <li><strong>Reproduzir:</strong> achar uma entrada que sempre dá o erro. Sem isso, você não sabe se consertou.</li>
+  <li><strong>Suspeitar:</strong> "a soma deve estar errada", "o laço deve estar parando cedo".</li>
+  <li><strong>Conferir:</strong> olhar os valores <strong>de verdade</strong> no meio do programa (seções 1 a 6).</li>
+  <li><strong>Consertar</strong> o que as pistas mostraram, e rodar de novo com a mesma entrada. Melhor ainda: escrever um <a href="testes.html">teste</a> para esse caso, para o defeito nunca voltar.</li>
+</ol>
+
+<h3>O caso: a média errada</h3>
+<p>A Ana tem quatro notas: 8,0, 6,5, 9,0 e 7,5. A média é (8,0 + 6,5 + 9,0 + 7,5) ÷ 4 = 31 ÷ 4 = <strong>7,75</strong>. O programa diz outra coisa:</p>
+
+<pre class="file" data-file="media.cs">decimal[] notas = [8.0m, 6.5m, 9.0m, 7.5m];
+Console.WriteLine($"Média: {Media(notas)}");
+
+static decimal Media(decimal[] notas)
+{
+    decimal soma = 0;
+    for (int i = 0; i &lt; notas.Length - 1; i++)
+    {
+        soma += notas[i];
+    }
+    return soma / notas.Length;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/depurar">$ dotnet run media.cs
+Média: 5,875</pre>
+
+<p>Compilou sem aviso, rodou sem exceção, e a resposta está errada. É o tipo de defeito mais traiçoeiro: nenhuma mensagem aponta para ele.</p>
+
+<hr>
+
+<h2>1. O <code>Console.WriteLine</code> estratégico</h2>
+<p>A ferramenta mais simples, que funciona em qualquer lugar: mostrar os valores no meio do caminho. A suspeita da Ana é "a soma está errada". Ela põe uma mensagem <strong>dentro</strong> do laço e outra <strong>antes</strong> da divisão:</p>
+
+<pre class="file" data-file="media2.cs">static decimal Media(decimal[] notas)
+{
+    decimal soma = 0;
+    for (int i = 0; i &lt; notas.Length - 1; i++)
+    {
+        soma += notas[i];
+        Console.WriteLine($"[depurar] i={i} nota={notas[i]} soma={soma}");
+    }
+    Console.WriteLine($"[depurar] soma final={soma} quantidade={notas.Length}");
+    return soma / notas.Length;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/depurar">$ dotnet run media2.cs
+[depurar] i=0 nota=8,0 soma=8,0
+[depurar] i=1 nota=6,5 soma=14,5
+[depurar] i=2 nota=9,0 soma=23,5
+[depurar] soma final=23,5 quantidade=4
+Média: 5,875</pre>
+
+<p>As pistas resolvem o caso: o laço passou por <code>i</code> = 0, 1 e 2, mas <strong>nunca pelo 3</strong>, a última nota (7,5). A soma ficou 23,5 em vez de 31, e 23,5 ÷ 4 = 5,875. O culpado é o <code>i &lt; notas.Length - 1</code>: com 4 notas, ele para em <code>i &lt; 3</code>. Esse é um dos defeitos mais comuns da programação, o "erro por um" (em inglês, <em>off-by-one</em>).</p>
+
+<dl class="anatomy">
+  <dt>[depurar]</dt><dd>Uma etiqueta para achar (e depois apagar) as mensagens de depuração com facilidade: <code>grep depurar media2.cs</code>.</dd>
+  <dt>i={i} nota={notas[i]} soma={soma}</dt><dd>Mostre o <strong>nome</strong> e o valor de cada coisa. Um <code>8,0</code> solto na tela não diz de onde veio.</dd>
+  <dt>dentro do laço e depois dele</dt><dd>Dentro, para ver cada volta; depois, para ver o resultado. Assim você descobre <strong>em que volta</strong> as coisas saem do esperado.</dd>
+</dl>
+
+<div class="trycs" data-goal="out:Média: 7\,75">
+<p class="try-task"><strong>Missão:</strong> rode e leia as mensagens <code>[depurar]</code>: a última nota nunca entra na soma. Conserte a condição do <code>for</code> para o laço passar por <strong>todas</strong> as notas. A saída deve terminar com <code>Média: 7,75</code>. (Depois de consertar, apague as linhas <code>[depurar]</code>: elas cumpriram a missão delas.)</p>
+<pre class="script">decimal[] notas = [8.0m, 6.5m, 9.0m, 7.5m];
+Console.WriteLine($"Média: {Media(notas)}");
+
+static decimal Media(decimal[] notas)
+{
+    decimal soma = 0;
+    for (int i = 0; i &lt; notas.Length - 1; i++)
+    {
+        soma += notas[i];
+        Console.WriteLine($"[depurar] i={i} nota={notas[i]} soma={soma}");
+    }
+    Console.WriteLine($"[depurar] soma final={soma} quantidade={notas.Length}");
+    return soma / notas.Length;
+}
+</pre>
+<pre class="solucao">decimal[] notas = [8.0m, 6.5m, 9.0m, 7.5m];
+Console.WriteLine($"Média: {Media(notas)}");
+
+static decimal Media(decimal[] notas)
+{
+    decimal soma = 0;
+    for (int i = 0; i &lt; notas.Length; i++)
+    {
+        soma += notas[i];
+    }
+    return soma / notas.Length;
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Ler o <em>stack trace</em></h2>
+<p>Quando o programa para com uma exceção, a pista já vem pronta: o <strong><em>stack trace</em></strong> ("rastro da pilha"), a lista dos métodos que estavam rodando, do mais recente para o mais antigo. A Ana quer a maior nota:</p>
+
+<pre class="file" data-file="pilha.cs">decimal[] notas = [8.0m, 6.5m, 9.0m, 7.5m];
+Console.WriteLine($"Maior: {Maior(notas)}");
+
+static decimal Maior(decimal[] notas)
+{
+    decimal maior = notas[0];
+    for (int i = 1; i &lt;= notas.Length; i++)
+    {
+        maior = MaiorDeDois(maior, notas[i]);
+    }
+    return maior;
+}
+
+static decimal MaiorDeDois(decimal a, decimal b) =&gt; a &gt; b ? a : b;
+</pre>
+
+<pre class="term" data-cwd="~/cs/depurar">$ dotnet run pilha.cs; echo "código de saída: $?"
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Program.&lt;&lt;Main&gt;$&gt;g__Maior|0_0(Decimal[] notas) in /home/ana/cs/depurar/pilha.cs:line 9
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/depurar/pilha.cs:line 2
+código de saída: 134</pre>
+
+<dl class="anatomy">
+  <dt>System.IndexOutOfRangeException: Index was outside the bounds of the array.</dt><dd><strong>O quê:</strong> "o índice estava fora dos limites do vetor" (veja <a href="arrays.html">Arrays</a>). Alguém pediu uma posição que não existe.</dd>
+  <dt>at Program.&lt;&lt;Main&gt;$&gt;g__Maior|0_0(Decimal[] notas) … line 9</dt><dd><strong>Onde:</strong> a primeira linha <code>at</code> é o lugar exato. O nome estranho é como o compilador chama a função <code>Maior</code>, escrita dentro do programa principal (o <code>&lt;Main&gt;$</code>): procure o nome que você conhece no meio dele. Linha 9: <code>maior = MaiorDeDois(maior, notas[i]);</code>, o <code>notas[i]</code>.</dd>
+  <dt>at Program.&lt;Main&gt;$ … line 2</dt><dd><strong>Quem chamou:</strong> a linha 2, o <code>Maior(notas)</code>. Leia de cima (onde quebrou) para baixo (como chegou lá).</dd>
+  <dt>código de saída: 134</dt><dd>O código de toda exceção não tratada no Linux (veja <a href="excecoes.html">Exceções</a>).</dd>
+</dl>
+
+<p>Na linha 9, o único índice é o <code>i</code>, que vai até <code>i &lt;= notas.Length</code>, ou seja, até 4. Mas as posições de um vetor de 4 itens são 0, 1, 2 e 3. É o "erro por um" de novo, agora para o outro lado. Repare que o <code>MaiorDeDois</code> não aparece na pilha: o erro aconteceu <strong>antes</strong> de chamá-lo, ao calcular o argumento <code>notas[i]</code>.</p>
+
+<div class="tip">
+<strong>Antes de qualquer outra ferramenta,</strong> leia a exceção inteira: o tipo, a mensagem e a primeira linha <code>at … in arquivo:line N</code> que fala de um arquivo <strong>seu</strong>. Na maioria das vezes, o defeito está nessa linha ou logo antes dela.
+</div>
+
+<hr>
+
+<h2>3. <code>Debug</code> e <code>Trace</code></h2>
+<p>O <code>Console.WriteLine</code> de depuração tem um problema: se você esquecer de apagar, ele aparece para o usuário. O .NET tem duas classes feitas para mensagens de depuração, na <code>System.Diagnostics</code> ("diagnóstico"): <code>Debug</code> e <code>Trace</code> ("rastro"). Mas, num programa de console, elas não aparecem no terminal sozinhas:</p>
+
+<pre class="file" data-file="debug1.cs">using System.Diagnostics;
+
+Debug.WriteLine("mensagem do Debug");
+Trace.WriteLine("mensagem do Trace");
+Console.WriteLine("fim");
+</pre>
+
+<pre class="term" data-cwd="~/cs/depurar">$ dotnet run debug1.cs
+fim</pre>
+
+<p>As duas mensagens foram para a janela de saída do <strong>depurador</strong> (seção 6), que não está aberto. Para vê-las no terminal, acrescente um "ouvinte" (<em>listener</em>) que escreve no console:</p>
+
+<pre class="file" data-file="debug2.cs">using System.Diagnostics;
+
+Trace.Listeners.Add(new ConsoleTraceListener());
+
+Debug.WriteLine("mensagem do Debug");
+Trace.WriteLine("mensagem do Trace");
+Console.WriteLine("fim");
+</pre>
+
+<pre class="term" data-cwd="~/cs/depurar">$ dotnet run debug2.cs
+mensagem do Debug
+mensagem do Trace
+fim
+$ dotnet run -c Release debug2.cs
+mensagem do Trace
+fim</pre>
+
+<dl class="anatomy">
+  <dt>Trace.Listeners.Add(new ConsoleTraceListener())</dt><dd>"Acrescente aos ouvintes um que escreve no console". O <code>Debug</code> e o <code>Trace</code> usam a mesma lista de ouvintes, então essa linha vale para os dois.</dd>
+  <dt>Debug.WriteLine</dt><dd>Só existe na configuração <strong>Debug</strong> (a padrão). Em <code>-c Release</code>, o compilador <strong>apaga</strong> as chamadas: a mensagem sumiu, e o programa nem perde tempo com ela. É o lugar certo para mensagens de depuração: você pode esquecê-las no código.</dd>
+  <dt>Trace.WriteLine</dt><dd>Fica nas duas configurações. Serve para registrar o que acontece também na versão final (para isso, programas maiores usam bibliotecas de <em>log</em>, como o <code>Microsoft.Extensions.Logging</code>).</dd>
+</dl>
+
+<h3><code>Debug.Assert</code>: "isto tem de ser verdade"</h3>
+<p>O <code>Debug.Assert</code> ("afirme") confere uma condição que <strong>sempre</strong> deveria ser verdadeira. Se ela for falsa, o programa para na hora, com a mensagem e a linha. A Ana escreveu uma <code>Media</code> com um defeito de propósito (dividiu por 0,4 em vez de 4):</p>
+
+<pre class="file" data-file="assert.cs">using System.Diagnostics;
+
+decimal media = Media([8.0m, 6.5m, 9.0m, 7.5m]);
+Debug.Assert(media &gt;= 0 &amp;&amp; media &lt;= 10, $"média fora de 0 a 10: {media}");
+Console.WriteLine($"Média: {media}");
+
+static decimal Media(decimal[] notas) =&gt; notas.Sum() / 0.4m;
+</pre>
+
+<pre class="term" data-cwd="~/cs/depurar">$ dotnet run assert.cs; echo "código de saída: $?"
+Process terminated.
+Assertion failed.
+média fora de 0 a 10: 77,5
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/depurar/assert.cs:line 4
+código de saída: 134
+$ dotnet run -c Release assert.cs; echo "código de saída: $?"
+Média: 77,5
+código de saída: 0</pre>
+
+<p>Em Debug, o <code>Assert</code> pegou a média impossível (77,5) e parou o programa ("processo encerrado; a afirmação falhou"), apontando a linha 4. Em Release, como o <code>Debug.WriteLine</code>, ele some, e o valor errado passa. Use o <code>Debug.Assert</code> para conferir o que <strong>nunca</strong> deveria acontecer (um defeito seu); para entradas do usuário, que podem mesmo vir erradas, use <code>if</code> e exceções (veja <a href="throw.html">throw</a>).</p>
+
+<hr>
+
+<h2>4. Debug × Release</h2>
+<p>O <code>dotnet run</code> e o <code>dotnet build</code> compilam, por padrão, na configuração <strong>Debug</strong>. Com <code>-c Release</code>, na <strong>Release</strong>, a versão de entregar (veja <a href="publicar.html">Publicar o Programa</a>):</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th><code>-c Debug</code> (padrão)</th><th><code>-c Release</code></th></tr>
+<tr><td>Otimizações do compilador</td><td>Desligadas: o código roda exatamente como foi escrito</td><td>Ligadas: mais rápido, mas reorganizado</td></tr>
+<tr><td>Constante <code>DEBUG</code></td><td>Definida</td><td>Não definida</td></tr>
+<tr><td><code>Debug.WriteLine</code>, <code>Debug.Assert</code></td><td>Funcionam</td><td>Apagados</td></tr>
+<tr><td>Números de linha no <em>stack trace</em></td><td>Exatos</td><td>Podem sair errados (veja abaixo)</td></tr>
+<tr><td>Para quê</td><td>Escrever e depurar</td><td>Entregar e medir velocidade</td></tr>
+</table>
+</div>
+
+<p>O mesmo <code>pilha.cs</code>, em Release:</p>
+<pre class="term" data-cwd="~/cs/depurar">$ dotnet run -c Release pilha.cs
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Program.&lt;&lt;Main&gt;$&gt;g__Maior|0_0(Decimal[] notas) in /home/ana/cs/depurar/pilha.cs:line 6
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/depurar/pilha.cs:line 2</pre>
+
+<p>Agora a pilha diz <strong>linha 6</strong> (<code>decimal maior = notas[0];</code>), que não tem nada a ver com o erro: o <code>notas[0]</code> existe. As otimizações reorganizaram o código, e a ligação entre as instruções da máquina e as linhas do arquivo ficou aproximada. Por isso: <strong>depure sempre em Debug</strong>.</p>
+
+<h3><code>#if DEBUG</code>: código só para a depuração</h3>
+<pre class="file" data-file="condicional.cs">#if DEBUG
+Console.WriteLine("Versão de depuração: mostrando detalhes.");
+#endif
+Console.WriteLine("Olá!");
+</pre>
+
+<pre class="term" data-cwd="~/cs/depurar">$ dotnet run condicional.cs
+Versão de depuração: mostrando detalhes.
+Olá!
+$ dotnet run -c Release condicional.cs
+Olá!</pre>
+
+<p>O <code>#if DEBUG</code> … <code>#endif</code> é uma <strong>diretiva</strong>: o que está entre as duas linhas só é compilado se a constante <code>DEBUG</code> existir, ou seja, na configuração Debug. Em Release, para o compilador, aquelas linhas nem existem. Use com moderação: código que só existe numa configuração é código que só é testado nela.</p>
+
+<hr>
+
+<h2>5. Achou o defeito? Conserte e confira</h2>
+<p>No <code>pilha.cs</code>, a pista mostrou o índice passando do fim. O conserto é a mesma condição da missão anterior. Experimente:</p>
+
+<div class="trycs" data-goal="out:Maior: 9\,0,exit:0">
+<p class="try-task"><strong>Missão:</strong> rode e leia o <em>stack trace</em>: ele aponta a linha do <code>notas[i]</code>. Conserte a condição do <code>for</code> para o índice nunca passar da última posição. A saída deve ser <code>Maior: 9,0</code>, sem exceção.</p>
+<pre class="script">decimal[] notas = [8.0m, 6.5m, 9.0m, 7.5m];
+Console.WriteLine($"Maior: {Maior(notas)}");
+
+static decimal Maior(decimal[] notas)
+{
+    decimal maior = notas[0];
+    for (int i = 1; i &lt;= notas.Length; i++)
+    {
+        maior = MaiorDeDois(maior, notas[i]);
+    }
+    return maior;
+}
+
+static decimal MaiorDeDois(decimal a, decimal b) =&gt; a &gt; b ? a : b;
+</pre>
+<pre class="solucao">decimal[] notas = [8.0m, 6.5m, 9.0m, 7.5m];
+Console.WriteLine($"Maior: {Maior(notas)}");
+
+static decimal Maior(decimal[] notas)
+{
+    decimal maior = notas[0];
+    for (int i = 1; i &lt; notas.Length; i++)
+    {
+        maior = MaiorDeDois(maior, notas[i]);
+    }
+    return maior;
+}
+
+static decimal MaiorDeDois(decimal a, decimal b) =&gt; a &gt; b ? a : b;
+</pre>
+</div>
+
+<hr>
+
+<h2>6. O depurador do VS Code</h2>
+<p>Às vezes, pôr mensagens não basta: são muitas variáveis, ou o defeito só aparece na volta 500 de um laço. Aí entra o <strong>depurador</strong> (em inglês, <em>debugger</em>): uma ferramenta que <strong>pausa</strong> o programa numa linha escolhida e deixa você olhar todas as variáveis, andar uma linha de cada vez e ver quem chamou quem. No Linux, os depuradores gráficos para C# são o do <strong>VS Code</strong> (com a extensão <strong>C# Dev Kit</strong>, da Microsoft) e o do <strong>JetBrains Rider</strong> (veja <a href="editores.html">Editores e IDEs</a>). Os dois funcionam do mesmo jeito; aqui está o do VS Code.</p>
+
+<div class="note">
+<strong>O editor do guia não tem depurador:</strong> ele compila e roda o programa inteiro de uma vez. Para pausar o programa, use o VS Code ou o Rider no seu computador.
+</div>
+
+<h3>Preparar</h3>
+<ol class="passo">
+  <li>Instale o VS Code e, nele, a extensão <strong>C# Dev Kit</strong> (ela traz junto a extensão <strong>C#</strong>, que tem o depurador).</li>
+  <li>Abra a <strong>pasta</strong> do projeto (menu <em>File → Open Folder</em>), por exemplo <code>~/projetos/Escola</code>. O C# Dev Kit encontra a solução e os projetos sozinho.</li>
+</ol>
+
+<h3>Pontos de parada</h3>
+<p>Um <strong>ponto de parada</strong> (em inglês, <em>breakpoint</em>) é uma marca numa linha: quando o programa chega ali, ele <strong>pausa</strong> antes de executá-la. Para pôr um, clique na margem à esquerda do número da linha (ou ponha o cursor na linha e aperte <kbd>F9</kbd>): aparece uma bolinha vermelha. Clique de novo para tirar.</p>
+
+<p>Depois, aperte <kbd>F5</kbd> (<em>Run → Start Debugging</em>). Na primeira vez, o VS Code pergunta qual depurador usar: escolha <strong>C#</strong> e, se houver mais de um, o projeto que você quer rodar. O programa começa, chega ao ponto de parada e para. A linha em que ele está fica destacada em amarelo.</p>
+
+<h3>Andar pelo programa</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tecla</th><th>Nome no VS Code</th><th>O que faz</th></tr>
+<tr><td><kbd>F5</kbd></td><td><em>Continue</em></td><td>Continua até o próximo ponto de parada (ou até o fim).</td></tr>
+<tr><td><kbd>F10</kbd></td><td><em>Step Over</em> ("passar por cima")</td><td>Executa a linha atual inteira e para na próxima. Se a linha chama um método, ele roda todo, sem você entrar nele.</td></tr>
+<tr><td><kbd>F11</kbd></td><td><em>Step Into</em> ("entrar")</td><td>Se a linha chama um método seu, entra nele e para na primeira linha de dentro.</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>F11</kbd></td><td><em>Step Out</em> ("sair")</td><td>Termina o método atual e para logo depois de onde ele foi chamado.</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>F5</kbd></td><td><em>Stop</em></td><td>Encerra o programa.</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F5</kbd></td><td><em>Restart</em></td><td>Recomeça do zero.</td></tr>
+</table>
+</div>
+
+<h3>Olhar por dentro</h3>
+<p>Com o programa pausado, a barra lateral de depuração mostra:</p>
+<dl class="anatomy">
+  <dt>Variables (variáveis)</dt><dd>Todas as variáveis daquele momento e os valores delas: <code>soma</code>, <code>i</code>, e o vetor <code>notas</code>, que dá para abrir e ver item por item. Passar o mouse sobre uma variável no código também mostra o valor.</dd>
+  <dt>Watch (observar)</dt><dd>Expressões que você escolhe acompanhar, como <code>notas.Length - 1</code> ou <code>soma / notas.Length</code>. Elas são recalculadas a cada passo.</dd>
+  <dt>Call Stack (pilha de chamadas)</dt><dd>O mesmo <em>stack trace</em> da seção 2, só que ao vivo: que método chamou o atual. Clique numa linha para ver as variáveis daquele método.</dd>
+  <dt>Debug Console (console de depuração)</dt><dd>Uma caixa onde você digita uma expressão (por exemplo, <code>notas[3]</code>) e vê o resultado na hora. É também onde aparecem as mensagens do <code>Debug.WriteLine</code>, sem precisar de ouvinte.</dd>
+</dl>
+
+<p>No caso da média, a Ana poria um ponto de parada na linha <code>soma += notas[i];</code>, apertaria <kbd>F5</kbd> e, a cada <kbd>F5</kbd>, veria o <code>i</code> no painel <em>Variables</em>: 0, 1, 2… e o programa terminaria sem nunca parar com <code>i</code> valendo 3. A mesma pista das mensagens, sem mudar uma linha do código.</p>
+
+<h3>Pontos de parada especiais</h3>
+<dl class="anatomy">
+  <dt>Ponto de parada condicional</dt><dd>Clique com o botão direito na margem e escolha <em>Add Conditional Breakpoint</em>. Escreva uma condição em C#, como <code>i == 499</code>: o programa só para quando ela for verdadeira. É o jeito de chegar direto na volta 500.</dd>
+  <dt>Logpoint ("ponto de registro")</dt><dd>No mesmo menu, <em>Add Logpoint</em>: em vez de parar, escreve uma mensagem no <em>Debug Console</em>, como <code>i={i} soma={soma}</code>. É o <code>Console.WriteLine</code> estratégico sem mexer no código.</dd>
+  <dt>Parar nas exceções</dt><dd>No painel <em>Breakpoints</em>, marque as opções de exceções (<em>All Exceptions</em> ou <em>User-Unhandled Exceptions</em>): o depurador para na linha que lançou, com as variáveis ainda à vista.</dd>
+</dl>
+
+<div class="tip">
+<strong>Programas que leem o teclado:</strong> por padrão, o programa depurado escreve no <em>Debug Console</em>, que não aceita <code>Console.ReadLine()</code>. Para digitar, o VS Code precisa rodar o programa num terminal: isso se escolhe no arquivo <code>.vscode/launch.json</code>, com a opção <code>"console": "integratedTerminal"</code>.
+</div>
+
+<hr>
+
+<h2>Qual ferramenta usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Ferramenta</th></tr>
+<tr><td>O programa parou com uma exceção</td><td>Leia o <em>stack trace</em> primeiro (seção 2).</td></tr>
+<tr><td>A resposta está errada e o código é pequeno</td><td><code>Console.WriteLine</code> estratégico (seção 1).</td></tr>
+<tr><td>Muitas variáveis, ou o defeito aparece só lá na frente</td><td>O depurador, com ponto de parada condicional (seção 6).</td></tr>
+<tr><td>Mensagens que podem ficar no código</td><td><code>Debug.WriteLine</code> (somem no Release).</td></tr>
+<tr><td>Conferir o que nunca deveria acontecer</td><td><code>Debug.Assert</code>.</td></tr>
+<tr><td>Garantir que o defeito não volta</td><td>Um <a href="testes.html">teste</a> para o caso.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>O <code>Debug.WriteLine</code> não aparece</strong>
+<p><strong>O que aconteceu:</strong> duas causas possíveis. Sem um ouvinte de console, as mensagens vão só para o depurador (seção 3, <code>debug1.cs</code>). E em Release (<code>-c Release</code>) as chamadas são apagadas pelo compilador.</p>
+<p><strong>Como resolver:</strong> rode em Debug e acrescente <code>Trace.Listeners.Add(new ConsoleTraceListener());</code> no começo, ou veja as mensagens no <em>Debug Console</em> do VS Code.</p>
+</div>
+
+<div class="cenario">
+<strong>A linha do <em>stack trace</em> não bate com o código</strong>
+<p><strong>O que aconteceu:</strong> o programa foi compilado em Release, e as otimizações bagunçaram os números de linha (seção 4: a linha 6 em vez da 9). Ou o arquivo foi mudado depois de compilado.</p>
+<p><strong>Como resolver:</strong> rode de novo em Debug (<code>dotnet run</code>, sem <code>-c Release</code>) e reproduza o erro.</p>
+</div>
+
+<div class="cenario">
+<strong><code>Process terminated. Assertion failed.</code></strong>
+<p><strong>O que aconteceu:</strong> um <code>Debug.Assert</code> encontrou a condição falsa e encerrou o programa, com código 134 (seção 3). Não é o <code>Assert</code> que está errado: ele achou um defeito.</p>
+<p><strong>Como resolver:</strong> leia a mensagem e a linha, e descubra por que o valor ficou impossível (aqui, a divisão por 0,4).</p>
+</div>
+
+<div class="cenario">
+<strong>Consertei, mas o erro voltou outro dia</strong>
+<p><strong>O que aconteceu:</strong> sem nada que confira aquele caso, uma mudança futura trouxe o defeito de volta.</p>
+<p><strong>Como resolver:</strong> antes de consertar, escreva um teste que <strong>falha</strong> por causa do defeito (veja <a href="testes.html">Testes</a>); depois conserte e veja o teste passar. Ele fica de guarda para sempre.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código ou comando</th><th>O que faz</th></tr>
+<tr><td><code>Console.WriteLine($"[depurar] x={x}");</code></td><td>Mostra um valor no meio do programa.</td></tr>
+<tr><td><code>using System.Diagnostics;</code></td><td>Traz <code>Debug</code> e <code>Trace</code>.</td></tr>
+<tr><td><code>Trace.Listeners.Add(new ConsoleTraceListener());</code></td><td>Faz <code>Debug</code> e <code>Trace</code> escreverem no terminal.</td></tr>
+<tr><td><code>Debug.WriteLine("…")</code></td><td>Mensagem só em Debug.</td></tr>
+<tr><td><code>Trace.WriteLine("…")</code></td><td>Mensagem em Debug e em Release.</td></tr>
+<tr><td><code>Debug.Assert(condição, "mensagem")</code></td><td>Para o programa se a condição for falsa (só em Debug).</td></tr>
+<tr><td><code>#if DEBUG</code> … <code>#endif</code></td><td>Código compilado só em Debug.</td></tr>
+<tr><td><code>dotnet run</code> / <code>dotnet run -c Release</code></td><td>Roda em Debug (padrão) / em Release.</td></tr>
+<tr><td><kbd>F9</kbd>, <kbd>F5</kbd>, <kbd>F10</kbd>, <kbd>F11</kbd>, <kbd>Shift</kbd>+<kbd>F11</kbd></td><td>No VS Code: ponto de parada, continuar, passar por cima, entrar, sair.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A configuração de depurar</h3>
+<p>Complete o comando que roda o programa na configuração de entregar (otimizada):</p>
+<div class="ex-code">dotnet run -c <input data-answer="Release" aria-label="configuração"> ola.cs</div>
+</div>
+
+<div class="exercise">
+<h3>2. Mensagem só em Debug</h3>
+<p>Complete para a mensagem sumir sozinha na versão Release:</p>
+<div class="ex-code"><input data-answer="Debug" aria-label="classe">.WriteLine($"soma={soma}");</div>
+</div>
+
+<div class="exercise">
+<h3>3. O laço certo</h3>
+<p>O vetor <code>notas</code> tem <code>notas.Length</code> itens. Complete a condição para o laço passar por todos:</p>
+<div class="ex-code">for (int i = 0; i <input data-answer="&lt;" aria-label="operador"> notas.Length; i++)</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. No <em>stack trace</em>, qual linha mostra onde a exceção aconteceu?</p>
+<label><input type="radio" name="q4"> A última linha <code>at</code>.</label>
+<label><input type="radio" name="q4"> A primeira linha <code>at</code> (a de cima).</label>
+<label><input type="radio" name="q4"> A linha <code>Unhandled exception</code>.</label>
+<label><input type="radio" name="q4"> Nenhuma: o <em>stack trace</em> só mostra os nomes dos métodos.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. No depurador, o programa está parado numa linha que chama <code>Media(notas)</code>. Você quer ver o que acontece <strong>dentro</strong> de <code>Media</code>. Qual tecla?</p>
+<label><input type="radio" name="q5"> <kbd>F5</kbd></label>
+<label><input type="radio" name="q5"> <kbd>F10</kbd></label>
+<label><input type="radio" name="q5"> <kbd>Shift</kbd>+<kbd>F11</kbd></label>
+<label><input type="radio" name="q5"> <kbd>F11</kbd></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que depurar em Debug, e não em Release?</p>
+<label><input type="radio" name="q6"> Em Debug o código roda como foi escrito, os números de linha são exatos e <code>Debug.*</code> funciona.</label>
+<label><input type="radio" name="q6"> Porque em Release o programa não roda.</label>
+<label><input type="radio" name="q6"> Porque em Debug o programa fica mais rápido.</label>
+<label><input type="radio" name="q6"> Não faz diferença.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Depurar é investigar: reproduzir, suspeitar, conferir os valores de verdade, consertar e testar. Não chute.</li>
+  <li><code>Console.WriteLine</code> com nome e valor, dentro e depois dos laços, mostra onde as coisas saem do esperado.</li>
+  <li>Numa exceção, leia o tipo, a mensagem e a primeira linha <code>at … in arquivo:line N</code> de um arquivo seu.</li>
+  <li><code>Debug.WriteLine</code> e <code>Debug.Assert</code> só existem em Debug; <code>Trace.WriteLine</code>, nas duas. No terminal, precisam de <code>ConsoleTraceListener</code>.</li>
+  <li><code>dotnet run</code> usa Debug; <code>-c Release</code> otimiza e pode errar o número da linha. Depure em Debug.</li>
+  <li>O depurador do VS Code (ou do Rider) pausa o programa: <kbd>F9</kbd> marca, <kbd>F5</kbd> começa, <kbd>F10</kbd>/<kbd>F11</kbd> andam, e os painéis mostram variáveis e a pilha.</li>
+</ul>
+
+<div class="pager"></div>
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
