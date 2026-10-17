@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# foreach — passar por cada item | Guia C#</title>
+<meta name="description" content="O laço foreach em C# para quem nunca programou: foreach (tipo item in coleção) com arrays e strings, var no foreach, somar e contar, quando você precisa da posição (contador ou for), por que a variável do foreach não pode mudar (CS1656) e os erros CS0030, CS0230, CS1579 e CS1515, com saídas reais do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">foreach</span></h1>
+
+<p class="intro">Na aula do <a href="for.html">for</a>, para visitar cada letra de um nome, você precisou de um contador, de uma condição com <code>Length</code> e de colchetes com a posição, e um <code>&lt;=</code> no lugar errado derrubava o programa. Na maioria das vezes, você só quer dizer: "para <strong>cada</strong> item desta lista, faça isto". É exatamente o que o <code>foreach</code> ("para cada") faz, sem contador, sem posição e sem a chance de passar do fim.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como escrever <code>foreach (tipo item in coleção) { … }</code>.</li>
+  <li>Como usar o <code>foreach</code> com <strong>arrays</strong> (listas de valores) e com <strong>strings</strong> (letra por letra).</li>
+  <li>Como <strong>somar</strong> e <strong>contar</strong> com um <code>foreach</code>.</li>
+  <li>O que fazer quando você precisa da <strong>posição</strong>.</li>
+  <li>Por que a variável do <code>foreach</code> não pode ser alterada (<code>CS1656</code>), e outros erros comuns.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana, na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: a lista de compras</h2>
+<p>No mercado, a Ana tem uma lista de compras no papel. Ela lê o primeiro item, põe no carrinho; lê o segundo, põe no carrinho; e assim até o fim da lista. Ela não pensa "agora vou ao item número 3"; ela só vai <strong>passando item por item</strong>. Quando a lista acaba, ela vai para o caixa.</p>
+<p>O <code>foreach</code> é isso: "<strong>para cada</strong> item <strong>na</strong> lista, faça…". Ele começa no primeiro, para no último, e a cada volta entrega um item para você.</p>
+
+<hr>
+
+<h2>1. Uma lista de valores: o array</h2>
+<p>Para guardar vários valores numa variável só, o C# tem os <strong>arrays</strong> (vetores). A aula <a href="arrays.html">Arrays</a> mostra tudo sobre eles; para esta aula, basta saber criar um:</p>
+
+<pre class="file">string[] compras = ["arroz", "feijão", "café", "leite"];
+</pre>
+
+<dl class="anatomy">
+  <dt>string[]</dt><dd>"Array de <code>string</code>": uma lista de textos. <code>int[]</code> seria uma lista de inteiros; <code>decimal[]</code>, de valores em dinheiro.</dd>
+  <dt>[ "arroz", … ]</dt><dd>Os itens, entre colchetes, separados por vírgula. Essa forma (a "expressão de coleção") é do <span class="versao">C# 12</span>; em código mais antigo você vai ver <code>{ "arroz", … }</code> ou <code>new[] { "arroz", … }</code>, que fazem a mesma coisa.</dd>
+  <dt>compras.Length</dt><dd>Quantos itens o array tem (aqui, 4).</dd>
+</dl>
+
+<hr>
+
+<h2>2. O primeiro <code>foreach</code></h2>
+
+<pre class="file" data-file="compras.cs">string[] compras = ["arroz", "feijão", "café", "leite"];
+foreach (string item in compras)
+{
+    Console.WriteLine($"- {item}");
+}
+Console.WriteLine($"{compras.Length} itens na lista.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run compras.cs
+- arroz
+- feijão
+- café
+- leite
+4 itens na lista.</pre>
+
+<dl class="anatomy">
+  <dt>foreach</dt><dd>"Para cada". Escreve-se junto, numa palavra só.</dd>
+  <dt>string item</dt><dd>A <strong>variável da volta</strong>: o tipo de cada item (<code>string</code>, porque o array é <code>string[]</code>) e um nome escolhido por você. A cada volta, ela recebe o próximo item.</dd>
+  <dt>in</dt><dd>"Em", "dentro de".</dd>
+  <dt>compras</dt><dd>A <strong>coleção</strong> a percorrer: um array, uma <code>string</code> e, mais adiante, listas (<a href="list.html">List</a>) e outras coleções.</dd>
+  <dt>{ … }</dt><dd>O corpo, que roda uma vez para cada item, na ordem em que eles estão.</dd>
+</dl>
+
+<p>Não há contador, nem condição, nem passo: o <code>foreach</code> sabe sozinho onde a lista começa e onde termina. Por isso é impossível dar "uma volta a mais" com ele.</p>
+
+<h3>Com <code>var</code></h3>
+<p>Como o tipo dos itens já está no array, você pode deixar o compilador descobrir (aula <a href="var.html">var</a>): <code>foreach (var item in compras)</code>. Os dois jeitos são iguais e os dois são muito usados. Escrever o tipo ajuda quem está aprendendo a ver o que vem em cada volta.</p>
+
+<hr>
+
+<h2>3. Somar e contar</h2>
+<p>Os truques do acumulador valem aqui também. A média das notas da Ana:</p>
+
+<pre class="file" data-file="media.cs">double[] notas = [7.5, 9.0, 6.0, 8.5];
+double soma = 0;
+foreach (var nota in notas)
+{
+    soma += nota;
+}
+double media = soma / notas.Length;
+Console.WriteLine($"Soma: {soma}, média: {media:N2}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run media.cs
+Soma: 31, média: 7,75</pre>
+
+<p>A soma deu 31,0, e o .NET mostra um <code>double</code> sem casas decimais quando elas são zero; com <code>{soma:N1}</code> sairia <code>31,0</code>. A média usa o <code>Length</code> do array: se a Ana acrescentar uma nota, o programa continua certo, sem mexer em mais nada.</p>
+
+<div class="trycs" data-goal="out:Total: R$ 49\,15,src:foreach\s*\(">
+<p class="try-task"><strong>Missão:</strong> o carrinho da lojinha tem quatro preços. Complete o corpo do <code>foreach</code> para somar cada preço ao total.</p>
+<pre class="out">Total: R$ 49,15</pre>
+<pre class="script">decimal[] precos = [12.90m, 8.50m, 23.00m, 4.75m];
+decimal total = 0m;
+foreach (decimal preco in precos)
+{
+    // some o preço ao total
+}
+Console.WriteLine($"Total: R$ {total:N2}");
+</pre>
+<pre class="solucao">decimal[] precos = [12.90m, 8.50m, 23.00m, 4.75m];
+decimal total = 0m;
+foreach (decimal preco in precos)
+{
+    total += preco;
+}
+Console.WriteLine($"Total: R$ {total:N2}");
+</pre>
+</div>
+
+<hr>
+
+<h2>4. <code>foreach</code> numa <code>string</code></h2>
+<p>Uma <code>string</code> também é uma coleção: de caracteres (<code>char</code>). Com <code>foreach</code>, você passa por eles um a um, sem índice:</p>
+
+<pre class="file" data-file="letras.cs">string palavra = "banana";
+int quantos = 0;
+foreach (char letra in palavra)
+{
+    Console.Write($"[{letra}]");
+    if (letra == 'a')
+    {
+        quantos++;
+    }
+}
+Console.WriteLine();
+Console.WriteLine($"\"{palavra}\" tem {quantos} letras 'a'.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run letras.cs
+[b][a][n][a][n][a]
+"banana" tem 3 letras 'a'.</pre>
+
+<p>Compare com o programa das vogais da aula do <a href="for.html">for</a>: lá, cada volta fazia <code>char c = frase[i];</code>. Aqui, o <code>foreach</code> já entrega o <code>char</code> pronto em <code>letra</code>. Repare nas aspas: <code>'a'</code>, com aspas simples, é um <code>char</code> (aula <a href="char-bool.html">char e bool</a>).</p>
+
+<hr>
+
+<h2>5. E se eu precisar da posição?</h2>
+<p>O <code>foreach</code> entrega o <strong>item</strong>, não a posição dele. Quando você precisa dos dois, há duas saídas. A primeira: um contador seu, ao lado do <code>foreach</code>:</p>
+
+<pre class="file" data-file="posicao.cs">string[] fila = ["Ana", "Bruno", "Carla"];
+int posicao = 1;
+foreach (var nome in fila)
+{
+    Console.WriteLine($"{posicao}º: {nome}");
+    posicao++;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run posicao.cs
+1º: Ana
+2º: Bruno
+3º: Carla</pre>
+
+<p>A segunda: voltar ao <code>for</code> com índice, que é a escolha certa quando a posição é o centro do problema (comparar um item com o seguinte, pular de 2 em 2, andar de trás para a frente). Mais adiante, na aula <a href="linq.html">LINQ</a>, você vai ver um terceiro jeito, com <code>Index()</code>.</p>
+
+<hr>
+
+<h2>6. A variável do <code>foreach</code> é só para ler</h2>
+<p>A Ana quis deixar a lista em maiúsculas trocando cada item:</p>
+
+<pre class="file" data-file="mudar.cs">string[] compras = ["arroz", "feijão", "café"];
+foreach (string item in compras)
+{
+    item = item.ToUpper();
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run mudar.cs
+/home/ana/cs/mudar.cs(4,5): error CS1656: Não é possível atribuir a "item" porque ele é um "variável de iteração foreach"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Não é possível atribuir a <code>item</code>, porque ele é a variável de iteração do <code>foreach</code>" (<code>Cannot assign to 'item' because it is a 'foreach iteration variable'</code>). A variável da volta é uma <strong>cópia de leitura</strong> do item: mudar ela não mudaria o array, então o C# proíbe para você não achar que mudou. Para alterar os itens, use o <code>for</code> com índice, que escreve direto na posição:</p>
+
+<pre class="file" data-file="mudar2.cs">string[] compras = ["arroz", "feijão", "café"];
+for (int i = 0; i &lt; compras.Length; i++)
+{
+    compras[i] = compras[i].ToUpper();
+}
+Console.WriteLine(string.Join(", ", compras));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run mudar2.cs
+ARROZ, FEIJÃO, CAFÉ</pre>
+
+<p>O <code>string.Join(", ", compras)</code> junta os itens num texto só, com <code>", "</code> entre eles (aula <a href="metodos-string.html">Métodos de String</a>).</p>
+
+<hr>
+
+<h2><code>foreach</code> ou <code>for</code>?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>Ler <strong>cada item</strong>, do primeiro ao último (mostrar, somar, contar, procurar)</td><td><code>foreach</code>: mais curto e sem risco de passar do fim</td></tr>
+<tr><td><strong>Alterar</strong> os itens do array</td><td><code>for</code> com índice (<code>compras[i] = …</code>)</td></tr>
+<tr><td>Precisa da <strong>posição</strong>, de outra ordem (de trás para a frente) ou de pular itens</td><td><code>for</code></td></tr>
+<tr><td>Repetir um <strong>número</strong> de vezes, sem coleção (10 voltas, 12 meses)</td><td><code>for</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS1656: Não é possível atribuir a "item" porque ele é um "variável de iteração foreach"</code></strong>
+<p><strong>O que significa:</strong> você tentou mudar a variável da volta.</p>
+<p><strong>Como consertar:</strong> para alterar os itens, use <code>for</code> com índice. Se só precisa de um valor calculado, crie outra variável: <code>string maiuscula = item.ToUpper();</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0030: Não é possível converter tipo "string" em "int"</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat tipo.cs
+string[] compras = ["arroz", "feijão", "café"];
+foreach (int item in compras)
+{
+    Console.WriteLine(item);
+}
+$ dotnet run tipo.cs
+/home/ana/cs/tipo.cs(2,1): error CS0030: Não é possível converter tipo "string" em "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o tipo da variável da volta não combina com o tipo dos itens. O array é de <code>string</code>, e a volta pediu <code>int</code>.</p>
+<p><strong>Como consertar:</strong> use o tipo dos itens (<code>string item</code>), ou <code>var item</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0230: Um tipo e um identificador são necessários em uma instrução foreach</code></strong>
+<p><strong>O que significa:</strong> você escreveu <code>foreach (item in compras)</code>, sem o tipo. Em JavaScript e em Python se escreve assim; em C#, a variável da volta é declarada ali, e toda declaração precisa de tipo.</p>
+<p><strong>Como consertar:</strong> <code>foreach (var item in compras)</code> ou <code>foreach (string item in compras)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1579: A instrução foreach não pode operar em variáveis do tipo 'int'…</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat numero.cs
+int total = 5;
+foreach (var n in total)
+{
+    Console.WriteLine(n);
+}
+$ dotnet run numero.cs
+/home/ana/cs/numero.cs(2,19): error CS1579: A instrução foreach não pode operar em variáveis do tipo 'int' porque 'int' não contém uma definição da extensão ou instância pública para 'GetEnumerator'
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>foreach</code> só funciona com <strong>coleções</strong>: coisas que têm itens para entregar um a um (o tal <code>GetEnumerator</code>, que você vai conhecer em <a href="ienumerable.html">IEnumerable e foreach</a>). Um número sozinho não é uma coleção. (Em Python, <code>for n in range(5)</code> faz isso; em C#, é trabalho para o <code>for</code>.)</p>
+<p><strong>Como consertar:</strong> para repetir 5 vezes, <code>for (int n = 0; n &lt; 5; n++)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1515: 'in' esperado</code> e <code>error CS1003: Erro de sintaxe, "foreach" esperado</code></strong>
+<p><strong>O que significa:</strong> o costume de outras linguagens. <code>foreach (var item of compras)</code> (o <code>of</code> do JavaScript) dá <code>CS1515: 'in' esperado</code> e mais três erros na mesma linha. <code>for (var item in compras)</code> (o <code>for … in</code> do Python e do JavaScript) dá <code>CS1003: Erro de sintaxe, "foreach" esperado</code>: o compilador até adivinha o que você queria.</p>
+<p><strong>Como consertar:</strong> <code>foreach (var item in compras)</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>O que faz</th></tr>
+<tr><td><code>foreach (string item in lista) { … }</code></td><td>Roda o corpo uma vez para cada item, em ordem.</td></tr>
+<tr><td><code>foreach (var item in lista)</code></td><td>O mesmo, com o tipo descoberto pelo compilador.</td></tr>
+<tr><td><code>foreach (char c in texto)</code></td><td>Cada caractere de uma <code>string</code>.</td></tr>
+<tr><td><code>string[] x = ["a", "b"];</code> <span class="versao">C# 12</span></td><td>Cria um array (antes: <code>{ "a", "b" }</code> ou <code>new[] { "a", "b" }</code>).</td></tr>
+<tr><td><code>x.Length</code></td><td>Quantos itens o array (ou a <code>string</code>) tem.</td></tr>
+<tr><td><code>item = …;</code> dentro do <code>foreach</code></td><td><strong>Erro</strong> <code>CS1656</code>: use <code>for</code> para alterar.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Para cada</h3>
+<p>Complete com a palavra do laço:</p>
+<div class="ex-code"><input data-answer="foreach" aria-label="palavra"> (var nome in nomes) { Console.WriteLine(nome); }</div>
+</div>
+
+<div class="exercise">
+<h3>2. Em</h3>
+<p>Complete com a palavra que liga a variável à coleção:</p>
+<div class="ex-code">foreach (char c <input data-answer="in" aria-label="palavra" size="3"> "Ana") { Console.Write(c); }</div>
+</div>
+
+<div class="exercise">
+<h3>3. Quantas voltas?</h3>
+<p>Quantas vezes roda o corpo de <code>foreach (char c in "café") { … }</code>?</p>
+<div class="ex-code">Voltas: <input data-answer="4" aria-label="número"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Por que <code>foreach (var p in precos) { p = p * 2; }</code> não compila?</p>
+<label><input type="radio" name="q4"> Porque <code>var</code> não funciona no <code>foreach</code></label>
+<label><input type="radio" name="q4"> Porque falta o índice</label>
+<label><input type="radio" name="q4"> Porque a variável da volta não pode receber valor (<code>CS1656</code>)</label>
+<label><input type="radio" name="q4"> Porque <code>precos</code> precisa estar entre colchetes</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. Qual laço é a melhor escolha para mostrar cada nome de um array, do primeiro ao último?</p>
+<label><input type="radio" name="q5"> <code>foreach</code></label>
+<label><input type="radio" name="q5"> <code>do while</code></label>
+<label><input type="radio" name="q5"> <code>while (true)</code></label>
+<label><input type="radio" name="q5"> Nenhum: não dá para percorrer arrays</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">6. O que acontece com <code>foreach (var n in 10) { }</code>?</p>
+<label><input type="radio" name="q6"> Dá 10 voltas</label>
+<label><input type="radio" name="q6"> Não compila: um <code>int</code> não é uma coleção (<code>CS1579</code>)</label>
+<label><input type="radio" name="q6"> Dá uma volta, com <code>n = 10</code></label>
+<label><input type="radio" name="q6"> Laço infinito</label>
+</div>
+
+<h3>Missão final: o boletim da turma</h3>
+
+<div class="trycs" data-goal="out:Aprovados: 3 de 6,out:Média da turma: 6\,8,src:foreach\s*\(,semaviso">
+<p class="try-task"><strong>Missão:</strong> a professora da Ana tem as notas da turma num array. Escreva um <code>foreach</code> que, para cada nota, <strong>some</strong> a nota em <code>soma</code> e <strong>conte</strong> em <code>aprovados</code> as notas de 7 para cima. As duas linhas do fim já estão prontas. A saída deve ser:</p>
+<pre class="out">Aprovados: 3 de 6
+Média da turma: 6,8</pre>
+<pre class="script">double[] notas = [7.5, 4.0, 9.0, 6.5, 8.0, 5.5];
+int aprovados = 0;
+double soma = 0;
+
+// escreva o foreach aqui
+
+Console.WriteLine($"Aprovados: {aprovados} de {notas.Length}");
+Console.WriteLine($"Média da turma: {soma / notas.Length:N1}");
+</pre>
+<pre class="solucao">double[] notas = [7.5, 4.0, 9.0, 6.5, 8.0, 5.5];
+int aprovados = 0;
+double soma = 0;
+
+foreach (double nota in notas)
+{
+    soma += nota;
+    if (nota &gt;= 7)
+    {
+        aprovados++;
+    }
+}
+
+Console.WriteLine($"Aprovados: {aprovados} de {notas.Length}");
+Console.WriteLine($"Média da turma: {soma / notas.Length:N1}");
+</pre>
+</div>
+
+<p>Acrescente mais uma nota ao array (por exemplo, <code>10.0</code>) e rode de novo: o <code>foreach</code> e o <code>Length</code> se ajustam sozinhos, e a saída vira <code>Aprovados: 4 de 7</code>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>foreach (tipo item in coleção) { … }</code> roda o corpo uma vez para <strong>cada</strong> item, do primeiro ao último. Sem contador, sem condição, sem risco de passar do fim.</li>
+  <li>Funciona com arrays (<code>string[]</code>, <code>double[]</code>…), com <code>string</code> (cada <code>char</code>) e com as outras coleções do .NET.</li>
+  <li>O tipo da variável da volta tem de combinar com os itens (<code>CS0030</code>); <code>var</code> resolve. O tipo é obrigatório (<code>CS0230</code>).</li>
+  <li>A variável da volta é só para ler (<code>CS1656</code>). Para alterar itens, ou quando precisar da posição, use <code>for</code>.</li>
+  <li>Só coleções podem ser percorridas (<code>CS1579</code>); para repetir N vezes, use <code>for</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
