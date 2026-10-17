@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Referências Anuláveis — string?, Nullable enable e os avisos CS86xx | Guia C#</title>
+<meta name="description" content="Referências anuláveis em C# para quem nunca programou: string × string?, o contexto Nullable enable, a análise de fluxo do compilador, o operador !, #nullable disable, WarningsAsErrors e os avisos reais CS8600, CS8602, CS8603, CS8604, CS8625 e CS8632, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Referências Anuláveis</span></h1>
+
+<p class="intro">Nas duas últimas aulas apareceram avisos como <code>CS8600</code> e <code>CS8602</code>, e um <code>?</code> estranho depois de <code>string</code>. Eles fazem parte de um sistema do C# chamado <strong>referências anuláveis</strong> (<em>nullable reference types</em>). A ideia é simples: você diz ao compilador quais textos (e, mais tarde, quais objetos) <strong>podem</strong> ficar em branco, e ele confere o programa inteiro, antes de rodar, procurando lugares onde um <code>null</code> pode causar uma <code>NullReferenceException</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A diferença entre <code>string</code> ("sempre tem texto") e <code>string?</code> ("pode estar em branco").</li>
+  <li>Onde o sistema é ligado: o <code>&lt;Nullable&gt;enable&lt;/Nullable&gt;</code> do projeto e o <code>dotnet run arquivo.cs</code>.</li>
+  <li>Como o compilador "acompanha" o código: depois de um <code>if (nome is null) return;</code>, ele sabe que <code>nome</code> tem texto.</li>
+  <li>Cada aviso real: <code>CS8600</code>, <code>CS8602</code>, <code>CS8603</code>, <code>CS8604</code>, <code>CS8625</code> e <code>CS8632</code>.</li>
+  <li>O operador <code>!</code> ("confie em mim") e por que ele é perigoso.</li>
+  <li>Como desligar (<code>#nullable disable</code>) e como deixar o sistema mais rígido (<code>WarningsAsErrors</code>).</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com <code>dotnet run arquivo.cs</code> na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), com o .NET 10 SDK (C# 14), na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código: a etiqueta "pode estar vazio"</h2>
+<p>Na mudança de casa da Ana, algumas caixas estão sempre cheias ("LOUÇA") e outras podem chegar vazias ("ACHADOS E PERDIDOS"). Se a etiqueta avisa "pode estar vazia", quem abre a caixa olha dentro antes de enfiar a mão. Se a etiqueta não avisa, todo mundo confia que tem algo lá.</p>
+<p>No C#, <code>string</code> é a caixa que <strong>promete</strong> ter texto, e <code>string?</code> é a caixa com a etiqueta "pode estar vazia". O compilador é o fiscal da mudança: ele reclama quando alguém põe "nada" numa caixa que prometia estar cheia, ou quando alguém enfia a mão numa caixa "pode estar vazia" sem olhar antes.</p>
+
+<hr>
+
+<h2>Um pouco de história: por que isso existe</h2>
+<p>Na <a href="null.html">aula de null</a> você viu que <code>int</code> não aceita <code>null</code>, mas <code>string</code> aceita. Isso vale para todos os <strong>tipos de referência</strong> (textos, arrays e os objetos que você vai criar a partir de <a href="classes-objetos.html">Classes e Objetos</a>): a variável guarda um "endereço", e um endereço pode estar em branco.</p>
+<p>Até o C# 7, qualquer <code>string</code> podia ser <code>null</code> a qualquer momento, e o compilador não dizia nada. O resultado eram programas que compilavam bem e quebravam com <code>NullReferenceException</code> na mão do usuário. O C# 8 (2019) trouxe as referências anuláveis: o <code>?</code>, que já existia em <code>int?</code>, passou a valer também para tipos de referência.</p>
+
+<div class="warning">
+<strong>São só avisos: o programa continua igual</strong>
+<p>Para um <code>int</code>, o <code>?</code> cria um tipo novo (<code>int?</code> é <code>Nullable&lt;int&gt;</code>). Para uma <code>string</code>, <strong>não</strong>: <code>string</code> e <code>string?</code> são o mesmo tipo quando o programa roda. O <code>?</code> é uma anotação para o compilador, que só gera <strong>avisos</strong>. Um programa cheio de avisos de nulidade compila e roda, e pode quebrar. Por isso, leve esses avisos a sério.</p>
+</div>
+
+<hr>
+
+<h2>Onde o sistema está ligado</h2>
+<p>Num projeto criado com <a href="projetos-console.html"><code>dotnet new console</code></a>, ele já vem ligado. Olhe o arquivo do projeto:</p>
+
+<pre class="term">$ dotnet new console -o Cadastro
+O modelo "Aplicativo do Console" foi criado com êxito.
+…
+$ cat Cadastro/Cadastro.csproj
+&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+
+  &lt;PropertyGroup&gt;
+    &lt;OutputType&gt;Exe&lt;/OutputType&gt;
+    &lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;
+    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+    &lt;Nullable&gt;enable&lt;/Nullable&gt;      « aqui: referências anuláveis ligadas
+  &lt;/PropertyGroup&gt;
+
+&lt;/Project&gt;</pre>
+
+<p>Com <code>dotnet run arquivo.cs</code>, que você usa nesta parte do guia, o sistema também vem ligado, sem precisar de nada. O editor do guia faz o mesmo. Projetos antigos (antes do .NET 6) e muitos exemplos da internet não têm essa linha; neles, nada disso aparece. O arquivo <code>.csproj</code> é explicado em <a href="csproj.html">O Arquivo .csproj</a>.</p>
+
+<hr>
+
+<h2><code>string</code> × <code>string?</code></h2>
+
+<pre class="file" data-file="r1.cs">string nome = null;
+string? apelido = null;
+Console.WriteLine($"[{nome}] [{apelido}]");
+</pre>
+
+<pre class="term">$ dotnet run r1.cs
+/home/ana/cs/r1.cs(1,15): warning CS8600: Conversão de literal nula ou possível valor nulo em tipo não anulável.
+[] []</pre>
+
+<dl class="anatomy">
+  <dt>string nome = null;</dt><dd><code>string</code> sem <code>?</code> promete "sempre tem texto". Pôr <code>null</code> nela quebra a promessa, e o compilador avisa na linha 1, coluna 15 (onde está o <code>null</code>).</dd>
+  <dt>warning CS8600</dt><dd>"Conversão de um <code>null</code> (ou de algo que pode ser <code>null</code>) para um tipo que não aceita nulo". Em inglês: <code>Converting null literal or possible null value to non-nullable type</code>. É um <a href="avisos.html">aviso</a>: o programa rodou mesmo assim.</dd>
+  <dt>string? apelido = null;</dt><dd>Com <code>?</code>, a caixa tem a etiqueta "pode estar vazia". Nenhum aviso.</dd>
+  <dt>[] []</dt><dd>As duas variáveis valem <code>null</code> e aparecem em branco. O aviso não mudou nada no programa.</dd>
+</dl>
+
+<p>A regra para escolher é sempre a mesma pergunta: <strong>"faz sentido isto estar em branco?"</strong> O nome de um aluno, não: use <code>string</code>. O apelido, sim: use <code>string?</code>.</p>
+
+<hr>
+
+<h2 id="fluxo">O compilador acompanha o seu código</h2>
+<p>O compilador não olha só a declaração. Ele segue o programa linha por linha, e sabe, em cada ponto, se a variável <strong>pode</strong> ser <code>null</code> ali. Isso se chama <strong>análise de fluxo</strong>:</p>
+
+<pre class="file" data-file="r11.cs">string? nome = "Bia";
+Console.WriteLine(nome.Length);
+nome = null;
+Console.WriteLine(nome.Length);
+</pre>
+
+<pre class="term">$ dotnet run r11.cs; echo "código: $?"
+/home/ana/cs/r11.cs(4,19): warning CS8602: Desreferência de uma referência possivelmente nula.
+3
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/r11.cs:line 4
+código: 134</pre>
+
+<p>Repare: a variável é <code>string?</code> nas duas linhas, mas só a linha 4 ganhou aviso. Na linha 2, o compilador sabe que <code>nome</code> acabou de receber <code>"Bia"</code>. Na linha 4, ele sabe que acabou de receber <code>null</code>. E ele estava certo: foi exatamente na linha 4 que o programa quebrou.</p>
+
+<p>O <code>CS8602</code> é o aviso mais comum: "<strong>desreferência</strong> de uma referência possivelmente nula". "Desreferenciar" é usar o ponto (<code>.Length</code>, <code>.ToUpper()</code>) para ir até o objeto que o endereço aponta. Em inglês: <code>Dereference of a possibly null reference</code>.</p>
+
+<h3>Conferir antes tira o aviso</h3>
+<p>O jeito certo de usar um <code>string?</code> é conferir antes. O compilador entende o <code>if</code>:</p>
+
+<pre class="file" data-file="r4.cs">string? nome = Console.ReadLine();
+if (nome is null)
+{
+    Console.WriteLine("Nada foi digitado.");
+    return;
+}
+Console.WriteLine($"{nome} tem {nome.Length} letras.");
+</pre>
+
+<pre class="term">$ echo Bia | dotnet run r4.cs
+Bia tem 3 letras.
+$ dotnet run r4.cs &lt; /dev/null       « entrada vazia: ReadLine devolve null
+Nada foi digitado.</pre>
+
+<dl class="anatomy">
+  <dt>string? nome = Console.ReadLine();</dt><dd><code>ReadLine</code> devolve <code>string?</code>, porque pode não haver nada para ler. Guardar em <code>string?</code> é honesto e não dá aviso.</dd>
+  <dt>if (nome is null) { … return; }</dt><dd>Se estiver em branco, avisa e <strong>sai</strong> do programa (o <code>return</code>, nas instruções de nível superior, encerra o programa).</dd>
+  <dt>nome.Length</dt><dd>Nenhum aviso aqui: o compilador sabe que, se o programa chegou nesta linha, <code>nome</code> não é <code>null</code>.</dd>
+</dl>
+
+<p>O compilador entende várias formas de conferir, mas só dentro do lugar que a conferência protege:</p>
+
+<pre class="file" data-file="r5.cs">string? nome = Console.ReadLine();
+if (!string.IsNullOrEmpty(nome))
+    Console.WriteLine(nome.Length);
+if (nome != null)
+    Console.WriteLine(nome.ToUpper());
+Console.WriteLine(nome.Length);
+</pre>
+
+<pre class="term">$ echo Bia | dotnet run r5.cs
+/home/ana/cs/r5.cs(6,19): warning CS8602: Desreferência de uma referência possivelmente nula.
+3
+BIA
+3</pre>
+
+<p>As linhas 3 e 5 estão protegidas pelos <code>if</code> (o <code>string.IsNullOrEmpty</code>, "é nulo ou vazio?", também conta). A linha 6 está fora deles: lá, <code>nome</code> ainda pode ser <code>null</code>, e o aviso aparece. Desta vez a Bia digitou o nome e o programa não quebrou, mas com uma entrada vazia ele quebraria.</p>
+
+<hr>
+
+<h2 id="metodos">Avisos com métodos</h2>
+<p>Os <a href="parametros.html">parâmetros</a> e o <a href="retorno.html">retorno</a> de um método também dizem se aceitam <code>null</code>. Um método <code>Saudar(string nome)</code> promete que <code>nome</code> sempre tem texto, então ele usa <code>nome.Length</code> sem conferir. Quem chama precisa cumprir a promessa:</p>
+
+<pre class="file" data-file="r2.cs">void Saudar(string nome)
+{
+    Console.WriteLine($"Olá, {nome}! Seu nome tem {nome.Length} letras.");
+}
+
+string? Buscar(int codigo)
+{
+    if (codigo == 1) return "Ana";
+    return null;
+}
+
+string? quem = Buscar(2);
+Saudar(quem);
+</pre>
+
+<pre class="term">$ dotnet run r2.cs; echo "código: $?"
+/home/ana/cs/r2.cs(13,8): warning CS8604: Possível argumento de referência nula para o parâmetro 'nome' em 'void Saudar(string nome)'.
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;&lt;Main&gt;$&gt;g__Saudar|0_0(String nome) in /home/ana/cs/r2.cs:line 3
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/r2.cs:line 13
+código: 134</pre>
+
+<dl class="anatomy">
+  <dt>string? Buscar(int codigo)</dt><dd>O retorno <code>string?</code> avisa: "posso não encontrar ninguém". Com o código 2, devolve <code>null</code>.</dd>
+  <dt>warning CS8604</dt><dd>"Possível argumento nulo para o parâmetro <code>nome</code>". A variável <code>quem</code> pode ser <code>null</code>, e o parâmetro de <code>Saudar</code> não aceita. O aviso aponta a linha 13, a da chamada.</dd>
+  <dt>g__Saudar|0_0 … line 3</dt><dd>A exceção mostra o caminho: quebrou na linha 3, <strong>dentro</strong> do <code>Saudar</code> (o nome estranho é como o C# chama, por dentro, um método escrito no meio das instruções de nível superior), que foi chamado da linha 13. Leia a pilha de baixo para cima, como em <a href="excecoes.html">Exceções</a>.</dd>
+</dl>
+
+<p>O aviso aponta a <strong>chamada</strong> (linha 13), e não o <code>nome.Length</code> da linha 3. Isso faz sentido: o erro não é de <code>Saudar</code>, que confiou na promessa; é de quem mandou um <code>null</code>.</p>
+
+<div class="trycs" data-goal="out:Olá\, visitante!,semaviso,exit:0">
+<p class="try-task"><strong>Missão:</strong> rode e leia o aviso <code>CS8604</code>. Conserte <strong>só a última linha</strong> para que, quando a busca não encontrar ninguém, o <code>Saudar</code> receba <code>"visitante"</code> (dica: <code>??</code>, da <a href="operadores-null.html">aula anterior</a>). A saída deve começar com <code>Olá, visitante!</code>, sem nenhum aviso.</p>
+<pre class="script" data-file="saudar.cs">void Saudar(string nome)
+{
+    Console.WriteLine($"Olá, {nome}! Seu nome tem {nome.Length} letras.");
+}
+
+string? Buscar(int codigo)
+{
+    if (codigo == 1) return "Ana";
+    return null;
+}
+
+string? quem = Buscar(2);
+Saudar(quem);
+</pre>
+<pre class="solucao" data-file="saudar.cs">void Saudar(string nome)
+{
+    Console.WriteLine($"Olá, {nome}! Seu nome tem {nome.Length} letras.");
+}
+
+string? Buscar(int codigo)
+{
+    if (codigo == 1) return "Ana";
+    return null;
+}
+
+string? quem = Buscar(2);
+Saudar(quem ?? "visitante");
+</pre>
+</div>
+
+<h3>Quando o próprio método quebra a promessa</h3>
+<p>Se o retorno é <code>string</code> (sem <code>?</code>) e o método devolve <code>null</code>, o aviso é outro:</p>
+
+<pre class="file" data-file="r3.cs">string Buscar(int codigo)
+{
+    if (codigo == 1) return "Ana";
+    return null;
+}
+Console.WriteLine(Buscar(1));
+</pre>
+
+<pre class="term">$ dotnet run r3.cs
+/home/ana/cs/r3.cs(4,12): warning CS8603: Possível retorno de referência nula.
+Ana</pre>
+
+<p>O <code>CS8603</code> ("possível retorno nulo") aponta o <code>return null;</code>. O conserto é ser honesto no tipo: <code>string? Buscar(int codigo)</code>. Aí quem chama passa a saber que precisa tratar o "não encontrei".</p>
+
+<p>E se você mandar o <code>null</code> escrito direto para um parâmetro <code>string</code>, o aviso é o <code>CS8625</code>:</p>
+
+<pre class="term">$ dotnet run r10.cs
+/home/ana/cs/r10.cs(5,8): warning CS8625: Não é possível converter um literal nulo em um tipo de referência não anulável.
+Olá, !</pre>
+
+<hr>
+
+<h2 id="exclamacao">O operador <code>!</code>: "confie em mim"</h2>
+<p>Às vezes você sabe algo que o compilador não sabe, e quer calar o aviso. Para isso existe o <code>!</code> depois da variável (o "operador que perdoa nulo", <em>null-forgiving</em>): <code>nome!.Length</code> quer dizer "eu garanto que <code>nome</code> não é <code>null</code> aqui".</p>
+
+<pre class="file" data-file="r6.cs">string? nome = null;
+Console.WriteLine(nome!.Length);
+</pre>
+
+<pre class="term">$ dotnet run r6.cs; echo "código: $?"
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/r6.cs:line 2
+código: 134</pre>
+
+<p>O aviso sumiu, mas a exceção não. O <code>!</code> não confere nada e não muda o programa: ele só manda o compilador ficar quieto. Aqui a "garantia" era falsa, e o programa quebrou sem nenhum aviso antes.</p>
+
+<div class="tip">
+<strong>Regra prática</strong>
+<p>Não use <code>!</code> para fazer um aviso sumir. Primeiro pergunte "isto pode mesmo ser <code>null</code> aqui?". Se pode, trate com <code>if</code>, <code>??</code> ou <code>?.</code>. Se não pode, normalmente o tipo é que está errado: troque <code>string?</code> por <code>string</code>. O <code>!</code> fica para os raros casos em que você tem certeza e não há como o compilador saber.</p>
+<p>Não confunda com o <code>!</code> do "não" lógico (<code>!pronto</code>, de <a href="operadores-logicos.html">Operadores Lógicos</a>). O "não" vem <strong>antes</strong>; o "confie em mim" vem <strong>depois</strong> da variável.</p>
+</div>
+
+<hr>
+
+<h2 id="contexto">Desligar e endurecer</h2>
+
+<h3><code>#nullable disable</code>: o jeito antigo</h3>
+<p>A linha <code>#nullable disable</code> no topo do arquivo desliga o sistema, como era antes do C# 8. Veja o que acontece:</p>
+
+<pre class="file" data-file="r7.cs">#nullable disable
+string nome = null;
+string? apelido = null;
+Console.WriteLine(nome.Length);
+</pre>
+
+<pre class="term">$ dotnet run r7.cs; echo "código: $?"
+/home/ana/cs/r7.cs(3,7): warning CS8632: A anotação para tipos de referência anuláveis deve ser usada apenas em código em um contexto de anotações '#nullable'.
+/home/ana/cs/r7.cs(3,9): warning CS0219: A variável "apelido" é atribuída, mas seu valor nunca é usado
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/r7.cs:line 4
+código: 134</pre>
+
+<p>Nenhum aviso sobre o <code>null</code> da linha 2 nem sobre o <code>nome.Length</code> da linha 4, e o programa quebrou do mesmo jeito. O único aviso de nulidade é o <code>CS8632</code>: o <code>?</code> de <code>string?</code> não significa nada com o sistema desligado. Num projeto, o mesmo efeito vem de <code>&lt;Nullable&gt;disable&lt;/Nullable&gt;</code>. Você vai encontrar código assim em projetos antigos; nos seus, deixe ligado.</p>
+
+<h3><code>WarningsAsErrors</code>: aviso vira erro</h3>
+<p>No outro extremo, você pode pedir que os avisos de nulidade sejam tratados como <strong>erros</strong>: o programa nem compila enquanto houver um. Com <code>dotnet run arquivo.cs</code>, isso é uma linha <code>#:property</code> no topo; num projeto, é <code>&lt;WarningsAsErrors&gt;nullable&lt;/WarningsAsErrors&gt;</code> no <code>.csproj</code>.</p>
+
+<pre class="file" data-file="r8.cs">#:property WarningsAsErrors=nullable
+string? nome = Console.ReadLine();
+Console.WriteLine(nome.Length);
+</pre>
+
+<pre class="term">$ dotnet run r8.cs &lt; /dev/null; echo "código: $?"
+/home/ana/cs/r8.cs(3,19): error CS8602: Desreferência de uma referência possivelmente nula.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.
+código: 1</pre>
+
+<p>O mesmo <code>CS8602</code>, agora como <code>error</code>. O programa não rodou, então não teve como quebrar. Muitas equipes trabalham assim.</p>
+
+<hr>
+
+<h2>Formas diferentes e qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>O que fazer</th></tr>
+<tr><td>O valor nunca pode faltar (nome do aluno)</td><td>Declare <code>string</code> e garanta um texto sempre.</td></tr>
+<tr><td>O valor pode faltar (apelido, resultado de uma busca)</td><td>Declare <code>string?</code>, e confira antes de usar o ponto.</td></tr>
+<tr><td>Faltou? Use um padrão</td><td><code>apelido ?? "sem apelido"</code></td></tr>
+<tr><td>Faltou? Faça outra coisa</td><td><code>if (nome is null) { …; return; }</code> e, depois, use à vontade</td></tr>
+<tr><td>Só quer um pedaço, se existir</td><td><code>nome?.Length</code> (o resultado é anulável)</td></tr>
+<tr><td>Tem certeza absoluta e o compilador não tem como saber</td><td><code>nome!</code>, raramente</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+<p>Os avisos de nulidade começam todos com <code>CS86</code>. Esta tabela traduz cada um e dá o conserto mais comum:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Aviso</th><th>Mensagem real</th><th>Quando aparece</th><th>Conserto típico</th></tr>
+<tr><td><code>CS8600</code></td><td>Conversão de literal nula ou possível valor nulo em tipo não anulável.</td><td><code>string s = null;</code> ou <code>string s = Console.ReadLine();</code></td><td><code>string?</code>, ou <code>?? "padrão"</code></td></tr>
+<tr><td><code>CS8602</code></td><td>Desreferência de uma referência possivelmente nula.</td><td><code>s.Length</code> com <code>s</code> talvez <code>null</code></td><td><code>if (s is not null)</code>, <code>s?.Length</code></td></tr>
+<tr><td><code>CS8603</code></td><td>Possível retorno de referência nula.</td><td><code>return null;</code> num método que devolve <code>string</code></td><td>retorno <code>string?</code></td></tr>
+<tr><td><code>CS8604</code></td><td>Possível argumento de referência nula para o parâmetro…</td><td>mandar um <code>string?</code> para um parâmetro <code>string</code></td><td><code>Metodo(s ?? "padrão")</code>, ou conferir antes</td></tr>
+<tr><td><code>CS8625</code></td><td>Não é possível converter um literal nulo em um tipo de referência não anulável.</td><td><code>Metodo(null)</code> com parâmetro <code>string</code></td><td>parâmetro <code>string?</code>, ou mandar um texto</td></tr>
+<tr><td><code>CS8632</code></td><td>A anotação para tipos de referência anuláveis deve ser usada apenas em código em um contexto de anotações '#nullable'.</td><td><code>string?</code> com o sistema desligado</td><td>ligar o sistema (<code>&lt;Nullable&gt;enable&lt;/Nullable&gt;</code>)</td></tr>
+</table>
+</div>
+
+<div class="cenario">
+<strong>"Mas o programa rodou!" (e quebrou depois)</strong>
+<pre class="term">$ dotnet run r11.cs; echo "código: $?"
+/home/ana/cs/r11.cs(4,19): warning CS8602: Desreferência de uma referência possivelmente nula.
+3
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/r11.cs:line 4
+código: 134</pre>
+<p><strong>O que aconteceu:</strong> o aviso apareceu, o programa rodou porque avisos não impedem a compilação, e quebrou exatamente na linha que o aviso apontava.</p>
+<p><strong>Como resolver:</strong> trate cada <code>CS86xx</code> como um erro de verdade. Se quiser que o compilador obrigue, use <code>WarningsAsErrors=nullable</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>O <code>!</code> escondeu o problema</strong>
+<pre class="term">$ dotnet run r6.cs; echo "código: $?"
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/r6.cs:line 2
+código: 134</pre>
+<p><strong>O que aconteceu:</strong> <code>nome!.Length</code> calou o <code>CS8602</code>, mas <code>nome</code> era mesmo <code>null</code>.</p>
+<p><strong>Como resolver:</strong> apague o <code>!</code>, leia o aviso de volta e trate o <code>null</code> de verdade: <code>nome?.Length ?? 0</code> ou um <code>if</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>O aviso aponta para um lugar, o problema está em outro</strong>
+<pre class="term">$ dotnet run r2.cs
+/home/ana/cs/r2.cs(13,8): warning CS8604: Possível argumento de referência nula para o parâmetro 'nome' em 'void Saudar(string nome)'.</pre>
+<p><strong>O que aconteceu:</strong> o aviso está na chamada (linha 13), mas a "culpa" pode ser do <code>Buscar</code>, que devolve <code>string?</code>.</p>
+<p><strong>Como resolver:</strong> pergunte onde o <code>null</code> nasce. Se a busca pode mesmo falhar, trate na chamada (<code>quem ?? "visitante"</code>). Se nunca deveria falhar, mude o método.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>string</code></td><td>Sempre tem texto (com o sistema ligado, o compilador cobra)</td></tr>
+<tr><td><code>string?</code></td><td>Pode ser <code>null</code>; confira antes de usar o ponto</td></tr>
+<tr><td><code>string?[]</code></td><td>Um array (que existe) de textos que podem ser <code>null</code></td></tr>
+<tr><td><code>string[]?</code></td><td>Um array que pode não existir, de textos que existem</td></tr>
+<tr><td><code>x!</code></td><td>"Confie em mim": cala o aviso, não confere nada</td></tr>
+<tr><td><code>&lt;Nullable&gt;enable&lt;/Nullable&gt;</code></td><td>Liga o sistema no projeto (padrão desde o .NET 6)</td></tr>
+<tr><td><code>#nullable disable</code> / <code>#nullable enable</code></td><td>Desliga / liga a partir desta linha do arquivo</td></tr>
+<tr><td><code>#:property WarningsAsErrors=nullable</code></td><td>Avisos de nulidade viram erros (no <code>dotnet run arquivo.cs</code>)</td></tr>
+<tr><td><code>&lt;WarningsAsErrors&gt;nullable&lt;/WarningsAsErrors&gt;</code></td><td>O mesmo, num projeto</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missão final: contar letras sem medo</h2>
+<div class="trycs" data-goal="out:Total de letras: 7,semaviso,exit:0">
+<p class="try-task"><strong>Missão:</strong> o método <code>ContarLetras</code> aceita <code>string?</code>, mas usa <code>texto.Length</code> sem conferir. Rode: aparece o aviso <code>CS8602</code> e o programa quebra no nome em branco. Conserte <strong>só o método</strong> para que um texto <code>null</code> conte 0 letras. A saída deve ser <code>Total de letras: 7</code>, sem nenhum aviso.</p>
+<pre class="script" data-file="letras.cs">int ContarLetras(string? texto)
+{
+    return texto.Length;
+}
+
+string?[] nomes = { "ana", null, "caio" };
+int total = 0;
+foreach (string? n in nomes)
+    total += ContarLetras(n);
+Console.WriteLine($"Total de letras: {total}");
+</pre>
+<pre class="solucao" data-file="letras.cs">int ContarLetras(string? texto)
+{
+    if (texto is null)
+        return 0;
+    return texto.Length;
+}
+
+string?[] nomes = { "ana", null, "caio" };
+int total = 0;
+foreach (string? n in nomes)
+    total += ContarLetras(n);
+Console.WriteLine($"Total de letras: {total}");
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Pode estar em branco</h3>
+<p>Complete para declarar <code>apelido</code> como um texto que pode ficar em branco:</p>
+<div class="ex-code"><input data-answer="string?" aria-label="tipo"> apelido = null;</div>
+</div>
+
+<div class="exercise">
+<h3>2. O aviso mais comum</h3>
+<p>Qual é o código do aviso "Desreferência de uma referência possivelmente nula"?</p>
+<div class="ex-code"><input data-answer="CS8602" aria-label="código"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Desligar no arquivo</h3>
+<p>Complete a linha que desliga as referências anuláveis a partir do topo do arquivo:</p>
+<div class="ex-code">#nullable <input data-answer="disable" aria-label="opção"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Um programa tem um aviso <code>CS8602</code>. O que acontece com <code>dotnet run</code>?</p>
+<label><input type="radio" name="q4"> Não compila.</label>
+<label><input type="radio" name="q4"> Compila e roda; pode quebrar com <code>NullReferenceException</code> se o valor for mesmo <code>null</code>.</label>
+<label><input type="radio" name="q4"> Compila, mas o C# troca o <code>null</code> por <code>""</code> automaticamente.</label>
+<label><input type="radio" name="q4"> Roda e nunca quebra.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. O que <code>nome!.Length</code> faz quando <code>nome</code> é <code>null</code>?</p>
+<label><input type="radio" name="q5"> Devolve 0.</label>
+<label><input type="radio" name="q5"> Devolve <code>null</code>.</label>
+<label><input type="radio" name="q5"> Quebra com <code>NullReferenceException</code>, sem aviso antes.</label>
+<label><input type="radio" name="q5"> Não compila.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. <code>string? Buscar(int codigo)</code>: o que o <code>?</code> no retorno comunica?</p>
+<label><input type="radio" name="q6"> Que o método pode devolver <code>null</code>, e quem chama deve tratar isso.</label>
+<label><input type="radio" name="q6"> Que o método é opcional.</label>
+<label><input type="radio" name="q6"> Que o método pode lançar uma exceção.</label>
+<label><input type="radio" name="q6"> Que o retorno é um <code>Nullable&lt;string&gt;</code>, um tipo diferente de <code>string</code>.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Com as referências anuláveis ligadas (padrão no <code>dotnet new console</code> e no <code>dotnet run arquivo.cs</code>), <code>string</code> promete "sempre tem texto" e <code>string?</code> avisa "pode estar em branco".</li>
+  <li>São <strong>avisos</strong>, não erros: o programa roda e pode quebrar. Trate cada <code>CS86xx</code> como erro, ou use <code>WarningsAsErrors=nullable</code>.</li>
+  <li>O compilador acompanha o fluxo: depois de <code>if (x is null) return;</code> ou dentro de <code>if (x is not null)</code>, o ponto é seguro.</li>
+  <li>Avisos principais: <code>CS8600</code> (pôr nulo em não anulável), <code>CS8602</code> (usar o ponto em talvez-nulo), <code>CS8603</code> (retornar nulo), <code>CS8604</code>/<code>CS8625</code> (mandar nulo para parâmetro), <code>CS8632</code> (<code>?</code> com o sistema desligado).</li>
+  <li>O <code>!</code> só cala o aviso; não evita a exceção. Use raramente.</li>
+  <li>Próxima parte do guia: <a href="poo.html">O que é POO</a>, o começo das classes e objetos. Cada objeto que você criar também será um tipo de referência.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
