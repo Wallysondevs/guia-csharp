@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Span&lt;T&gt; — janelas sobre arrays e textos, sem copiar | Guia C#</title>
+<meta name="description" content="Span&lt;T&gt; e ReadOnlySpan&lt;T&gt; em C# para iniciantes: AsSpan, Slice e intervalos sem copiar, alterar o array pela janela, ReadOnlySpan&lt;char&gt; para ler textos sem Substring, stackalloc, métodos que recebem ReadOnlySpan, as conversões de span do C# 14 e as regras de ref struct (CS8345, CS8175, CS8331, CS0029), com saídas reais do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Span&lt;T&gt;</span></h1>
+
+<p class="intro">Quando você escreve <code>vendas[1..4]</code> num array, o C# <strong>copia</strong> aqueles itens para um array novo. Quando faz <code>texto.Substring(0, 3)</code>, cria uma string nova. Para poucos dados, tanto faz. Mas um programa que lê um arquivo de um milhão de linhas e corta cada uma em pedaços cria milhões de cópias que logo vão para o lixo. O <code>Span&lt;T&gt;</code> (em inglês, "extensão", "vão") é uma <strong>janela</strong> sobre um trecho de um array ou de um texto: você olha e mexe naquele pedaço <strong>sem copiar nada</strong>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma janela (<code>Span&lt;T&gt;</code>) e como criá-la com <code>AsSpan</code>, <code>Slice</code> e intervalos.</li>
+  <li>Que mexer na janela <strong>muda o array</strong> (e que <code>array[1..4]</code>, ao contrário, copia).</li>
+  <li><code>ReadOnlySpan&lt;char&gt;</code>: ler pedaços de um texto sem <code>Substring</code>, e o erro <code>CS8331</code> ao tentar alterar.</li>
+  <li>Escrever métodos que recebem <code>ReadOnlySpan&lt;T&gt;</code> e aceitam arrays, pedaços e <code>[1, 2, 3]</code>, e as conversões novas do <span class="versao">C# 14</span>.</li>
+  <li><code>stackalloc</code> e por que um span tem regras especiais (<code>CS8345</code>, <code>CS8175</code>, <code>CS0029</code>).</li>
+</ul>
+</div>
+
+<p>Esta aula usa <a href="arrays.html">arrays</a>, <a href="indices-intervalos.html">índices e intervalos</a> (<code>^1</code>, <code>1..4</code>), <a href="structs.html">structs</a> e <a href="valor-referencia.html">valor × referência</a>. Os exemplos rodaram com <code>dotnet run</code> no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código</h2>
+<p>A Ana tem um caderno com as vendas de cada dia do mês. A contadora pede: "me mostre só a segunda semana". A Ana pode <strong>tirar xerox</strong> daquelas páginas (custa papel e tempo, e se ela corrigir o caderno depois, a cópia fica desatualizada) ou pode pôr um <strong>marcador</strong> no começo da semana e dizer "são estas 7 linhas, a partir daqui".</p>
+<p>A cópia é o <code>vendas[7..14]</code> de um array. O marcador é o <code>Span</code>: ele guarda só <strong>onde começa</strong> e <strong>quantos itens tem</strong>. Os dados continuam no caderno original. Olhar pelo marcador é olhar o caderno; escrever pelo marcador é escrever no caderno.</p>
+
+<hr>
+
+<h2>1. A primeira janela: <code>AsSpan</code></h2>
+
+<pre class="file" data-file="janela.cs">int[] vendas = [10, 20, 30, 40, 50, 60];
+
+Span&lt;int&gt; meio = vendas.AsSpan(1, 3);
+Console.WriteLine($"Janela: {string.Join(", ", meio.ToArray())} (tamanho {meio.Length})");
+
+meio[0] = 99;
+Console.WriteLine($"Array: {string.Join(", ", vendas)}");
+
+int[] copia = vendas[1..4];
+copia[0] = -1;
+Console.WriteLine($"Cópia: {string.Join(", ", copia)}");
+Console.WriteLine($"Array: {string.Join(", ", vendas)}");
+
+Span&lt;int&gt; fim = vendas.AsSpan()[^2..];
+foreach (int v in fim) Console.Write($"{v} ");
+Console.WriteLine();
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run janela.cs
+Janela: 20, 30, 40 (tamanho 3)
+Array: 10, 99, 30, 40, 50, 60
+Cópia: -1, 30, 40
+Array: 10, 99, 30, 40, 50, 60
+50 60 </pre>
+
+<dl class="anatomy">
+  <dt>Span&lt;int&gt;</dt><dd>Uma janela sobre <code>int</code>s. O <code>&lt;int&gt;</code> é o tipo dos itens, como em <code>List&lt;int&gt;</code> (<a href="generics.html">generics</a>).</dd>
+  <dt>vendas.AsSpan(1, 3)</dt><dd>"Como span, a partir da posição 1, com 3 itens." Nada é copiado: a janela aponta para dentro de <code>vendas</code>.</dd>
+  <dt>meio[0] = 99;</dt><dd>A posição 0 <strong>da janela</strong> é a posição 1 <strong>do array</strong>. Gravar na janela grava no array: veja o <code>99</code> na segunda linha.</dd>
+  <dt>vendas[1..4]</dt><dd>Num <strong>array</strong>, um intervalo cria um array <strong>novo</strong> (uma cópia). Mudar a cópia não mexeu em <code>vendas</code>.</dd>
+  <dt>vendas.AsSpan()[^2..]</dt><dd>Num <strong>span</strong>, o intervalo cria outra janela, sem copiar: os dois últimos itens.</dd>
+  <dt>meio.ToArray()</dt><dd>Quando você <strong>quer</strong> uma cópia (aqui, para o <code>string.Join</code>), peça explicitamente.</dd>
+</dl>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Para criar a janela…</th><th>Escreva</th></tr>
+<tr><td>Do array inteiro</td><td><code>vendas.AsSpan()</code> ou <code>Span&lt;int&gt; s = vendas;</code></td></tr>
+<tr><td>A partir de uma posição, com N itens</td><td><code>vendas.AsSpan(1, 3)</code> ou <code>s.Slice(1, 3)</code> (<em>slice</em> = fatia)</td></tr>
+<tr><td>Com intervalo</td><td><code>s[1..4]</code>, <code>s[^2..]</code>, <code>s[..3]</code></td></tr>
+<tr><td>Com valores fixos <span class="versao">C# 12</span></td><td><code>Span&lt;int&gt; s = [1, 2, 3];</code></td></tr>
+</table>
+</div>
+
+<p>A janela tem <code>Length</code>, aceita <code>[i]</code>, <code>foreach</code>, <code>IndexOf</code>, <code>Contains</code>, <code>Fill</code>, <code>Sort</code> e <code>Reverse</code>, como um array. O que ela <strong>não</strong> pode é crescer: o tamanho é o do trecho.</p>
+
+<div class="trycs" data-goal="out:Fim de semana: 110,src:AsSpan|Span\s*&lt;|\.Slice\s*\(">
+<p class="try-task"><strong>Missão:</strong> o array tem as vendas de segunda a domingo. Crie uma janela (<code>Span&lt;int&gt;</code>) sobre os <strong>dois últimos dias</strong> (posição 5, 2 itens) e some só ela, para mostrar <code>Fim de semana: 110</code>.</p>
+<pre class="script">int[] vendas = [12, 8, 15, 9, 20, 45, 65];
+
+int total = 0;
+foreach (int v in vendas) total += v;   // isto soma a semana toda
+Console.WriteLine($"Fim de semana: {total}");
+</pre>
+<pre class="solucao">int[] vendas = [12, 8, 15, 9, 20, 45, 65];
+
+Span&lt;int&gt; fimDeSemana = vendas.AsSpan(5, 2);
+int total = 0;
+foreach (int v in fimDeSemana) total += v;
+Console.WriteLine($"Fim de semana: {total}");
+</pre>
+</div>
+
+<hr>
+
+<h2>2. <code>ReadOnlySpan&lt;char&gt;</code>: pedaços de texto sem cópia</h2>
+<p>Uma <code>string</code> não pode ser alterada (veja <a href="strings.html">Strings</a>), então a janela sobre ela é <code>ReadOnlySpan&lt;char&gt;</code>: uma janela <strong>só de leitura</strong>. Ela serve para recortar um texto sem criar um <code>Substring</code> a cada pedaço. A Ana lê uma linha de um cadastro, <code>"Ana;29;Recife"</code>:</p>
+
+<pre class="file" data-file="linha.cs">string linha = "Ana;29;Recife";
+ReadOnlySpan&lt;char&gt; resto = linha;
+
+int pos = resto.IndexOf(';');
+ReadOnlySpan&lt;char&gt; nome = resto[..pos];
+resto = resto[(pos + 1)..];
+
+pos = resto.IndexOf(';');
+int idade = int.Parse(resto[..pos]);
+ReadOnlySpan&lt;char&gt; cidade = resto[(pos + 1)..];
+
+Console.WriteLine($"Nome: {nome}");
+Console.WriteLine($"Idade daqui a 1 ano: {idade + 1}");
+Console.WriteLine($"Cidade: {cidade.ToString().ToUpper()}");
+Console.WriteLine(cidade.StartsWith("Rec"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run linha.cs
+Nome: Ana
+Idade daqui a 1 ano: 30
+Cidade: RECIFE
+True</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>ReadOnlySpan&lt;char&gt; resto = linha;</code></td><td>Uma janela sobre o texto inteiro. A <code>string</code> vira span sozinha.</td></tr>
+<tr><td><code>resto.IndexOf(';')</code></td><td>Onde está o primeiro <code>;</code> (posição 3).</td></tr>
+<tr><td><code>resto[..pos]</code></td><td>A janela do começo até antes do <code>;</code>: <code>Ana</code>. Nenhuma string nova foi criada.</td></tr>
+<tr><td><code>resto = resto[(pos + 1)..];</code></td><td>Anda a janela para depois do <code>;</code>. Agora ela mostra <code>29;Recife</code>.</td></tr>
+<tr><td><code>int.Parse(resto[..pos])</code></td><td>O <code>int.Parse</code> (e o <code>TryParse</code>, o <code>decimal.Parse</code>…) aceita um span direto: converte o <code>29</code> sem criar a string <code>"29"</code>.</td></tr>
+<tr><td><code>cidade.ToString()</code></td><td>Quando você precisa de uma <code>string</code> de verdade (aqui, para o <code>ToUpper</code>), o <code>ToString()</code> faz a cópia.</td></tr>
+</table>
+</div>
+
+<p>No <code>$"Nome: {nome}"</code>, a <a href="interpolacao.html">interpolação</a> aceita o span e escreve o texto dele. Compare com o jeito de sempre, <code>linha.Split(';')</code>: ele cria um array e três strings novas. Para uma linha, não faz diferença; para um arquivo enorme, o span evita milhões de cópias.</p>
+
+<div class="trycs" data-goal="out:Nome: Bruno,out:Idade: 34,src:IndexOf,src:ReadOnlySpan\s*&lt;\s*char\s*&gt;">
+<p class="try-task"><strong>Missão:</strong> a ficha <code>"Bruno;34"</code> tem nome e idade. Com um <code>ReadOnlySpan&lt;char&gt;</code>, ache o <code>;</code> com <code>IndexOf</code>, pegue o nome com <code>[..pos]</code> e converta a idade com <code>int.Parse(texto[(pos + 1)..])</code>.</p>
+<pre class="script">string ficha = "Bruno;34";
+// crie o ReadOnlySpan&lt;char&gt; e recorte a ficha
+Console.WriteLine($"Ficha: {ficha}");
+</pre>
+<pre class="solucao">string ficha = "Bruno;34";
+ReadOnlySpan&lt;char&gt; texto = ficha;
+int pos = texto.IndexOf(';');
+ReadOnlySpan&lt;char&gt; nome = texto[..pos];
+int idade = int.Parse(texto[(pos + 1)..]);
+Console.WriteLine($"Nome: {nome}");
+Console.WriteLine($"Idade: {idade}");
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Métodos que recebem <code>ReadOnlySpan&lt;T&gt;</code></h2>
+<p>O melhor uso do span no dia a dia é como <strong>parâmetro</strong>. Um método que recebe <code>ReadOnlySpan&lt;int&gt;</code> aceita um array inteiro, um <strong>pedaço</strong> de array e até uma lista de valores escrita na hora, tudo sem cópia:</p>
+
+<pre class="file" data-file="soma.cs">int[] notas = [7, 8, 10, 6, 9, 5];
+
+Console.WriteLine(Soma(notas));
+Console.WriteLine(Soma(notas.AsSpan(0, 3)));
+Console.WriteLine(Soma([1, 2, 3]));
+Console.WriteLine(notas.Total());
+
+static int Soma(ReadOnlySpan&lt;int&gt; valores)
+{
+    int total = 0;
+    foreach (int v in valores) total += v;
+    return total;
+}
+
+static class Extensoes
+{
+    public static int Total(this ReadOnlySpan&lt;int&gt; valores)
+    {
+        int t = 0;
+        foreach (var v in valores) t += v;
+        return t;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run soma.cs
+45
+25
+6
+45</pre>
+
+<dl class="anatomy">
+  <dt>Soma(notas)</dt><dd>O array vira <code>ReadOnlySpan&lt;int&gt;</code> sozinho: 7 + 8 + 10 + 6 + 9 + 5 = 45.</dd>
+  <dt>Soma(notas.AsSpan(0, 3))</dt><dd>Só os três primeiros: 25. Sem o span, você precisaria de outro método com "início" e "quantidade", ou de uma cópia.</dd>
+  <dt>Soma([1, 2, 3])</dt><dd>Uma <a href="arrays.html">expressão de coleção</a> direto no argumento.</dd>
+  <dt>notas.Total()</dt><dd>Um <a href="extensoes.html">método de extensão</a> escrito para <code>ReadOnlySpan&lt;int&gt;</code>, chamado num <strong>array</strong>. Isso é novo no C# 14.</dd>
+</dl>
+
+<h3>Spans "de primeira classe" <span class="versao">C# 14</span></h3>
+<p>Até o C# 13, a conversão de array para span só acontecia em alguns lugares, como na chamada <code>Soma(notas)</code>. O C# 14 a transformou numa conversão da própria linguagem, que vale também para quem recebe um método de extensão e para a inferência de tipos genéricos. No laboratório, o mesmo <code>soma.cs</code> num projeto com <code>&lt;LangVersion&gt;13&lt;/LangVersion&gt;</code> no <a href="csproj.html">.csproj</a> não compila:</p>
+
+<pre class="term" data-cwd="~/projetos/Spans">$ dotnet run
+/home/ana/projetos/Spans/Program.cs(6,19): error CS1929: "int[]" não contém uma definição para "Total" e a melhor sobrecarga do método de extensão "Extensoes.Total(ReadOnlySpan&lt;int&gt;)" requer um receptor do tipo "System.ReadOnlySpan&lt;int&gt;" [/home/ana/projetos/Spans/Spans.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Com o C# 14 (o padrão do .NET 10), compila e mostra os 45 da última linha. Na prática: você vai escrever menos <code>.AsSpan()</code>, e os métodos do .NET que recebem spans passam a ser escolhidos sozinhos para arrays.</p>
+
+<div class="tip">
+<strong><code>Span</code> ou <code>ReadOnlySpan</code> no parâmetro?</strong>
+<p>Se o método só <strong>lê</strong> os valores, use <code>ReadOnlySpan&lt;T&gt;</code>: ele aceita mais coisas (inclusive strings, no caso de <code>char</code>) e promete a quem chama que nada vai ser alterado. Use <code>Span&lt;T&gt;</code> só quando o método precisa <strong>escrever</strong> no trecho, como um <code>Zerar(Span&lt;int&gt; s)</code>.</p>
+</div>
+
+<hr>
+
+<h2>4. <code>stackalloc</code>: um array temporário sem lixo</h2>
+<p>Às vezes você precisa de um array pequeno só por um instante, dentro de um método. Com <code>stackalloc</code> ("alocar na pilha"), ele é criado num lugar de memória que é liberado <strong>sozinho</strong> quando o método termina, sem trabalho para o <a href="memoria.html">coletor de lixo</a>. O resultado é um <code>Span</code>:</p>
+
+<pre class="file" data-file="votos.cs">Span&lt;int&gt; contagem = stackalloc int[3];
+string votos = "ABACABBA";
+foreach (char v in votos) contagem[v - 'A']++;
+Console.WriteLine($"A: {contagem[0]}, B: {contagem[1]}, C: {contagem[2]}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run votos.cs
+A: 4, B: 3, C: 1</pre>
+
+<p>O <code>v - 'A'</code> transforma a letra em posição (<code>'A'</code> vira 0, <code>'B'</code> vira 1…), porque um <code>char</code> é um número por dentro (veja <a href="char-bool.html">char e bool</a>). Use <code>stackalloc</code> só para tamanhos <strong>pequenos e conhecidos</strong> (dezenas ou centenas de itens): a pilha é pequena, e um tamanho grande derruba o programa.</p>
+
+<hr>
+
+<h2>5. As regras do span: um <code>ref struct</code></h2>
+<p>Uma janela só faz sentido enquanto aquilo que ela mostra existe. Um span sobre memória de <code>stackalloc</code>, por exemplo, ficaria apontando para o nada depois que o método termina. Para garantir que isso nunca aconteça, <code>Span&lt;T&gt;</code> é um tipo especial, um <strong><code>ref struct</code></strong>, que <strong>só pode viver em variáveis locais e parâmetros</strong>. O compilador proíbe tudo que o faria durar mais:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Proibido</th><th>Erro</th></tr>
+<tr><td>Ser campo ou propriedade de uma <code>class</code> (ou de um <code>struct</code> comum)</td><td><code>CS8345</code></td></tr>
+<tr><td>Ser usado dentro de uma lambda</td><td><code>CS8175</code></td></tr>
+<tr><td>Ser guardado como <code>object</code></td><td><code>CS0029</code></td></tr>
+<tr><td>Ser item de uma coleção, como <code>List&lt;Span&lt;int&gt;&gt;</code></td><td><code>CS9244</code></td></tr>
+<tr><td>Ser usado depois de um <code>await</code> num método <a href="async-await.html"><code>async</code></a></td><td><code>CS4007: A instância do tipo "System.Span&lt;int&gt;" não pode ser preservada entre o limite "await" ou "yield".</code></td></tr>
+</table>
+</div>
+
+<p>Precisa guardar um pedaço por mais tempo, num campo ou numa lista? Use <code>Memory&lt;T&gt;</code>, o "irmão de longa duração" do span (<code>vendas.AsMemory(1, 3)</code>), ou simplesmente um array.</p>
+
+<hr>
+
+<h2>Qual usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Use</th></tr>
+<tr><td>Um pedaço de array para mexer agora, sem copiar</td><td><code>Span&lt;T&gt;</code> (<code>AsSpan</code>, <code>Slice</code>, <code>[a..b]</code>)</td></tr>
+<tr><td>Recortar e converter partes de um texto</td><td><code>ReadOnlySpan&lt;char&gt;</code> + <code>IndexOf</code> + <code>int.Parse(span)</code></td></tr>
+<tr><td>Um parâmetro que aceite array, pedaço ou <code>[1, 2, 3]</code></td><td><code>ReadOnlySpan&lt;T&gt;</code> (ou <code>Span&lt;T&gt;</code> para escrever)</td></tr>
+<tr><td>Um array pequeno e temporário</td><td><code>Span&lt;T&gt; s = stackalloc T[n];</code></td></tr>
+<tr><td>Guardar o pedaço num campo, numa lista ou atravessar <code>await</code></td><td><code>Memory&lt;T&gt;</code> ou um array</td></tr>
+<tr><td>Uma cópia independente</td><td><code>array[a..b]</code> ou <code>span.ToArray()</code></td></tr>
+<tr><td>Código simples, sem dados enormes</td><td>Arrays, <code>List</code>, <code>Split</code> e <code>Substring</code> continuam ótimos. Span é otimização.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<h3>Tentar alterar um <code>ReadOnlySpan</code></h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="leitura.cs">ReadOnlySpan&lt;char&gt; nome = "Ana";
+nome[0] = 'E';
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run leitura.cs
+/home/ana/cs/leitura.cs(2,1): error CS8331: Não é possível atribuir a propriedade 'this' ou usá-lo como o lado direito de uma atribuição ref porque é uma variável somente leitura
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> a mensagem é confusa (fala de <code>'this'</code> porque <code>nome[0]</code> é um indexador do próprio span), mas o recado é "isto é somente leitura". Uma <code>string</code> nunca muda. <strong>Como consertar:</strong> para montar um texto diferente, crie outro: <code>"E" + nome[1..].ToString()</code>, ou use um <code>char[]</code> (que aceita <code>Span&lt;char&gt;</code>) e depois <code>new string(array)</code>.</p>
+</div>
+
+<div class="cenario">
+<h3>Span como campo de uma classe</h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="campo.cs">class Caixa
+{
+    public Span&lt;int&gt; Parte;
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run campo.cs
+/home/ana/cs/campo.cs(3,12): error CS8345: O campo ou a propriedade autoimplementada não pode ser do tipo 'Span&lt;int&gt;', a menos que seja um membro de instância de uma struct de referência.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> um objeto de classe pode durar o programa inteiro, e o span não pode (seção 5). "Struct de referência" é a tradução de <code>ref struct</code>. <strong>Como consertar:</strong> guarde um <code>Memory&lt;int&gt;</code>, ou o array junto com o início e o tamanho, e crie o span só na hora de usar.</p>
+</div>
+
+<div class="cenario">
+<h3>Span dentro de uma lambda</h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="lambda.cs">Span&lt;int&gt; s = [1, 2, 3];
+Func&lt;int&gt; f = () =&gt; s[0];
+Console.WriteLine(f());
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run lambda.cs
+/home/ana/cs/lambda.cs(2,21): error CS8175: Não é possível usar a referência local 's' em um método anônimo, expressão lambda ou expressão de consulta
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> uma <a href="lambdas.html">lambda</a> pode ser guardada e chamada muito depois, quando a janela talvez já não valha. Por isso também não dá para usar span dentro de consultas <a href="linq.html">LINQ</a> com lambdas. <strong>Como consertar:</strong> copie o valor necessário para uma variável comum antes (<code>int primeiro = s[0];</code>) e use-a na lambda, ou troque o span por um array.</p>
+</div>
+
+<div class="cenario">
+<h3>Guardar o span como <code>object</code></h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="objeto.cs">Span&lt;int&gt; s = [1, 2, 3];
+object o = s;
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run objeto.cs
+/home/ana/cs/objeto.cs(2,12): error CS0029: Não é possível converter implicitamente tipo "System.Span&lt;int&gt;" em "object"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> guardar um struct como <code>object</code> o coloca numa "caixa" na memória de longa duração (o <em>boxing</em>), e o span não pode ir para lá. <strong>Como consertar:</strong> use o span como span, ou converta antes com <code>s.ToArray()</code>.</p>
+</div>
+
+<div class="cenario">
+<h3>Posição fora da janela</h3>
+<pre class="file" data-file="fora.cs">int[] numeros = [1, 2, 3];
+Span&lt;int&gt; s = numeros;
+Console.WriteLine(s[3]);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run fora.cs
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/fora.cs:line 3</pre>
+<p><strong>O que quer dizer:</strong> a mesma exceção de um array. O span <strong>confere os limites</strong>: ele é rápido, mas não é inseguro. <strong>Como consertar:</strong> as posições vão de <code>0</code> a <code>s.Length - 1</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Exemplo</th></tr>
+<tr><td>Janela sobre array</td><td><code>Span&lt;int&gt; s = arr;</code>, <code>arr.AsSpan()</code>, <code>arr.AsSpan(1, 3)</code></td></tr>
+<tr><td>Janela sobre texto</td><td><code>ReadOnlySpan&lt;char&gt; t = texto;</code>, <code>texto.AsSpan(0, 3)</code></td></tr>
+<tr><td>Fatiar</td><td><code>s.Slice(1, 3)</code>, <code>s[1..4]</code>, <code>s[^2..]</code></td></tr>
+<tr><td>Ler / escrever</td><td><code>s[0]</code>, <code>s[0] = 5;</code> (só <code>Span</code>)</td></tr>
+<tr><td>Tamanho</td><td><code>s.Length</code>, <code>s.IsEmpty</code></td></tr>
+<tr><td>Procurar</td><td><code>s.IndexOf(x)</code>, <code>s.Contains(x)</code>, <code>t.StartsWith("Rec")</code></td></tr>
+<tr><td>Preencher, ordenar</td><td><code>s.Fill(0)</code>, <code>s.Sort()</code>, <code>s.Reverse()</code></td></tr>
+<tr><td>Copiar para fora</td><td><code>s.ToArray()</code>, <code>t.ToString()</code>, <code>s.CopyTo(destino)</code></td></tr>
+<tr><td>Converter texto</td><td><code>int.Parse(t)</code>, <code>int.TryParse(t, out var n)</code></td></tr>
+<tr><td>Temporário</td><td><code>Span&lt;int&gt; s = stackalloc int[10];</code></td></tr>
+<tr><td>De longa duração</td><td><code>Memory&lt;int&gt; m = arr.AsMemory(1, 3);</code> e <code>m.Span</code> na hora de usar</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<p>1. Complete para criar uma janela sobre 2 itens de <code>vendas</code>, a partir da posição 4:</p>
+<div class="ex-code">Span&lt;int&gt; s = vendas.<input data-answer="AsSpan(4, 2)|AsSpan(4,2)">;</div>
+</div>
+
+<div class="exercise">
+<p>2. Qual tipo de janela se usa sobre uma <code>string</code>?</p>
+<div class="ex-code"><input data-answer="ReadOnlySpan&lt;char&gt;"> t = "Ana;29";</div>
+</div>
+
+<div class="exercise">
+<p>3. Que método do span faz uma cópia num array novo?</p>
+<div class="ex-code">int[] copia = s.<input data-answer="ToArray()">;</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. <code>int[] a = [1, 2, 3]; Span&lt;int&gt; s = a.AsSpan(1, 2); s[0] = 9;</code>. Quanto vale <code>a[1]</code>?</p>
+<label><input type="radio" name="q4"> <code>2</code>, porque o span é uma cópia.</label>
+<label><input type="radio" name="q4"> <code>9</code>, porque o span é uma janela sobre o array.</label>
+<label><input type="radio" name="q4"> Dá erro de compilação.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. E com <code>int[] b = a[1..3]; b[0] = 9;</code>?</p>
+<label><input type="radio" name="q5"> <code>a[1]</code> não muda: num array, o intervalo cria uma cópia.</label>
+<label><input type="radio" name="q5"> <code>a[1]</code> vira 9.</label>
+<label><input type="radio" name="q5"> Lança <code>IndexOutOfRangeException</code>.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">6. Por que <code>class Caixa { Span&lt;int&gt; parte; }</code> não compila?</p>
+<label><input type="radio" name="q6"> Porque falta o <code>public</code>.</label>
+<label><input type="radio" name="q6"> Porque span só aceita <code>char</code>.</label>
+<label><input type="radio" name="q6"> Porque <code>Span</code> é um <code>ref struct</code> e só pode viver em variáveis locais e parâmetros (<code>CS8345</code>).</label>
+</div>
+
+<div class="trycs" data-goal="out:1º semestre: 8,out:2º semestre: 7,out:Ano: 7\,5,src:ReadOnlySpan\s*&lt;\s*double\s*&gt;">
+<p class="try-task"><strong>Missão final:</strong> escreva o método <code>static double Media(ReadOnlySpan&lt;double&gt; valores)</code> e use-o três vezes: com as 3 primeiras notas (<code>notas.AsSpan(0, 3)</code>), com as 3 últimas e com o array inteiro. A saída deve ser <code>1º semestre: 8</code>, <code>2º semestre: 7</code> e <code>Ano: 7,5</code>.</p>
+<pre class="script">double[] notas = [7, 8, 9, 6, 5, 10];
+
+// Console.WriteLine($"1º semestre: {Media(notas.AsSpan(0, 3))}");
+// Console.WriteLine($"2º semestre: {Media(notas.AsSpan(3, 3))}");
+// Console.WriteLine($"Ano: {Media(notas)}");
+
+// escreva aqui: static double Media(ReadOnlySpan&lt;double&gt; valores) { ... }
+</pre>
+<pre class="solucao">double[] notas = [7, 8, 9, 6, 5, 10];
+
+Console.WriteLine($"1º semestre: {Media(notas.AsSpan(0, 3))}");
+Console.WriteLine($"2º semestre: {Media(notas.AsSpan(3, 3))}");
+Console.WriteLine($"Ano: {Media(notas)}");
+
+static double Media(ReadOnlySpan&lt;double&gt; valores)
+{
+    double soma = 0;
+    foreach (double v in valores) soma += v;
+    return soma / valores.Length;
+}
+</pre>
+</div>
+
+<p>A solução, na máquina da Ana. Um único método serviu para os dois semestres e para o ano, sem copiar nenhuma nota:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run semestres.cs
+1º semestre: 8
+2º semestre: 7
+Ano: 7,5</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>Span&lt;T&gt;</code> é uma <strong>janela</strong> sobre um trecho de memória (array, <code>stackalloc</code>): guarda onde começa e quantos itens tem. Nada é copiado, e gravar na janela grava no original.</li>
+  <li>Crie com <code>AsSpan(início, quantos)</code>, <code>Slice</code> ou intervalos (<code>s[1..4]</code>). Num <strong>array</strong>, <code>a[1..4]</code> copia; num <strong>span</strong>, não.</li>
+  <li><code>ReadOnlySpan&lt;char&gt;</code> recorta textos sem <code>Substring</code>, e <code>int.Parse</code> aceita span. Tentar gravar dá <code>CS8331</code>.</li>
+  <li>Parâmetros <code>ReadOnlySpan&lt;T&gt;</code> aceitam arrays, pedaços e <code>[1, 2, 3]</code>. No <span class="versao">C# 14</span>, a conversão array → span vale também para métodos de extensão (em C# 13: <code>CS1929</code>).</li>
+  <li>Span é um <code>ref struct</code>: não pode ser campo de classe (<code>CS8345</code>), ir para lambda (<code>CS8175</code>) nem virar <code>object</code> (<code>CS0029</code>). Para guardar, use <code>Memory&lt;T&gt;</code>.</li>
+  <li>Span é otimização: use quando há muitos dados ou muitas cópias. No código simples, arrays e strings continuam ótimos.</li>
+</ul>
+
+<p>Próxima aula: <a href="novidades.html">Novidades do C# 8 ao 14</a>, um passeio pelos recursos que o C# ganhou em cada versão.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
