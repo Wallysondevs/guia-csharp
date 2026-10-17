@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# static — membros da classe, não do objeto | Guia C#</title>
+<meta name="description" content="static em C# para iniciantes: a diferença entre o que é de cada objeto e o que é da classe, o contador de alunos, métodos static como Math.Max, classes static, o construtor static, using static, por que o Main é static e os erros reais CS0176, CS0120, CS0712 e CS0708 do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">static</span></h1>
+
+<p class="intro">Até aqui, cada campo e cada propriedade pertenciam a <strong>um objeto</strong>: a Ana tem o nome dela, o Bruno tem o dele. Mas algumas coisas não são de ninguém em particular: o total de alunos da escola, a fórmula que converte graus Celsius em Fahrenheit, o número π. Para elas, o C# tem a palavra <code>static</code> ("estático"): o membro passa a pertencer à <strong>classe</strong>, e existe uma vez só, não importa quantos objetos você crie.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A diferença entre membro <strong>de instância</strong> (de cada objeto) e membro <strong>static</strong> (da classe).</li>
+  <li>Como contar objetos criados com um campo ou uma propriedade <code>static</code>.</li>
+  <li>Que, em C#, um membro <code>static</code> se usa <strong>só pelo nome da classe</strong> (<code>CS0176</code>).</li>
+  <li>Métodos <code>static</code>, como <code>Math.Max</code> e <code>Console.WriteLine</code>, e como criar os seus.</li>
+  <li>O que um método <code>static</code> não pode usar (<code>CS0120</code>).</li>
+  <li>Classes <code>static</code> (<code>CS0712</code>, <code>CS0708</code>), o construtor <code>static</code> e o <code>using static</code>.</li>
+  <li>Por que o <code>Main</code> é <code>static</code>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>A ideia: o caderno de cada aluno e o quadro da sala</h2>
+<p>Numa sala de aula, cada aluno tem o <strong>seu caderno</strong>. O que a Ana escreve no caderno dela não aparece no caderno do Bruno. Mas a sala tem um <strong>quadro</strong> só, na parede. Quando a professora escreve "prova na sexta" no quadro, todo mundo vê a mesma coisa, e ninguém precisa ter uma cópia.</p>
+<ul>
+  <li>Os <strong>cadernos</strong> são os membros de instância: cada objeto tem os seus (<code>Nome</code>, <code>Nota</code>).</li>
+  <li>O <strong>quadro</strong> é um membro <code>static</code>: pertence à classe, existe uma vez só e é o mesmo para todos.</li>
+</ul>
+<p>Uma <strong>instância</strong> é um objeto criado com <code>new</code>. "Membro de instância" quer dizer "membro que cada objeto tem o seu".</p>
+
+<hr>
+
+<h2>O contador de alunos</h2>
+<p>A Ana quer saber quantos alunos foram matriculados. Primeiro, a tentativa ingênua: uma propriedade comum, que cada aluno aumenta no construtor.</p>
+
+<pre class="file" data-file="sem-static.cs">var ana = new Aluno("Ana");
+var bruno = new Aluno("Bruno");
+var carla = new Aluno("Carla");
+
+Console.WriteLine($"Ana conta: {ana.Total}");
+Console.WriteLine($"Carla conta: {carla.Total}");
+
+class Aluno
+{
+    public int Total { get; private set; }
+
+    public Aluno(string nome)
+    {
+        Nome = nome;
+        Total++;
+    }
+
+    public string Nome { get; }
+}
+</pre>
+
+<pre class="term">$ dotnet run sem-static.cs
+Ana conta: 1
+Carla conta: 1          « cada aluno contou só a si mesmo</pre>
+
+<p>Cada objeto tem o <strong>seu</strong> <code>Total</code>, que começa em 0 e vai para 1. É como se cada aluno anotasse "1 aluno" no próprio caderno. Para ter um número só, o total tem de ir para o quadro: <code>static</code>.</p>
+
+<pre class="file" data-file="contador.cs">var ana = new Aluno("Ana");
+var bruno = new Aluno("Bruno");
+var carla = new Aluno("Carla");
+
+Console.WriteLine(ana.Nome);
+Console.WriteLine(carla.Nome);
+Console.WriteLine($"Alunos matriculados: {Aluno.Total}");
+
+class Aluno
+{
+    public static int Total { get; private set; }
+
+    public Aluno(string nome)
+    {
+        Nome = nome;
+        Total++;
+    }
+
+    public string Nome { get; }
+}
+</pre>
+
+<pre class="term">$ dotnet run contador.cs
+Ana
+Carla
+Alunos matriculados: 3</pre>
+
+<dl class="anatomy">
+  <dt>public static int Total { get; private set; }</dt><dd>Com <code>static</code>, existe <strong>um</strong> <code>Total</code> para a classe inteira, criado antes de qualquer aluno. Ele começa em 0.</dd>
+  <dt>Total++; no construtor</dt><dd>Cada <code>new Aluno(…)</code> soma 1 no <strong>mesmo</strong> <code>Total</code>. Depois de três alunos, ele vale 3.</dd>
+  <dt>public string Nome { get; }</dt><dd>Sem <code>static</code>: cada aluno tem o seu nome. Isso continua igual.</dd>
+  <dt>Aluno.Total</dt><dd>Um membro <code>static</code> se usa pelo <strong>nome da classe</strong>, e não por um objeto. É como ler o quadro da sala: você não precisa pegar o caderno de ninguém.</dd>
+</dl>
+
+<h3>Pelo objeto não dá</h3>
+<p>Em algumas linguagens (como Java), dá para escrever <code>ana.Total</code> mesmo com <code>Total</code> sendo <code>static</code>. Em C#, não: o compilador exige o nome da classe, para ninguém achar que o total é "da Ana".</p>
+
+<pre class="file" data-file="pelo-objeto.cs — com erro de propósito">var ana = new Aluno("Ana");
+Console.WriteLine(ana.Total);
+
+class Aluno
+{
+    public static int Total { get; private set; }
+
+    public Aluno(string nome)
+    {
+        Nome = nome;
+        Total++;
+    }
+
+    public string Nome { get; }
+}
+</pre>
+
+<pre class="term">$ dotnet run pelo-objeto.cs
+/home/ana/cs/pelo-objeto.cs(2,19): error CS0176: O membro "Aluno.Total" não pode ser acessado com uma referência de instância; qualifique-o com um nome de tipo
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Qualifique-o com um nome de tipo" quer dizer: escreva o nome da classe na frente, <code>Aluno.Total</code>. Dentro da própria classe (como no construtor), o nome sozinho, <code>Total</code>, basta.</p>
+
+<div class="trycs" data-goal="out:Pedido 2: leite,out:Pedido 3: café,src:static\s+int\s+_contador">
+<p class="try-task"><strong>Missão:</strong> a padaria da Ana numera os pedidos, mas todos estão saindo com o número 1. Rode e veja. Depois, deixe o campo <code>_contador</code> <code>static</code>, para que ele seja um só para todos os pedidos, e rode de novo.</p>
+<pre class="script">var p1 = new Pedido("pão");
+var p2 = new Pedido("leite");
+var p3 = new Pedido("café");
+Console.WriteLine($"Pedido {p1.Numero}: {p1.Item}");
+Console.WriteLine($"Pedido {p2.Numero}: {p2.Item}");
+Console.WriteLine($"Pedido {p3.Numero}: {p3.Item}");
+
+class Pedido
+{
+    private int _contador;
+
+    public Pedido(string item)
+    {
+        _contador++;
+        Numero = _contador;
+        Item = item;
+    }
+
+    public int Numero { get; }
+    public string Item { get; }
+}
+</pre>
+<pre class="solucao">var p1 = new Pedido("pão");
+var p2 = new Pedido("leite");
+var p3 = new Pedido("café");
+Console.WriteLine($"Pedido {p1.Numero}: {p1.Item}");
+Console.WriteLine($"Pedido {p2.Numero}: {p2.Item}");
+Console.WriteLine($"Pedido {p3.Numero}: {p3.Item}");
+
+class Pedido
+{
+    private static int _contador;
+
+    public Pedido(string item)
+    {
+        _contador++;
+        Numero = _contador;
+        Item = item;
+    }
+
+    public int Numero { get; }
+    public string Item { get; }
+}
+</pre>
+</div>
+
+<p>Repare na mistura: <code>_contador</code> é do quadro (um só), e <code>Numero</code> é do caderno (cada pedido guarda o número que recebeu). É um padrão muito comum para dar números de série a objetos.</p>
+
+<hr>
+
+<h2>Métodos static</h2>
+<p>Você usa métodos <code>static</code> desde a primeira aula. <code>Console.WriteLine</code> é um: você nunca escreveu <code>new Console()</code>. <code>Math.Max</code> e <code>int.Parse</code> também. Eles são da classe porque não dependem de nenhum objeto: para achar o maior entre 3 e 8, ninguém precisa de "uma matemática" criada com <code>new</code>.</p>
+
+<h3>Criando os seus</h3>
+<p>A Ana quer converter temperaturas. A conta só depende do número que entra; não há nada para guardar num objeto. É um caso perfeito para <code>static</code>:</p>
+
+<pre class="file" data-file="conversor.cs">Console.WriteLine(Conversor.CelsiusParaFahrenheit(25));
+Console.WriteLine(Conversor.CelsiusParaFahrenheit(-10));
+Console.WriteLine(Math.Max(3, 8));
+
+static class Conversor
+{
+    public static double CelsiusParaFahrenheit(double celsius)
+    {
+        return celsius * 9 / 5 + 32;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run conversor.cs
+77
+14
+8</pre>
+
+<dl class="anatomy">
+  <dt>public static double CelsiusParaFahrenheit(double celsius)</dt><dd>Um método <code>static</code>: chama-se pela classe, <code>Conversor.CelsiusParaFahrenheit(25)</code>, sem criar objeto.</dd>
+  <dt>static class Conversor</dt><dd>Uma <strong>classe static</strong>: ela só pode ter membros <code>static</code> e nunca vira objeto. É uma "caixa de ferramentas". A classe <code>Math</code> do .NET é assim.</dd>
+</dl>
+
+<h3>O que uma classe static não deixa fazer</h3>
+<p>Como ela nunca vira objeto, <code>new</code> é proibido:</p>
+
+<pre class="term">$ dotnet run new-static.cs          « com var c = new Conversor();
+/home/ana/cs/new-static.cs(1,9): error CS0712: Não é possível criar uma instância da classe estática "Conversor"
+/home/ana/cs/new-static.cs(1,1): error CS0723: Não é possível declarar uma variável de tipo static "Conversor"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>E um membro sem <code>static</code> dentro dela também:</p>
+
+<pre class="file" data-file="membro-instancia.cs — com erro de propósito">Console.WriteLine(Conversor.Dobro(4));
+
+static class Conversor
+{
+    public static int Dobro(int n)
+    {
+        return n * 2;
+    }
+
+    public int Triplo(int n)
+    {
+        return n * 3;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run membro-instancia.cs
+/home/ana/cs/membro-instancia.cs(10,16): error CS0708: "Triplo": não pode declarar membros de instância em uma classe estática
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O <code>Triplo</code> seria "do caderno", mas uma classe static não tem cadernos. Conserto: <code>public static int Triplo</code>.</p>
+
+<hr>
+
+<h2>O que um método static não pode usar</h2>
+<p>Um método <code>static</code> roda sem objeto nenhum. Por isso, lá dentro, não existe <code>this</code> e não existem os campos de instância: de <strong>qual</strong> objeto ele leria?</p>
+
+<pre class="file" data-file="cs0120.cs — com erro de propósito">Console.WriteLine(Loja.Resumo());
+
+class Loja
+{
+    private string _nome = "Lojinha da Ana";
+
+    public static string Resumo()
+    {
+        return $"Bem-vindo à {_nome}";
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run cs0120.cs
+/home/ana/cs/cs0120.cs(9,31): error CS0120: Uma referência de objeto é necessária para o campo, o método ou a propriedade "Loja._nome" não estática
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Uma referência de objeto é necessária": para ler <code>_nome</code>, é preciso um objeto <code>Loja</code>, e o método <code>static</code> não tem nenhum. Há dois consertos, e a escolha depende do que o dado é:</p>
+<ul>
+  <li>Se o nome é <strong>de cada loja</strong> (a Ana pode ter duas lojas), tire o <code>static</code> do método e chame por um objeto: <code>new Loja().Resumo()</code>.</li>
+  <li>Se o nome é <strong>um só</strong> para o programa inteiro, deixe o campo <code>static</code> também: <code>private static string _nome = "…";</code>.</li>
+</ul>
+<p>O caminho contrário sempre funciona: um método de instância pode usar membros <code>static</code> à vontade (o construtor do <code>Aluno</code> usou o <code>Total</code>). Todo aluno enxerga o quadro.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>De dentro de…</th><th>Usa membro de instância?</th><th>Usa membro static?</th></tr>
+<tr><td>Método de instância (sem <code>static</code>)</td><td>Sim</td><td>Sim</td></tr>
+<tr><td>Método <code>static</code></td><td>Não (<code>CS0120</code>), só por um objeto</td><td>Sim</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Por que o Main é static</h2>
+<p>Quando um programa começa, ainda não existe objeto nenhum. Alguém precisa rodar <strong>primeiro</strong>, sem depender de um <code>new</code>. Por isso, no formato clássico (veja <a href="top-level.html">Program.cs e o Main</a>), o ponto de partida é um método <code>static</code>:</p>
+
+<pre class="file" data-file="main.cs">class Program
+{
+    static void Main()
+    {
+        Console.WriteLine(Dobro(21));
+    }
+
+    static int Dobro(int n)
+    {
+        return n * 2;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run main.cs
+42</pre>
+
+<p>Esquecendo o <code>static</code> do <code>Dobro</code>, o <code>Main</code> (que é <code>static</code>) não consegue chamá-lo, com o mesmo erro da seção anterior:</p>
+
+<pre class="term">$ dotnet run main-erro.cs
+/home/ana/cs/main-erro.cs(5,27): error CS0120: Uma referência de objeto é necessária para o campo, o método ou a propriedade "Program.Dobro(int)" não estática
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Esse é um tropeço clássico de quem vem dos programas de um arquivo só, em que as funções escritas no topo do arquivo funcionam sem <code>static</code> nenhum. Por baixo dos panos, o compilador põe essas instruções de nível superior dentro de um <code>Main</code> <code>static</code> para você.</p>
+
+<hr>
+
+<h2>O construtor static</h2>
+<p>Às vezes um dado <code>static</code> precisa ser preparado antes do primeiro uso: ler uma configuração, montar uma tabela. Para isso existe o <strong>construtor static</strong>: ele roda <strong>uma vez só</strong>, sozinho, logo antes da primeira vez que a classe é usada.</p>
+
+<pre class="file" data-file="construtor-static.cs">Console.WriteLine("Começou o programa");
+Console.WriteLine($"Taxa: {Loja.Taxa}");
+Console.WriteLine($"Taxa de novo: {Loja.Taxa}");
+
+class Loja
+{
+    public static decimal Taxa { get; }
+
+    static Loja()
+    {
+        Console.WriteLine("(construtor static da Loja rodou)");
+        Taxa = 0.05m;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run construtor-static.cs
+Começou o programa
+(construtor static da Loja rodou)
+Taxa: 0,05
+Taxa de novo: 0,05          « na segunda vez, ele não roda de novo</pre>
+
+<dl class="anatomy">
+  <dt>static Loja()</dt><dd>O nome da classe, sem modificador de acesso e sem parâmetros. Ninguém o chama: o .NET chama sozinho.</dd>
+  <dt>A ordem da saída</dt><dd>"Começou o programa" vem antes: o construtor static só roda quando a <code>Loja</code> é usada pela primeira vez, e nunca mais.</dd>
+</dl>
+
+<hr>
+
+<h2>using static: sem repetir o nome da classe</h2>
+<p>Se um arquivo usa muito uma classe static, dá para "importar" os membros dela e escrever só o nome do método:</p>
+
+<pre class="file" data-file="using-static.cs">using static System.Math;
+
+Console.WriteLine(Max(3, 8));
+Console.WriteLine(Sqrt(81));
+Console.WriteLine(PI);
+</pre>
+
+<pre class="term">$ dotnet run using-static.cs
+8
+9
+3,141592653589793</pre>
+
+<p>É cômodo em contas com muita matemática. Use com moderação: num arquivo grande, <code>Max(…)</code> sozinho deixa o leitor sem saber de onde aquilo veio.</p>
+
+<div class="note"><strong>E o const?</strong> Uma <a href="constantes.html">constante</a> (<code>const</code>) já é static por natureza: <code>Math.PI</code> é uma <code>const</code> da classe <code>Math</code>, e você a lê pelo nome da classe. Para um valor da classe que é calculado quando o programa roda, use <code>static readonly</code> (veja <a href="readonly.html">readonly e init</a>).</div>
+
+<hr>
+
+<h2>Quando usar static</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>static?</th><th>Exemplo</th></tr>
+<tr><td>O dado é diferente para cada objeto</td><td>Não</td><td><code>Nome</code>, <code>Nota</code>, <code>Saldo</code></td></tr>
+<tr><td>O dado é um só para a classe inteira</td><td>Sim</td><td><code>Aluno.Total</code>, um contador de pedidos</td></tr>
+<tr><td>O método só usa os parâmetros, nada do objeto</td><td>Sim</td><td><code>Conversor.CelsiusParaFahrenheit</code>, <code>Math.Max</code></td></tr>
+<tr><td>O método lê ou muda os campos do objeto</td><td>Não</td><td><code>conta.Depositar(…)</code></td></tr>
+<tr><td>Uma "caixa de ferramentas" sem dados</td><td><code>static class</code></td><td><code>Math</code>, <code>Conversor</code></td></tr>
+</table>
+</div>
+<div class="warning"><strong>Cuidado com dados static que mudam.</strong> Um campo <code>static</code> que qualquer parte do programa altera é, na prática, uma variável global: difícil de testar e de entender. Prefira <code>static</code> para contas (métodos) e para valores que não mudam. Contadores como o <code>Total</code> funcionam bem com <code>private set</code>, para que só a classe mude.</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>error CS0176: O membro "…" não pode ser acessado com uma referência de instância; qualifique-o com um nome de tipo</strong>
+<p><strong>O que aconteceu:</strong> você usou um membro <code>static</code> por um objeto (<code>ana.Total</code>).</p>
+<p><strong>Como resolver:</strong> use o nome da classe: <code>Aluno.Total</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS0120: Uma referência de objeto é necessária para o campo, o método ou a propriedade "…" não estática</strong>
+<p><strong>O que aconteceu:</strong> um método <code>static</code> (às vezes o <code>Main</code>) tentou usar um membro de instância. Também acontece ao escrever <code>Aluno.Nome</code>, pelo nome da classe, quando <code>Nome</code> é de cada aluno.</p>
+<p><strong>Como resolver:</strong> use um objeto (<code>ana.Nome</code>, <code>new Loja().Resumo()</code>) ou, se o dado é mesmo da classe, deixe-o <code>static</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS0712: Não é possível criar uma instância da classe estática "…"</strong>
+<p><strong>O que aconteceu:</strong> <code>new</code> numa <code>static class</code>. O <code>CS0723</code> vem junto, por causa da variável.</p>
+<p><strong>Como resolver:</strong> não crie objeto: chame direto, <code>Conversor.CelsiusParaFahrenheit(25)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS0708: "…": não pode declarar membros de instância em uma classe estática</strong>
+<p><strong>O que aconteceu:</strong> um método ou campo sem <code>static</code> dentro de uma <code>static class</code>.</p>
+<p><strong>Como resolver:</strong> escreva <code>static</code> nele ou, se a classe precisa mesmo de objetos, tire o <code>static</code> da classe.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>private static int _contador;</code></td><td>Campo da classe: um só, para todos os objetos</td></tr>
+<tr><td><code>public static int Total { get; private set; }</code></td><td>Propriedade da classe</td></tr>
+<tr><td><code>public static double Dobro(double n)</code></td><td>Método da classe; chama-se <code>Classe.Dobro(…)</code></td></tr>
+<tr><td><code>static class Conversor</code></td><td>Classe só com membros static; não aceita <code>new</code></td></tr>
+<tr><td><code>static Loja() { … }</code></td><td>Construtor static: roda uma vez, antes do primeiro uso</td></tr>
+<tr><td><code>using static System.Math;</code></td><td>Usa <code>Max</code>, <code>Sqrt</code>, <code>PI</code> sem escrever <code>Math.</code></td></tr>
+<tr><td><code>Aluno.Total</code></td><td>Acesso a membro static: sempre pelo nome da classe</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missão final: a calculadora de descontos</h2>
+<div class="trycs" data-goal="out:R$ 90\,00,out:R$ 29\,95,src:static\s+class\s+Preco,src:public\s+static\s+decimal\s+ComDesconto">
+<p class="try-task"><strong>Missão:</strong> complete a classe <code>static class Preco</code> com o método <code>public static decimal ComDesconto(decimal valor, int porcento)</code>, que devolve o valor com o desconto aplicado: <code>valor * (100 - porcento) / 100</code>. O programa de cima já chama o método pelo nome da classe.</p>
+<pre class="script">Console.WriteLine(Preco.ComDesconto(100m, 10).ToString("C"));
+Console.WriteLine(Preco.ComDesconto(59.90m, 50).ToString("C"));
+
+static class Preco
+{
+    // escreva o método aqui
+}
+</pre>
+<pre class="solucao">Console.WriteLine(Preco.ComDesconto(100m, 10).ToString("C"));
+Console.WriteLine(Preco.ComDesconto(59.90m, 50).ToString("C"));
+
+static class Preco
+{
+    public static decimal ComDesconto(decimal valor, int porcento)
+    {
+        return valor * (100 - porcento) / 100;
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Da classe</h3>
+<p>Qual palavra faz um campo pertencer à classe, e não a cada objeto?</p>
+<div class="ex-code"><input data-answer="static" aria-label="palavra"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Chamar pela classe</h3>
+<p>A classe <code>Conversor</code> tem o método <code>static</code> <code>Dobro(int n)</code>. Escreva a chamada que dobra o 7 (sem o ponto e vírgula).</p>
+<div class="ex-code"><input data-answer="Conversor.Dobro(7)" aria-label="chamada"></div>
+</div>
+
+<div class="exercise">
+<h3>3. O erro do objeto</h3>
+<p>Qual é o código do erro ao usar um membro <code>static</code> por um objeto, como em <code>ana.Total</code>?</p>
+<div class="ex-code"><input data-answer="CS0176|cs0176" aria-label="código do erro"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Três objetos <code>Aluno</code> foram criados, e cada construtor fez <code>Total++</code> numa propriedade <strong>sem</strong> <code>static</code>. Quanto vale o <code>Total</code> de cada um?</p>
+<label><input type="radio" name="q4"> 3</label>
+<label><input type="radio" name="q4"> 1</label>
+<label><input type="radio" name="q4"> 0</label>
+<label><input type="radio" name="q4"> Não compila.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Um método <code>static</code> tenta ler um campo de instância. O que acontece?</p>
+<label><input type="radio" name="q5"> Ele lê o campo do último objeto criado.</label>
+<label><input type="radio" name="q5"> Ele lê sempre o valor padrão (0 ou <code>null</code>).</label>
+<label><input type="radio" name="q5"> Erro <code>CS0120</code>: uma referência de objeto é necessária.</label>
+<label><input type="radio" name="q5"> Uma exceção quando o programa roda.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Quando roda o construtor <code>static</code> de uma classe?</p>
+<label><input type="radio" name="q6"> Uma vez, sozinho, logo antes do primeiro uso da classe.</label>
+<label><input type="radio" name="q6"> A cada <code>new</code>.</label>
+<label><input type="radio" name="q6"> Só quando você o chama pelo nome.</label>
+<label><input type="radio" name="q6"> No fim do programa.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Membro de instância: cada objeto tem o seu (o caderno). Membro <code>static</code>: um só, da classe (o quadro).</li>
+  <li>Membros <code>static</code> se usam pelo nome da classe (<code>Aluno.Total</code>, <code>Math.Max</code>). Pelo objeto, é <code>CS0176</code>.</li>
+  <li>Método <code>static</code> não enxerga campos de instância nem <code>this</code> (<code>CS0120</code>). O contrário sempre funciona.</li>
+  <li><code>static class</code> é uma caixa de ferramentas: só membros static, sem <code>new</code> (<code>CS0712</code>, <code>CS0708</code>).</li>
+  <li>O construtor <code>static</code> roda uma vez, antes do primeiro uso. <code>using static</code> dispensa o nome da classe.</li>
+  <li>O <code>Main</code> é <code>static</code> porque roda antes de existir qualquer objeto.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
