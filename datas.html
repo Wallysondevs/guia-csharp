@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Datas e Horas — DateTime, DateOnly, TimeOnly e TimeSpan | Guia C#</title>
+<meta name="description" content="Datas e horas em C# para quem nunca programou: DateTime.Now e Today, criar datas, Year, Month, DayOfWeek, formatar com d, D, dd/MM/yyyy, HH:mm e dddd em português, AddDays e AddMonths, TimeSpan para diferenças e durações, DateOnly e TimeOnly, Parse, ParseExact e TryParse, fusos com TimeZoneInfo e DateTimeOffset, e os erros FormatException, ArgumentOutOfRangeException, mm × MM e CS0019, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Datas e Horas</span></h1>
+
+<p class="intro">Quando vence o boleto? Quantos dias faltam para o Natal? Quanto tempo durou o filme? Que horas são em Lisboa? Datas aparecem em quase todo programa, e fazer essas contas "na mão" é difícil: os meses têm tamanhos diferentes, há anos bissextos e fusos horários. O C# tem tipos prontos para tudo isso. Nesta aula você vai usar o <code>DateTime</code> (data e hora), o <code>TimeSpan</code> (um intervalo de tempo), o <code>DateOnly</code> e o <code>TimeOnly</code> (só a data, só a hora), e vai calcular a multa da biblioteca da Ana.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Pegar a data e a hora de agora (<code>DateTime.Now</code>, <code>Today</code>, <code>UtcNow</code>) e criar uma data qualquer.</li>
+  <li>Ler as partes: <code>Year</code>, <code>Month</code>, <code>Day</code>, <code>Hour</code>, <code>DayOfWeek</code>.</li>
+  <li>Formatar em português: <code>"d"</code>, <code>"D"</code>, <code>"dd/MM/yyyy"</code>, <code>"HH:mm"</code>, <code>"dddd"</code>.</li>
+  <li>Somar e subtrair: <code>AddDays</code>, <code>AddMonths</code>, e o <code>TimeSpan</code> que sai de uma subtração.</li>
+  <li>Usar <code>DateOnly</code> e <code>TimeOnly</code> quando só a data ou só a hora importa.</li>
+  <li>Transformar texto em data: <code>Parse</code>, <code>ParseExact</code> e <code>TryParse</code>.</li>
+  <li>Fusos horários com <code>TimeZoneInfo</code> e <code>DateTimeOffset</code>.</li>
+</ul>
+</div>
+
+<p>Os programas rodam com <code>dotnet run</code> no computador da Ana, que está em português do Brasil e no fuso de São Paulo (UTC−3). As datas e os nomes de dias e meses aparecem como no Brasil. A aula <a href="cultura.html">Cultura</a> mostra como isso muda em outros países.</p>
+
+<hr>
+
+<h2>A ideia: o calendário e o cronômetro</h2>
+<p>Pense em duas coisas da sua casa. O <strong>calendário com relógio</strong> marca um <strong>momento</strong>: "sábado, 17 de outubro de 2026, às 14h30". Isso é um <code>DateTime</code>. O <strong>cronômetro</strong> mede uma <strong>duração</strong>: "2 horas e 15 minutos", sem dizer quando começou. Isso é um <code>TimeSpan</code>.</p>
+<p>As contas entre os dois são as do dia a dia: um momento <strong>mais</strong> uma duração dá outro momento ("o filme começa às 19h e dura 2h15, então acaba às 21h15"). Um momento <strong>menos</strong> outro dá uma duração ("do dia 17 de outubro ao Natal são 69 dias").</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>Guarda</th><th>Exemplo</th></tr>
+<tr><td><code>DateTime</code></td><td>Data e hora</td><td>17/10/2026 14:30:00</td></tr>
+<tr><td><code>DateOnly</code> <span class="versao">.NET 6</span></td><td>Só a data</td><td>Um aniversário: 08/03/1997</td></tr>
+<tr><td><code>TimeOnly</code> <span class="versao">.NET 6</span></td><td>Só a hora do dia</td><td>A loja abre às 08:00</td></tr>
+<tr><td><code>TimeSpan</code></td><td>Uma duração</td><td>02:15:00 (2 horas e 15 minutos)</td></tr>
+<tr><td><code>DateTimeOffset</code></td><td>Data, hora e o fuso</td><td>17/10/2026 14:30:00 −03:00</td></tr>
+</table>
+</div>
+
+<p>Todos são <a href="structs.html">structs</a> do namespace <code>System</code>, que já vem incluído.</p>
+
+<hr>
+
+<h2>1. Agora: DateTime.Now</h2>
+
+<pre class="file" data-file="agora.cs">DateTime agora = DateTime.Now;
+Console.WriteLine(agora);
+Console.WriteLine(DateTime.Today);
+Console.WriteLine(DateTime.UtcNow);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ date
+sáb 17 out 2026 12:57:03 -03
+$ dotnet run agora.cs
+17/10/2026 12:57:07
+17/10/2026 00:00:00
+17/10/2026 15:57:07</pre>
+
+<dl class="anatomy">
+  <dt>DateTime.Now</dt><dd>"Agora": a data e a hora do relógio do computador, no fuso dele. Cada vez que você roda, sai um valor diferente.</dd>
+  <dt>DateTime.Today</dt><dd>"Hoje": a data de hoje, com a hora zerada (meia-noite).</dd>
+  <dt>DateTime.UtcNow</dt><dd>Agora em <strong>UTC</strong>, o horário de referência do mundo (o de Greenwich, em Londres, sem horário de verão). São Paulo está 3 horas atrás: 12h57 aqui são 15h57 em UTC.</dd>
+  <dt>Console.WriteLine(agora)</dt><dd>Mostra no formato do Brasil, dia/mês/ano e hora com 24 horas, porque o computador está em pt-BR.</dd>
+</dl>
+
+<div class="tip">
+<strong>Teste com datas fixas</strong>
+<p>Um programa que usa <code>DateTime.Now</code> dá um resultado diferente a cada dia, o que dificulta conferir se ele está certo. Nos exemplos e nas missões desta aula, a data de "hoje" é fixa (<code>new DateTime(2026, 10, 17)</code>). Nos seus programas, troque pela <code>DateTime.Today</code> quando estiver tudo funcionando.</p>
+</div>
+
+<hr>
+
+<h2>2. Uma data qualquer, e as partes dela</h2>
+
+<pre class="file" data-file="data.cs">DateTime prova = new DateTime(2026, 10, 17, 14, 30, 0);
+Console.WriteLine(prova);
+Console.WriteLine(prova.Year);
+Console.WriteLine(prova.Month);
+Console.WriteLine(prova.Day);
+Console.WriteLine(prova.Hour);
+Console.WriteLine(prova.DayOfWeek);
+Console.WriteLine(prova.DayOfYear);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run data.cs
+17/10/2026 14:30:00
+2026
+10
+17
+14
+Saturday
+290</pre>
+
+<dl class="anatomy">
+  <dt>new DateTime(2026, 10, 17, 14, 30, 0)</dt><dd>Ano, mês, dia, hora, minuto e segundo, <strong>nessa ordem</strong> (do maior para o menor, nunca dia/mês/ano). Sem a hora, <code>new DateTime(2026, 10, 17)</code> é meia-noite.</dd>
+  <dt>Year, Month, Day, Hour, Minute, Second</dt><dd>As partes, como números <code>int</code>.</dd>
+  <dt>DayOfWeek</dt><dd>O dia da semana, que é um <a href="enums.html">enum</a>, e por isso aparece com o nome em <strong>inglês</strong>: <code>Saturday</code> (sábado). Serve para comparar: <code>prova.DayOfWeek == DayOfWeek.Saturday</code>. Para mostrar em português, use o formato <code>"dddd"</code> (seção 3).</dd>
+  <dt>DayOfYear</dt><dd>Que dia do ano é: 17 de outubro é o 290º dia de 2026.</dd>
+</dl>
+
+<hr>
+
+<h2>3. Formatar: ToString com códigos</h2>
+<p>O <code>ToString</code> de uma data aceita um texto com o <strong>formato</strong>, igual aos números da aula <a href="formatacao.html">Formatar Números</a>. Existem formatos prontos de uma letra e formatos "montados" com códigos:</p>
+
+<pre class="file" data-file="formatos.cs">DateTime prova = new DateTime(2026, 10, 17, 14, 30, 0);
+Console.WriteLine(prova.ToString("d"));
+Console.WriteLine(prova.ToString("D"));
+Console.WriteLine(prova.ToString("t"));
+Console.WriteLine(prova.ToString("F"));
+Console.WriteLine(prova.ToString("dd/MM/yyyy HH:mm"));
+Console.WriteLine(prova.ToString("dddd"));
+Console.WriteLine(prova.ToString("MMMM"));
+Console.WriteLine(prova.ToString("ddd, dd 'de' MMM"));
+Console.WriteLine(prova.ToString("yyyy-MM-dd"));
+Console.WriteLine($"Prova: {prova:dd/MM}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run formatos.cs
+17/10/2026
+sábado, 17 de outubro de 2026
+14:30
+sábado, 17 de outubro de 2026 14:30:00
+17/10/2026 14:30
+sábado
+outubro
+sáb., 17 de out.
+2026-10-17
+Prova: 17/10</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Significa</th><th>Exemplo</th></tr>
+<tr><td><code>d</code> (sozinho)</td><td>Data curta</td><td>17/10/2026</td></tr>
+<tr><td><code>D</code> (sozinho)</td><td>Data longa</td><td>sábado, 17 de outubro de 2026</td></tr>
+<tr><td><code>t</code> / <code>T</code> (sozinhos)</td><td>Hora curta / com segundos</td><td>14:30 / 14:30:00</td></tr>
+<tr><td><code>F</code> (sozinho)</td><td>Data longa e hora</td><td>sábado, 17 de outubro de 2026 14:30:00</td></tr>
+<tr><td><code>dd</code> / <code>ddd</code> / <code>dddd</code></td><td>Dia com 2 dígitos / dia da semana curto / longo</td><td>17 / sáb. / sábado</td></tr>
+<tr><td><code>MM</code> / <code>MMM</code> / <code>MMMM</code></td><td>Mês com 2 dígitos / nome curto / longo</td><td>10 / out. / outubro</td></tr>
+<tr><td><code>yyyy</code></td><td>Ano com 4 dígitos</td><td>2026</td></tr>
+<tr><td><code>HH</code> / <code>hh</code></td><td>Hora de 0 a 23 / de 1 a 12</td><td>14 / 02</td></tr>
+<tr><td><code>mm</code> / <code>ss</code></td><td>Minutos / segundos</td><td>30 / 00</td></tr>
+<tr><td><code>'texto'</code></td><td>Texto escrito como está</td><td><code>'de'</code> → de</td></tr>
+</table>
+</div>
+
+<p>Atenção às maiúsculas: <code>MM</code> é <strong>mês</strong> e <code>mm</code> é <strong>minuto</strong> (veja "Quando dá errado"). O formato <code>yyyy-MM-dd</code> é o padrão internacional <strong>ISO 8601</strong>: ele não depende do país, e os arquivos ordenados pelo nome ficam em ordem de data. Use-o em nomes de arquivos e em dados que outros programas vão ler.</p>
+
+<hr>
+
+<h2>4. Somar e subtrair: Add e TimeSpan</h2>
+
+<pre class="file" data-file="contas.cs">DateTime hoje = new DateTime(2026, 10, 17);
+Console.WriteLine(hoje.AddDays(14).ToString("d"));
+Console.WriteLine(hoje.AddDays(-1).ToString("d"));
+Console.WriteLine(hoje.AddMonths(3).ToString("d"));
+Console.WriteLine(new DateTime(2026, 1, 31).AddMonths(1).ToString("d"));
+Console.WriteLine(hoje.AddHours(36));
+
+DateTime natal = new DateTime(2026, 12, 25);
+TimeSpan falta = natal - hoje;
+Console.WriteLine(falta);
+Console.WriteLine(falta.Days);
+Console.WriteLine(falta.TotalHours);
+Console.WriteLine(natal &gt; hoje);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run contas.cs
+31/10/2026
+16/10/2026
+17/01/2027
+28/02/2026
+18/10/2026 12:00:00
+69.00:00:00
+69
+1656
+True</pre>
+
+<dl class="anatomy">
+  <dt>hoje.AddDays(14)</dt><dd>"Somar dias": devolve uma data <strong>nova</strong>, 14 dias depois. A <code>hoje</code> não muda: um <code>DateTime</code> nunca muda depois de criado. Por isso é preciso guardar o resultado (<code>DateTime prazo = hoje.AddDays(14);</code>).</dd>
+  <dt>AddDays(-1)</dt><dd>Com número negativo, volta no tempo.</dd>
+  <dt>AddMonths(3)</dt><dd>Três meses depois, virando o ano se precisar. Também existem <code>AddYears</code>, <code>AddHours</code>, <code>AddMinutes</code>, <code>AddSeconds</code>.</dd>
+  <dt>31/01 + 1 mês = 28/02</dt><dd>Fevereiro de 2026 não tem dia 31, então o <code>AddMonths</code> usa o último dia do mês. Fazer essa conta somando 30 dias daria errado.</dd>
+  <dt>natal - hoje</dt><dd>Uma data menos outra dá um <code>TimeSpan</code>. Ele aparece como <code>dias.horas:minutos:segundos</code>: <code>69.00:00:00</code> são 69 dias e zero horas.</dd>
+  <dt>falta.Days e falta.TotalHours</dt><dd><code>Days</code> é a parte dos dias (<code>int</code>). <code>TotalHours</code> é a duração inteira convertida em horas (<code>double</code>): 69 × 24 = 1656. Existem <code>Hours</code>/<code>TotalHours</code>, <code>Minutes</code>/<code>TotalMinutes</code> e assim por diante.</dd>
+  <dt>natal &gt; hoje</dt><dd>Datas se comparam com <code>&lt;</code>, <code>&gt;</code> e <code>==</code>, como números: a mais tarde é a "maior".</dd>
+</dl>
+
+<div class="trycs" data-goal="out:Faltam 69 dias para o Natal,src:\.Days">
+<p class="try-task"><strong>Missão:</strong> a frase saiu <code>Faltam 69.00:00:00 para o Natal</code>. Use a propriedade <code>Days</code> do <code>TimeSpan</code> para a saída ficar <code>Faltam 69 dias para o Natal</code>.</p>
+<pre class="script" data-file="natal.cs">DateTime hoje = new DateTime(2026, 10, 17);
+DateTime natal = new DateTime(2026, 12, 25);
+TimeSpan falta = natal - hoje;
+Console.WriteLine($"Faltam {falta} para o Natal");
+</pre>
+<pre class="solucao" data-file="natal.cs">DateTime hoje = new DateTime(2026, 10, 17);
+DateTime natal = new DateTime(2026, 12, 25);
+TimeSpan falta = natal - hoje;
+Console.WriteLine($"Faltam {falta.Days} dias para o Natal");
+</pre>
+</div>
+
+<h3>Durações: TimeSpan</h3>
+<p>Um <code>TimeSpan</code> também pode ser criado direto, para somar a uma data ou a outro <code>TimeSpan</code>:</p>
+
+<pre class="file" data-file="filme.cs">TimeSpan filme = new TimeSpan(2, 15, 0);
+TimeSpan aula = TimeSpan.FromMinutes(90);
+Console.WriteLine(filme);
+Console.WriteLine(filme.TotalMinutes);
+Console.WriteLine(aula);
+Console.WriteLine(filme + aula);
+
+DateTime inicio = new DateTime(2026, 10, 17, 19, 0, 0);
+Console.WriteLine($"O filme acaba às {(inicio + filme):t}");
+Console.WriteLine($"{filme.Hours}h{filme.Minutes:00}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run filme.cs
+02:15:00
+135
+01:30:00
+03:45:00
+O filme acaba às 21:15
+2h15</pre>
+
+<dl class="anatomy">
+  <dt>new TimeSpan(2, 15, 0)</dt><dd>Horas, minutos e segundos. Com quatro números, o primeiro são os dias: <code>new TimeSpan(1, 2, 0, 0)</code> é 1 dia e 2 horas.</dd>
+  <dt>TimeSpan.FromMinutes(90)</dt><dd>Uma duração a partir de uma quantidade: <code>FromDays</code>, <code>FromHours</code>, <code>FromMinutes</code>, <code>FromSeconds</code>. 90 minutos viram <code>01:30:00</code>.</dd>
+  <dt>filme + aula</dt><dd>Durações se somam: 2h15 + 1h30 = 3h45.</dd>
+  <dt>inicio + filme</dt><dd>Momento mais duração dá um momento: 19h00 + 2h15 = 21h15. Os parênteses em <code>{(inicio + filme):t}</code> são necessários para a conta ser feita antes do formato.</dd>
+  <dt>{filme.Minutes:00}</dt><dd>O formato <code>00</code> garante dois dígitos: <code>5</code> sairia <code>05</code>.</dd>
+</dl>
+
+<hr>
+
+<h2>5. Só a data, só a hora: DateOnly e TimeOnly</h2>
+<p>Um aniversário não tem hora. O horário de abertura da loja não tem data. Guardar esses valores num <code>DateTime</code> funciona, mas leva junto uma parte que não significa nada (a "meia-noite" do aniversário). Desde o .NET 6, existem tipos só para isso:</p>
+
+<pre class="file" data-file="aniversario.cs">DateOnly nascimento = new DateOnly(1997, 3, 8);
+DateOnly hoje = new DateOnly(2026, 10, 17);
+Console.WriteLine(nascimento);
+Console.WriteLine(nascimento.ToString("D"));
+
+int idade = hoje.Year - nascimento.Year;
+if (hoje &lt; nascimento.AddYears(idade))
+{
+    idade--;
+}
+Console.WriteLine($"Idade: {idade}");
+Console.WriteLine($"Dias de vida: {hoje.DayNumber - nascimento.DayNumber}");
+
+TimeOnly abre = new TimeOnly(8, 0);
+TimeOnly fecha = new TimeOnly(18, 30);
+TimeOnly agora = new TimeOnly(19, 15);
+Console.WriteLine($"Aberta das {abre} às {fecha}: {fecha - abre} por dia");
+Console.WriteLine($"Aberta às {agora}? {agora.IsBetween(abre, fecha)}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run aniversario.cs
+08/03/1997
+sábado, 8 de março de 1997
+Idade: 29
+Dias de vida: 10815
+Aberta das 08:00 às 18:30: 10:30:00 por dia
+Aberta às 19:15? False</pre>
+
+<dl class="anatomy">
+  <dt>new DateOnly(1997, 3, 8)</dt><dd>Ano, mês e dia. Mostra só a data, sem <code>00:00:00</code>.</dd>
+  <dt>a conta da idade</dt><dd>Primeiro, a diferença dos anos (2026 − 1997 = 29). Depois, se o aniversário deste ano ainda não chegou (<code>hoje &lt; nascimento.AddYears(idade)</code>), tira um. A Ana fez aniversário em março, então tem 29.</dd>
+  <dt>DayNumber</dt><dd>O número do dia contado desde 1º de janeiro do ano 1. A diferença entre dois <code>DayNumber</code> é a quantidade de dias entre as datas. (O <code>DateOnly</code> não tem o operador <code>-</code>; veja "Quando dá errado".)</dd>
+  <dt>new TimeOnly(8, 0)</dt><dd>Hora e minuto. A diferença entre dois <code>TimeOnly</code> é um <code>TimeSpan</code>.</dd>
+  <dt>agora.IsBetween(abre, fecha)</dt><dd>"Está entre?": <code>True</code> se a hora está no intervalo. 19h15 está fora.</dd>
+</dl>
+
+<p>Para converter: <code>DateOnly.FromDateTime(umDateTime)</code> pega só a data, e <code>umDateOnly.ToDateTime(umTimeOnly)</code> junta uma data e uma hora num <code>DateTime</code>.</p>
+
+<hr>
+
+<h2>6. Texto → data: Parse, ParseExact e TryParse</h2>
+<p>Datas digitadas pelo usuário ou lidas de um arquivo chegam como texto. Como os números da aula <a href="parse.html">Parse e TryParse</a>, elas precisam ser convertidas:</p>
+
+<pre class="file" data-file="parse.cs">using System.Globalization;
+
+DateTime d1 = DateTime.Parse("17/10/2026");
+Console.WriteLine(d1.ToString("D"));
+
+DateTime d2 = DateTime.Parse("2026-10-17 14:30");
+Console.WriteLine(d2);
+
+DateTime d3 = DateTime.ParseExact("10/17/2026", "MM/dd/yyyy", CultureInfo.InvariantCulture);
+Console.WriteLine(d3.ToString("d"));
+
+if (DateOnly.TryParseExact("08/03/1997", "dd/MM/yyyy", out DateOnly nasc))
+{
+    Console.WriteLine($"Nasceu no dia da semana: {nasc:dddd}");
+}
+if (!DateOnly.TryParse("31/02/2026", out DateOnly ruim))
+{
+    Console.WriteLine("Data inválida");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run parse.cs
+sábado, 17 de outubro de 2026
+17/10/2026 14:30:00
+17/10/2026
+Nasceu no dia da semana: sábado
+Data inválida</pre>
+
+<dl class="anatomy">
+  <dt>DateTime.Parse("17/10/2026")</dt><dd>Entende o texto no formato do país do computador: em pt-BR, dia/mês/ano. O formato ISO (<code>2026-10-17</code>) é aceito em qualquer país.</dd>
+  <dt>DateTime.ParseExact(texto, "MM/dd/yyyy", CultureInfo.InvariantCulture)</dt><dd>"Converter exatamente": você diz o formato, com os códigos da seção 3. Aqui, uma data no estilo dos Estados Unidos, mês primeiro. O <code>CultureInfo.InvariantCulture</code> (aula <a href="cultura.html">Cultura</a>) diz que o texto não depende do país.</dd>
+  <dt>DateOnly.TryParseExact(texto, "dd/MM/yyyy", out DateOnly nasc)</dt><dd>A versão segura: devolve <code>true</code> e põe a data em <code>nasc</code> se deu certo, ou <code>false</code> sem exceção. Use sempre o <code>TryParse</code> com texto digitado pelo usuário.</dd>
+  <dt>"31/02/2026"</dt><dd>Fevereiro não tem dia 31: o <code>TryParse</code> devolve <code>false</code>.</dd>
+</dl>
+
+<hr>
+
+<h2>7. Fusos horários</h2>
+<p>Quando é 14h30 em São Paulo, é 18h30 em Lisboa e 13h30 em Manaus. O <code>TimeZoneInfo</code> ("informação de fuso") conhece os fusos do mundo e converte entre eles. No Linux, cada fuso tem um nome do tipo <code>Continente/Cidade</code>:</p>
+
+<pre class="file" data-file="fuso.cs">DateTime aqui = new DateTime(2026, 10, 17, 14, 30, 0, DateTimeKind.Local);
+Console.WriteLine(TimeZoneInfo.Local.Id);
+Console.WriteLine(TimeZoneInfo.Local.GetUtcOffset(aqui));
+Console.WriteLine($"UTC: {aqui.ToUniversalTime()}");
+
+TimeZoneInfo lisboa = TimeZoneInfo.FindSystemTimeZoneById("Europe/Lisbon");
+TimeZoneInfo manaus = TimeZoneInfo.FindSystemTimeZoneById("America/Manaus");
+Console.WriteLine($"Lisboa: {TimeZoneInfo.ConvertTime(aqui, lisboa)}");
+Console.WriteLine($"Manaus: {TimeZoneInfo.ConvertTime(aqui, manaus)}");
+
+DateTimeOffset reuniao = new DateTimeOffset(2026, 10, 17, 14, 30, 0, TimeSpan.FromHours(-3));
+Console.WriteLine(reuniao);
+Console.WriteLine(reuniao.ToUniversalTime());
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fuso.cs
+America/Sao_Paulo
+-03:00:00
+UTC: 17/10/2026 17:30:00
+Lisboa: 17/10/2026 18:30:00
+Manaus: 17/10/2026 13:30:00
+17/10/2026 14:30:00 -03:00
+17/10/2026 17:30:00 +00:00</pre>
+
+<dl class="anatomy">
+  <dt>DateTimeKind.Local</dt><dd>O último argumento diz de que fuso é a data: <code>Local</code> (o do computador), <code>Utc</code> ou <code>Unspecified</code> (não se sabe, o padrão do <code>new DateTime</code>). A propriedade <code>Kind</code> guarda isso.</dd>
+  <dt>TimeZoneInfo.Local</dt><dd>O fuso do computador: <code>America/Sao_Paulo</code>, 3 horas atrás do UTC (<code>-03:00:00</code>).</dd>
+  <dt>ToUniversalTime()</dt><dd>A mesma hora, em UTC.</dd>
+  <dt>TimeZoneInfo.FindSystemTimeZoneById("Europe/Lisbon")</dt><dd>Procura um fuso pelo nome. <code>ConvertTime</code> mostra a mesma hora no relógio de lá, já com o horário de verão de cada lugar.</dd>
+  <dt>DateTimeOffset</dt><dd>Um momento <strong>com</strong> a diferença para o UTC junto (<code>-03:00</code>). Não há dúvida sobre de que fuso ele é. Prefira-o para guardar quando algo aconteceu (uma compra, um login), principalmente num sistema usado em vários lugares.</dd>
+</dl>
+
+<hr>
+
+<h2>Qual tipo usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer guardar…</th><th>Use</th></tr>
+<tr><td>Um aniversário, um feriado, um vencimento</td><td><code>DateOnly</code></td></tr>
+<tr><td>Um horário que se repete (abre às 8h)</td><td><code>TimeOnly</code></td></tr>
+<tr><td>Uma duração (2h15, 14 dias)</td><td><code>TimeSpan</code></td></tr>
+<tr><td>Um compromisso no seu fuso</td><td><code>DateTime</code></td></tr>
+<tr><td>Quando algo aconteceu, num sistema com usuários em vários fusos</td><td><code>DateTimeOffset</code> ou <code>DateTime.UtcNow</code></td></tr>
+<tr><td>Data num arquivo ou para outro programa</td><td>Texto no formato ISO: <code>ToString("yyyy-MM-dd")</code> ou <code>ToString("o")</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>FormatException</code>: a data no formato de outro país</strong>
+<pre class="file" data-file="erro1.cs">DateTime d = DateTime.Parse("10/17/2026");
+Console.WriteLine(d);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run erro1.cs
+Unhandled exception. System.FormatException: String '10/17/2026' was not recognized as a valid DateTime.
+   at System.DateTimeParse.Parse(ReadOnlySpan`1 s, DateTimeFormatInfo dtfi, DateTimeStyles styles)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/erro1.cs:line 1</pre>
+<p><strong>O que aconteceu:</strong> "O texto não foi reconhecido como uma data válida". Em pt-BR, o <code>Parse</code> lê dia/mês/ano, e não existe mês 17. Pior ainda é <code>"05/10/2026"</code>, que dá certo nos dois países, mas é 5 de outubro aqui e 10 de maio nos Estados Unidos: sem erro, com a data errada.</p>
+<p><strong>Como resolver:</strong> se você sabe o formato do texto, diga qual é: <code>DateTime.ParseExact("10/17/2026", "MM/dd/yyyy", CultureInfo.InvariantCulture)</code>. Com texto digitado, <code>TryParse</code> ou <code>TryParseExact</code>. Nos seus arquivos, grave no formato ISO, <code>yyyy-MM-dd</code>, que não tem ambiguidade.</p>
+</div>
+
+<div class="cenario">
+<strong><code>ArgumentOutOfRangeException</code>: 30 de fevereiro</strong>
+<pre class="file" data-file="erro2.cs">DateTime d = new DateTime(2026, 2, 30);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run erro2.cs
+Unhandled exception. System.ArgumentOutOfRangeException: Year, Month, and Day parameters describe an un-representable DateTime.
+   at System.DateTime..ctor(Int32 year, Int32 month, Int32 day)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/erro2.cs:line 1</pre>
+<p><strong>O que aconteceu:</strong> "Ano, mês e dia descrevem uma data que não pode existir". O mesmo acontece com o mês 13, a hora 24 ou, muito comum, com a ordem trocada: <code>new DateTime(17, 10, 2026)</code> tenta o ano 17, mês 10, dia 2026.</p>
+<p><strong>Como resolver:</strong> ano, mês, dia, sempre nessa ordem. Para saber quantos dias um mês tem, <code>DateTime.DaysInMonth(2026, 2)</code> devolve 28. Para "o mesmo dia no mês que vem", use <code>AddMonths(1)</code>, que já ajusta o fim do mês.</p>
+</div>
+
+<div class="cenario">
+<strong>A data saiu 17/05/2026: <code>mm</code> no lugar de <code>MM</code></strong>
+<pre class="file" data-file="mm.cs">DateTime d = new DateTime(2026, 10, 17, 14, 5, 0);
+Console.WriteLine(d.ToString("dd/mm/yyyy"));
+Console.WriteLine(d.ToString("hh:mm"));
+Console.WriteLine(d.ToString("HH:mm"));
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run mm.cs
+17/05/2026
+02:05
+14:05</pre>
+<p><strong>O que aconteceu:</strong> nenhum erro, só o resultado errado. Em <code>dd/mm/yyyy</code>, o <code>mm</code> são os <strong>minutos</strong> (5), e não o mês. E em <code>hh:mm</code>, o <code>hh</code> é a hora de 12 horas: 14h05 virou <code>02:05</code>, sem dizer se é da manhã ou da tarde.</p>
+<p><strong>Como resolver:</strong> <code>MM</code> maiúsculo para o mês, <code>HH</code> maiúsculo para a hora de 0 a 23: <code>dd/MM/yyyy HH:mm</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>CS0019</code> e <code>CS0029</code>: contas que o tipo não faz</strong>
+<pre class="term" data-cwd="~/cs">$ cat menos.cs
+DateOnly a = new DateOnly(2026, 10, 17);
+DateOnly b = new DateOnly(2026, 12, 25);
+Console.WriteLine(b - a);
+$ dotnet run menos.cs
+/home/ana/cs/menos.cs(3,19): error CS0019: O operador "-" não pode ser aplicado a operandos dos tipos "DateOnly" e "DateOnly"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.
+$ cat dias.cs
+DateTime a = new DateTime(2026, 10, 17);
+DateTime b = new DateTime(2026, 12, 25);
+int dias = b - a;
+$ dotnet run dias.cs
+/home/ana/cs/dias.cs(3,12): error CS0029: Não é possível converter implicitamente tipo "System.TimeSpan" em "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> o <code>DateOnly</code> não sabe subtrair outro <code>DateOnly</code> (em inglês, <code>Operator '-' cannot be applied to operands of type 'DateOnly' and 'DateOnly'</code>). E a subtração de dois <code>DateTime</code> dá um <code>TimeSpan</code>, que não é um <code>int</code>.</p>
+<p><strong>Como resolver:</strong> com <code>DateOnly</code>, <code>b.DayNumber - a.DayNumber</code>. Com <code>DateTime</code>, <code>int dias = (b - a).Days;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>Saturday</code> em vez de sábado</strong>
+<p><strong>O que aconteceu:</strong> <code>Console.WriteLine(d.DayOfWeek)</code> mostra o nome do valor do enum, que é sempre em inglês, em qualquer país.</p>
+<p><strong>Como resolver:</strong> para mostrar, <code>d.ToString("dddd")</code>, que segue a língua do computador (<code>sábado</code>). Para decidir, compare com o enum: <code>if (d.DayOfWeek == DayOfWeek.Saturday || d.DayOfWeek == DayOfWeek.Sunday)</code> é "fim de semana".</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>DateTime.Now</code> / <code>DateTime.Today</code> / <code>DateTime.UtcNow</code></td><td>Agora / hoje à meia-noite / agora em UTC</td></tr>
+<tr><td><code>new DateTime(ano, mês, dia, h, min, s)</code></td><td>Uma data e hora</td></tr>
+<tr><td><code>d.Year</code>, <code>Month</code>, <code>Day</code>, <code>Hour</code>, <code>Minute</code>, <code>DayOfWeek</code>, <code>DayOfYear</code></td><td>As partes</td></tr>
+<tr><td><code>d.ToString("dd/MM/yyyy HH:mm")</code>, <code>"d"</code>, <code>"D"</code>, <code>"dddd"</code></td><td>Formatar</td></tr>
+<tr><td><code>d.AddDays(n)</code>, <code>AddMonths</code>, <code>AddYears</code>, <code>AddHours</code>, <code>AddMinutes</code></td><td>Uma data nova, depois (ou antes, com negativo)</td></tr>
+<tr><td><code>b - a</code></td><td>A diferença, como <code>TimeSpan</code></td></tr>
+<tr><td><code>t.Days</code>, <code>t.Hours</code> / <code>t.TotalDays</code>, <code>t.TotalHours</code></td><td>Uma parte / a duração inteira na unidade</td></tr>
+<tr><td><code>new TimeSpan(h, min, s)</code>, <code>TimeSpan.FromMinutes(n)</code></td><td>Uma duração</td></tr>
+<tr><td><code>new DateOnly(a, m, d)</code>, <code>new TimeOnly(h, min)</code></td><td>Só a data / só a hora</td></tr>
+<tr><td><code>DateOnly.FromDateTime(d)</code>, <code>x.DayNumber</code></td><td>Converter / dias entre datas</td></tr>
+<tr><td><code>DateTime.Parse(t)</code>, <code>ParseExact(t, formato, cultura)</code>, <code>TryParse(t, out d)</code></td><td>Texto → data</td></tr>
+<tr><td><code>DateTime.DaysInMonth(ano, mês)</code></td><td>Quantos dias o mês tem</td></tr>
+<tr><td><code>TimeZoneInfo.FindSystemTimeZoneById("Europe/Lisbon")</code>, <code>TimeZoneInfo.ConvertTime(d, fuso)</code></td><td>Fusos</td></tr>
+<tr><td><code>new DateTimeOffset(…, TimeSpan.FromHours(-3))</code></td><td>Data e hora com o fuso junto</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Daqui a uma semana</h3>
+<p>Complete para calcular a data 7 dias depois de <code>hoje</code>:</p>
+<div class="ex-code">DateTime semanaQueVem = hoje.<input data-answer="AddDays(7)" aria-label="chamada">;</div>
+</div>
+
+<div class="exercise">
+<h3>2. O formato brasileiro</h3>
+<p>Complete o formato para a data aparecer como <code>05/03/2026</code> (dia, mês e ano com 4 dígitos):</p>
+<div class="ex-code">d.ToString("<input data-answer="dd/MM/yyyy" aria-label="formato">")</div>
+</div>
+
+<div class="exercise">
+<h3>3. Só os dias</h3>
+<p>A variável <code>falta</code> é um <code>TimeSpan</code>. Complete para pegar a quantidade de dias como <code>int</code>:</p>
+<div class="ex-code">int dias = falta.<input data-answer="Days" aria-label="propriedade">;</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O que <code>new DateTime(2026, 1, 31).AddMonths(1)</code> devolve?</p>
+<label><input type="radio" name="q4"> 31/02/2026</label>
+<label><input type="radio" name="q4"> 28/02/2026</label>
+<label><input type="radio" name="q4"> 03/03/2026</label>
+<label><input type="radio" name="q4"> Lança uma exceção.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Qual tipo é o melhor para guardar o aniversário de alguém?</p>
+<label><input type="radio" name="q5"> <code>TimeSpan</code></label>
+<label><input type="radio" name="q5"> <code>TimeOnly</code></label>
+<label><input type="radio" name="q5"> <code>DateOnly</code></label>
+<label><input type="radio" name="q5"> <code>string</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Um programa mostra <code>d.ToString("dd/mm/yyyy")</code> e a data sai com um "mês" estranho, como 17/42/2026. Por quê?</p>
+<label><input type="radio" name="q6"> <code>mm</code> são os minutos; o mês é <code>MM</code>.</label>
+<label><input type="radio" name="q6"> O computador está em inglês.</label>
+<label><input type="radio" name="q6"> Faltou o <code>CultureInfo.InvariantCulture</code>.</label>
+<label><input type="radio" name="q6"> A data foi criada com o mês 42.</label>
+</div>
+
+<h3>Missão final: a multa da biblioteca</h3>
+<div class="trycs" data-goal="out:Devolver até: sábado\, 31/10/2026,out:Atraso: 5 dias,out:Multa: R$ 7\,50,src:AddDays">
+<p class="try-task"><strong>Missão:</strong> a biblioteca da escola empresta livros por 14 dias e cobra R$ 1,50 por dia de atraso. A Ana pegou um livro em 17/10/2026 e devolveu em 05/11/2026. Complete o programa:</p>
+<ol class="passo">
+  <li>calcule o <code>prazo</code> com <code>emprestimo.AddDays(14)</code> e mostre <code>Devolver até: </code> com o formato <code>dddd, dd/MM/yyyy</code>;</li>
+  <li>calcule o <code>atraso</code> em dias com <code>DayNumber</code> (devolução menos prazo);</li>
+  <li>se houver atraso, mostre <code>Atraso: N dias</code> e <code>Multa: R$ </code> com o valor em <code>F2</code>; se não, <code>Devolvido no prazo</code>.</li>
+</ol>
+<p class="try-task">A saída deve ser:</p>
+<pre class="out">Devolver até: sábado, 31/10/2026
+Atraso: 5 dias
+Multa: R$ 7,50</pre>
+<pre class="script" data-file="biblioteca.cs">DateOnly emprestimo = new DateOnly(2026, 10, 17);
+DateOnly devolucao = new DateOnly(2026, 11, 5);
+decimal multaPorDia = 1.50m;
+
+Console.WriteLine($"Emprestado em: {emprestimo:dddd, dd/MM/yyyy}");
+// 1. o prazo (14 dias depois do empréstimo)
+// 2. o atraso, em dias
+// 3. a multa
+</pre>
+<pre class="solucao" data-file="biblioteca.cs">DateOnly emprestimo = new DateOnly(2026, 10, 17);
+DateOnly devolucao = new DateOnly(2026, 11, 5);
+decimal multaPorDia = 1.50m;
+
+Console.WriteLine($"Emprestado em: {emprestimo:dddd, dd/MM/yyyy}");
+DateOnly prazo = emprestimo.AddDays(14);
+Console.WriteLine($"Devolver até: {prazo:dddd, dd/MM/yyyy}");
+
+int atraso = devolucao.DayNumber - prazo.DayNumber;
+if (atraso &gt; 0)
+{
+    Console.WriteLine($"Atraso: {atraso} dias");
+    Console.WriteLine($"Multa: R$ {atraso * multaPorDia:F2}");
+}
+else
+{
+    Console.WriteLine("Devolvido no prazo");
+}
+</pre>
+</div>
+
+<p>Depois de cumprir a missão, troque a devolução para <code>new DateOnly(2026, 10, 30)</code> e veja o <code>Devolvido no prazo</code>. Se quiser ir além: a biblioteca não abre aos domingos; se o prazo cair num domingo, passe para segunda (<code>if (prazo.DayOfWeek == DayOfWeek.Sunday)</code>).</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>DateTime</code> é um momento (data e hora); <code>TimeSpan</code> é uma duração. Momento − momento = duração; momento + duração = momento.</li>
+  <li><code>DateTime.Now</code> muda a cada execução: para testar, use datas fixas com <code>new DateTime(ano, mês, dia)</code>.</li>
+  <li><code>AddDays</code>, <code>AddMonths</code> e companhia devolvem uma data <strong>nova</strong> e cuidam dos meses de tamanhos diferentes.</li>
+  <li>Formate com <code>ToString</code>: <code>dd/MM/yyyy HH:mm</code> (MM = mês, mm = minuto, HH = 24 horas), <code>dddd</code> e <code>MMMM</code> em português, <code>yyyy-MM-dd</code> para arquivos.</li>
+  <li><code>DateOnly</code> e <code>TimeOnly</code> guardam só a data ou só a hora; dias entre <code>DateOnly</code> com <code>DayNumber</code>.</li>
+  <li>Texto → data: <code>TryParse</code> com texto do usuário, <code>ParseExact</code> quando você sabe o formato. Fusos: <code>TimeZoneInfo</code> e <code>DateTimeOffset</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
