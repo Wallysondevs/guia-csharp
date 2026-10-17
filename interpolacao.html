@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Interpolação — textos com $&quot;…{variavel}…&quot; | Guia C#</title>
+<meta name="description" content="Interpolação de strings em C# para quem nunca programou: $&quot;Olá, {nome}!&quot;, contas e métodos dentro das chaves, o ternário entre parênteses, {preco:C} e {nome,-10}, chaves literais {{ }}, comparação com + e string.Format, e os erros reais CS8076, CS8361, CS8086 e FormatException do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Interpolação</span></h1>
+
+<p class="intro">Até agora, para montar uma frase com variáveis, você colou pedaços com <code>+</code>: <code>nome + " tem " + idade + " anos"</code>. Funciona, mas é fácil esquecer um espaço, e as aspas e os <code>+</code> se acumulam. O C# tem um jeito muito mais limpo: a <strong>interpolação</strong>. Você escreve a frase inteira e marca, entre chaves, onde entram os valores: <code>$"{nome} tem {idade} anos"</code>. É a forma que você vai encontrar em quase todo código C# moderno. Nesta aula você vai ver como ela funciona, o que pode ir dentro das chaves e os erros mais comuns.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Montar textos com <code>$"…{variavel}…"</code> e por que isso é melhor que o <code>+</code>.</li>
+  <li>Colocar <strong>contas, métodos e comparações</strong> dentro das chaves.</li>
+  <li>Por que o operador <code>? :</code> precisa de parênteses dentro das chaves.</li>
+  <li>Uma prévia da formatação (<code>{preco:C}</code>, <code>{nome,-10}</code>) e como escrever chaves de verdade (<code>{{ }}</code>).</li>
+  <li>As outras formas (<code>+</code>, <code>string.Format</code>) e os erros reais do compilador.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>, sistema em português do Brasil), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: um formulário com lacunas</h2>
+<p>Pense numa ficha de inscrição impressa: "Eu, ________, de ____ anos, moro em ________." O texto está pronto; só faltam as lacunas. Você preenche cada uma com a informação certa.</p>
+<p>A interpolação é essa ficha. O <code>$</code> antes das aspas avisa: "este texto tem lacunas". Cada lacuna é um par de chaves <code>{ }</code>, e dentro dele vai o que deve ser escrito ali. A palavra "interpolar" quer dizer exatamente isso: "colocar no meio".</p>
+
+<hr>
+
+<h2>1. A primeira interpolação</h2>
+
+<pre class="file" data-file="ola.cs">string nome = "Ana";
+int idade = 29;
+Console.WriteLine($"Olá, {nome}!");
+Console.WriteLine($"{nome} tem {idade} anos.");
+Console.WriteLine(nome + " tem " + idade + " anos.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ola.cs
+Olá, Ana!
+Ana tem 29 anos.
+Ana tem 29 anos.     « o mesmo resultado, com +</pre>
+
+<dl class="anatomy">
+  <dt>$"…"</dt><dd>O cifrão <strong>colado</strong> nas aspas transforma o texto numa <strong>string interpolada</strong>. Sem o <code>$</code>, as chaves seriam só caracteres comuns.</dd>
+  <dt>{nome}</dt><dd>Uma lacuna. Na hora de rodar, o C# troca <code>{nome}</code> pelo valor da variável: <code>Ana</code>.</dd>
+  <dt>{idade}</dt><dd>Números também entram: o C# converte para texto sozinho. Não precisa de <code>+</code>, nem de <code>ToString()</code>.</dd>
+  <dt>linha 5</dt><dd>A mesma frase com <code>+</code>: repare quantas aspas e espaços você precisa controlar. Na interpolação, os espaços ficam visíveis dentro do texto, onde você espera.</dd>
+</dl>
+
+<p>O resultado é uma <code>string</code> normal, que pode ser guardada numa variável: <code>string saudacao = $"Bom dia, {nome}!";</code>.</p>
+
+<div class="trycs" data-goal="out:Ana tem 29 anos e mora em Recife.,src:\$&quot;">
+<p class="try-task"><strong>Missão:</strong> a apresentação da Ana saiu toda grudada: <code>Anatem29anos e mora emRecife.</code>. Reescreva a linha do <code>WriteLine</code> com interpolação (<code>$"…"</code>) para aparecer <code>Ana tem 29 anos e mora em Recife.</code></p>
+<pre class="out">Ana tem 29 anos e mora em Recife.</pre>
+<pre class="script" data-file="apresentacao.cs">string nome = "Ana";
+int idade = 29;
+string cidade = "Recife";
+Console.WriteLine(nome + "tem" + idade + "anos e mora em" + cidade + ".");
+</pre>
+<pre class="solucao" data-file="apresentacao.cs">string nome = "Ana";
+int idade = 29;
+string cidade = "Recife";
+Console.WriteLine($"{nome} tem {idade} anos e mora em {cidade}.");
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Dentro das chaves vai qualquer expressão</h2>
+<p>Uma lacuna não precisa ser só uma variável. Pode ser qualquer <strong>expressão</strong>, qualquer coisa que produza um valor: uma conta, um método, uma comparação.</p>
+
+<pre class="file" data-file="expr.cs">string nome = "Ana";
+int idade = 29;
+decimal preco = 12.5m;
+int quantidade = 3;
+Console.WriteLine($"Ano que vem, {nome} terá {idade + 1} anos.");
+Console.WriteLine($"Total: {preco * quantidade}");
+Console.WriteLine($"Em maiúsculas: {nome.ToUpper()}");
+Console.WriteLine($"O nome tem {nome.Length} letras.");
+Console.WriteLine($"Maior de idade? {idade &gt;= 18}");
+Console.WriteLine($"Média: {(7 + 8) / 2.0}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run expr.cs
+Ano que vem, Ana terá 30 anos.     « a conta foi feita antes de entrar no texto
+Total: 37,5                        « vírgula: a cultura da máquina é pt-BR
+Em maiúsculas: ANA
+O nome tem 3 letras.
+Maior de idade? True
+Média: 7,5</pre>
+
+<p>Repare na linha do <code>idade &gt;= 18</code>: na aula <a href="operadores-comparacao.html">Operadores de Comparação</a>, com <code>+</code>, essa comparação precisava de parênteses (<code>"…" + (idade &gt;= 18)</code>), senão dava erro. Dentro das chaves, ela é calculada sozinha, e o problema some. O mesmo vale para a conta: <code>{idade + 1}</code> nunca vira <code>"291"</code>, como aconteceria com <code>"…" + idade + 1</code> (aula <a href="precedencia.html">Precedência</a>).</p>
+
+<p>Os números aparecem com <strong>vírgula decimal</strong> (<code>37,5</code>) porque a interpolação usa a cultura do computador, que na máquina da Ana é <code>pt-BR</code>. Num computador em inglês, sairia <code>37.5</code> (aula <a href="cultura.html">Cultura</a>).</p>
+
+<div class="tip">
+<strong>Mantenha as chaves simples</strong>
+<p>Dá para pôr muita coisa dentro das chaves, mas uma conta grande no meio da frase fica difícil de ler. Se a expressão passou de uma conta simples, calcule antes numa variável com nome: <code>decimal total = preco * quantidade;</code> e depois <code>$"Total: {total}"</code>.</p>
+</div>
+
+<h3>O <code>? :</code> precisa de parênteses</h3>
+<p>O operador ternário (<code>condição ? sim : não</code>, aula <a href="ternario.html">Operador Ternário</a>) escolhe entre dois valores. Dentro das chaves, ele vai entre <strong>parênteses</strong>:</p>
+
+<pre class="file" data-file="ternario.cs">int idade = 15;
+Console.WriteLine($"Situação: {(idade &gt;= 18 ? "adulto" : "menor")}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ternario.cs
+Situação: menor</pre>
+
+<p>O motivo: dentro das chaves, o <code>:</code> tem outro trabalho, que é começar a <strong>formatação</strong> (próxima seção). Sem os parênteses, o C# acha que <code>"menor"</code> é um formato e se perde. O erro está em <a href="#erros">Quando dá errado</a>. Repare também que dá para usar aspas (<code>"adulto"</code>) dentro das chaves.</p>
+
+<hr>
+
+<h2>3. Formatar e alinhar dentro das chaves</h2>
+<p>Depois do valor, dentro das mesmas chaves, você pode dizer <strong>como</strong> ele deve aparecer: com <code>:</code> vem o <strong>formato</strong>, e com <code>,</code> vem a <strong>largura</strong>.</p>
+
+<pre class="file" data-file="fmt.cs">decimal preco = 1234.5m;
+double media = 7.456;
+Console.WriteLine($"Preço: {preco:C}");
+Console.WriteLine($"Média: {media:F1}");
+Console.WriteLine($"[{"Ana",-8}] [{"Bia",8}]");
+Console.WriteLine($"{3.5}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fmt.cs
+Preço: R$ 1.234,50       « C = moeda (currency), pelas regras do Brasil
+Média: 7,5               « F1 = uma casa depois da vírgula (arredondada)
+[Ana     ] [     Bia]    « ,-8 = 8 de largura, encostado à esquerda; ,8 = à direita
+3,5</pre>
+
+<dl class="anatomy">
+  <dt>{preco:C}</dt><dd>O <code>C</code> (<em>currency</em>, "moeda") mostra o valor como dinheiro, no padrão do país do computador: <code>R$</code>, ponto nos milhares, vírgula e duas casas.</dd>
+  <dt>{media:F1}</dt><dd>"Ponto fixo com 1 casa decimal": 7,456 vira 7,5 (arredondado).</dd>
+  <dt>{"Ana",-8}</dt><dd>Reserva 8 posições para o valor. Negativo: o texto encosta à esquerda e os espaços vão depois. Positivo: encosta à direita.</dd>
+</dl>
+
+<p>Esses formatos são todo um assunto, com uma aula só para eles: <a href="formatacao.html">Formatar Números (N2, C, P)</a>. Aqui basta saber que eles moram <strong>dentro das chaves</strong>, depois do <code>:</code> e da <code>,</code>.</p>
+
+<hr>
+
+<h2>4. Como escrever uma chave de verdade</h2>
+<p>E se você quiser que apareça uma chave no texto, como em <code>{nome}</code>? Numa string interpolada, <strong>dobre</strong> a chave: <code>{{</code> vira <code>{</code> e <code>}}</code> vira <code>}</code>.</p>
+
+<pre class="file" data-file="chaves.cs">string nome = "Ana";
+Console.WriteLine($"{{nome}} vale {nome}");
+Console.WriteLine($"Conjunto: {{ {1}, {2}, {3} }}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run chaves.cs
+{nome} vale Ana          « {{nome}} virou o texto {nome}; {nome} virou Ana
+Conjunto: { 1, 2, 3 }</pre>
+
+<p>Numa string <strong>comum</strong> (sem <code>$</code>), as chaves não têm nada de especial e não precisam ser dobradas. Para textos com muitas chaves, como um JSON, existe a string bruta interpolada <code>$"""…"""</code> <span class="versao">C# 11</span>, explicada em <a href="escapes.html">Escapes e Strings Literais</a>.</p>
+
+<hr>
+
+<h2>Formas diferentes de montar o mesmo texto</h2>
+
+<pre class="file" data-file="formas.cs">string nome = "Ana";
+int idade = 29;
+Console.WriteLine(nome + " tem " + idade + " anos.");
+Console.WriteLine(string.Format("{0} tem {1} anos.", nome, idade));
+Console.WriteLine($"{nome} tem {idade} anos.");
+Console.WriteLine("{0} tem {1} anos.", nome, idade);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run formas.cs
+Ana tem 29 anos.
+Ana tem 29 anos.
+Ana tem 29 anos.
+Ana tem 29 anos.</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Como funciona</th><th>Qual usar</th></tr>
+<tr><td><code>nome + " tem " + idade</code></td><td>Concatenação: cola os pedaços (aula <a href="strings.html">Strings</a>).</td><td>Para juntar dois pedaços: <code>nome + "!"</code>.</td></tr>
+<tr><td><code>string.Format("{0} tem {1}", nome, idade)</code></td><td>Lacunas <strong>numeradas</strong>: <code>{0}</code> é o primeiro valor depois do texto, <code>{1}</code> o segundo.</td><td>Código antigo (antes do C# 6) e textos guardados fora do código, como traduções.</td></tr>
+<tr><td><code>$"{nome} tem {idade}"</code> <span class="versao">C# 6</span></td><td>Interpolação: o valor fica no lugar onde aparece.</td><td><strong>O padrão para quase tudo.</strong> Você lê a frase como ela vai sair.</td></tr>
+<tr><td><code>Console.WriteLine("{0} tem {1}", nome, idade)</code></td><td>O próprio <code>WriteLine</code> faz o <code>string.Format</code>.</td><td>Aparece em tutoriais antigos. Prefira a interpolação.</td></tr>
+</table>
+</div>
+
+<p>O <code>string.Format</code> tem uma armadilha: se o texto pede <code>{1}</code> e você passa um valor só, o erro só aparece <strong>quando o programa roda</strong> (veja abaixo). Na interpolação, o valor está escrito dentro da lacuna, e esse erro não existe.</p>
+
+<hr>
+
+<h2 id="erros">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>Apareceu <code>{nome}</code> na tela, com as chaves</strong>
+<pre class="file" data-file="ei1.cs">string nome = "Ana";
+Console.WriteLine("Olá, {nome}!");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ei1.cs
+/home/ana/cs/ei1.cs(1,8): warning CS0219: A variável "nome" é atribuída, mas seu valor nunca é usado
+Olá, {nome}!</pre>
+<p><strong>O que significa:</strong> faltou o <code>$</code>. Sem ele, <code>{nome}</code> é só texto. O único sinal do compilador é o aviso <code>CS0219</code>: "a variável <code>nome</code> nunca é usada", porque para ele, de fato, não foi. Se a variável fosse usada em outra linha, nem esse aviso apareceria.</p>
+<p><strong>Como consertar:</strong> <code>$"Olá, {nome}!"</code>, com o <code>$</code> colado nas aspas.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8361: Uma expressão condicional não pode ser usada diretamente em uma interpolação de cadeia de caracteres porque ‘:’ encerra a interpolação.</code></strong>
+<pre class="file" data-file="ei2.cs">int idade = 15;
+Console.WriteLine($"Situação: {idade &gt;= 18 ? "adulto" : "menor"}");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ei2.cs
+/home/ana/cs/ei2.cs(2,30): error CS8076: Delimitador de fechamento ausente '}' para expressão interpolada iniciada com '{'.
+/home/ana/cs/ei2.cs(2,32): error CS8361: Uma expressão condicional não pode ser usada diretamente em uma interpolação de cadeia de caracteres porque ‘:’ encerra a interpolação. Use parênteses na expressão condicional.
+/home/ana/cs/ei2.cs(2,58): error CS1003: Erro de sintaxe, "," esperado
+/home/ana/cs/ei2.cs(2,63): error CS1003: Erro de sintaxe, "," esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> quatro erros para um problema só. O que explica tudo é o <code>CS8361</code>: o <code>:</code> do ternário foi lido como o começo de um formato. Os outros (<code>CS8076</code>, <code>CS1003</code>) são consequência. Quando aparecerem vários erros na mesma linha, procure o que faz sentido e conserte esse primeiro.</p>
+<p><strong>Como consertar:</strong> parênteses em volta do ternário, como a própria mensagem pede: <code>{(idade &gt;= 18 ? "adulto" : "menor")}</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8076: Delimitador de fechamento ausente '}' para expressão interpolada iniciada com '{'.</code></strong>
+<pre class="file" data-file="ei3.cs">string nome = "Ana";
+Console.WriteLine($"Olá, {nome!");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ei3.cs
+/home/ana/cs/ei3.cs(2,25): error CS8076: Delimitador de fechamento ausente '}' para expressão interpolada iniciada com '{'.
+/home/ana/cs/ei3.cs(2,27): error CS1073: Token inesperado '");'
+/home/ana/cs/ei3.cs(2,32): error CS1010: Newline em constante
+/home/ana/cs/ei3.cs(3,1): error CS1026: ) esperado
+/home/ana/cs/ei3.cs(3,1): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> uma chave abriu (coluna 25) e não fechou. O C# continuou lendo o resto da linha como se fosse código, e os outros quatro erros são o efeito dominó.</p>
+<p><strong>Como consertar:</strong> feche a chave: <code>$"Olá, {nome}!"</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8086: Um caractere '}' deve ser de escape (ao duplicar) em uma cadeia de caracteres interpolada.</code></strong>
+<pre class="file" data-file="ei5.cs">string nome = "Ana";
+Console.WriteLine($"Olá, {nome}}!");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ei5.cs
+/home/ana/cs/ei5.cs(2,32): error CS8086: Um caractere '}' deve ser de escape (ao duplicar) em uma cadeia de caracteres interpolada.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> sobrou uma <code>}</code> sozinha. Numa string interpolada, para escrever uma chave de verdade, é preciso dobrá-la.</p>
+<p><strong>Como consertar:</strong> apague a chave que sobrou, ou dobre-a (<code>}}</code>) se ela devia aparecer no texto.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0103: O nome "Nome" não existe no contexto atual</code></strong>
+<pre class="file" data-file="ei4.cs">string nome = "Ana";
+Console.WriteLine($"Olá, {Nome}!");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ei4.cs
+/home/ana/cs/ei4.cs(2,27): error CS0103: O nome "Nome" não existe no contexto atual
+/home/ana/cs/ei4.cs(1,8): warning CS0219: A variável "nome" é atribuída, mas seu valor nunca é usado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o que está dentro das chaves é <strong>código</strong>, e o compilador confere. <code>Nome</code> (maiúsculo) não é <code>nome</code>. É uma vantagem da interpolação: um nome errado é pego antes de rodar.</p>
+<p><strong>Como consertar:</strong> escreva o nome exatamente como foi declarado: <code>{nome}</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>System.FormatException: Index (zero based) must be greater than or equal to zero and less than the size of the argument list.</code></strong>
+<pre class="file" data-file="ei6.cs">Console.WriteLine(string.Format("{0} e {1}", "Ana"));
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ei6.cs
+Unhandled exception. System.FormatException: Index (zero based) must be greater than or equal to zero and less than the size of the argument list.
+   at System.Text.ValueStringBuilder.AppendFormatHelper(IFormatProvider provider, String format, ReadOnlySpan`1 args)
+   at System.String.FormatHelper(IFormatProvider provider, String format, ReadOnlySpan`1 args)
+   at System.String.Format(String format, Object arg0)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/ei6.cs:line 1</pre>
+<p><strong>O que significa:</strong> o texto do <code>string.Format</code> pede a lacuna <code>{1}</code> (o segundo valor), mas só um valor foi passado. "O índice (contado do zero) precisa ser menor que o tamanho da lista de argumentos." O compilador não conferiu; o erro só apareceu ao rodar.</p>
+<p><strong>Como consertar:</strong> passe um valor para cada lacuna, ou, melhor, troque por interpolação: <code>$"{nome1} e {nome2}"</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th><th>Exemplo → resultado</th></tr>
+<tr><td><code>$"…{x}…"</code></td><td>põe o valor de <code>x</code> no texto</td><td><code>$"Oi, {nome}"</code> → <code>Oi, Ana</code></td></tr>
+<tr><td><code>{conta}</code></td><td>calcula e põe o resultado</td><td><code>$"{2 + 3}"</code> → <code>5</code></td></tr>
+<tr><td><code>{x.Metodo()}</code></td><td>chama o método e põe o resultado</td><td><code>$"{nome.ToUpper()}"</code> → <code>ANA</code></td></tr>
+<tr><td><code>{(c ? a : b)}</code></td><td>ternário, sempre entre parênteses</td><td><code>$"{(n &gt; 0 ? "sim" : "não")}"</code></td></tr>
+<tr><td><code>{x:formato}</code></td><td>formata o valor</td><td><code>$"{1234.5m:C}"</code> → <code>R$ 1.234,50</code></td></tr>
+<tr><td><code>{x,largura}</code></td><td>alinha à direita em <code>largura</code> posições</td><td><code>$"[{"oi",4}]"</code> → <code>[  oi]</code></td></tr>
+<tr><td><code>{x,-largura}</code></td><td>alinha à esquerda</td><td><code>$"[{"oi",-4}]"</code> → <code>[oi  ]</code></td></tr>
+<tr><td><code>{x,largura:formato}</code></td><td>as duas coisas juntas</td><td><code>$"{preco,12:C}"</code></td></tr>
+<tr><td><code>{{</code> e <code>}}</code></td><td>uma chave de verdade</td><td><code>$"{{x}}"</code> → <code>{x}</code></td></tr>
+<tr><td><code>$@"…"</code>, <code>$"""…"""</code></td><td>interpolação com string literal ou bruta</td><td>aula <a href="escapes.html">Escapes</a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O símbolo que falta</h3>
+<p>Complete para a frase mostrar o nome:</p>
+<div class="ex-code">Console.WriteLine(<input data-answer="$" aria-label="símbolo">"Olá, {nome}!");</div>
+</div>
+
+<div class="exercise">
+<h3>2. A lacuna</h3>
+<p>Complete para mostrar a idade da Ana daqui a 5 anos:</p>
+<div class="ex-code">$"Em 2031, terei <input data-answer="{idade + 5}|{idade+5}|{5 + idade}|{5+idade}" aria-label="lacuna"> anos"</div>
+</div>
+
+<div class="exercise">
+<h3>3. Chaves de verdade</h3>
+<p>O que <code>$"{{{2 * 3}}}"</code> mostra?</p>
+<div class="ex-code">Saída: <input data-answer="{6}" aria-label="saída"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. O que <code>Console.WriteLine("Total: {total}");</code> mostra, com <code>total</code> valendo 50?</p>
+<label><input type="radio" name="q4"> <code>Total: 50</code></label>
+<label><input type="radio" name="q4"> Um erro de compilação.</label>
+<label><input type="radio" name="q4"> <code>Total: {total}</code>, porque falta o <code>$</code>.</label>
+<label><input type="radio" name="q4"> <code>Total: </code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Por que <code>$"{x &gt; 0 ? "sim" : "não"}"</code> não compila?</p>
+<label><input type="radio" name="q5"> Porque não pode haver aspas dentro das chaves.</label>
+<label><input type="radio" name="q5"> Porque o <code>:</code> dentro das chaves começa um formato; o ternário precisa de parênteses.</label>
+<label><input type="radio" name="q5"> Porque <code>x</code> não é uma string.</label>
+<label><input type="radio" name="q5"> Porque o ternário não existe em C#.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Com <code>int idade = 29;</code>, o que <code>$"Ano que vem: {idade + 1}"</code> mostra?</p>
+<label><input type="radio" name="q6"> <code>Ano que vem: 30</code></label>
+<label><input type="radio" name="q6"> <code>Ano que vem: 291</code></label>
+<label><input type="radio" name="q6"> <code>Ano que vem: {idade + 1}</code></label>
+<label><input type="radio" name="q6"> <code>Ano que vem: idade + 1</code></label>
+</div>
+
+<h3>Missão final: o ingresso</h3>
+
+<div class="trycs" data-goal="out:Ana comprou 3 ingressos: total 37\,50,src:\$&quot;,src:\{[^}]*\*[^}]*\}">
+<p class="try-task"><strong>Missão:</strong> a Ana comprou 3 ingressos de R$ 12,50. Escreva <strong>uma</strong> linha com interpolação que mostre <code>Ana comprou 3 ingressos: total 37,50</code>. O total tem de ser calculado <strong>dentro das chaves</strong> (<code>preco * quantidade</code>), e o nome e a quantidade vêm das variáveis.</p>
+<pre class="out">Ana comprou 3 ingressos: total 37,50</pre>
+<pre class="script" data-file="ingresso.cs">string nome = "Ana";
+int quantidade = 3;
+decimal preco = 12.50m;
+// escreva aqui o Console.WriteLine com $"…"
+</pre>
+<pre class="solucao" data-file="ingresso.cs">string nome = "Ana";
+int quantidade = 3;
+decimal preco = 12.50m;
+Console.WriteLine($"{nome} comprou {quantidade} ingressos: total {preco * quantidade}");
+</pre>
+</div>
+
+<p>O total saiu <code>37,50</code>, com duas casas, porque o <code>decimal</code> lembra as casas do <code>12.50m</code>. Experimente <code>{preco * quantidade:C}</code> e veja o <code>R$</code> aparecer.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Interpolação: <code>$"…{valor}…"</code>. O <code>$</code> colado nas aspas; cada <code>{ }</code> é uma lacuna.</li>
+  <li>Dentro das chaves vai qualquer expressão: <code>{idade + 1}</code>, <code>{nome.ToUpper()}</code>, <code>{idade &gt;= 18}</code>.</li>
+  <li>O ternário vai entre parênteses: <code>{(cond ? a : b)}</code>; senão, <code>CS8361</code>.</li>
+  <li><code>{x:C}</code> formata, <code>{x,10}</code> alinha (aula <a href="formatacao.html">Formatar Números</a>). Os números seguem a cultura (<code>37,5</code>).</li>
+  <li>Chave de verdade: <code>{{</code> e <code>}}</code>.</li>
+  <li>Sem o <code>$</code>, as chaves aparecem na tela. Chave sem fechar: <code>CS8076</code>; chave sobrando: <code>CS8086</code>.</li>
+  <li>Prefira a interpolação ao <code>+</code> com vários pedaços e ao <code>string.Format</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
