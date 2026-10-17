@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Projeto Boletim de Notas — arrays, records e uma tabela alinhada | Guia C#</title>
+<meta name="description" content="Projeto passo a passo: o boletim da turma da Ana em C#. Guarda as notas num array, junta nome e nota num record Aluno, acha a maior e a menor nota, conta os aprovados, valida as notas de 0 a 10 com TryParse e imprime uma tabela alinhada com {nome,-10} e {nota,5:N1} e uma expressão switch. Quatro versões com saídas reais do .NET 10 e os erros IndexOutOfRangeException, CS8852 e NullReferenceException.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Projeto <span class="hl">Boletim de Notas</span></h1>
+
+<p class="intro">A Ana dá aula de reforço para uma turma pequena e quer um programa que faça o boletim: ela digita o nome e a nota de cada aluno, e o programa mostra a média da turma, quem tirou a maior e a menor nota, quantos passaram e uma tabela bem alinhada. É o projeto para treinar <strong>arrays</strong> (muitos valores numa variável só) e <strong>records</strong> (os dados de um aluno juntos, num tipo só).</p>
+
+<div class="note">
+<strong>Você vai praticar</strong>
+<ul>
+  <li>Guardar as notas num <a href="arrays.html">array</a> e percorrê-lo com <a href="for.html">for</a> e <a href="foreach.html">foreach</a>.</li>
+  <li>Somar, tirar a média e mostrar com <code>:N1</code> (<a href="formatacao.html">Formatar Números</a>).</li>
+  <li>Juntar nome e nota num <a href="records.html">record</a> <code>Aluno</code> e fazer um array de alunos.</li>
+  <li>Achar o maior, o menor e contar quem passou, num laço só.</li>
+  <li>Validar a entrada num <a href="metodos.html">método</a> <code>LerNota</code>.</li>
+  <li>Decidir a situação com uma <a href="switch-expressoes.html">expressão switch</a> e alinhar a tabela com <code>{nome,-10}</code>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>O que vamos construir</h2>
+<p>O boletim pronto, na máquina da Ana, com cinco alunos:</p>
+
+<pre class="term" data-cwd="~/cs/boletim">$ dotnet run boletim.cs
+=== Boletim da Turma ===
+Quantos alunos (1 a 30)? 5
+Nome do aluno 1: Bruno
+Nota de Bruno (0 a 10): 7,5
+Nome do aluno 2: Carla
+Nota de Carla (0 a 10): 9
+Nome do aluno 3: Diego
+Nota de Diego (0 a 10): 5,5
+Nome do aluno 4: Elisa
+Nota de Elisa (0 a 10): 8
+Nome do aluno 5: Gabriel
+Nota de Gabriel (0 a 10): 3,5
+
+Aluno       Nota  Situação
+---------- -----  -----------
+Bruno        7,5  Aprovado
+Carla        9,0  Aprovado
+Diego        5,5  Recuperação
+Elisa        8,0  Aprovado
+Gabriel      3,5  Reprovado
+---------- -----  -----------
+Média        6,7
+
+Maior nota: 9,0 (Carla)
+Menor nota: 3,5 (Gabriel)
+Aprovados: 3 de 5</pre>
+
+<ol class="passo">
+  <li><a href="#versao1">As notas num array e a média</a>.</li>
+  <li><a href="#versao2">Nome e nota juntos: um array de records</a>.</li>
+  <li><a href="#versao3">Maior, menor e aprovados</a>.</li>
+  <li><a href="#versao4">A tabela alinhada</a> (quantidade de alunos, <code>LerNota</code> e a expressão switch).</li>
+</ol>
+
+<h3>Antes de começar</h3>
+<p>Você precisa ter visto <a href="arrays.html">Arrays</a>, <a href="for.html">for</a>, <a href="foreach.html">foreach</a> e <a href="readline.html">Ler do Teclado</a>; para a versão 2, <a href="records.html">Records</a>; para a 4, <a href="metodos.html">Métodos</a> e <a href="switch-expressoes.html">Expressões switch</a>. É um arquivo só, <code>boletim.cs</code>:</p>
+
+<pre class="term">$ mkdir -p cs/boletim
+$ cd cs/boletim</pre>
+
+<hr>
+
+<h2 id="versao1">Versão 1 · As notas num array e a média</h2>
+<p>Cinco alunos, cinco notas. Daria para criar <code>nota1</code>, <code>nota2</code>… <code>nota5</code>, mas e se a turma tiver 30? Um <a href="arrays.html">array</a> guarda todas numa variável só: <code>notas[0]</code> é a primeira, <code>notas[4]</code> a quinta. E um <code>for</code> passa por todas, sem repetir código.</p>
+
+<pre class="file" data-file="boletim.cs">const int Quantidade = 5;
+
+double[] notas = new double[Quantidade];
+double soma = 0;
+
+Console.WriteLine("=== Boletim da Turma ===");
+for (int i = 0; i &lt; notas.Length; i++)
+{
+    Console.Write($"Nota do aluno {i + 1}: ");
+    notas[i] = double.Parse(Console.ReadLine()!);
+    soma += notas[i];
+}
+
+Console.WriteLine($"Notas: {string.Join(" | ", notas)}");
+Console.WriteLine($"Média da turma: {soma / notas.Length:N1}");
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>const int Quantidade = 5;</code></td><td>O tamanho da turma, com nome.</td></tr>
+<tr><td><code>double[] notas = new double[Quantidade];</code></td><td>Cria um array de 5 <code>double</code>. Um array novo de números já vem com todos os valores em <strong>0</strong>.</td></tr>
+<tr><td><code>for (int i = 0; i &lt; notas.Length; i++)</code></td><td><code>i</code> vale 0, 1, 2, 3 e 4: as posições do array. <code>notas.Length</code> é o tamanho (5). Repare no <code>&lt;</code>: a posição 5 <strong>não existe</strong> (veja o cenário abaixo).</td></tr>
+<tr><td><code>$"Nota do aluno {i + 1}: "</code></td><td>Para a Ana, o primeiro aluno é o 1, não o 0. Por isso mostramos <code>i + 1</code>.</td></tr>
+<tr><td><code>notas[i] = double.Parse(…);</code></td><td>Guarda a nota lida na posição <code>i</code>.</td></tr>
+<tr><td><code>soma += notas[i];</code></td><td>Acumula: <code>soma = soma + notas[i]</code> (<a href="operadores-atribuicao.html">Operadores de Atribuição</a>).</td></tr>
+<tr><td><code>string.Join(" | ", notas)</code></td><td>Junta todas as notas num texto, com <code>" | "</code> entre elas. (Uma vírgula como separador confundiria com a vírgula decimal: <code>7,5, 9, 5,5</code>.)</td></tr>
+<tr><td><code>{soma / notas.Length:N1}</code></td><td>A média com <strong>1 casa decimal</strong> (<code>N1</code>), no formato brasileiro.</td></tr>
+</table>
+</div>
+
+<pre class="term" data-cwd="~/cs/boletim">$ dotnet run boletim.cs
+=== Boletim da Turma ===
+Nota do aluno 1: 7,5
+Nota do aluno 2: 9
+Nota do aluno 3: 5,5
+Nota do aluno 4: 8
+Nota do aluno 5: 3,5
+Notas: 7,5 | 9 | 5,5 | 8 | 3,5
+Média da turma: 6,7</pre>
+
+<div class="cenario">
+<strong><code>i &lt;= notas.Length</code>: <code>IndexOutOfRangeException</code></strong>
+<p>A Ana escreveu <code>for (int i = 0; i &lt;= notas.Length; i++)</code>, com <code>&lt;=</code>:</p>
+<pre class="term" data-cwd="~/cs/boletim">$ dotnet run boletim.cs
+=== Boletim da Turma ===
+Nota do aluno 1: 7,5
+Nota do aluno 2: 9
+Nota do aluno 3: 5,5
+Nota do aluno 4: 8
+Nota do aluno 5: 3,5
+Nota do aluno 6: 10                       « pediu uma nota a mais
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/boletim/boletim.cs:line 10
+$ echo $?
+134</pre>
+<p><strong>O que significa:</strong> "o índice ficou fora dos limites do array". Com <code>&lt;=</code>, o laço também roda com <code>i</code> igual a 5, e a <strong>linha 10</strong> tenta guardar a sexta nota em <code>notas[5]</code>, uma posição que não existe. O C# confere todo acesso a um array e, em vez de estragar a memória ao lado (como o C faria), lança a exceção na hora, com a linha exata.</p>
+<p><strong>Como consertar:</strong> um array de 5 posições vai de <code>0</code> a <code>4</code>; o laço é <code>i &lt; notas.Length</code>. Ou use <code>foreach</code>, que nunca passa do fim.</p>
+</div>
+
+<div class="trycs" data-stdin="7,5\n9\n5,5\n8\n3,5\n" data-goal="out:Média da turma: 6\,7,src:soma\s*\+=">
+<p class="try-task"><strong>Missão (versão 1):</strong> o programa lê as notas, mas a média sai <code>0,0</code>. Dentro do laço, some cada nota em <code>soma</code> com <code>soma += notas[i];</code>. A entrada da missão é <code>7,5</code>, <code>9</code>, <code>5,5</code>, <code>8</code> e <code>3,5</code>.</p>
+<pre class="script" data-file="boletim.cs">const int Quantidade = 5;
+
+double[] notas = new double[Quantidade];
+double soma = 0;
+
+Console.WriteLine("=== Boletim da Turma ===");
+for (int i = 0; i &lt; notas.Length; i++)
+{
+    Console.Write($"Nota do aluno {i + 1}: ");
+    notas[i] = double.Parse(Console.ReadLine()!);
+    // some a nota em soma
+}
+
+Console.WriteLine($"Notas: {string.Join(" | ", notas)}");
+Console.WriteLine($"Média da turma: {soma / notas.Length:N1}");
+</pre>
+<pre class="solucao" data-file="boletim.cs">const int Quantidade = 5;
+
+double[] notas = new double[Quantidade];
+double soma = 0;
+
+Console.WriteLine("=== Boletim da Turma ===");
+for (int i = 0; i &lt; notas.Length; i++)
+{
+    Console.Write($"Nota do aluno {i + 1}: ");
+    notas[i] = double.Parse(Console.ReadLine()!);
+    soma += notas[i];
+}
+
+Console.WriteLine($"Notas: {string.Join(" | ", notas)}");
+Console.WriteLine($"Média da turma: {soma / notas.Length:N1}");
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao2">Versão 2 · Nome e nota juntos: um array de records</h2>
+<p>Notas sem nome não servem para um boletim. Daria para ter dois arrays, um de nomes e um de notas, e cuidar para a posição 2 de um combinar com a posição 2 do outro. Mais simples: um tipo novo, <code>Aluno</code>, que guarda o nome <strong>e</strong> a nota de uma pessoa. Em C#, a forma mais curta de criar um tipo assim é um <a href="records.html">record</a>.</p>
+
+<pre class="file" data-file="boletim.cs">const int Quantidade = 5;
+
+Aluno[] turma = new Aluno[Quantidade];
+double soma = 0;
+
+Console.WriteLine("=== Boletim da Turma ===");
+for (int i = 0; i &lt; turma.Length; i++)
+{
+    Console.Write($"Nome do aluno {i + 1}: ");
+    string nome = Console.ReadLine()!;
+    Console.Write($"Nota de {nome}: ");
+    double nota = double.Parse(Console.ReadLine()!);
+    turma[i] = new Aluno(nome, nota);
+    soma += nota;
+}
+
+Console.WriteLine();
+foreach (Aluno aluno in turma)
+{
+    Console.WriteLine($"{aluno.Nome}: {aluno.Nota:N1}");
+}
+Console.WriteLine($"Média da turma: {soma / turma.Length:N1}");
+
+record Aluno(string Nome, double Nota);
+</pre>
+
+<dl class="anatomy">
+  <dt>record Aluno(string Nome, double Nota);</dt><dd>Uma linha cria um tipo com duas propriedades, <code>Nome</code> e <code>Nota</code>, e um construtor que recebe as duas. Fica no <strong>fim</strong> do arquivo: num arquivo com instruções de nível superior, os tipos vêm depois delas (<a href="top-level.html">Program.cs e o Main</a>).</dd>
+  <dt>Aluno[] turma = new Aluno[Quantidade];</dt><dd>Um array de 5 <strong>lugares</strong> para alunos. Ainda vazios: cada posição começa com <code>null</code>.</dd>
+  <dt>Console.Write($"Nota de {nome}: ");</dt><dd>A pergunta usa o nome que acabou de ser lido: a Ana sabe de quem é a nota.</dd>
+  <dt>turma[i] = new Aluno(nome, nota);</dt><dd>Cria o aluno e o guarda na posição <code>i</code>.</dd>
+  <dt>foreach (Aluno aluno in turma)</dt><dd>"Para cada aluno da turma": o <a href="foreach.html">foreach</a> passa por todos, do primeiro ao último, sem índice e sem risco de passar do fim.</dd>
+  <dt>{aluno.Nota:N1}</dt><dd>Sempre com uma casa: <code>9</code> aparece como <code>9,0</code>.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs/boletim">$ dotnet run boletim.cs
+=== Boletim da Turma ===
+Nome do aluno 1: Bruno
+Nota de Bruno: 7,5
+Nome do aluno 2: Carla
+Nota de Carla: 9
+Nome do aluno 3: Diego
+Nota de Diego: 5,5
+Nome do aluno 4: Elisa
+Nota de Elisa: 8
+Nome do aluno 5: Gabriel
+Nota de Gabriel: 3,5
+
+Bruno: 7,5
+Carla: 9,0
+Diego: 5,5
+Elisa: 8,0
+Gabriel: 3,5
+Média da turma: 6,7</pre>
+
+<p>Como o nome é lido numa linha só dele, nomes com espaço, como <code>Ana Paula</code>, funcionam sem nenhum cuidado a mais.</p>
+
+<div class="cenario">
+<strong>Corrigir uma nota: erro <code>CS8852</code></strong>
+<p>A Ana errou a nota do Bruno e tentou trocar direto:</p>
+<pre class="file" data-file="nota.cs">Aluno bruno = new Aluno("Bruno", 7.5);
+bruno.Nota = 8;
+Console.WriteLine(bruno);
+
+record Aluno(string Nome, double Nota);
+</pre>
+<pre class="term" data-cwd="~/cs/boletim">$ dotnet run nota.cs
+/home/ana/cs/boletim/nota.cs(2,1): error CS8852: A propriedade somente de inicialização ou o indexador 'Aluno.Nota' só pode ser atribuído em um inicializador de objeto, em 'this' ou 'base' em um construtor de instância ou em um acessador 'init'.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> as propriedades de um record criado assim são <code>init</code>: só recebem valor na <strong>criação</strong> do objeto (veja <a href="readonly.html">readonly e init</a>). Depois, o aluno não muda. Isso é de propósito: um dado que não muda não pode ser estragado por engano em outra parte do programa.</p>
+<p><strong>Como consertar:</strong> crie um aluno novo, igual ao antigo mas com a nota trocada, com <code>with</code>:</p>
+<pre class="file" data-file="nota.cs">Aluno bruno = new Aluno("Bruno", 7.5);
+Aluno corrigido = bruno with { Nota = 8 };
+Console.WriteLine(bruno);
+Console.WriteLine(corrigido);
+
+record Aluno(string Nome, double Nota);
+</pre>
+<pre class="term" data-cwd="~/cs/boletim">$ dotnet run nota.cs
+Aluno { Nome = Bruno, Nota = 7,5 }
+Aluno { Nome = Bruno, Nota = 8 }</pre>
+<p>De quebra, o record sabe se mostrar: o <code>Console.WriteLine(bruno)</code> escreve o nome do tipo e as propriedades. No boletim, basta guardar o aluno corrigido no lugar do antigo: <code>turma[0] = turma[0] with { Nota = 8 };</code>.</p>
+</div>
+
+<div class="trycs" data-stdin="Bruno\n7,5\nCarla\n9\nDiego\n5,5\nElisa\n8\nGabriel\n3,5\n" data-goal="out:Bruno: 7\,5,out:Carla: 9\,0,out:Gabriel: 3\,5,src:foreach\s*\(">
+<p class="try-task"><strong>Missão (versão 2):</strong> o programa lê os cinco alunos, mas só mostra a média. Antes dela, escreva um <code>foreach</code> que mostra cada aluno no formato <code>Bruno: 7,5</code>, usando <code>aluno.Nome</code> e <code>aluno.Nota</code> com <code>:N1</code>.</p>
+<pre class="script" data-file="boletim.cs">const int Quantidade = 5;
+
+Aluno[] turma = new Aluno[Quantidade];
+double soma = 0;
+
+Console.WriteLine("=== Boletim da Turma ===");
+for (int i = 0; i &lt; turma.Length; i++)
+{
+    Console.Write($"Nome do aluno {i + 1}: ");
+    string nome = Console.ReadLine()!;
+    Console.Write($"Nota de {nome}: ");
+    double nota = double.Parse(Console.ReadLine()!);
+    turma[i] = new Aluno(nome, nota);
+    soma += nota;
+}
+
+Console.WriteLine();
+// mostre cada aluno no formato "Bruno: 7,5"
+Console.WriteLine($"Média da turma: {soma / turma.Length:N1}");
+
+record Aluno(string Nome, double Nota);
+</pre>
+<pre class="solucao" data-file="boletim.cs">const int Quantidade = 5;
+
+Aluno[] turma = new Aluno[Quantidade];
+double soma = 0;
+
+Console.WriteLine("=== Boletim da Turma ===");
+for (int i = 0; i &lt; turma.Length; i++)
+{
+    Console.Write($"Nome do aluno {i + 1}: ");
+    string nome = Console.ReadLine()!;
+    Console.Write($"Nota de {nome}: ");
+    double nota = double.Parse(Console.ReadLine()!);
+    turma[i] = new Aluno(nome, nota);
+    soma += nota;
+}
+
+Console.WriteLine();
+foreach (Aluno aluno in turma)
+{
+    Console.WriteLine($"{aluno.Nome}: {aluno.Nota:N1}");
+}
+Console.WriteLine($"Média da turma: {soma / turma.Length:N1}");
+
+record Aluno(string Nome, double Nota);
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao3">Versão 3 · Maior, menor e aprovados</h2>
+<p>Agora as estatísticas. Para achar a maior nota, o jeito clássico é: "o maior até agora é o primeiro aluno; para cada um dos outros, se a nota dele for maior, ele passa a ser o maior". Guardamos o <strong>aluno</strong> inteiro, e não só a nota, porque assim sabemos também o <strong>nome</strong>. A menor nota é igual, com <code>&lt;</code>. E os aprovados são um contador que sobe quando a nota é pelo menos 6.</p>
+
+<pre class="file" data-file="boletim.cs">const int Quantidade = 5;
+const double MediaParaAprovar = 6.0;
+
+Aluno[] turma = new Aluno[Quantidade];
+double soma = 0;
+
+Console.WriteLine("=== Boletim da Turma ===");
+for (int i = 0; i &lt; turma.Length; i++)
+{
+    Console.Write($"Nome do aluno {i + 1}: ");
+    string nome = Console.ReadLine()!;
+    Console.Write($"Nota de {nome}: ");
+    double nota = double.Parse(Console.ReadLine()!);
+    turma[i] = new Aluno(nome, nota);
+    soma += nota;
+}
+
+Aluno maior = turma[0];
+Aluno menor = turma[0];
+int aprovados = 0;
+foreach (Aluno aluno in turma)
+{
+    if (aluno.Nota &gt; maior.Nota)
+    {
+        maior = aluno;
+    }
+    if (aluno.Nota &lt; menor.Nota)
+    {
+        menor = aluno;
+    }
+    if (aluno.Nota &gt;= MediaParaAprovar)
+    {
+        aprovados++;
+    }
+}
+
+Console.WriteLine();
+Console.WriteLine($"Média da turma: {soma / turma.Length:N1}");
+Console.WriteLine($"Maior nota: {maior.Nota:N1} ({maior.Nome})");
+Console.WriteLine($"Menor nota: {menor.Nota:N1} ({menor.Nome})");
+Console.WriteLine($"Aprovados: {aprovados} de {turma.Length}");
+
+record Aluno(string Nome, double Nota);
+</pre>
+
+<dl class="anatomy">
+  <dt>const double MediaParaAprovar = 6.0;</dt><dd>A nota mínima para passar, com nome. Ninguém precisa adivinhar o que é aquele <code>6.0</code> no meio do código.</dd>
+  <dt>Aluno maior = turma[0];</dt><dd>O maior "até agora" começa sendo o primeiro aluno.</dd>
+  <dt>if (aluno.Nota &gt; maior.Nota) maior = aluno;</dt><dd>Compara com o maior <strong>até agora</strong>; se ganhou, passa a ser ele.</dd>
+  <dt>if (aluno.Nota &gt;= MediaParaAprovar) aprovados++;</dt><dd>Conta quem passou. <code>&gt;=</code>: quem tirou exatamente 6 também passa.</dd>
+  <dt>maior.Nome</dt><dd>Com o aluno guardado, temos todos os dados dele.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs/boletim">$ dotnet run boletim.cs
+=== Boletim da Turma ===
+Nome do aluno 1: Bruno
+Nota de Bruno: 7,5
+Nome do aluno 2: Carla
+Nota de Carla: 9
+Nome do aluno 3: Diego
+Nota de Diego: 5,5
+Nome do aluno 4: Elisa
+Nota de Elisa: 8
+Nome do aluno 5: Gabriel
+Nota de Gabriel: 3,5
+
+Média da turma: 6,7
+Maior nota: 9,0 (Carla)
+Menor nota: 3,5 (Gabriel)
+Aprovados: 3 de 5</pre>
+
+<div class="tip">
+<strong>E se houver empate? E o LINQ?</strong>
+<p>Com <code>&gt;</code>, o primeiro aluno com a maior nota fica com o título; com <code>&gt;=</code>, ficaria o último. Nenhum dos dois está errado, mas é bom saber qual você escolheu.</p>
+<p>Quando você chegar ao <a href="linq.html">LINQ</a>, as mesmas contas cabem em uma linha cada: <code>turma.Average(a =&gt; a.Nota)</code>, <code>turma.MaxBy(a =&gt; a.Nota)</code> e <code>turma.Count(a =&gt; a.Nota &gt;= MediaParaAprovar)</code> (veja <a href="linq-agregar.html">Agregar</a>). Fazer o laço à mão primeiro ajuda a entender o que o LINQ faz por dentro.</p>
+</div>
+
+<div class="trycs" data-stdin="Bruno\n7,5\nCarla\n9\nDiego\n5,5\nElisa\n8\nGabriel\n3,5\n" data-goal="out:Menor nota: 3\,5 (Gabriel),out:Aprovados: 3 de 5">
+<p class="try-task"><strong>Missão (versão 3):</strong> o programa já acha a maior nota, mas a menor sai sempre a do Bruno e os aprovados dão 0. No <code>foreach</code>, atualize <code>menor</code> (como foi feito com <code>maior</code>, mas com <code>&lt;</code>) e conte os aprovados (<code>aluno.Nota &gt;= MediaParaAprovar</code>).</p>
+<pre class="script" data-file="boletim.cs">const int Quantidade = 5;
+const double MediaParaAprovar = 6.0;
+
+Aluno[] turma = new Aluno[Quantidade];
+double soma = 0;
+
+Console.WriteLine("=== Boletim da Turma ===");
+for (int i = 0; i &lt; turma.Length; i++)
+{
+    Console.Write($"Nome do aluno {i + 1}: ");
+    string nome = Console.ReadLine()!;
+    Console.Write($"Nota de {nome}: ");
+    double nota = double.Parse(Console.ReadLine()!);
+    turma[i] = new Aluno(nome, nota);
+    soma += nota;
+}
+
+Aluno maior = turma[0];
+Aluno menor = turma[0];
+int aprovados = 0;
+foreach (Aluno aluno in turma)
+{
+    if (aluno.Nota &gt; maior.Nota)
+    {
+        maior = aluno;
+    }
+    // atualize "menor" e conte os aprovados
+}
+
+Console.WriteLine();
+Console.WriteLine($"Média da turma: {soma / turma.Length:N1}");
+Console.WriteLine($"Maior nota: {maior.Nota:N1} ({maior.Nome})");
+Console.WriteLine($"Menor nota: {menor.Nota:N1} ({menor.Nome})");
+Console.WriteLine($"Aprovados: {aprovados} de {turma.Length}");
+
+record Aluno(string Nome, double Nota);
+</pre>
+<pre class="solucao" data-file="boletim.cs">const int Quantidade = 5;
+const double MediaParaAprovar = 6.0;
+
+Aluno[] turma = new Aluno[Quantidade];
+double soma = 0;
+
+Console.WriteLine("=== Boletim da Turma ===");
+for (int i = 0; i &lt; turma.Length; i++)
+{
+    Console.Write($"Nome do aluno {i + 1}: ");
+    string nome = Console.ReadLine()!;
+    Console.Write($"Nota de {nome}: ");
+    double nota = double.Parse(Console.ReadLine()!);
+    turma[i] = new Aluno(nome, nota);
+    soma += nota;
+}
+
+Aluno maior = turma[0];
+Aluno menor = turma[0];
+int aprovados = 0;
+foreach (Aluno aluno in turma)
+{
+    if (aluno.Nota &gt; maior.Nota)
+    {
+        maior = aluno;
+    }
+    if (aluno.Nota &lt; menor.Nota)
+    {
+        menor = aluno;
+    }
+    if (aluno.Nota &gt;= MediaParaAprovar)
+    {
+        aprovados++;
+    }
+}
+
+Console.WriteLine();
+Console.WriteLine($"Média da turma: {soma / turma.Length:N1}");
+Console.WriteLine($"Maior nota: {maior.Nota:N1} ({maior.Nome})");
+Console.WriteLine($"Menor nota: {menor.Nota:N1} ({menor.Nome})");
+Console.WriteLine($"Aprovados: {aprovados} de {turma.Length}");
+
+record Aluno(string Nome, double Nota);
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao4">Versão 4 · A tabela alinhada</h2>
+<p>A versão final tem quatro novidades:</p>
+<ul>
+  <li><strong>A quantidade de alunos</strong> é perguntada no começo (de 1 a 30), e o array é criado com o tamanho exato.</li>
+  <li><strong>Um método <code>LerNota</code></strong> pergunta de novo enquanto a nota não for um número de 0 a 10.</li>
+  <li><strong>Um método <code>Situacao</code></strong>, feito com uma <a href="switch-expressoes.html">expressão switch</a>, devolve <code>"Aprovado"</code>, <code>"Recuperação"</code> (de 4 a 5,9) ou <code>"Reprovado"</code>.</li>
+  <li><strong>Uma tabela</strong>, com as colunas alinhadas pela <strong>largura</strong> dentro da interpolação.</li>
+</ul>
+
+<pre class="file" data-file="boletim.cs">const int MaxAlunos = 30;
+const double MediaParaAprovar = 6.0;
+
+Console.WriteLine("=== Boletim da Turma ===");
+Console.Write($"Quantos alunos (1 a {MaxAlunos})? ");
+if (!int.TryParse(Console.ReadLine(), out int quantidade) || quantidade &lt; 1 || quantidade &gt; MaxAlunos)
+{
+    Console.WriteLine("Quantidade inválida.");
+    return;
+}
+
+Aluno[] turma = new Aluno[quantidade];
+for (int i = 0; i &lt; turma.Length; i++)
+{
+    Console.Write($"Nome do aluno {i + 1}: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    double nota = LerNota(nome);
+    turma[i] = new Aluno(nome, nota);
+}
+
+double soma = 0;
+Aluno maior = turma[0];
+Aluno menor = turma[0];
+int aprovados = 0;
+
+Console.WriteLine();
+Console.WriteLine($"{"Aluno",-10} {"Nota",5}  Situação");
+Console.WriteLine("---------- -----  -----------");
+foreach (Aluno aluno in turma)
+{
+    Console.WriteLine($"{aluno.Nome,-10} {aluno.Nota,5:N1}  {Situacao(aluno.Nota)}");
+    soma += aluno.Nota;
+    if (aluno.Nota &gt; maior.Nota)
+    {
+        maior = aluno;
+    }
+    if (aluno.Nota &lt; menor.Nota)
+    {
+        menor = aluno;
+    }
+    if (aluno.Nota &gt;= MediaParaAprovar)
+    {
+        aprovados++;
+    }
+}
+Console.WriteLine("---------- -----  -----------");
+Console.WriteLine($"{"Média",-10} {soma / turma.Length,5:N1}");
+
+Console.WriteLine();
+Console.WriteLine($"Maior nota: {maior.Nota:N1} ({maior.Nome})");
+Console.WriteLine($"Menor nota: {menor.Nota:N1} ({menor.Nome})");
+Console.WriteLine($"Aprovados: {aprovados} de {turma.Length}");
+
+static double LerNota(string nome)
+{
+    while (true)
+    {
+        Console.Write($"Nota de {nome} (0 a 10): ");
+        string? texto = Console.ReadLine();
+        if (texto is null)
+        {
+            Console.WriteLine();
+            Console.WriteLine("A entrada acabou antes do fim.");
+            Environment.Exit(1);
+        }
+        if (double.TryParse(texto, out double nota) &amp;&amp; nota &gt;= 0 &amp;&amp; nota &lt;= 10)
+        {
+            return nota;
+        }
+        Console.WriteLine("Nota inválida. Digite um número de 0 a 10.");
+    }
+}
+
+static string Situacao(double nota) =&gt; nota switch
+{
+    &gt;= MediaParaAprovar =&gt; "Aprovado",
+    &gt;= 4.0 =&gt; "Recuperação",
+    _ =&gt; "Reprovado"
+};
+
+record Aluno(string Nome, double Nota);
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na interpolação</th><th>O que faz</th><th>Exemplo</th></tr>
+<tr><td><code>{aluno.Nome,-10}</code></td><td>Texto numa coluna de 10 posições, <strong>encostado à esquerda</strong> (o <code>-</code>); o resto é preenchido com espaços.</td><td><code>[Bruno     ]</code></td></tr>
+<tr><td><code>{aluno.Nome,10}</code></td><td>O mesmo, encostado à direita.</td><td><code>[     Bruno]</code></td></tr>
+<tr><td><code>{aluno.Nota,5:N1}</code></td><td>Primeiro a largura, depois o formato: 1 casa decimal numa coluna de 5, à direita. As vírgulas ficam uma embaixo da outra.</td><td><code>[  7,5]</code></td></tr>
+<tr><td><code>{"Nota",5}</code></td><td>O título com a mesma largura dos números.</td><td><code>[ Nota]</code></td></tr>
+</table>
+</div>
+
+<dl class="anatomy">
+  <dt>if (!int.TryParse(…) || quantidade &lt; 1 || quantidade &gt; MaxAlunos)</dt><dd>Recusa a quantidade se não for número, se for menor que 1 ou maior que 30.</dd>
+  <dt>Aluno[] turma = new Aluno[quantidade];</dt><dd>O array com o tamanho exato da turma. Veja no cenário abaixo por que isso importa.</dd>
+  <dt>(Console.ReadLine() ?? "").Trim()</dt><dd>Tira os espaços que a Ana digitou sem querer antes ou depois do nome, para não estragar o alinhamento.</dd>
+  <dt>static double LerNota(string nome)</dt><dd>Pergunta até vir uma nota válida e a devolve. <code>&amp;&amp;</code> exige as três coisas: ser número, ser pelo menos 0 e no máximo 10.</dd>
+  <dt>Environment.Exit(1);</dt><dd>Se a entrada acabou (<code>null</code>), não há como terminar o boletim: o programa encerra com o código de saída 1. Sem isso, o laço perguntaria a nota para sempre.</dd>
+  <dt>nota switch { &gt;= MediaParaAprovar =&gt; "Aprovado", … }</dt><dd>Uma <a href="switch-expressoes.html">expressão switch</a> com <a href="pattern-matching.html">padrões relacionais</a>: testa de cima para baixo e devolve o texto do primeiro que combina. O <code>_</code> é "qualquer outro valor". O <code>=&gt;</code> logo depois de <code>Situacao(double nota)</code> faz do método uma linha só (um <em>expression-bodied member</em>).</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs/boletim">$ dotnet run boletim.cs
+=== Boletim da Turma ===
+Quantos alunos (1 a 30)? 3
+Nome do aluno 1: Bruno
+Nota de Bruno (0 a 10): 7,5
+Nome do aluno 2: Fábio
+Nota de Fábio (0 a 10): 6
+Nome do aluno 3: Ana Paula
+Nota de Ana Paula (0 a 10): 11
+Nota inválida. Digite um número de 0 a 10.
+Nota de Ana Paula (0 a 10): 8
+
+Aluno       Nota  Situação
+---------- -----  -----------
+Bruno        7,5  Aprovado
+Fábio        6,0  Aprovado
+Ana Paula    8,0  Aprovado
+---------- -----  -----------
+Média        7,2
+
+Maior nota: 8,0 (Ana Paula)
+Menor nota: 6,0 (Fábio)
+Aprovados: 3 de 3</pre>
+
+<p>O <code>11</code> foi recusado, e os nomes com acento (<code>Fábio</code>, <code>Média</code>) ficaram alinhados: no C#, a largura conta <strong>letras</strong>, não bytes. (Em C, o <code>printf</code> conta bytes, e cada letra acentuada desalinha a coluna.)</p>
+
+<div class="cenario">
+<strong>Um array de 30 para 3 alunos: <code>NullReferenceException</code></strong>
+<p>Na primeira tentativa, a Ana criou o array sempre com 30 lugares (<code>new Aluno[MaxAlunos]</code>) e leu só os <code>quantidade</code> primeiros:</p>
+<pre class="term" data-cwd="~/cs/boletim">$ dotnet run boletim.cs
+=== Boletim da Turma ===
+Quantos alunos (1 a 30)? 3
+Nome do aluno 1: Bruno
+Nota de Bruno (0 a 10): 7,5
+Nome do aluno 2: Carla
+Nota de Carla (0 a 10): 9
+Nome do aluno 3: Diego
+Nota de Diego (0 a 10): 5,5
+
+Aluno       Nota  Situação
+---------- -----  -----------
+Bruno        7,5  Aprovado
+Carla        9,0  Aprovado
+Diego        5,5  Recuperação
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/boletim/boletim.cs:line 31</pre>
+<p><strong>O que aconteceu:</strong> os três alunos saíram, e o programa caiu no quarto. O <code>foreach</code> passa pelas <strong>30</strong> posições, e da quarta em diante não há aluno: a posição guarda <code>null</code>. Na linha 31, <code>aluno.Nome</code> tenta ler o nome de "ninguém". O compilador não avisou, porque um <code>new Aluno[30]</code> parece um array de alunos, mas nasce cheio de <code>null</code> (veja <a href="referencias-anulaveis.html">Referências Anuláveis</a>).</p>
+<p><strong>Como consertar:</strong> crie o array do tamanho certo, <code>new Aluno[quantidade]</code>, como na versão final. Quando o tamanho não é conhecido de antemão, use uma <a href="list.html">List&lt;Aluno&gt;</a>, que cresce a cada <code>Add</code> (é o desafio 1).</p>
+</div>
+
+<div class="trycs" data-stdin="5\nBruno\n7,5\nCarla\n9\nDiego\n5,5\nElisa\n8\nGabriel\n3,5\n" data-goal="out:Bruno        7\,5  Aprovado,out:Gabriel      3\,5  Reprovado,src:\{aluno\.Nome\s*\,\s*-10\}">
+<p class="try-task"><strong>Missão (versão 4):</strong> a tabela sai torta: <code>Bruno 7,5 Aprovado</code>. Na linha de cada aluno, use as larguras: <code>{aluno.Nome,-10}</code> e <code>{aluno.Nota,5:N1}</code>, com <strong>dois</strong> espaços antes da situação, como no título. A entrada da missão é a turma da Ana.</p>
+<pre class="script" data-file="boletim.cs">const int MaxAlunos = 30;
+const double MediaParaAprovar = 6.0;
+
+Console.WriteLine("=== Boletim da Turma ===");
+Console.Write($"Quantos alunos (1 a {MaxAlunos})? ");
+if (!int.TryParse(Console.ReadLine(), out int quantidade) || quantidade &lt; 1 || quantidade &gt; MaxAlunos)
+{
+    Console.WriteLine("Quantidade inválida.");
+    return;
+}
+
+Aluno[] turma = new Aluno[quantidade];
+for (int i = 0; i &lt; turma.Length; i++)
+{
+    Console.Write($"Nome do aluno {i + 1}: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    double nota = LerNota(nome);
+    turma[i] = new Aluno(nome, nota);
+}
+
+double soma = 0;
+Aluno maior = turma[0];
+Aluno menor = turma[0];
+int aprovados = 0;
+
+Console.WriteLine();
+Console.WriteLine($"{"Aluno",-10} {"Nota",5}  Situação");
+Console.WriteLine("---------- -----  -----------");
+foreach (Aluno aluno in turma)
+{
+    Console.WriteLine($"{aluno.Nome} {aluno.Nota:N1} {Situacao(aluno.Nota)}");
+    soma += aluno.Nota;
+    if (aluno.Nota &gt; maior.Nota)
+    {
+        maior = aluno;
+    }
+    if (aluno.Nota &lt; menor.Nota)
+    {
+        menor = aluno;
+    }
+    if (aluno.Nota &gt;= MediaParaAprovar)
+    {
+        aprovados++;
+    }
+}
+Console.WriteLine("---------- -----  -----------");
+Console.WriteLine($"{"Média",-10} {soma / turma.Length,5:N1}");
+
+Console.WriteLine();
+Console.WriteLine($"Maior nota: {maior.Nota:N1} ({maior.Nome})");
+Console.WriteLine($"Menor nota: {menor.Nota:N1} ({menor.Nome})");
+Console.WriteLine($"Aprovados: {aprovados} de {turma.Length}");
+
+static double LerNota(string nome)
+{
+    while (true)
+    {
+        Console.Write($"Nota de {nome} (0 a 10): ");
+        string? texto = Console.ReadLine();
+        if (texto is null)
+        {
+            Console.WriteLine();
+            Console.WriteLine("A entrada acabou antes do fim.");
+            Environment.Exit(1);
+        }
+        if (double.TryParse(texto, out double nota) &amp;&amp; nota &gt;= 0 &amp;&amp; nota &lt;= 10)
+        {
+            return nota;
+        }
+        Console.WriteLine("Nota inválida. Digite um número de 0 a 10.");
+    }
+}
+
+static string Situacao(double nota) =&gt; nota switch
+{
+    &gt;= MediaParaAprovar =&gt; "Aprovado",
+    &gt;= 4.0 =&gt; "Recuperação",
+    _ =&gt; "Reprovado"
+};
+
+record Aluno(string Nome, double Nota);
+</pre>
+<pre class="solucao" data-file="boletim.cs">const int MaxAlunos = 30;
+const double MediaParaAprovar = 6.0;
+
+Console.WriteLine("=== Boletim da Turma ===");
+Console.Write($"Quantos alunos (1 a {MaxAlunos})? ");
+if (!int.TryParse(Console.ReadLine(), out int quantidade) || quantidade &lt; 1 || quantidade &gt; MaxAlunos)
+{
+    Console.WriteLine("Quantidade inválida.");
+    return;
+}
+
+Aluno[] turma = new Aluno[quantidade];
+for (int i = 0; i &lt; turma.Length; i++)
+{
+    Console.Write($"Nome do aluno {i + 1}: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    double nota = LerNota(nome);
+    turma[i] = new Aluno(nome, nota);
+}
+
+double soma = 0;
+Aluno maior = turma[0];
+Aluno menor = turma[0];
+int aprovados = 0;
+
+Console.WriteLine();
+Console.WriteLine($"{"Aluno",-10} {"Nota",5}  Situação");
+Console.WriteLine("---------- -----  -----------");
+foreach (Aluno aluno in turma)
+{
+    Console.WriteLine($"{aluno.Nome,-10} {aluno.Nota,5:N1}  {Situacao(aluno.Nota)}");
+    soma += aluno.Nota;
+    if (aluno.Nota &gt; maior.Nota)
+    {
+        maior = aluno;
+    }
+    if (aluno.Nota &lt; menor.Nota)
+    {
+        menor = aluno;
+    }
+    if (aluno.Nota &gt;= MediaParaAprovar)
+    {
+        aprovados++;
+    }
+}
+Console.WriteLine("---------- -----  -----------");
+Console.WriteLine($"{"Média",-10} {soma / turma.Length,5:N1}");
+
+Console.WriteLine();
+Console.WriteLine($"Maior nota: {maior.Nota:N1} ({maior.Nome})");
+Console.WriteLine($"Menor nota: {menor.Nota:N1} ({menor.Nome})");
+Console.WriteLine($"Aprovados: {aprovados} de {turma.Length}");
+
+static double LerNota(string nome)
+{
+    while (true)
+    {
+        Console.Write($"Nota de {nome} (0 a 10): ");
+        string? texto = Console.ReadLine();
+        if (texto is null)
+        {
+            Console.WriteLine();
+            Console.WriteLine("A entrada acabou antes do fim.");
+            Environment.Exit(1);
+        }
+        if (double.TryParse(texto, out double nota) &amp;&amp; nota &gt;= 0 &amp;&amp; nota &lt;= 10)
+        {
+            return nota;
+        }
+        Console.WriteLine("Nota inválida. Digite um número de 0 a 10.");
+    }
+}
+
+static string Situacao(double nota) =&gt; nota switch
+{
+    &gt;= MediaParaAprovar =&gt; "Aprovado",
+    &gt;= 4.0 =&gt; "Recuperação",
+    _ =&gt; "Reprovado"
+};
+
+record Aluno(string Nome, double Nota);
+</pre>
+</div>
+
+<hr>
+
+<h2>O programa completo</h2>
+<p>A versão final é a versão 4, acima. O que o projeto juntou: <a href="arrays.html">arrays</a>, <a href="for.html">for</a> e <a href="foreach.html">foreach</a>, um <a href="records.html">record</a>, <a href="constantes.html">constantes</a>, <a href="parse.html">TryParse</a>, dois <a href="metodos.html">métodos</a>, uma <a href="switch-expressoes.html">expressão switch</a> e o alinhamento da <a href="interpolacao.html">interpolação</a>.</p>
+
+<h3>Rodando com a turma num arquivo</h3>
+<p>Para não digitar a turma toda vez, a Ana guardou as respostas em <code>turma.txt</code> e mandou o arquivo para o programa com <code>&lt;</code>. Como ninguém digitou, as respostas não aparecem depois das perguntas:</p>
+
+<pre class="term" data-cwd="~/cs/boletim">$ cat turma.txt
+5
+Bruno
+7,5
+Carla
+9
+Diego
+5,5
+Elisa
+8
+Gabriel
+3,5
+$ dotnet run boletim.cs &lt; turma.txt
+=== Boletim da Turma ===
+Quantos alunos (1 a 30)? Nome do aluno 1: Nota de Bruno (0 a 10): Nome do aluno 2: Nota de Carla (0 a 10): Nome do aluno 3: Nota de Diego (0 a 10): Nome do aluno 4: Nota de Elisa (0 a 10): Nome do aluno 5: Nota de Gabriel (0 a 10):
+Aluno       Nota  Situação
+---------- -----  -----------
+Bruno        7,5  Aprovado
+Carla        9,0  Aprovado
+Diego        5,5  Recuperação
+Elisa        8,0  Aprovado
+Gabriel      3,5  Reprovado
+---------- -----  -----------
+Média        6,7
+
+Maior nota: 9,0 (Carla)
+Menor nota: 3,5 (Gabriel)
+Aprovados: 3 de 5</pre>
+
+<hr>
+
+<h2>Desafios extras</h2>
+<ol>
+  <li><strong>Turma de qualquer tamanho.</strong> Troque o array por uma <a href="list.html">List&lt;Aluno&gt;</a> e leia alunos até a Ana deixar o nome em branco. Não precisa mais perguntar a quantidade.</li>
+  <li><strong>Duas notas por aluno.</strong> Mude o record para <code>Aluno(string Nome, double Prova, double Trabalho)</code> e acrescente uma propriedade <code>Media</code> calculada (veja <a href="records.html">Records</a> e <a href="propriedades.html">Propriedades</a>).</li>
+  <li><strong>Em ordem de nota.</strong> Mostre a tabela da maior para a menor nota com <code>Array.Sort</code> ou com o LINQ <code>OrderByDescending</code> (veja <a href="classe-array.html">A Classe Array</a> e <a href="linq-ordenar.html">Ordenar</a>).</li>
+  <li><strong>Com LINQ.</strong> Troque o laço da maior, da menor e dos aprovados por <code>MaxBy</code>, <code>MinBy</code> e <code>Count</code> (veja <a href="linq-agregar.html">Agregar</a>).</li>
+  <li><strong>Nomes compridos.</strong> Um nome com mais de 10 letras empurra a coluna. Corte com <code>nome[..10]</code> (veja <a href="indices-intervalos.html">Índices e Intervalos</a>) ou calcule a largura pelo maior nome.</li>
+</ol>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">1. Um array criado com <code>new double[5]</code> tem quais posições válidas?</p>
+<label><input type="radio" name="q1"> De 1 a 5.</label>
+<label><input type="radio" name="q1"> De 0 a 4.</label>
+<label><input type="radio" name="q1"> De 0 a 5.</label>
+<label><input type="radio" name="q1"> Quantas o programa precisar.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">2. O que acontece em C# quando o programa acessa <code>notas[5]</code> num array de 5 posições?</p>
+<label><input type="radio" name="q2"> Nada: o valor é 0.</label>
+<label><input type="radio" name="q2"> O compilador dá um aviso e o programa segue.</label>
+<label><input type="radio" name="q2"> Uma <code>IndexOutOfRangeException</code>, com a linha do acesso.</label>
+<label><input type="radio" name="q2"> O array cresce para 6 posições.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">3. O que <code>$"[{"Ana",-6}]"</code> mostra?</p>
+<label><input type="radio" name="q3"> <code>[Ana   ]</code></label>
+<label><input type="radio" name="q3"> <code>[   Ana]</code></label>
+<label><input type="radio" name="q3"> <code>[Ana-6]</code></label>
+<label><input type="radio" name="q3"> <code>[Ana]</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">4. Por que <code>bruno.Nota = 8;</code> dá o erro <code>CS8852</code>?</p>
+<label><input type="radio" name="q4"> Porque <code>8</code> é <code>int</code> e a nota é <code>double</code>.</label>
+<label><input type="radio" name="q4"> Porque falta o <code>new</code>.</label>
+<label><input type="radio" name="q4"> Porque records não têm propriedades.</label>
+<label><input type="radio" name="q4"> Porque as propriedades desse record são <code>init</code>: só recebem valor na criação. Para mudar, crie outro com <code>with</code>.</label>
+</div>
+
+<div class="exercise">
+<p>5. Complete a interpolação que mostra a nota com uma casa decimal numa coluna de 5 posições:</p>
+<div class="ex-code">$"{aluno.Nota,<input data-answer="5:N1" aria-label="largura e formato" size="6">}"</div>
+</div>
+
+<div class="exercise">
+<p>6. Complete o "qualquer outro valor" da expressão switch:</p>
+<div class="ex-code"><input data-answer="_" aria-label="descarte" size="2"> =&gt; "Reprovado"</div>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um array guarda muitos valores do mesmo tipo; as posições vão de <code>0</code> a <code>Length - 1</code>, e o laço é <code>i &lt; array.Length</code>.</li>
+  <li>Passar do fim lança <code>IndexOutOfRangeException</code> com a linha exata; o <code>foreach</code> nunca passa do fim.</li>
+  <li>Um <code>record</code> junta os dados de uma coisa numa linha; as propriedades não mudam depois da criação (<code>with</code> cria uma cópia alterada).</li>
+  <li>Um array de objetos nasce cheio de <code>null</code>: crie-o do tamanho certo ou use <code>List&lt;T&gt;</code>.</li>
+  <li>Maior e menor: comece pelo primeiro e troque quando achar um melhor; guarde o objeto, não só o número.</li>
+  <li><code>{texto,-10}</code> alinha à esquerda, <code>{numero,5:N1}</code> alinha à direita com formato; no C#, a largura conta letras, e os acentos não desalinham.</li>
+</ul>
+<p>Próximo projeto: <a href="projeto-agenda.html">Agenda de Contatos (JSON)</a>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
