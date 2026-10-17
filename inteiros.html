@@ -357,7 +357,7 @@ Unhandled exception. System.OverflowException: Arithmetic operation resulted in 
 
 <div class="note">
 <strong>No editor do guia</strong>
-<p>A linha <code>#:property</code> é uma opção do <code>dotnet run</code>, e o editor do guia não a lê: lá, este programa mostra <code>-2147483648</code> duas vezes, sem exceção. Para ver o estouro virar erro no editor, use <code>checked( … )</code> ou <code>checked { … }</code>, que funcionam igual nos dois.</p>
+<p>O editor do guia também lê a linha <code>#:property CheckForOverflowUnderflow=true</code>: cole este programa numa caixa e rode, e a saída é a mesma do terminal, com o <code>-2147483648</code> e a <code>OverflowException</code> da linha 5. Num projeto, a mesma opção vai no <code>.csproj</code>.</p>
 </div>
 
 <h3>Contas só com constantes: o compilador confere sozinho</h3>
