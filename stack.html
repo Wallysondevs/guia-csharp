@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Stack&lt;T&gt; (Pilha) — último a entrar, primeiro a sair: Push e Pop | Guia C#</title>
+<meta name="description" content="Stack em C# para quem nunca programou: a pilha (último a entrar, primeiro a sair), Push, Pop, Peek, Count, a ordem do foreach (do topo para a base), a InvalidOperationException real de pilha vazia (Stack empty.), TryPop e TryPeek, desfazer, botão Voltar, inverter uma palavra e conferir parênteses, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Stack&lt;T&gt;</span> (Pilha)</h1>
+
+<p class="intro">O <strong>Ctrl+Z</strong> desfaz a última coisa que você fez. Apertando de novo, desfaz a penúltima, e assim por diante: sempre da mais nova para a mais antiga. O botão <strong>Voltar</strong> do navegador funciona igual. Por trás dos dois existe uma <strong>pilha</strong>, e no C# ela se chama <code>Stack&lt;T&gt;</code>. É a irmã da <a href="queue.html">fila</a>, com a regra ao contrário.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma pilha e a regra "último a entrar, primeiro a sair".</li>
+  <li>Empilhar com <code>Push</code>, desempilhar com <code>Pop</code>, espiar o topo com <code>Peek</code>.</li>
+  <li>Em que ordem o <code>foreach</code> mostra uma pilha (e por que <code>new Stack&lt;T&gt;(lista)</code> parece "inverter").</li>
+  <li>O que acontece numa pilha vazia: <code>InvalidOperationException: Stack empty.</code></li>
+  <li>Os jeitos seguros: <code>TryPop</code> e <code>TryPeek</code>.</li>
+  <li>Três usos clássicos: desfazer, inverter uma palavra e conferir parênteses.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> na máquina da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Você pode repetir cada um no editor do guia.</p>
+
+<hr>
+
+<h2>A ideia: uma pilha de pratos</h2>
+<p>Na pia da Ana, os pratos sujos vão sendo colocados um <strong>em cima</strong> do outro. Para lavar, ela pega o de cima: o último que chegou. Pegar o prato de baixo derrubaria todos.</p>
+
+<pre class="syntax">     entra e sai por aqui
+            ↓↑
+     [ prato branco ]   ← topo (o último que entrou)
+     [ prato verde  ]
+     [ prato azul   ]   ← base (o primeiro que entrou)</pre>
+
+<p>Essa regra é a <strong>LIFO</strong>, de <em>Last In, First Out</em>: "o último a entrar é o primeiro a sair". Compare com a fila (FIFO), em que sai o primeiro que chegou. Numa pilha você só mexe no <strong>topo</strong>:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>Tradução</th><th>Na pia</th></tr>
+<tr><td><code>Push(x)</code></td><td>"empurrar", empilhar</td><td>Põe um prato no topo.</td></tr>
+<tr><td><code>Pop()</code></td><td>"estourar", desempilhar</td><td>Tira o prato do topo. O método <strong>devolve</strong> o prato tirado.</td></tr>
+<tr><td><code>Peek()</code></td><td>"espiar"</td><td>Olha qual prato está no topo, sem tirar.</td></tr>
+<tr><td><code>Count</code></td><td>"contagem"</td><td>Quantos pratos há na pilha.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. Empilhar, espiar e desempilhar</h2>
+
+<pre class="file" data-file="pratos.cs">var pilha = new Stack&lt;string&gt;();
+
+pilha.Push("prato azul");
+pilha.Push("prato verde");
+pilha.Push("prato branco");
+Console.WriteLine($"Pratos: {pilha.Count}");
+
+Console.WriteLine($"No topo: {pilha.Peek()}");
+
+string lavado = pilha.Pop();
+Console.WriteLine($"Lavei o {lavado}");
+Console.WriteLine($"No topo: {pilha.Peek()}");
+Console.WriteLine($"Pratos: {pilha.Count}");
+</pre>
+
+<dl class="anatomy">
+  <dt>new Stack&lt;string&gt;()</dt><dd>Cria uma pilha vazia de textos. O <code>T</code> é o tipo do que vai na pilha (veja <a href="generics.html">Generics</a>).</dd>
+  <dt>pilha.Push("prato azul");</dt><dd>Põe o prato azul no topo. Como a pilha estava vazia, ele fica também na base.</dd>
+  <dt>pilha.Push("prato branco");</dt><dd>O último <code>Push</code>: o prato branco é o novo topo.</dd>
+  <dt>pilha.Peek()</dt><dd>Devolve o topo, sem tirar.</dd>
+  <dt>string lavado = pilha.Pop();</dt><dd>Tira o topo e devolve. O prato verde passa a ser o topo.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pratos.cs
+Pratos: 3
+No topo: prato branco             « o último que entrou
+Lavei o prato branco              « o Pop tirou o topo
+No topo: prato verde
+Pratos: 2</pre>
+
+<hr>
+
+<h2>2. A ordem de uma pilha</h2>
+<p>O <code>foreach</code> e o <code>string.Join</code> mostram a pilha <strong>do topo para a base</strong>: na mesma ordem em que os <code>Pop</code> tirariam os itens.</p>
+
+<pre class="file" data-file="ordem.cs">var pilha = new Stack&lt;int&gt;();
+pilha.Push(1);
+pilha.Push(2);
+pilha.Push(3);
+
+foreach (int n in pilha)
+{
+    Console.WriteLine(n);
+}
+Console.WriteLine(string.Join(", ", pilha));
+Console.WriteLine(string.Join(", ", pilha.ToArray()));
+
+var outra = new Stack&lt;int&gt;([1, 2, 3]);
+Console.WriteLine($"Topo da outra: {outra.Peek()}");
+Console.WriteLine($"Itens ainda: {pilha.Count}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ordem.cs
+3                       « o topo primeiro
+2
+1
+3, 2, 1
+3, 2, 1                 « o ToArray também começa pelo topo
+Topo da outra: 3        « o 3 foi o último a ser empilhado
+Itens ainda: 3         « o foreach só olhou: não tirou nada</pre>
+
+<dl class="anatomy">
+  <dt>foreach (int n in pilha)</dt><dd>Percorre do topo (3) até a base (1), sem tirar nada.</dd>
+  <dt>pilha.ToArray()</dt><dd>Copia a pilha num array, também do topo para a base.</dd>
+  <dt>new Stack&lt;int&gt;([1, 2, 3])</dt><dd>Cria a pilha empilhando os itens <strong>na ordem da lista</strong>: primeiro o 1, depois o 2, depois o 3. Por isso o 3 fica no topo, e a pilha "parece" invertida quando você a mostra.</dd>
+</dl>
+
+<p>Como a fila, a pilha não tem <code>Add</code>: <code>Stack&lt;int&gt; p = [1, 2, 3];</code> dá <code>error CS1061</code> (o erro está em <a href="#errado">Quando dá errado</a>). Use o construtor, como acima, ou <code>Push</code>.</p>
+
+<div class="trycs" data-goal="out:Página atual: variaveis.html,exit:0,src:Pop\s*\(">
+<p class="try-task"><strong>Missão:</strong> o histórico do navegador da Ana é uma pilha. Ela clicou <strong>duas vezes</strong> em Voltar. Antes do <code>Console.WriteLine</code>, tire duas páginas do topo com <code>Pop</code>, para que a página atual seja <code>variaveis.html</code>.</p>
+<pre class="script">var historico = new Stack&lt;string&gt;();
+historico.Push("inicio.html");
+historico.Push("variaveis.html");
+historico.Push("arrays.html");
+historico.Push("list.html");
+
+// a Ana clicou duas vezes em Voltar
+
+Console.WriteLine($"Página atual: {historico.Peek()}");
+</pre>
+<pre class="solucao">var historico = new Stack&lt;string&gt;();
+historico.Push("inicio.html");
+historico.Push("variaveis.html");
+historico.Push("arrays.html");
+historico.Push("list.html");
+
+historico.Pop();
+historico.Pop();
+
+Console.WriteLine($"Página atual: {historico.Peek()}");
+</pre>
+</div>
+
+<hr>
+
+<h2 id="vazia">3. A pilha vazia: <code>Stack empty.</code></h2>
+
+<pre class="file" data-file="vazia.cs">var pilha = new Stack&lt;string&gt;();
+pilha.Push("prato azul");
+
+Console.WriteLine(pilha.Pop());
+Console.WriteLine(pilha.Pop());
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run vazia.cs
+prato azul
+Unhandled exception. System.InvalidOperationException: Stack empty.
+   at System.Collections.Generic.Stack`1.ThrowForEmptyStack()
+   at System.Collections.Generic.Stack`1.Pop()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/vazia.cs:line 5
+$ echo $?
+134</pre>
+
+<p>"Pilha vazia." O segundo <code>Pop</code> (linha 5) não tinha prato para tirar. O <code>Peek</code> numa pilha vazia dá a mesma mensagem, com <code>Stack`1.Peek()</code> no rastro. É o mesmo tipo de exceção da fila vazia, a <code>InvalidOperationException</code>: a operação não faz sentido no estado em que a pilha está.</p>
+
+<p>Os métodos com <code>Try</code> não lançam exceção. Eles devolvem <code>true</code> ou <code>false</code> e entregam o item num <code>out</code>:</p>
+
+<pre class="file" data-file="desfazer.cs">string texto = "";
+var historico = new Stack&lt;string&gt;();
+
+void Escrever(string novo)
+{
+    historico.Push(texto);
+    texto += novo;
+    Console.WriteLine($"Texto: \"{texto}\"");
+}
+
+void Desfazer()
+{
+    if (historico.TryPop(out string? anterior))
+    {
+        texto = anterior;
+        Console.WriteLine($"Desfeito: \"{texto}\"");
+    }
+    else
+    {
+        Console.WriteLine("Nada para desfazer.");
+    }
+}
+
+Escrever("Olá");
+Escrever(", Ana");
+Escrever("!!!");
+Desfazer();
+Desfazer();
+Desfazer();
+Desfazer();
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run desfazer.cs
+Texto: "Olá"
+Texto: "Olá, Ana"
+Texto: "Olá, Ana!!!"
+Desfeito: "Olá, Ana"          « desfez a última escrita
+Desfeito: "Olá"
+Desfeito: ""
+Nada para desfazer.           « pilha vazia: o TryPop devolveu false, sem exceção</pre>
+
+<dl class="anatomy">
+  <dt>void Escrever(string novo)</dt><dd>Uma <a href="funcoes-locais.html">função local</a>. Antes de mudar o texto, ela empilha <strong>como ele era</strong>: é isso que permite voltar depois.</dd>
+  <dt>historico.Push(texto);</dt><dd>Guarda a versão antiga no topo da pilha.</dd>
+  <dt>if (historico.TryPop(out string? anterior))</dt><dd>"Se conseguir tirar uma versão antiga, chame-a de <code>anterior</code>." Numa pilha vazia, devolve <code>false</code>, e o <code>else</code> avisa.</dd>
+  <dt>texto = anterior;</dt><dd>Volta para a versão guardada. Como a pilha devolve a mais nova primeiro, cada <code>Desfazer</code> volta um passo.</dd>
+</dl>
+
+<p>Existe também o <code>TryPeek(out var x)</code>, que espia o topo sem tirar e devolve <code>false</code> numa pilha vazia.</p>
+
+<hr>
+
+<h2>4. Inverter uma palavra</h2>
+<p>Como a pilha devolve os itens ao contrário da ordem em que entraram, ela inverte coisas naturalmente. Empilhe as letras e desempilhe:</p>
+
+<pre class="file" data-file="inverter.cs">string palavra = "roma";
+var pilha = new Stack&lt;char&gt;();
+foreach (char letra in palavra)
+    pilha.Push(letra);
+
+string invertida = "";
+while (pilha.Count &gt; 0)
+    invertida += pilha.Pop();
+
+Console.WriteLine(invertida);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run inverter.cs
+amor</pre>
+
+<dl class="anatomy">
+  <dt>foreach (char letra in palavra)</dt><dd>Um <code>string</code> pode ser percorrido letra por letra (cada letra é um <a href="char-bool.html">char</a>). Entram r, o, m, a; o "a" fica no topo.</dd>
+  <dt>while (pilha.Count &gt; 0)</dt><dd>Enquanto houver letras, tire a do topo: a, m, o, r.</dd>
+  <dt>invertida += pilha.Pop();</dt><dd>Gruda cada letra no fim do texto novo.</dd>
+</dl>
+
+<hr>
+
+<h2>5. Conferir parênteses</h2>
+<p>Um uso clássico, que os compiladores fazem o tempo todo: ver se cada <code>(</code>, <code>[</code> e <code>{</code> foi fechado na ordem certa. A ideia: ao ver um símbolo que <strong>abre</strong>, empilhe; ao ver um que <strong>fecha</strong>, o topo da pilha tem de ser o par dele.</p>
+
+<pre class="file" data-file="parenteses.cs">Console.WriteLine(Balanceado("(1 + 2) * [3 - {4 / 2}]"));
+Console.WriteLine(Balanceado("(1 + 2]"));
+Console.WriteLine(Balanceado("((1 + 2)"));
+Console.WriteLine(Balanceado("1 + 2)"));
+
+bool Balanceado(string expressao)
+{
+    var abertos = new Stack&lt;char&gt;();
+    foreach (char c in expressao)
+    {
+        if (c == '(' || c == '[' || c == '{')
+        {
+            abertos.Push(c);
+        }
+        else if (c == ')' || c == ']' || c == '}')
+        {
+            if (!abertos.TryPop(out char aberto))
+                return false;
+            if ((c == ')' &amp;&amp; aberto != '(') || (c == ']' &amp;&amp; aberto != '[') || (c == '}' &amp;&amp; aberto != '{'))
+                return false;
+        }
+    }
+    return abertos.Count == 0;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run parenteses.cs
+True                   « tudo fechado na ordem
+False                  « abriu com ( e fechou com ]
+False                  « sobrou um ( aberto
+False                  « fechou um ) que ninguém abriu</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>O que a pilha mostra</th></tr>
+<tr><td>Fecha com o símbolo errado: <code>(1 + 2]</code></td><td>No <code>]</code>, o topo é <code>(</code>, que não é o par dele.</td></tr>
+<tr><td>Abre e não fecha: <code>((1 + 2)</code></td><td>No fim, a pilha ainda tem um <code>(</code>: <code>Count</code> não é 0.</td></tr>
+<tr><td>Fecha sem ter aberto: <code>1 + 2)</code></td><td>No <code>)</code>, a pilha está vazia: o <code>TryPop</code> devolve <code>false</code>.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Pilha ou fila?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th><code>Stack&lt;T&gt;</code> (pilha)</th><th><a href="queue.html"><code>Queue&lt;T&gt;</code></a> (fila)</th></tr>
+<tr><td>Regra</td><td>Último a entrar, primeiro a sair (LIFO)</td><td>Primeiro a entrar, primeiro a sair (FIFO)</td></tr>
+<tr><td>Pôr</td><td><code>Push</code></td><td><code>Enqueue</code></td></tr>
+<tr><td>Tirar</td><td><code>Pop</code></td><td><code>Dequeue</code></td></tr>
+<tr><td>Espiar</td><td><code>Peek</code> (o topo)</td><td><code>Peek</code> (o começo)</td></tr>
+<tr><td>Usos</td><td>Desfazer, Voltar, parênteses, inverter</td><td>Atendimento, impressora, tarefas na ordem de chegada</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>InvalidOperationException: Stack empty.</code></strong>
+<p><strong>O que significa:</strong> um <code>Pop()</code> ou <code>Peek()</code> numa pilha sem itens.</p>
+<p><strong>Como consertar:</strong> teste <code>pilha.Count &gt; 0</code> antes, ou use <code>TryPop</code>/<code>TryPeek</code> (<a href="#vazia">seção 3</a>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>InvalidOperationException: Collection was modified after the enumerator was instantiated.</code></strong>
+<p><strong>O que significa:</strong> você chamou <code>Push</code> ou <code>Pop</code> dentro de um <code>foreach</code> que percorre a mesma pilha. A pilha usa uma frase um pouco diferente da das outras coleções ("a coleção foi modificada depois que o enumerador foi criado"), mas é o mesmo problema:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run foreach.cs
+Unhandled exception. System.InvalidOperationException: Collection was modified after the enumerator was instantiated.
+   at System.Collections.Generic.Stack`1.Enumerator.ThrowInvalidVersion()
+   at System.Collections.Generic.Stack`1.Enumerator.MoveNext()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/foreach.cs:line 2</pre>
+<p><strong>Como consertar:</strong> para esvaziar a pilha, use <code>while (pilha.TryPop(out var x))</code> em vez de <code>foreach</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1061: ‘Stack&lt;int&gt;’ não contém uma definição para "Add"…</code></strong>
+<p><strong>O que significa:</strong> você escreveu <code>Stack&lt;int&gt; p = [1, 2, 3];</code> ou <code>new Stack&lt;int&gt; { 1, 2, 3 }</code>. As duas formas chamam <code>Add</code>, que a pilha não tem.</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run colexpr.cs
+/home/ana/cs/colexpr.cs(1,16): error CS1061: ‘Stack&lt;int&gt;’ não contém uma definição para "Add" e não foi possível encontrar nenhum método de extensão "Add" que aceite um primeiro argumento do tipo ‘Stack&lt;int&gt;’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>Como consertar:</strong> <code>new Stack&lt;int&gt;([1, 2, 3])</code> (lembrando que o 3 fica no topo) ou um <code>Push</code> para cada item.</p>
+</div>
+
+<div class="cenario">
+<strong>Os itens saíram "ao contrário"</strong>
+<p><strong>O que significa:</strong> não é erro: é a regra da pilha. O <code>foreach</code>, o <code>ToArray</code> e os <code>Pop</code> começam pelo topo, o último que entrou.</p>
+<p><strong>Como consertar:</strong> se você precisa da ordem de chegada, a coleção certa é a <a href="queue.html">fila</a> ou a <a href="list.html">lista</a>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>new Stack&lt;T&gt;()</code></td><td>Pilha vazia</td></tr>
+<tr><td><code>new Stack&lt;T&gt;(colecao)</code></td><td>Empilha os itens na ordem da coleção (o último fica no topo)</td></tr>
+<tr><td><code>p.Push(x)</code></td><td>Põe <code>x</code> no topo</td></tr>
+<tr><td><code>p.Pop()</code></td><td>Tira e devolve o topo; <code>InvalidOperationException</code> se vazia</td></tr>
+<tr><td><code>p.Peek()</code></td><td>Devolve o topo sem tirar; <code>InvalidOperationException</code> se vazia</td></tr>
+<tr><td><code>p.TryPop(out var x)</code> / <code>p.TryPeek(out var x)</code></td><td>Sem exceção; devolvem <code>bool</code></td></tr>
+<tr><td><code>p.Count</code> / <code>p.Clear()</code></td><td>Quantos itens / esvazia</td></tr>
+<tr><td><code>p.Contains(x)</code></td><td><code>x</code> está na pilha? (olha um por um)</td></tr>
+<tr><td><code>p.ToArray()</code>, <code>foreach</code></td><td>Do topo para a base</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Empilhar</h3>
+<p>Complete para pôr o prato amarelo no topo da pilha:</p>
+<div class="ex-code">pilha.<input data-answer="Push" aria-label="método">("prato amarelo");</div>
+</div>
+
+<div class="exercise">
+<h3>2. Tirar sem exceção</h3>
+<p>Complete para tirar o topo só se a pilha não estiver vazia:</p>
+<div class="ex-code">if (pilha.<input data-answer="TryPop" aria-label="método">(out string? prato))</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">3. Você faz <code>Push(1)</code>, <code>Push(2)</code>, <code>Push(3)</code> e depois um <code>Pop()</code>. O que o <code>Pop</code> devolve?</p>
+<label><input type="radio" name="q3"> 1</label>
+<label><input type="radio" name="q3"> 2</label>
+<label><input type="radio" name="q3"> 3</label>
+<label><input type="radio" name="q3"> Depende: a ordem não é garantida</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">4. O que <code>string.Join(", ", new Stack&lt;int&gt;([1, 2, 3]))</code> mostra?</p>
+<label><input type="radio" name="q4"> 3, 2, 1</label>
+<label><input type="radio" name="q4"> 1, 2, 3</label>
+<label><input type="radio" name="q4"> System.Collections.Generic.Stack`1[System.Int32]</label>
+<label><input type="radio" name="q4"> Não compila</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Qual a diferença entre <code>Peek()</code> e <code>Pop()</code>?</p>
+<label><input type="radio" name="q5"> Nenhuma</label>
+<label><input type="radio" name="q5"> Os dois devolvem o topo, mas só o <code>Pop</code> o tira da pilha</label>
+<label><input type="radio" name="q5"> O <code>Peek</code> devolve a base</label>
+<label><input type="radio" name="q5"> O <code>Pop</code> nunca lança exceção</label>
+</div>
+
+<h3>Missão final: os parênteses da calculadora</h3>
+
+<div class="trycs" data-goal="outre:^True\nFalse\nFalse\n$,src:Push\s*\(,src:Pop\s*\(">
+<p class="try-task"><strong>Missão:</strong> a calculadora da Ana precisa recusar contas com parênteses errados. Complete a função <code>Balanceado</code>, que hoje sempre diz <code>True</code>: ao ver <code>(</code>, empilhe; ao ver <code>)</code>, desempilhe com <code>TryPop</code> e, se a pilha estava vazia, devolva <code>false</code>. No fim, a expressão só está certa se não sobrou nenhum parêntese aberto.</p>
+<pre class="out">True
+False
+False</pre>
+<pre class="script">Console.WriteLine(Balanceado("(1 + (2 * 3))"));
+Console.WriteLine(Balanceado("(1 + 2"));
+Console.WriteLine(Balanceado("1 + 2)"));
+
+bool Balanceado(string expressao)
+{
+    var abertos = new Stack&lt;char&gt;();
+    foreach (char c in expressao)
+    {
+        if (c == '(')
+        {
+            // empilhe o parêntese aberto
+        }
+        else if (c == ')')
+        {
+            // tente desempilhar; se a pilha estava vazia, devolva false
+        }
+    }
+    return true; // troque: só está certo se não sobrou nenhum aberto
+}
+</pre>
+<pre class="solucao">Console.WriteLine(Balanceado("(1 + (2 * 3))"));
+Console.WriteLine(Balanceado("(1 + 2"));
+Console.WriteLine(Balanceado("1 + 2)"));
+
+bool Balanceado(string expressao)
+{
+    var abertos = new Stack&lt;char&gt;();
+    foreach (char c in expressao)
+    {
+        if (c == '(')
+        {
+            abertos.Push(c);
+        }
+        else if (c == ')')
+        {
+            if (!abertos.TryPop(out _))
+                return false;
+        }
+    }
+    return abertos.Count == 0;
+}
+</pre>
+</div>
+
+<p>O <code>out _</code> da solução é o <strong>descarte</strong>: "tire o topo, mas não preciso do valor". Aqui só interessa saber se havia um <code>(</code> para tirar.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma <code>Stack&lt;T&gt;</code> é uma pilha: o <strong>último a entrar é o primeiro a sair</strong> (LIFO). Você só mexe no topo.</li>
+  <li><code>Push</code> empilha; <code>Pop</code> tira e devolve o topo; <code>Peek</code> mostra o topo sem tirar.</li>
+  <li><code>foreach</code>, <code>ToArray</code> e <code>string.Join</code> vão do topo para a base; <code>new Stack&lt;T&gt;(lista)</code> deixa o último da lista no topo.</li>
+  <li><code>Pop</code> e <code>Peek</code> numa pilha vazia lançam <code>InvalidOperationException: Stack empty.</code>; <code>TryPop</code> e <code>TryPeek</code> devolvem <code>false</code>.</li>
+  <li>Mudar a pilha dentro do <code>foreach</code> dá <code>Collection was modified after the enumerator was instantiated.</code></li>
+  <li>Usos clássicos: desfazer, botão Voltar, inverter uma sequência e conferir parênteses.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
