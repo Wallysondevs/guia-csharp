@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# char e bool — um caractere e verdadeiro ou falso | Guia C#</title>
+<meta name="description" content="Os tipos char e bool em C# para quem nunca programou: char guarda um caractere entre aspas simples, tem um código (A = 65), escapes como '\n' e '\u00E9', métodos char.IsDigit e char.ToUpper; bool guarda true ou false, nasce de comparações e aparece como True e False, com os erros CS1012, CS1011, CS0029, CS0103 e CS0030 e saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">char e bool</span></h1>
+
+<p class="intro">Dois tipos pequenos e muito usados. O <code>char</code> guarda <strong>um caractere</strong>: uma letra, um dígito, um símbolo. O <code>bool</code> guarda uma resposta de <strong>sim ou não</strong>: <code>true</code> ou <code>false</code>. Toda decisão que um programa toma ("o cliente é maior de idade?", "a senha está certa?") passa por um <code>bool</code>. Nesta aula você vai ver os dois de perto, com as pegadinhas de cada um.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O <code>char</code>: aspas simples, um caractere só, e a diferença entre <code>'A'</code> e <code>"A"</code>.</li>
+  <li>Que cada caractere tem um <strong>código</strong> (<code>'A'</code> = 65), e por que <code>'A' + 1</code> dá <code>66</code>.</li>
+  <li>Os escapes (<code>'\n'</code>, <code>'\''</code>, <code>'\u00E9'</code>) e os métodos <code>char.IsDigit</code>, <code>char.IsLetter</code>, <code>char.ToUpper</code>.</li>
+  <li>Por que um emoji não cabe num <code>char</code>.</li>
+  <li>O <code>bool</code>: <code>true</code> e <code>false</code>, que aparecem como <code>True</code> e <code>False</code>.</li>
+  <li>Que um <code>bool</code> nasce de uma comparação, e que no C# um número <strong>não</strong> é um <code>bool</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: a peça do jogo de letras e o interruptor</h2>
+<p>Num jogo de palavras cruzadas, cada pecinha tem <strong>uma</strong> letra. Uma palavra é uma fileira de pecinhas. No C#, a pecinha é o <code>char</code>, e a fileira é a <code>string</code>.</p>
+<p>Já o <code>bool</code> é um <strong>interruptor</strong>: ou está ligado (<code>true</code>), ou desligado (<code>false</code>). Não existe "meio ligado".</p>
+
+<hr>
+
+<h2>1. <code>char</code>: um caractere</h2>
+
+<pre class="file" data-file="letras.cs">char inicial = 'A';
+char simbolo = '$';
+char digito = '7';
+char espaco = ' ';
+char acento = 'é';
+Console.WriteLine(inicial);
+Console.WriteLine(simbolo);
+Console.WriteLine(digito);
+Console.WriteLine("[" + espaco + "]");
+Console.WriteLine(acento);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run letras.cs
+A
+$
+7
+[ ]
+é</pre>
+
+<dl class="anatomy">
+  <dt>char inicial = 'A';</dt><dd><code>char</code> (de <em>character</em>, "caractere"). O valor vai entre <strong>aspas simples</strong>: <code>'A'</code>.</dd>
+  <dt>'$' · '7' · ' '</dt><dd>Qualquer caractere serve: símbolos, dígitos e até o espaço. Atenção: <code>'7'</code> é o <strong>desenho</strong> do dígito 7, não o número 7 (seção 2).</dd>
+  <dt>"[" + espaco + "]"</dt><dd>Os colchetes só servem para você ver o espaço na saída.</dd>
+  <dt>'é'</dt><dd>Acentos funcionam: o <code>char</code> do C# usa o <strong>Unicode</strong>, a tabela que tem as letras de quase todas as línguas.</dd>
+</dl>
+
+<h3><code>'A'</code> é <code>char</code>; <code>"A"</code> é <code>string</code></h3>
+<p>Aspas simples fazem um <code>char</code>; aspas duplas fazem uma <code>string</code>, mesmo com uma letra só. Os dois não se trocam:</p>
+
+<pre class="file" data-file="charerro1.cs">char letra = "A";
+Console.WriteLine(letra);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run charerro1.cs
+/home/ana/cs/charerro1.cs(1,14): error CS0029: Não é possível converter implicitamente tipo "string" em "char"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>E um <code>char</code> guarda <strong>exatamente um</strong> caractere: nem dois, nem zero.</p>
+
+<pre class="file" data-file="charerro2.cs">char letra = 'AB';
+Console.WriteLine(letra);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run charerro2.cs
+/home/ana/cs/charerro2.cs(1,14): error CS1012: Número excessivo de caracteres no literal de caractere
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<pre class="file" data-file="charerro3.cs">char vazio = '';
+Console.WriteLine(vazio);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run charerro3.cs
+/home/ana/cs/charerro3.cs(1,14): error CS1011: Literal de caractere vazio
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Para mais de um caractere, ou nenhum, use <code>string</code>: <code>"AB"</code> e <code>""</code> são textos válidos (aula <a href="strings.html">Strings</a>).</p>
+
+<hr>
+
+<h2>2. Todo caractere tem um código</h2>
+<p>Por dentro, o computador só guarda números. Cada caractere tem o seu <strong>código</strong> na tabela Unicode: <code>'A'</code> é 65, <code>'B'</code> é 66, <code>'a'</code> é 97, o dígito <code>'0'</code> é 48. O <code>char</code> é, no fundo, esse número, em 2 bytes (de 0 a 65 535):</p>
+
+<pre class="file" data-file="codigo.cs">char letra = 'A';
+int codigo = letra;
+Console.WriteLine(codigo);
+Console.WriteLine((int)'a');
+Console.WriteLine((int)'0');
+Console.WriteLine((char)66);
+Console.WriteLine(letra + 1);
+Console.WriteLine((char)(letra + 1));
+letra++;
+Console.WriteLine(letra);
+Console.WriteLine('A' + 'B');
+Console.WriteLine("" + 'A' + 'B');
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run codigo.cs
+65
+97
+48
+B
+66        « 'A' + 1 é um número!
+B
+B
+131       « 65 + 66
+AB</pre>
+
+<dl class="anatomy">
+  <dt>int codigo = letra;</dt><dd>Um <code>char</code> entra direto num <code>int</code>: o valor é o código, <code>65</code>.</dd>
+  <dt>(int)'a' · (int)'0'</dt><dd>O <code>(int)</code> na frente pede "me mostre como <code>int</code>" (é um <em>cast</em>, aula <a href="conversao-tipos.html">Conversão de Tipos</a>). Minúsculas têm outros códigos (97), e o dígito <code>'0'</code> é 48, não zero.</dd>
+  <dt>(char)66</dt><dd>O caminho inverso: o caractere de código 66, <code>B</code>.</dd>
+  <dt>letra + 1 → 66</dt><dd>A pegadinha: uma conta com <code>char</code> vira conta de <code>int</code>. <code>'A' + 1</code> é o número 66, não a letra B.</dd>
+  <dt>(char)(letra + 1) → B</dt><dd>Para voltar a ter um caractere, converta o resultado com <code>(char)</code>. Os parênteses em volta de <code>letra + 1</code> fazem a soma acontecer antes da conversão.</dd>
+  <dt>letra++</dt><dd>O <code>++</code> soma 1 e continua <code>char</code>: a variável passa de <code>'A'</code> para <code>'B'</code> (aula <a href="incremento.html">++ e --</a>).</dd>
+  <dt>'A' + 'B' → 131 · "" + 'A' + 'B' → AB</dt><dd>Dois <code>char</code> somados dão a soma dos códigos. Para <strong>juntar</strong> os caracteres, comece com uma <code>string</code> (aqui, a vazia <code>""</code>): aí o <code>+</code> junta textos.</dd>
+</dl>
+
+<div class="trycs" data-goal="out:Depois de C vem D,src:\(char\)">
+<p class="try-task"><strong>Missão:</strong> o programa devia mostrar <code>Depois de C vem D</code>, mas mostra <code>Depois de C vem 68</code>, porque <code>letra + 1</code> é um número. Converta o resultado de volta para <code>char</code> com <code>(char)( … )</code>.</p>
+<pre class="script" data-file="proxima.cs">char letra = 'C';
+Console.WriteLine($"Depois de {letra} vem {letra + 1}");
+</pre>
+<pre class="solucao" data-file="proxima.cs">char letra = 'C';
+Console.WriteLine($"Depois de {letra} vem {(char)(letra + 1)}");
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Perguntas sobre um caractere</h2>
+<p>O tipo <code>char</code> traz métodos prontos para perguntar coisas sobre um caractere e para trocar maiúscula por minúscula:</p>
+
+<pre class="file" data-file="metodoschar.cs">char c = 'a';
+Console.WriteLine(char.IsLetter(c));
+Console.WriteLine(char.IsDigit('7'));
+Console.WriteLine(char.IsUpper(c));
+Console.WriteLine(char.ToUpper(c));
+Console.WriteLine(char.IsWhiteSpace(' '));
+Console.WriteLine(char.IsPunctuation('!'));
+Console.WriteLine('7' - '0');
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run metodoschar.cs
+True
+True
+False
+A
+True
+True
+7</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>Pergunta (ou faz)</th><th>Exemplo</th></tr>
+<tr><td><code>char.IsLetter(c)</code></td><td>É uma letra (com ou sem acento)?</td><td><code>'a'</code> → <code>True</code></td></tr>
+<tr><td><code>char.IsDigit(c)</code></td><td>É um dígito de 0 a 9?</td><td><code>'7'</code> → <code>True</code></td></tr>
+<tr><td><code>char.IsUpper(c)</code> / <code>IsLower</code></td><td>É maiúscula? / minúscula?</td><td><code>'a'</code> → <code>False</code></td></tr>
+<tr><td><code>char.IsWhiteSpace(c)</code></td><td>É espaço, tab ou quebra de linha?</td><td><code>' '</code> → <code>True</code></td></tr>
+<tr><td><code>char.IsPunctuation(c)</code></td><td>É pontuação (<code>! ? . ,</code>)?</td><td><code>'!'</code> → <code>True</code></td></tr>
+<tr><td><code>char.IsLetterOrDigit(c)</code></td><td>Letra ou dígito?</td><td><code>'_'</code> → <code>False</code></td></tr>
+<tr><td><code>char.ToUpper(c)</code> / <code>ToLower</code></td><td>Devolve a maiúscula / minúscula</td><td><code>'a'</code> → <code>'A'</code></td></tr>
+</table>
+</div>
+
+<p>A última linha do programa é um truque antigo: <code>'7' - '0'</code> é 55 - 48 = <code>7</code>. Como os dígitos estão em ordem na tabela, subtrair <code>'0'</code> transforma o desenho do dígito no número. Esses métodos aparecem muito com <a href="strings.html">strings</a>, para conferir o que o usuário digitou letra por letra.</p>
+
+<hr>
+
+<h2>4. Escapes: caracteres difíceis de digitar</h2>
+<p>Alguns caracteres não dá para escrever direto entre aspas simples. Para eles existe a <strong>barra invertida</strong> <code>\</code>, que muda o sentido do caractere seguinte:</p>
+
+<pre class="file" data-file="escchar.cs">char aspas = '\'';
+char barra = '\\';
+char tab = '\t';
+char unicode = '\u00E9';
+char novaLinha = '\n';
+Console.WriteLine(aspas);
+Console.WriteLine(barra);
+Console.WriteLine("A" + tab + "B");
+Console.WriteLine(unicode);
+Console.Write("linha 1" + novaLinha + "linha 2" + novaLinha);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run escchar.cs
+'
+\
+A	B
+é
+linha 1
+linha 2</pre>
+
+<dl class="anatomy">
+  <dt>'\''</dt><dd>Uma aspa simples. Sem a barra, <code>'''</code> confundiria o compilador.</dd>
+  <dt>'\\'</dt><dd>A própria barra invertida.</dd>
+  <dt>'\t'</dt><dd><em>Tab</em>: um espaço grande, que alinha colunas.</dd>
+  <dt>'\u00E9'</dt><dd>Qualquer caractere pelo código Unicode em hexadecimal: <code>00E9</code> é o <code>é</code>.</dd>
+  <dt>'\n'</dt><dd><em>New line</em>, "nova linha": a quebra de linha. O <code>Console.Write</code> (sem <code>Line</code>) não pula linha sozinho; quem pula é o <code>\n</code>.</dd>
+</dl>
+<p>Os mesmos escapes funcionam dentro de strings (<code>"Ela disse \"oi\""</code>). A lista completa está em <a href="escapes.html">Escapes e Strings Literais</a>.</p>
+
+<h3>Um emoji não cabe num <code>char</code></h3>
+<p>O <code>char</code> tem 2 bytes e vai até o código 65 535. Os emojis (e alguns ideogramas raros) têm códigos maiores e precisam de <strong>dois</strong> <code>char</code>:</p>
+
+<pre class="file" data-file="charerro4.cs">char carinha = '😀';
+Console.WriteLine(carinha);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run charerro4.cs
+/home/ana/cs/charerro4.cs(1,16): error CS1012: Número excessivo de caracteres no literal de caractere
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<pre class="file" data-file="emoji.cs">string carinha = "😀";
+Console.WriteLine(carinha);
+Console.WriteLine(carinha.Length);
+Console.WriteLine("Ana".Length);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run emoji.cs
+😀
+2         « um emoji = dois char
+3</pre>
+
+<p>Na tela é um desenho só, mas para o C# são dois <code>char</code> (um "par substituto", ou <em>surrogate pair</em>, do UTF-16). Por isso <code>.Length</code> ("comprimento") dá 2. Moral: emojis vão em <code>string</code>, nunca em <code>char</code>.</p>
+
+<hr>
+
+<h2>5. <code>bool</code>: verdadeiro ou falso</h2>
+
+<pre class="file" data-file="booleanos.cs">bool maiorDeIdade = true;
+bool temDesconto = false;
+int idade = 29;
+bool podeVotar = idade &gt;= 16;
+Console.WriteLine(maiorDeIdade);
+Console.WriteLine(temDesconto);
+Console.WriteLine(podeVotar);
+Console.WriteLine(idade &gt; 60);
+Console.WriteLine(!temDesconto);
+Console.WriteLine($"Pode votar? {podeVotar}");
+Console.WriteLine(podeVotar ? "sim" : "não");
+Console.WriteLine(true.ToString().ToLower());
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run booleanos.cs
+True
+False
+True
+False
+True
+Pode votar? True
+sim
+true</pre>
+
+<dl class="anatomy">
+  <dt>bool maiorDeIdade = true;</dt><dd><code>bool</code> vem de George <em>Boole</em>, o matemático que criou a lógica do verdadeiro/falso. Os únicos valores são <code>true</code> e <code>false</code>, sempre minúsculos e <strong>sem aspas</strong>.</dd>
+  <dt>bool podeVotar = idade &gt;= 16;</dt><dd>O jeito mais comum de ganhar um <code>bool</code>: uma <strong>comparação</strong>. <code>idade &gt;= 16</code> ("idade maior ou igual a 16") é uma pergunta, e a resposta é <code>true</code> ou <code>false</code>. As comparações têm aula própria: <a href="operadores-comparacao.html">Operadores de Comparação</a>.</dd>
+  <dt>idade &gt; 60</dt><dd>29 é maior que 60? <code>False</code>.</dd>
+  <dt>!temDesconto</dt><dd>O <code>!</code> é o "não": inverte o valor. Não tem desconto? <code>True</code> (aula <a href="operadores-logicos.html">Operadores Lógicos</a>).</dd>
+  <dt>True · False</dt><dd>Na saída, o .NET escreve com a primeira letra maiúscula, em inglês, também no Ubuntu em português.</dd>
+  <dt>podeVotar ? "sim" : "não"</dt><dd>Para mostrar em português, escolha o texto pelo valor. O <code>? :</code> é o <a href="ternario.html">operador ternário</a>: "se <code>podeVotar</code>, <code>"sim"</code>; senão, <code>"não"</code>".</dd>
+  <dt>true.ToString().ToLower()</dt><dd>Se você precisa de <code>true</code> minúsculo (para um arquivo JSON, por exemplo), converta para texto e passe para minúsculas.</dd>
+</dl>
+
+<p>Um <code>bool</code> ocupa 1 byte (<code>sizeof(bool)</code> = 1). O lugar onde ele mais trabalha é o <code>if</code>, que decide se um trecho do programa roda ou não (aula <a href="if-else.html">if e else</a>).</p>
+
+<h3>No C#, número não é <code>bool</code></h3>
+<p>Em C, JavaScript e Python, o número 0 vale como "falso" e qualquer outro como "verdadeiro". No C# <strong>não</strong>: <code>bool</code> e números são mundos separados.</p>
+
+<pre class="file" data-file="boolerro1.cs">bool ativo = 1;
+Console.WriteLine(ativo);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run boolerro1.cs
+/home/ana/cs/boolerro1.cs(1,14): error CS0029: Não é possível converter implicitamente tipo "int" em "bool"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<pre class="file" data-file="boolerro4.cs">bool ativo = true;
+int x = (int)ativo;
+Console.WriteLine(x);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run boolerro4.cs
+/home/ana/cs/boolerro4.cs(2,9): error CS0030: Não é possível converter tipo "bool" em "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Nem com <code>(int)</code> vai: o <code>CS0030</code> diz que não existe conversão nenhuma. Isso evita uma classe inteira de erros, como um <code>if (estoque)</code> escrito por engano no lugar de <code>if (estoque &gt; 0)</code>. Se você precisa mesmo de 1 e 0, escolha com o ternário: <code>int x = ativo ? 1 : 0;</code>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>É</th></tr>
+<tr><td><code>true</code>, <code>false</code></td><td><code>bool</code></td></tr>
+<tr><td><code>"true"</code></td><td><code>string</code> (um texto; para converter, <code>bool.Parse</code>, aula <a href="parse.html">Texto → Número</a>)</td></tr>
+<tr><td><code>True</code></td><td>Nada: no código, só minúsculo (<code>CS0103</code>)</td></tr>
+<tr><td><code>1</code>, <code>0</code></td><td><code>int</code>, nunca <code>bool</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0029: Não é possível converter implicitamente tipo "string" em "char"</code></strong>
+<p><strong>O que significa:</strong> você usou aspas duplas (<code>"A"</code>, uma <code>string</code>) para uma variável <code>char</code>.</p>
+<p><strong>Como consertar:</strong> aspas simples: <code>char letra = 'A';</code>. Ou, se é texto, troque a variável para <code>string</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1012: Número excessivo de caracteres no literal de caractere</code></strong>
+<p><strong>O que significa:</strong> há mais de um caractere entre as aspas simples (<code>'AB'</code>), ou um emoji, que precisa de dois <code>char</code>. Em inglês: <code>Too many characters in character literal</code>.</p>
+<p><strong>Como consertar:</strong> um caractere só, ou use <code>string</code> com aspas duplas: <code>"AB"</code>, <code>"😀"</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1011: Literal de caractere vazio</code></strong>
+<p><strong>O que significa:</strong> <code>''</code> não tem nada dentro. Não existe <code>char</code> vazio.</p>
+<p><strong>Como consertar:</strong> para "nenhum texto", use a string vazia <code>""</code>. Para um espaço, <code>' '</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Saiu um número (<code>66</code>, <code>131</code>) em vez de uma letra</strong>
+<p><strong>O que significa:</strong> uma conta com <code>char</code> (<code>letra + 1</code>, <code>'A' + 'B'</code>) é feita com os códigos e dá um <code>int</code>.</p>
+<p><strong>Como consertar:</strong> converta de volta com <code>(char)(letra + 1)</code>. Para juntar caracteres, comece com uma string: <code>"" + 'A' + 'B'</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0103: O nome "True" não existe no contexto atual</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run boolerro3.cs
+/home/ana/cs/boolerro3.cs(1,14): error CS0103: O nome "True" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o programa tinha <code>bool ativo = True;</code>. A saída mostra <code>True</code>, mas no código é só minúsculo. Com T maiúsculo, o C# acha que é o nome de uma variável que não existe.</p>
+<p><strong>Como consertar:</strong> <code>true</code> e <code>false</code>, minúsculos.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0029: Não é possível converter implicitamente tipo "int" em "bool"</code></strong>
+<p><strong>O que significa:</strong> um número foi usado onde se espera <code>bool</code>: <code>bool ativo = 1;</code> ou <code>if (estoque)</code> com <code>estoque</code> <code>int</code>.</p>
+<p><strong>Como consertar:</strong> escreva a pergunta: <code>bool ativo = true;</code>, <code>if (estoque &gt; 0)</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que é</th></tr>
+<tr><td><code>char c = 'A';</code></td><td>Um caractere (2 bytes, UTF-16), aspas simples</td></tr>
+<tr><td><code>(int)'A'</code> · <code>(char)65</code></td><td>Código do caractere (65) · caractere do código (<code>A</code>)</td></tr>
+<tr><td><code>(char)(c + 1)</code></td><td>O caractere seguinte</td></tr>
+<tr><td><code>'\n' '\t' '\'' '\\' '\u00E9'</code></td><td>Nova linha, tab, aspa simples, barra invertida, Unicode</td></tr>
+<tr><td><code>char.IsLetter</code>, <code>IsDigit</code>, <code>IsUpper</code>, <code>IsLower</code>, <code>IsWhiteSpace</code></td><td>Perguntas sobre o caractere</td></tr>
+<tr><td><code>char.ToUpper(c)</code>, <code>char.ToLower(c)</code></td><td>Maiúscula, minúscula</td></tr>
+<tr><td><code>bool b = true;</code></td><td>Verdadeiro ou falso (1 byte); mostra <code>True</code>/<code>False</code></td></tr>
+<tr><td><code>bool b = idade &gt;= 18;</code></td><td>Um <code>bool</code> feito de comparação</td></tr>
+<tr><td><code>!b</code></td><td>"Não": inverte</td></tr>
+<tr><td><code>b ? "sim" : "não"</code></td><td>Mostrar em português</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. As aspas do char</h3>
+<p>Complete para guardar a letra Z num <code>char</code>:</p>
+<div class="ex-code">char letra = <input data-answer="'Z'" aria-label="valor">;</div>
+</div>
+
+<div class="exercise">
+<h3>2. O código do A</h3>
+<p>O que <code>Console.WriteLine((int)'A');</code> mostra?</p>
+<div class="ex-code"><input data-answer="65" aria-label="código"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Os valores do bool</h3>
+<p>Complete com o valor que significa "falso":</p>
+<div class="ex-code">bool logado = <input data-answer="false" aria-label="valor">;</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O que <code>Console.WriteLine('A' + 1);</code> mostra?</p>
+<label><input type="radio" name="q4"> <code>B</code></label>
+<label><input type="radio" name="q4"> <code>66</code>: conta com <code>char</code> dá <code>int</code></label>
+<label><input type="radio" name="q4"> <code>A1</code></label>
+<label><input type="radio" name="q4"> Não compila</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Qual destas linhas compila?</p>
+<label><input type="radio" name="q5"> <code>char c = "x";</code></label>
+<label><input type="radio" name="q5"> <code>char c = 'xy';</code></label>
+<label><input type="radio" name="q5"> <code>char c = '\n';</code></label>
+<label><input type="radio" name="q5"> <code>char c = '';</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. O que acontece com <code>bool ok = 1;</code>?</p>
+<label><input type="radio" name="q6"> <code>ok</code> vale <code>true</code></label>
+<label><input type="radio" name="q6"> <code>ok</code> vale <code>false</code></label>
+<label><input type="radio" name="q6"> Compila com um aviso</label>
+<label><input type="radio" name="q6"> Não compila: no C#, <code>int</code> não vira <code>bool</code> (<code>CS0029</code>)</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">7. <code>bool ok = true; Console.WriteLine(ok);</code> mostra:</p>
+<label><input type="radio" name="q7"> <code>True</code></label>
+<label><input type="radio" name="q7"> <code>true</code></label>
+<label><input type="radio" name="q7"> <code>Verdadeiro</code></label>
+<label><input type="radio" name="q7"> <code>1</code></label>
+</div>
+
+<h3>Missão final: meia-entrada</h3>
+
+<div class="trycs" data-goal="out:Meia-entrada: True,src:idade\s*(&lt;\s*18|&lt;=\s*17)">
+<p class="try-task"><strong>Missão:</strong> no cinema, menores de 18 anos pagam meia-entrada. O programa não compila, porque tenta guardar o número <code>1</code> num <code>bool</code>. Troque o <code>1</code> por uma <strong>comparação</strong> com <code>idade</code> (menor que 18) para mostrar <code>Meia-entrada: True</code>. Depois, mude a idade para 20 e veja o <code>False</code>.</p>
+<pre class="script" data-file="cinema.cs">int idade = 15;
+bool meiaEntrada = 1;
+Console.WriteLine($"Meia-entrada: {meiaEntrada}");
+</pre>
+<pre class="solucao" data-file="cinema.cs">int idade = 15;
+bool meiaEntrada = idade &lt; 18;
+Console.WriteLine($"Meia-entrada: {meiaEntrada}");
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>char</code>: um caractere, entre aspas simples (<code>'A'</code>), 2 bytes, Unicode. <code>"A"</code> é <code>string</code>.</li>
+  <li>Todo <code>char</code> tem um código: <code>(int)'A'</code> = 65, <code>(char)66</code> = <code>B</code>. Conta com <code>char</code> dá <code>int</code>: use <code>(char)(c + 1)</code>.</li>
+  <li>Escapes: <code>'\n'</code>, <code>'\t'</code>, <code>'\''</code>, <code>'\\'</code>, <code>'\u00E9'</code>. Emojis precisam de dois <code>char</code>: guarde em <code>string</code>.</li>
+  <li><code>char.IsDigit</code>, <code>IsLetter</code>, <code>IsUpper</code>, <code>ToUpper</code>… fazem perguntas e trocas.</li>
+  <li><code>bool</code>: <code>true</code> ou <code>false</code> (minúsculos no código; <code>True</code>/<code>False</code> na saída). Nasce de comparações: <code>idade &gt;= 18</code>.</li>
+  <li>No C#, número não é <code>bool</code>: <code>bool b = 1;</code> dá <code>CS0029</code> e <code>(int)true</code> dá <code>CS0030</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
