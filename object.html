@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# A Classe object — ToString, Equals e GetHashCode | Guia C#</title>
+<meta name="description" content="A classe object em C# para quem está começando: a mãe de todas as classes, o ToString padrão e como sobrescrevê-lo, Equals por referência e por conteúdo, GetHashCode com HashCode.Combine, GetType, o HashSet que não acha os iguais e os avisos reais CS0659, CS0114 e CS8765 e o erro CS0115 do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# A Classe <span class="hl">object</span></h1>
+
+<p class="intro">Você já reparou que <strong>todo</strong> objeto em C# tem um método <code>ToString()</code>, mesmo os das classes que você escreveu e nas quais nunca pôs esse método? É que, no C#, toda classe tem uma mãe, mesmo quando você não escreve <code>: Mãe</code>. Lá no alto da árvore de família de <strong>todos</strong> os tipos está a classe <code>object</code>. Nesta aula você vai conhecer o que ela dá de herança para todo mundo e aprender a sobrescrever os três métodos mais importantes: <code>ToString</code>, <code>Equals</code> e <code>GetHashCode</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Que toda classe herda de <code>object</code> (o mesmo que <code>System.Object</code>).</li>
+  <li>O que o <code>ToString()</code> mostra se você não fizer nada, e como trocar.</li>
+  <li>A diferença entre "o mesmo objeto" e "objetos com o mesmo conteúdo": o <code>Equals</code> padrão e o seu.</li>
+  <li>Por que quem sobrescreve <code>Equals</code> tem de sobrescrever <code>GetHashCode</code> (o aviso <code>CS0659</code>).</li>
+  <li>O <code>GetType()</code>, e os erros comuns: esquecer o <code>override</code>, errar o nome, esquecer o <code>?</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com <code>dotnet run arquivo.cs</code> no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: o kit de boas-vindas</h2>
+<p>Numa empresa, todo funcionário novo recebe o mesmo kit no primeiro dia: crachá, caneca e uma pasta. Não importa o cargo: o estagiário e a diretora recebem o kit. Depois, cada um personaliza o seu: põe uma foto no crachá, troca a caneca.</p>
+
+<p>A classe <code>object</code> é esse kit. Todo tipo do C# recebe dela, de graça, alguns métodos:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>O que faz</th><th>Pode trocar?</th></tr>
+<tr><td><code>ToString()</code></td><td>Devolve o objeto como texto</td><td>Sim (<code>virtual</code>)</td></tr>
+<tr><td><code>Equals(object? obj)</code></td><td>Diz se o objeto é "igual" a outro</td><td>Sim (<code>virtual</code>)</td></tr>
+<tr><td><code>GetHashCode()</code></td><td>Devolve um número que resume o objeto (para <code>HashSet</code> e <code>Dictionary</code>)</td><td>Sim (<code>virtual</code>)</td></tr>
+<tr><td><code>GetType()</code></td><td>Diz de que tipo o objeto é</td><td>Não</td></tr>
+</table>
+</div>
+
+<p>Escrever <code>class Produto</code> é o mesmo que escrever <code>class Produto : object</code>. E <code>object</code> é só um apelido do C# para a classe <code>System.Object</code> do .NET, como <code>string</code> é apelido de <code>System.String</code>.</p>
+
+<hr>
+
+<h2>O <code>ToString()</code> que vem de fábrica</h2>
+
+<pre class="file" data-file="padrao.cs">Produto p = new Produto("Café", 18.90m);
+Console.WriteLine(p.ToString());
+Console.WriteLine(p);
+Console.WriteLine($"Comprei: {p}");
+Console.WriteLine(p.GetType());
+
+class Produto
+{
+    public string Nome { get; }
+    public decimal Preco { get; }
+
+    public Produto(string nome, decimal preco)
+    {
+        Nome = nome;
+        Preco = preco;
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>p.ToString()</dt><dd>Chama o <code>ToString()</code> herdado de <code>object</code>. A classe <code>Produto</code> não escreveu nenhum.</dd>
+  <dt>Console.WriteLine(p)</dt><dd>Quando recebe um objeto, o <code>WriteLine</code> chama o <code>ToString()</code> dele por você.</dd>
+  <dt>$"Comprei: {p}"</dt><dd>A <a href="interpolacao.html">interpolação</a> também chama o <code>ToString()</code>.</dd>
+  <dt>p.GetType()</dt><dd>Devolve o tipo do objeto. Mostrado com <code>WriteLine</code>, aparece o nome completo do tipo.</dd>
+</dl>
+
+<pre class="term">$ dotnet run padrao.cs
+Produto
+Produto
+Comprei: Produto
+Produto</pre>
+
+<p>O <code>ToString()</code> de fábrica só sabe o <strong>nome do tipo</strong>. Ele não conhece as suas propriedades. (Se a classe estivesse dentro de um <a href="namespaces.html">namespace</a> <code>Loja</code>, apareceria <code>Loja.Produto</code>.) Para mostrar algo útil, troque o método.</p>
+
+<hr>
+
+<h2>Sobrescrever o <code>ToString()</code></h2>
+
+<pre class="file" data-file="tostring.cs">Produto p = new Produto("Café", 18.90m);
+Console.WriteLine(p);
+Console.WriteLine($"Comprei: {p}");
+
+class Produto
+{
+    public string Nome { get; }
+    public decimal Preco { get; }
+
+    public Produto(string nome, decimal preco)
+    {
+        Nome = nome;
+        Preco = preco;
+    }
+
+    public override string ToString()
+    {
+        return $"{Nome} ({Preco:C})";
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>public override string ToString()</dt><dd>O mesmo <code>override</code> de <a href="virtual-override.html">virtual e override</a>: o <code>ToString()</code> de <code>object</code> é <code>virtual</code>, e o <code>Produto</code> coloca a versão dele no lugar. Tem de ser <code>public</code>, devolver <code>string</code> e não receber nada.</dd>
+  <dt>return $"{Nome} ({Preco:C})";</dt><dd>O texto que representa um produto: o nome e o preço em reais.</dd>
+</dl>
+
+<pre class="term">$ dotnet run tostring.cs
+Café (R$ 18,90)
+Comprei: Café (R$ 18,90)</pre>
+
+<p>Agora todo lugar que transforma um produto em texto usa a versão nova: o <code>WriteLine</code>, a interpolação, a concatenação com <code>+</code> e até a janela do depurador (veja <a href="depuracao.html">Depuração</a>). Sobrescrever o <code>ToString()</code> é um dos hábitos mais úteis em C#: deixa a saída e a depuração muito mais fáceis.</p>
+
+<div class="trycs" data-goal="out:Bia (nota 9\,5),out:Caio (nota 7),src:override\s+string\s+ToString">
+<p class="try-task"><strong>Missão:</strong> rode e veja <code>Aluno</code> duas vezes. Sobrescreva o <code>ToString()</code> da classe <code>Aluno</code> para devolver <code>$"{Nome} (nota {Nota})"</code>. A saída deve ser <code>Bia (nota 9,5)</code> e <code>Caio (nota 7)</code>.</p>
+<pre class="script">Aluno[] turma = [new Aluno("Bia", 9.5), new Aluno("Caio", 7)];
+foreach (Aluno a in turma)
+{
+    Console.WriteLine(a);
+}
+
+class Aluno
+{
+    public string Nome { get; }
+    public double Nota { get; }
+
+    public Aluno(string nome, double nota)
+    {
+        Nome = nome;
+        Nota = nota;
+    }
+
+    // escreva aqui o ToString
+}
+</pre>
+<pre class="solucao">Aluno[] turma = [new Aluno("Bia", 9.5), new Aluno("Caio", 7)];
+foreach (Aluno a in turma)
+{
+    Console.WriteLine(a);
+}
+
+class Aluno
+{
+    public string Nome { get; }
+    public double Nota { get; }
+
+    public Aluno(string nome, double nota)
+    {
+        Nome = nome;
+        Nota = nota;
+    }
+
+    public override string ToString() =&gt; $"{Nome} (nota {Nota})";
+}
+</pre>
+</div>
+
+<h3>Dois erros comuns no <code>ToString</code></h3>
+<p><strong>Esquecer o <code>override</code></strong> (<code>public string ToString()</code>): compila, com um aviso, e o <code>WriteLine</code> continua usando o de fábrica!</p>
+
+<pre class="term">$ dotnet run semoverride.cs
+/home/ana/cs/semoverride.cs(16,19): warning CS0114: "Produto.ToString()" oculta o membro herdado "object.ToString()". Para que o membro atual substitua essa implementação, adicione a palavra-chave override. Caso contrário, adicione a palavra-chave new.
+Produto
+Comprei: Produto</pre>
+
+<p>Sem <code>override</code>, o método da Ana é um método <strong>novo</strong>, que só tem o mesmo nome. O <code>WriteLine</code> recebe um objeto e chama o <code>ToString()</code> de <code>object</code>, que não foi trocado. Leia sempre os avisos: este explica exatamente o que fazer.</p>
+
+<p><strong>Errar uma letra</strong> (<code>public override string Tostring()</code>, com o <code>s</code> minúsculo): o C# diferencia maiúsculas de minúsculas, e não existe nenhum <code>Tostring</code> na mãe para substituir.</p>
+
+<pre class="term">$ dotnet run minuscula.cs
+/home/ana/cs/minuscula.cs(16,28): error CS0115: "Produto.Tostring()": não encontrado nenhum método adequado para substituição
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<hr>
+
+<h2>O <code>Equals</code> que vem de fábrica: o mesmo objeto?</h2>
+<p>Dois pacotes de café da mesma marca, com o mesmo preço, são "iguais"? Depende da pergunta. São <strong>o mesmo pacote</strong>? Não: são dois pacotes na prateleira. Têm <strong>o mesmo conteúdo</strong>? Sim. Para uma classe, o C# responde, de fábrica, a primeira pergunta:</p>
+
+<pre class="file" data-file="igual.cs">Produto a = new Produto("Café", 18.90m);
+Produto b = new Produto("Café", 18.90m);
+Produto c = a;
+
+Console.WriteLine(a.Equals(b));
+Console.WriteLine(a == b);
+Console.WriteLine(a.Equals(c));
+Console.WriteLine(a == c);
+
+class Produto
+{
+    public string Nome { get; }
+    public decimal Preco { get; }
+
+    public Produto(string nome, decimal preco)
+    {
+        Nome = nome;
+        Preco = preco;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run igual.cs
+False      « a e b: dois objetos, mesmo conteúdo
+False
+True       « a e c: o mesmo objeto
+True</pre>
+
+<dl class="anatomy">
+  <dt>Produto a = new …; Produto b = new …;</dt><dd>Dois <code>new</code> = dois objetos na memória, cada um no seu lugar.</dd>
+  <dt>Produto c = a;</dt><dd>Nenhum <code>new</code>: <code>c</code> é <strong>outro nome para o mesmo objeto</strong> de <code>a</code> (a aula <a href="valor-referencia.html">Valor × Referência</a> explica isso a fundo).</dd>
+  <dt>a.Equals(b)</dt><dd>O <code>Equals</code> de <code>object</code> compara <strong>referências</strong>: só dá <code>True</code> se as duas variáveis apontam para o mesmo objeto.</dd>
+  <dt>a == b</dt><dd>Para classes, o <code>==</code> também compara referências (a menos que a classe redefina o operador; veja <a href="sobrecarga-operadores.html">Sobrecarga de Operadores</a>).</dd>
+</dl>
+
+<p>Muitas vezes é isso mesmo que você quer: duas contas bancárias com o mesmo saldo <strong>não</strong> são a mesma conta. Mas para coisas que são só "dados" (um produto do catálogo, uma data, um endereço), faz mais sentido comparar o <strong>conteúdo</strong>.</p>
+
+<hr>
+
+<h2>Sobrescrever o <code>Equals</code>: o mesmo conteúdo</h2>
+
+<pre class="file" data-file="equals.cs">Produto a = new Produto("Café", 18.90m);
+Produto b = new Produto("Café", 18.90m);
+Produto d = new Produto("Chá", 7.50m);
+
+Console.WriteLine(a.Equals(b));
+Console.WriteLine(a.Equals(d));
+Console.WriteLine(a.Equals("Café"));
+Console.WriteLine(a == b);
+
+class Produto
+{
+    public string Nome { get; }
+    public decimal Preco { get; }
+
+    public Produto(string nome, decimal preco)
+    {
+        Nome = nome;
+        Preco = preco;
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return obj is Produto outro
+            &amp;&amp; Nome == outro.Nome
+            &amp;&amp; Preco == outro.Preco;
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Nome, Preco);
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>public override bool Equals(object? obj)</dt><dd>A assinatura tem de ser exatamente esta: devolve <code>bool</code> e recebe um <code>object?</code>, porque dá para comparar um produto com <strong>qualquer coisa</strong>, até com <code>null</code> (por isso o <code>?</code>; veja <a href="referencias-anulaveis.html">Referências Anuláveis</a>).</dd>
+  <dt>obj is Produto outro</dt><dd>Primeiro teste: o outro é um <code>Produto</code>? Se for, ele passa a se chamar <code>outro</code>, já com o tipo <code>Produto</code>. Se for <code>null</code> ou um texto, o <code>is</code> dá <code>false</code> e o resto nem é avaliado.</dd>
+  <dt>&amp;&amp; Nome == outro.Nome &amp;&amp; Preco == outro.Preco</dt><dd>Depois, compara o que importa, propriedade por propriedade. Você decide o que torna dois produtos iguais.</dd>
+  <dt>public override int GetHashCode()</dt><dd>O companheiro obrigatório do <code>Equals</code>. Ele tem a próxima seção inteira.</dd>
+</dl>
+
+<pre class="term">$ dotnet run equals.cs
+True       « mesmo nome e mesmo preço
+False      « o chá é outro produto
+False      « um texto nunca é um Produto
+False      « o == continua comparando referências</pre>
+
+<p>Repare na última linha: sobrescrever o <code>Equals</code> <strong>não</strong> muda o <code>==</code>. São duas coisas separadas. Se você quer comparação por conteúdo em tudo (<code>Equals</code>, <code>==</code>, <code>ToString</code> e <code>GetHashCode</code>) sem escrever nada disso, a ferramenta certa é o <a href="records.html">record</a>.</p>
+
+<hr>
+
+<h2><code>GetHashCode</code>: o resumo numérico</h2>
+<p>O <code>GetHashCode()</code> devolve um <code>int</code> que "resume" o objeto. O <code>HashSet</code> e o <code>Dictionary</code> (veja <a href="hashset.html">HashSet</a> e <a href="dictionary.html">Dictionary</a>) usam esse número para achar as coisas rápido, como uma biblioteca que separa os livros em estantes pela primeira letra do título: para procurar <em>Dom Casmurro</em>, você vai direto à estante do "D" e só compara os livros de lá.</p>
+
+<p>A regra de ouro:</p>
+<div class="warning">
+<strong>Objetos iguais têm de ter o mesmo hash</strong>
+<p>Se <code>a.Equals(b)</code> é <code>True</code>, então <code>a.GetHashCode()</code> tem de ser igual a <code>b.GetHashCode()</code>. (O contrário não é exigido: objetos diferentes podem, por azar, ter o mesmo hash.) Se a regra for quebrada, o <code>HashSet</code> procura o objeto na "estante" errada e não o encontra.</p>
+</div>
+
+<p>O jeito mais fácil de cumprir a regra é passar as <strong>mesmas propriedades</strong> do <code>Equals</code> para o <code>HashCode.Combine</code>, que mistura os hashes delas num só: <code>HashCode.Combine(Nome, Preco)</code>.</p>
+
+<h3>O compilador avisa</h3>
+<p>Se a Ana tirar o <code>GetHashCode</code> do exemplo acima:</p>
+
+<pre class="term">$ dotnet run semhash.cs
+/home/ana/cs/semhash.cs(10,7): warning CS0659: "Produto" substitui Object.Equals(object o), mas não substitui Object.GetHashCode()
+True
+False
+False
+False</pre>
+
+<p>O programa roda, mas o aviso é sério. Veja o estrago num <code>HashSet</code>, que guarda cada coisa uma vez só:</p>
+
+<pre class="file" data-file="hash.cs">Produto a = new Produto("Café", 18.90m);
+Produto b = new Produto("Café", 18.90m);
+Console.WriteLine(a.GetHashCode());
+Console.WriteLine(b.GetHashCode());
+Console.WriteLine(a.GetHashCode() == b.GetHashCode());
+
+HashSet&lt;Produto&gt; carrinho = [a, b, new Produto("Chá", 7.50m)];
+Console.WriteLine(carrinho.Count);
+
+// … a classe Produto com Equals e GetHashCode, como em equals.cs
+</pre>
+
+<pre class="term">$ dotnet run hash.cs      « com GetHashCode
+-1247727026
+-1247727026
+True
+2         « o café repetido entrou uma vez só
+$ dotnet run hash.cs      « de novo, sem mudar nada
+-141737905
+-141737905
+True
+2
+$ dotnet run hashsem.cs   « sem GetHashCode
+/home/ana/cs/hashsem.cs(10,7): warning CS0659: "Produto" substitui Object.Equals(object o), mas não substitui Object.GetHashCode()
+58225482
+54267293
+False
+3         « o HashSet não percebeu que os cafés são iguais</pre>
+
+<p>Três lições nessa saída:</p>
+<ol>
+  <li>Com <code>GetHashCode</code>, os dois cafés têm o mesmo hash e o <code>HashSet</code> guarda só um (<code>2</code> itens). Sem ele, cada objeto tem um hash diferente, o <code>HashSet</code> nem chega a chamar o <code>Equals</code> e guarda os dois (<code>3</code> itens).</li>
+  <li><strong>O número muda a cada execução.</strong> Os hashes de texto do .NET são sorteados toda vez que o programa começa (é uma proteção contra ataques). O seu número vai ser outro. Por isso, <strong>nunca grave um hash em arquivo nem dependa do valor dele</strong>: só compare hashes dentro da mesma execução.</li>
+  <li>O aviso <code>CS0659</code> só aparece quando o programa é compilado. Rodando de novo sem mudar o arquivo, o <code>dotnet run</code> reaproveita a compilação anterior e não mostra o aviso outra vez. Não é porque o problema sumiu!</li>
+</ol>
+
+<hr>
+
+<h2><code>GetType()</code> e o tipo <code>object</code></h2>
+<p>Como <code>object</code> é a mãe de tudo, uma variável <code>object</code> aceita qualquer valor: um número, um texto, um produto. O <code>GetType()</code> conta o que há lá dentro:</p>
+
+<pre class="file" data-file="tipo.cs">object o = 42;
+Console.WriteLine(o.GetType().Name);
+Console.WriteLine(o);
+</pre>
+
+<pre class="term">$ dotnet run tipo.cs
+Int32      « o nome .NET do int
+42</pre>
+
+<p>O <code>.Name</code> dá só o nome, sem o namespace (<code>Int32</code> em vez de <code>System.Int32</code>). Guardar um <code>int</code> numa variável <code>object</code> tem um custo escondido, chamado <em>boxing</em>, assunto da aula <a href="valor-referencia.html">Valor × Referência</a>. Na maior parte do código, prefira o tipo certo (<code>int</code>, <code>Produto</code>) a <code>object</code>: o compilador só ajuda quando sabe o tipo.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS0659: "… substitui Object.Equals(object o), mas não substitui Object.GetHashCode()"</strong>
+<pre class="term">$ dotnet run semhash.cs
+/home/ana/cs/semhash.cs(10,7): warning CS0659: "Produto" substitui Object.Equals(object o), mas não substitui Object.GetHashCode()</pre>
+<p><strong>O que aconteceu:</strong> a classe trocou o <code>Equals</code> e ficou com o <code>GetHashCode</code> de fábrica. Objetos iguais terão hashes diferentes, e <code>HashSet</code> e <code>Dictionary</code> vão se confundir.</p>
+<p><strong>Como resolver:</strong> <code>public override int GetHashCode() =&gt; HashCode.Combine(…);</code> com as mesmas propriedades usadas no <code>Equals</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS8765: "A nulidade do tipo de parâmetro 'obj' não corresponde ao membro substituído"</strong>
+<pre class="term">$ dotnet run semnull.cs
+/home/ana/cs/semnull.cs(21,26): warning CS8765: A nulidade do tipo de parâmetro 'obj' não corresponde ao membro substituído (possivelmente devido a atributos de nulidade).</pre>
+<p><strong>O que aconteceu:</strong> a Ana escreveu <code>Equals(object obj)</code>, sem o <code>?</code>. Mas o <code>Equals</code> de <code>object</code> aceita <code>null</code>, e o seu também tem de aceitar.</p>
+<p><strong>Como resolver:</strong> escreva <code>Equals(object? obj)</code>. O <code>is Produto outro</code> já trata o <code>null</code> (dá <code>false</code>).</p>
+</div>
+
+<div class="cenario">
+<strong>CS0114 no <code>ToString</code>: o método foi escrito, mas não é usado</strong>
+<pre class="term">$ dotnet run semoverride.cs
+/home/ana/cs/semoverride.cs(16,19): warning CS0114: "Produto.ToString()" oculta o membro herdado "object.ToString()". …
+Produto</pre>
+<p><strong>O que aconteceu:</strong> faltou o <code>override</code>.</p>
+<p><strong>Como resolver:</strong> <code>public override string ToString()</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0115: "não encontrado nenhum método adequado para substituição"</strong>
+<pre class="term">$ dotnet run minuscula.cs
+/home/ana/cs/minuscula.cs(16,28): error CS0115: "Produto.Tostring()": não encontrado nenhum método adequado para substituição</pre>
+<p><strong>O que aconteceu:</strong> o <code>override</code> está num método que a mãe não tem: nome com letra errada (<code>Tostring</code>, <code>equals</code>), parâmetros diferentes (<code>Equals(Produto p)</code>) ou tipo de retorno diferente.</p>
+<p><strong>Como resolver:</strong> copie a assinatura exata: <code>string ToString()</code>, <code>bool Equals(object? obj)</code>, <code>int GetHashCode()</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>public override string ToString()</code></td><td>Como o objeto vira texto (<code>WriteLine</code>, <code>$"…"</code>, <code>+</code>)</td></tr>
+<tr><td><code>public override bool Equals(object? obj)</code></td><td>Quando dois objetos são iguais (de fábrica: o mesmo objeto)</td></tr>
+<tr><td><code>obj is Produto outro &amp;&amp; …</code></td><td>O começo típico de um <code>Equals</code></td></tr>
+<tr><td><code>public override int GetHashCode() =&gt; HashCode.Combine(A, B);</code></td><td>Hash com as mesmas propriedades do <code>Equals</code></td></tr>
+<tr><td><code>obj.GetType()</code>, <code>obj.GetType().Name</code></td><td>O tipo do objeto (não pode ser sobrescrito)</td></tr>
+<tr><td><code>object.ReferenceEquals(a, b)</code></td><td>"É o mesmo objeto?", mesmo que a classe tenha trocado o <code>Equals</code></td></tr>
+<tr><td><code>a == b</code> (classes)</td><td>Compara referências, a menos que o operador seja redefinido</td></tr>
+<tr><td><code>class X</code> = <code>class X : object</code></td><td>Toda classe herda de <code>object</code> (<code>System.Object</code>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A mãe de todos</h3>
+<p>De que classe toda classe do C# herda, mesmo sem escrever nada?</p>
+<div class="ex-code"><input data-answer="object|Object|System.Object" aria-label="classe"></div>
+</div>
+
+<div class="exercise">
+<h3>2. A assinatura do ToString</h3>
+<p>Complete a primeira linha do <code>ToString</code> de uma classe:</p>
+<div class="ex-code">public <input data-answer="override string" aria-label="modificador e tipo"> ToString()</div>
+</div>
+
+<div class="exercise">
+<h3>3. O companheiro do Equals</h3>
+<p>Complete o <code>GetHashCode</code> de uma classe cujo <code>Equals</code> compara <code>Nome</code> e <code>Idade</code>:</p>
+<div class="ex-code">public override int GetHashCode() =&gt; <input data-answer="HashCode.Combine(Nome, Idade)|HashCode.Combine(Nome,Idade)" aria-label="expressão">;</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. <code>Produto</code> não sobrescreve nada. O que mostra <code>Console.WriteLine(new Produto("Café", 18.90m));</code>?</p>
+<label><input type="radio" name="q4"> <code>Café</code></label>
+<label><input type="radio" name="q4"> <code>Produto</code></label>
+<label><input type="radio" name="q4"> <code>Café (R$ 18,90)</code></label>
+<label><input type="radio" name="q4"> Um endereço de memória</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. <code>a</code> e <code>b</code> são dois <code>new Produto("Café", 18.90m)</code>, e a classe não sobrescreve nada. Quanto dá <code>a.Equals(b)</code>?</p>
+<label><input type="radio" name="q5"> <code>True</code>, porque o conteúdo é igual</label>
+<label><input type="radio" name="q5"> Erro de compilação</label>
+<label><input type="radio" name="q5"> <code>False</code>, porque são dois objetos diferentes</label>
+<label><input type="radio" name="q5"> Depende da execução</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. O que é verdade sobre o <code>GetHashCode()</code>?</p>
+<label><input type="radio" name="q6"> O valor de um texto é sempre o mesmo, em qualquer execução</label>
+<label><input type="radio" name="q6"> Objetos diferentes sempre têm hashes diferentes</label>
+<label><input type="radio" name="q6"> Só é preciso sobrescrever se a classe tiver <code>ToString</code></label>
+<label><input type="radio" name="q6"> Se <code>a.Equals(b)</code> é <code>True</code>, os hashes de <code>a</code> e <code>b</code> têm de ser iguais</label>
+</div>
+
+<div class="trycs" data-goal="out:a e b são iguais? True,out:Itens diferentes: 2,semaviso,src:override\s+int\s+GetHashCode">
+<p class="try-task"><strong>Missão final:</strong> o carrinho da Ana tem o mesmo café duas vezes, mas o programa acha que são produtos diferentes. Na classe <code>Produto</code>, sobrescreva o <code>Equals(object? obj)</code> (iguais = mesmo <code>Nome</code> e mesmo <code>Preco</code>) e o <code>GetHashCode()</code> (com <code>HashCode.Combine</code>). A saída deve ter <code>a e b são iguais? True</code> e <code>Itens diferentes: 2</code>, <strong>sem nenhum aviso</strong>. Dica: escreva primeiro só o <code>Equals</code> e rode, para ver o aviso e o resultado do <code>HashSet</code>.</p>
+<pre class="script">Produto a = new Produto("Café", 18.90m);
+Produto b = new Produto("Café", 18.90m);
+Produto c = new Produto("Chá", 7.50m);
+
+Console.WriteLine($"a e b são iguais? {a.Equals(b)}");
+
+HashSet&lt;Produto&gt; itens = [a, b, c];
+Console.WriteLine($"Itens diferentes: {itens.Count}");
+
+class Produto
+{
+    public string Nome { get; }
+    public decimal Preco { get; }
+
+    public Produto(string nome, decimal preco)
+    {
+        Nome = nome;
+        Preco = preco;
+    }
+
+    // escreva aqui o Equals e o GetHashCode
+}
+</pre>
+<pre class="solucao">Produto a = new Produto("Café", 18.90m);
+Produto b = new Produto("Café", 18.90m);
+Produto c = new Produto("Chá", 7.50m);
+
+Console.WriteLine($"a e b são iguais? {a.Equals(b)}");
+
+HashSet&lt;Produto&gt; itens = [a, b, c];
+Console.WriteLine($"Itens diferentes: {itens.Count}");
+
+class Produto
+{
+    public string Nome { get; }
+    public decimal Preco { get; }
+
+    public Produto(string nome, decimal preco)
+    {
+        Nome = nome;
+        Preco = preco;
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return obj is Produto outro &amp;&amp; Nome == outro.Nome &amp;&amp; Preco == outro.Preco;
+    }
+
+    public override int GetHashCode() =&gt; HashCode.Combine(Nome, Preco);
+}
+</pre>
+</div>
+
+<pre class="term">$ dotnet run carrinho.cs      « a solução
+a e b são iguais? True
+Itens diferentes: 2</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Toda classe herda de <code>object</code> (<code>System.Object</code>) e ganha <code>ToString</code>, <code>Equals</code>, <code>GetHashCode</code> e <code>GetType</code>.</li>
+  <li>O <code>ToString()</code> de fábrica mostra só o nome do tipo. Sobrescreva com <code>public override string ToString()</code>; sem o <code>override</code>, vem o aviso <code>CS0114</code> e o método não é usado.</li>
+  <li>O <code>Equals</code> de fábrica (e o <code>==</code> das classes) pergunta "é o mesmo objeto?". Para comparar o conteúdo, sobrescreva <code>Equals(object? obj)</code> com <code>obj is Produto outro &amp;&amp; …</code>.</li>
+  <li>Quem troca o <code>Equals</code> troca o <code>GetHashCode</code> (<code>CS0659</code>), com <code>HashCode.Combine</code> das mesmas propriedades. Sem isso, <code>HashSet</code> e <code>Dictionary</code> não acham os iguais.</li>
+  <li>O valor do hash muda a cada execução: nunca dependa dele. Para ter tudo isso pronto, use um <a href="records.html">record</a>. Próxima aula: <a href="valor-referencia.html">Valor × Referência</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
