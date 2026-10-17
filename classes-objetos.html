@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Classes e Objetos — class, new, referências e null | Guia C#</title>
+<meta name="description" content="Classes e objetos em C# para quem nunca programou: declarar uma classe, criar objetos com new (e var e new()), o que a variável guarda (uma referência), o == entre objetos, null e a NullReferenceException, arrays de objetos, a classe num arquivo próprio num projeto e os erros reais CS0246, CS1061, CS0165, CS8802 e CS8803, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Classes e Objetos</span></h1>
+
+<p class="intro">Na aula <a href="poo.html">O que é POO</a> você viu a ideia: a classe é o molde e cada objeto é uma coisa feita com ele. Agora é hora de pôr a mão no código: escrever uma classe, criar objetos com <code>new</code>, entender o que a variável realmente guarda (uma <strong>referência</strong>) e o que acontece quando ela não guarda nada (<code>null</code>). No fim, você vai tirar a classe do arquivo principal e colocá-la num arquivo só dela.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como declarar uma classe e como criar objetos com <code>new</code>, linha por linha.</li>
+  <li>Três jeitos de escrever a criação: <code>Produto p = new Produto();</code>, <code>var p = new Produto();</code> e <code>Produto p = new();</code>.</li>
+  <li>Como criar vários objetos independentes da mesma classe.</li>
+  <li>O que é uma <strong>referência</strong>: por que <code>Produto b = a;</code> não cria um produto novo, e o que o <code>==</code> compara.</li>
+  <li>Objetos e <code>null</code>: a <code>NullReferenceException</code> e os arrays de objetos, que nascem vazios.</li>
+  <li>Onde colocar a classe: no fim do mesmo arquivo ou num arquivo próprio (<code>Produto.cs</code>), num projeto.</li>
+</ul>
+</div>
+
+<p>Os programas de arquivo único rodaram com <code>dotnet run arquivo.cs</code>, na pasta <code>~/cs</code>; os de vários arquivos, num projeto em <code>~/projetos</code>. Tudo na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), com o .NET 10 SDK.</p>
+
+<hr>
+
+<h2>Declarar uma classe</h2>
+<p>A lojinha da Ana vende frutas e outras coisas. Todo produto tem um nome e um preço. Essa é a descrição, o molde:</p>
+
+<pre class="file" data-file="trecho">class Produto
+{
+    public string Nome = "";
+    public decimal Preco;
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>class</dt><dd>Palavra que começa a declaração de uma classe ("classe", em inglês).</dd>
+  <dt>Produto</dt><dd>O nome da classe. Por convenção, começa com <strong>letra maiúscula</strong> e cada palavra nova também: <code>Produto</code>, <code>ContaBancaria</code>, <code>AlunoBolsista</code> (o estilo se chama <em>PascalCase</em>). E o nome vai no <strong>singular</strong>: a classe descreve <em>um</em> produto.</dd>
+  <dt>{ … }</dt><dd>O corpo da classe. Tudo o que pertence a ela fica aqui dentro. Em C#, a chave de abertura vai sozinha na linha de baixo, como nos <code>if</code> e métodos que você já escreveu.</dd>
+  <dt>public string Nome = "";</dt><dd>Um <strong>campo</strong>: uma variável que <strong>cada</strong> produto vai ter. <code>public</code> deixa o resto do programa usá-lo. O <code>= ""</code> é o valor inicial: todo produto novo nasce com o nome vazio (e não <code>null</code>; a aula <a href="campos.html">Campos</a> explica por quê).</dd>
+  <dt>public decimal Preco;</dt><dd>Outro campo. Sem valor inicial, ele começa com o padrão do tipo: <code>0</code>. Dinheiro sempre em <a href="decimais.html"><code>decimal</code></a>.</dd>
+</dl>
+
+<p>Declarar a classe <strong>não cria produto nenhum</strong>. É como desenhar a ficha em branco: ela descreve como as fichas serão, mas ainda não há ficha preenchida. Criar é o próximo passo.</p>
+
+<hr>
+
+<h2>Criar objetos com <code>new</code></h2>
+
+<pre class="file" data-file="obj1.cs">Produto maca = new Produto();
+maca.Nome = "maçã";
+maca.Preco = 7.90m;
+
+Produto banana = new Produto();
+banana.Nome = "banana";
+banana.Preco = 3.50m;
+
+Console.WriteLine($"{maca.Nome} custa {maca.Preco:C}");
+Console.WriteLine($"{banana.Nome} custa {banana.Preco:C}");
+
+class Produto
+{
+    public string Nome = "";
+    public decimal Preco;
+}
+</pre>
+
+<pre class="term">$ dotnet run obj1.cs
+maçã custa R$ 7,90
+banana custa R$ 3,50</pre>
+
+<p>A linha mais importante da aula é esta: <code>Produto maca = new Produto();</code>. Ela tem quatro partes:</p>
+
+<dl class="anatomy">
+  <dt>Produto</dt><dd>O <strong>tipo</strong> da variável. Toda classe que você cria vira um tipo novo, como <code>int</code> ou <code>string</code>. Esta variável só aceita produtos.</dd>
+  <dt>maca</dt><dd>O <strong>nome</strong> da variável (camelCase, como toda variável local). Sem cedilha nem acento, por costume.</dd>
+  <dt>new</dt><dd>"Novo". Pede ao C# que <strong>crie um objeto</strong> na memória. Sem <code>new</code>, nenhum objeto nasce.</dd>
+  <dt>Produto()</dt><dd>Diz de qual classe é o objeto. Os parênteses chamam o <strong>construtor</strong>, um código que prepara o objeto recém-criado. Esta classe não escreveu nenhum, e o C# fornece um vazio. Você vai escrever os seus em <a href="construtores.html">Construtores</a>.</dd>
+</dl>
+
+<p>Depois de criado, o objeto é acessado pelo <strong>ponto</strong>: <code>maca.Nome = "maçã"</code> lê-se "o nome da maçã recebe maçã". O <code>:C</code> em <code>{maca.Preco:C}</code> formata como dinheiro (veja <a href="formatacao.html">Formatar Números</a>). Cada <code>new</code> cria um objeto <strong>diferente</strong>: <code>maca</code> e <code>banana</code> são dois produtos, cada um com o seu nome e o seu preço. Mudar um não afeta o outro.</p>
+
+<h3>E se eu mostrar o objeto inteiro?</h3>
+<p>Acrescentando <code>Console.WriteLine(maca);</code> e <code>Console.WriteLine(banana);</code> ao programa:</p>
+<pre class="term">$ dotnet run obj1.cs
+maçã custa R$ 7,90
+banana custa R$ 3,50
+Produto
+Produto</pre>
+<p>O C# não sabe como você quer mostrar um produto, então mostra só o <strong>nome da classe</strong>. Para mostrar algo como <code>maçã (R$ 7,90)</code>, a classe precisa de um método especial, o <code>ToString()</code>, que você verá em <a href="object.html">A Classe object</a>.</p>
+
+<h3>Três jeitos de escrever a criação</h3>
+<pre class="file" data-file="formas.cs">Produto p1 = new Produto();
+var p2 = new Produto();
+Produto p3 = new();
+p1.Nome = "um"; p2.Nome = "dois"; p3.Nome = "três";
+Console.WriteLine($"{p1.Nome} {p2.Nome} {p3.Nome}");
+
+class Produto
+{
+    public string Nome = "";
+}
+</pre>
+<pre class="term">$ dotnet run formas.cs
+um dois três</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>O que acontece</th><th>Quando usar</th></tr>
+<tr><td><code>Produto p1 = new Produto();</code></td><td>A forma completa: tipo dos dois lados.</td><td>Sempre funciona; é a que você vê em todo código antigo.</td></tr>
+<tr><td><code>var p2 = new Produto();</code></td><td>O tipo da variável é deduzido do <code>new</code> (veja <a href="var.html">Inferência com var</a>).</td><td>Muito comum: o tipo já está escrito à direita.</td></tr>
+<tr><td><code>Produto p3 = new();</code> <span class="versao">C# 9</span></td><td>O contrário: o <code>new()</code> deduz a classe pelo tipo da variável.</td><td>Bom quando o tipo está à esquerda, como em campos.</td></tr>
+</table>
+</div>
+<p>Os três criam um objeto igualzinho. Nesta parte do guia, a forma completa aparece mais, porque deixa tudo à vista.</p>
+
+<div class="trycs">
+<p class="try-task"><strong>Brinque com o código:</strong> crie um terceiro produto (uma uva de <code>12.00m</code>) e mostre-o. Depois mostre a variável direto, com <code>Console.WriteLine(uva);</code>, e veja o nome da classe aparecer.</p>
+<pre class="script" data-file="loja.cs">Produto maca = new Produto();
+maca.Nome = "maçã";
+maca.Preco = 7.90m;
+
+Console.WriteLine($"{maca.Nome} custa {maca.Preco:C}");
+
+class Produto
+{
+    public string Nome = "";
+    public decimal Preco;
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="referencia">A variável guarda uma referência</h2>
+<p>Aqui está o ponto que mais confunde quem começa. Uma variável de tipo de valor (<code>int</code>, <code>decimal</code>) guarda o <strong>próprio valor</strong>. Uma variável de tipo classe <strong>não guarda o objeto</strong>: guarda uma <strong>referência</strong>, o "endereço" de onde o objeto está na memória. Pense no objeto como uma casa e na variável como um papel com o endereço da casa.</p>
+
+<p>Veja o que acontece quando a Ana copia uma variável para outra:</p>
+
+<pre class="file" data-file="ref.cs">Produto a = new Produto();
+a.Nome = "maçã";
+
+Produto b = a;
+b.Nome = "pera";
+
+Console.WriteLine($"a = {a.Nome}, b = {b.Nome}");
+Console.WriteLine(a == b);
+
+Produto c = new Produto();
+c.Nome = "pera";
+Console.WriteLine(b == c);
+Console.WriteLine(b.Nome == c.Nome);
+
+class Produto
+{
+    public string Nome = "";
+}
+</pre>
+
+<pre class="term">$ dotnet run ref.cs
+a = pera, b = pera       « mudou pelo b, apareceu no a
+True                     « a e b apontam para o MESMO objeto
+False                    « b e c são objetos diferentes, mesmo com o mesmo nome
+True                     « os nomes (textos) são iguais</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que acontece</th></tr>
+<tr><td><code>Produto a = new Produto();</code></td><td>Um produto é criado (casa nº 1). <code>a</code> guarda o endereço "casa nº 1".</td></tr>
+<tr><td><code>Produto b = a;</code></td><td><strong>Nenhum produto novo</strong>. <code>b</code> recebe uma cópia do endereço: agora <code>a</code> e <code>b</code> têm o mesmo papel, "casa nº 1".</td></tr>
+<tr><td><code>b.Nome = "pera";</code></td><td>Vai até a casa nº 1 e troca o nome. Como <code>a</code> aponta para a mesma casa, <code>a.Nome</code> também é "pera".</td></tr>
+<tr><td><code>a == b</code></td><td>Com objetos de uma classe, <code>==</code> compara os <strong>endereços</strong>, não o conteúdo. Mesmo endereço: <code>True</code>.</td></tr>
+<tr><td><code>Produto c = new Produto();</code></td><td>Um novo <code>new</code>: casa nº 2. Mesmo com o nome igual, <code>b == c</code> é <code>False</code>.</td></tr>
+<tr><td><code>b.Nome == c.Nome</code></td><td>Aqui são dois <code>string</code>. Para textos, o <code>==</code> do C# compara as <strong>letras</strong>: <code>True</code>.</td></tr>
+</table>
+</div>
+
+<p>Esse comportamento tem nome: classes são <strong>tipos de referência</strong>. Os <code>int</code>, <code>double</code> e <code>decimal</code> são <strong>tipos de valor</strong>, e uma cópia deles é uma cópia de verdade. A diferença completa, com <code>struct</code> no meio, está em <a href="valor-referencia.html">Valor × Referência</a>. E é por isso que, ao passar um objeto para um método, o método mexe <strong>no mesmo</strong> objeto (veja <a href="parametros.html">Parâmetros</a>).</p>
+
+<div class="trycs" data-goal="out:a = maçã\, b = pera,src:new\s+Produto[\s\S]*new\s+Produto">
+<p class="try-task"><strong>Missão:</strong> o programa mostra <code>a = pera, b = pera</code>, mas a Ana queria dois produtos diferentes. Mude <strong>uma linha</strong> para que <code>b</code> seja um produto novo, e a saída seja <code>a = maçã, b = pera</code>.</p>
+<pre class="script" data-file="ref.cs">Produto a = new Produto();
+a.Nome = "maçã";
+
+Produto b = a;
+b.Nome = "pera";
+
+Console.WriteLine($"a = {a.Nome}, b = {b.Nome}");
+
+class Produto
+{
+    public string Nome = "";
+}
+</pre>
+<pre class="solucao" data-file="ref.cs">Produto a = new Produto();
+a.Nome = "maçã";
+
+Produto b = new Produto();
+b.Nome = "pera";
+
+Console.WriteLine($"a = {a.Nome}, b = {b.Nome}");
+
+class Produto
+{
+    public string Nome = "";
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="null">Objetos e <code>null</code></h2>
+<p>Como toda referência, uma variável de classe pode valer <code>null</code>: o papel em branco, sem endereço nenhum (você viu isso com <code>string</code> em <a href="null.html#string-null">null e Tipos Anuláveis</a>). Com as <a href="referencias-anulaveis.html">referências anuláveis</a> ligadas, a variável que pode ficar em branco se declara com <code>?</code>: <code>Produto?</code>. Mostrar um <code>null</code> funciona; o problema é tentar <strong>usar</strong> o objeto que não existe:</p>
+
+<pre class="file" data-file="nulo2.cs — com erro de propósito">Produto? escolhido = null;
+Console.WriteLine($"Escolhido: [{escolhido}]");
+Console.WriteLine(escolhido.Nome);
+
+class Produto
+{
+    public string Nome = "";
+}
+</pre>
+
+<pre class="term">$ dotnet run nulo2.cs; echo "código: $?"
+/home/ana/cs/nulo2.cs(3,19): warning CS8602: Desreferência de uma referência possivelmente nula.
+Escolhido: []
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/nulo2.cs:line 3
+código: 134</pre>
+
+<dl class="anatomy">
+  <dt>warning CS8602</dt><dd>O compilador avisou antes: na linha 3, <code>escolhido</code> pode ser <code>null</code>.</dd>
+  <dt>Escolhido: []</dt><dd>A linha 2 rodou: mostrar uma referência nula dá um texto vazio.</dd>
+  <dt>System.NullReferenceException</dt><dd>"Exceção de referência nula": você tentou ir até a casa de um endereço em branco. "<code>Object reference not set to an instance of an object</code>" = "a referência não aponta para nenhum objeto".</dd>
+  <dt>line 3</dt><dd>Onde aconteceu. É sempre por aqui que você começa a investigar.</dd>
+  <dt>código: 134</dt><dd>O programa morreu por uma exceção não tratada.</dd>
+</dl>
+
+<h3>Um array de objetos nasce vazio</h3>
+<p>Um caso muito comum: <code>new Produto[3]</code> cria o <strong>array</strong> com 3 posições, <strong>não</strong> os produtos. Cada posição começa com <code>null</code>:</p>
+
+<pre class="file" data-file="cesta.cs — com erro de propósito">Produto[] cesta = new Produto[3];
+Console.WriteLine($"[{cesta[0]}]");
+cesta[0] = new Produto();
+cesta[0].Nome = "maçã";
+Console.WriteLine(cesta[0].Nome);
+Console.WriteLine(cesta[1].Nome);
+
+class Produto
+{
+    public string Nome = "";
+}
+</pre>
+
+<pre class="term">$ dotnet run cesta.cs; echo "código: $?"
+[]                 « a posição 0 ainda está vazia
+maçã               « depois do new, tem um produto
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/cesta.cs:line 6
+código: 134</pre>
+
+<p>A posição 0 recebeu um produto com <code>new</code>; a posição 1 continuou <code>null</code>, e a linha 6 quebrou. Repare que, desta vez, <strong>não houve aviso nenhum</strong>: o compilador não acompanha cada posição de um array, e trata <code>cesta[1]</code> como se tivesse um produto. É um dos lugares em que as referências anuláveis não protegem você. Regra: depois de <code>new Produto[n]</code>, preencha cada posição com <code>new Produto()</code> antes de usar (um <a href="for.html"><code>for</code></a> resolve).</p>
+
+<div class="note">
+<strong><code>null</code> × "sem valor"</strong>
+<p>São coisas diferentes. <code>Produto? escolhido = null;</code> é uma variável com valor (o valor "nada"); o erro só aparece ao rodar. Já <code>Produto escolhido;</code>, sem valor nenhum, seguido de <code>escolhido.Nome = "uva";</code>, nem compila:</p>
+<pre class="term">$ dotnet run semvalor.cs
+/home/ana/cs/semvalor.cs(2,1): error CS0165: Uso de variável local não atribuída "escolhido"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+</div>
+
+<hr>
+
+<h2 id="arquivos">Onde colocar a classe</h2>
+
+<h3>Forma 1: no fim do mesmo arquivo</h3>
+<p>Foi o que você fez até aqui: as instruções em cima, as classes embaixo, tudo num arquivo só, rodando com <code>dotnet run arquivo.cs</code>. Se a classe vier antes das instruções, é o erro <code>CS8803</code> que você viu em <a href="poo.html#ordem">O que é POO</a>. Entre si, as classes podem estar em qualquer ordem.</p>
+
+<h3>Forma 2: um arquivo por classe, num projeto (a forma profissional)</h3>
+<p>Em programas de verdade, cada classe fica no seu próprio arquivo, com o <strong>mesmo nome</strong> da classe. Para isso, a Ana precisa de um <a href="projetos-console.html">projeto</a>: o <code>dotnet run arquivo.cs</code> compila <strong>só aquele arquivo</strong>.</p>
+
+<pre class="term">$ cd ~/projetos
+$ dotnet new console -o Loja
+O modelo "Aplicativo do Console" foi criado com êxito.
+…
+$ cd Loja</pre>
+
+<p>Ela escreveu a classe em <code>Produto.cs</code> e trocou o conteúdo do <code>Program.cs</code>:</p>
+
+<pre class="file" data-file="Produto.cs">class Produto
+{
+    public string Nome = "";
+    public decimal Preco;
+}
+</pre>
+
+<pre class="file" data-file="Program.cs">Produto maca = new Produto();
+maca.Nome = "maçã";
+maca.Preco = 7.90m;
+Console.WriteLine($"{maca.Nome} custa {maca.Preco:C}");
+</pre>
+
+<pre class="term">$ ls
+Loja.csproj  obj  Produto.cs  Program.cs
+$ dotnet run
+maçã custa R$ 7,90</pre>
+
+<dl class="anatomy">
+  <dt>dotnet run</dt><dd>Sem nome de arquivo: compila o <strong>projeto</strong> inteiro, ou seja, todos os <code>.cs</code> da pasta, juntos. Por isso o <code>Program.cs</code> enxerga a classe <code>Produto</code> do outro arquivo, sem nenhuma linha extra.</dd>
+  <dt>Produto.cs</dt><dd>Só tem a classe, sem instruções. O nome do arquivo igual ao da classe não é obrigatório, mas é o costume, e ajuda a achar cada classe.</dd>
+  <dt>Program.cs</dt><dd>O único arquivo com instruções de nível superior. Num projeto, só <strong>um</strong> arquivo pode tê-las (senão, erro <code>CS8802</code>, abaixo).</dd>
+</dl>
+
+<p>Se a Ana tentar fazer isso sem projeto, com dois arquivos soltos numa pasta e <code>dotnet run app.cs</code>, o compilador nem olha o outro arquivo:</p>
+
+<pre class="term">$ ls
+app.cs  produto.cs
+$ dotnet run app.cs
+/home/ana/cs/loja/app.cs(1,1): error CS0246: O nome do tipo ou do namespace "Produto" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?)
+/home/ana/cs/loja/app.cs(1,17): error CS0246: O nome do tipo ou do namespace "Produto" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<h3>Qual usar?</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Vantagens</th><th>Quando usar</th></tr>
+<tr><td>Classes no fim do arquivo, com <code>dotnet run arquivo.cs</code></td><td>Tudo à vista num lugar só; nada para configurar</td><td>Exemplos, exercícios, programas pequenos (como nesta parte do guia)</td></tr>
+<tr><td>Um arquivo por classe, num projeto</td><td>Fácil de achar cada classe; é o padrão do Visual Studio, do VS Code e de toda empresa</td><td>Qualquer programa que vá crescer</td></tr>
+</table>
+</div>
+<p>No editor do guia, os vários arquivos aparecem como <strong>abas</strong> da mesma caixa, e todos são compilados juntos, como num projeto. A missão final usa isso.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>NullReferenceException</code></strong>
+<pre class="term">$ dotnet run nulo2.cs; echo "código: $?"
+/home/ana/cs/nulo2.cs(3,19): warning CS8602: Desreferência de uma referência possivelmente nula.
+Escolhido: []
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/nulo2.cs:line 3
+código: 134</pre>
+<p><strong>O que aconteceu:</strong> a variável vale <code>null</code> e o programa tentou usar um campo ou método dela.</p>
+<p><strong>Como resolver:</strong> vá à linha indicada e descubra qual variável está nula. Em geral faltou um <code>new</code>, ou uma posição de array ainda não recebeu objeto. Se <code>null</code> é um valor possível, teste antes (<code>if (escolhido is not null)</code>) ou use <code>escolhido?.Nome</code> (veja <a href="operadores-null.html">Operadores ??, ?. e ??=</a>).</p>
+</div>
+
+<div class="cenario">
+<strong>CS0246: a classe não foi encontrada</strong>
+<pre class="term">$ dotnet run typo.cs
+/home/ana/cs/typo.cs(1,1): error CS0246: O nome do tipo ou do namespace "produto" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?)
+/home/ana/cs/typo.cs(1,20): error CS0246: O nome do tipo ou do namespace "produto" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?)
+/home/ana/cs/typo.cs(7,20): warning CS0649: Campo "Produto.Preco" nunca é atribuído e sempre terá seu valor padrão 0
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> a linha 1 era <code>produto maca = new produto();</code>, com <code>p</code> minúsculo. O C# diferencia maiúsculas de minúsculas: <code>produto</code> e <code>Produto</code> são nomes diferentes. O erro aparece duas vezes porque o nome é usado duas vezes na linha (no tipo e no <code>new</code>). O mesmo erro aparece quando a classe está noutro arquivo que não é compilado junto.</p>
+<p><strong>Como resolver:</strong> confira a grafia exata do nome da classe. Se ela está noutro arquivo, use um projeto.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1061: o campo não existe</strong>
+<pre class="term">$ dotnet run typo2.cs
+/home/ana/cs/typo2.cs(2,6): error CS1061: ‘Produto’ não contém uma definição para "Preço" e não foi possível encontrar nenhum método de extensão "Preço" que aceite um primeiro argumento do tipo ‘Produto’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+/home/ana/cs/typo2.cs(7,20): warning CS0649: Campo "Produto.Preco" nunca é atribuído e sempre terá seu valor padrão 0
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> <code>maca.Preço = 7.90m;</code>, com cedilha. O campo se chama <code>Preco</code>. Para o compilador, são nomes diferentes, e a classe <code>Produto</code> não tem nada chamado <code>Preço</code>. O aviso <code>CS0649</code> confirma: o <code>Preco</code> verdadeiro nunca recebeu valor.</p>
+<p><strong>Como resolver:</strong> use o nome exato do campo. No VS Code, digite <code>maca.</code> e espere a lista de membros aparecer.</p>
+</div>
+
+<div class="cenario">
+<strong>CS8802: instruções em dois arquivos</strong>
+<pre class="term">$ dotnet run
+/home/ana/projetos/Estante/Program.cs(1,1): error CS8802: Apenas uma unidade de compilação pode ter instruções de nível superior. [/home/ana/projetos/Estante/Estante.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> num projeto, além do <code>Program.cs</code>, o arquivo <code>Livro.cs</code> também tinha uma instrução solta (<code>Console.WriteLine("oi");</code>) antes da classe. "Unidade de compilação" é cada arquivo <code>.cs</code>. Só um pode ser o "começo" do programa.</p>
+<p><strong>Como resolver:</strong> deixe as instruções só no <code>Program.cs</code>; os outros arquivos têm apenas classes.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0165: a variável nunca recebeu objeto</strong>
+<pre class="term">$ dotnet run semvalor.cs
+/home/ana/cs/semvalor.cs(2,1): error CS0165: Uso de variável local não atribuída "escolhido"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> <code>Produto escolhido;</code> declara a variável, mas não cria objeto nem dá <code>null</code>. Usá-la na linha 2 é proibido.</p>
+<p><strong>Como resolver:</strong> <code>Produto escolhido = new Produto();</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>class Nome { … }</code></td><td>Declara uma classe (nome em PascalCase, no singular)</td></tr>
+<tr><td><code>public tipo Campo = valor;</code></td><td>Um campo que cada objeto tem, visível de fora</td></tr>
+<tr><td><code>Nome v = new Nome();</code></td><td>Cria um objeto e guarda a referência dele em <code>v</code></td></tr>
+<tr><td><code>var v = new Nome();</code> / <code>Nome v = new();</code></td><td>O mesmo, com o tipo deduzido de um dos lados</td></tr>
+<tr><td><code>v.Campo</code></td><td>Lê ou muda um campo do objeto</td></tr>
+<tr><td><code>Nome b = a;</code></td><td>Copia a <strong>referência</strong>: <code>a</code> e <code>b</code> apontam para o mesmo objeto</td></tr>
+<tr><td><code>a == b</code></td><td>Com objetos de classe: <code>True</code> só se for o mesmo objeto</td></tr>
+<tr><td><code>Nome? v = null;</code></td><td>Variável sem objeto; <code>v.Campo</code> dá <code>NullReferenceException</code></td></tr>
+<tr><td><code>new Nome[3]</code></td><td>Array com 3 posições <code>null</code> (não cria os objetos)</td></tr>
+<tr><td><code>Console.WriteLine(v)</code></td><td>Mostra o nome da classe, até a classe ter um <code>ToString()</code></td></tr>
+<tr><td><code>dotnet run</code> num projeto</td><td>Compila todos os <code>.cs</code> da pasta juntos</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missão final: a estante da Ana, em dois arquivos</h2>
+<div class="trycs" data-goal="out:Dom Casmurro\, de Machado de Assis,out:A Hora da Estrela\, de Clarice Lispector,src:new\s+Livro[\s\S]*new\s+Livro">
+<p class="try-task"><strong>Missão:</strong> esta caixa tem <strong>dois arquivos</strong> (veja as abas), como um projeto. Em <code>Livro.cs</code>, complete a classe com os campos <code>public string Titulo = "";</code> e <code>public string Autor = "";</code>. Em <code>Program.cs</code>, crie dois livros (<em>Dom Casmurro</em>, de Machado de Assis, e <em>A Hora da Estrela</em>, de Clarice Lispector) e mostre cada um no formato <code>Dom Casmurro, de Machado de Assis</code>.</p>
+<pre class="script" data-file="Program.cs">Console.WriteLine("Estante da Ana");
+// crie os dois livros aqui
+</pre>
+<pre class="script" data-file="Livro.cs">class Livro
+{
+    // campos aqui
+}
+</pre>
+<pre class="solucao" data-file="Program.cs">Console.WriteLine("Estante da Ana");
+
+Livro l1 = new Livro();
+l1.Titulo = "Dom Casmurro";
+l1.Autor = "Machado de Assis";
+
+Livro l2 = new Livro();
+l2.Titulo = "A Hora da Estrela";
+l2.Autor = "Clarice Lispector";
+
+Console.WriteLine($"{l1.Titulo}, de {l1.Autor}");
+Console.WriteLine($"{l2.Titulo}, de {l2.Autor}");
+</pre>
+<pre class="solucao" data-file="Livro.cs">class Livro
+{
+    public string Titulo = "";
+    public string Autor = "";
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Declarar</h3>
+<p>Complete a primeira linha da declaração de uma classe chamada <code>Conta</code>:</p>
+<div class="ex-code"><input data-answer="class Conta" aria-label="declaração"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Criar</h3>
+<p>Complete para criar um objeto <code>Conta</code> e guardá-lo em <code>c</code>:</p>
+<div class="ex-code">Conta c = <input data-answer="new Conta();|new();|new Conta()|new()" aria-label="criação"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Quantos objetos?</h3>
+<p>Quantos objetos <code>Produto</code> existem depois destas linhas? <code>Produto a = new Produto(); Produto b = a; Produto c = new Produto(); Produto d = c;</code></p>
+<div class="ex-code"><input data-answer="2|dois" aria-label="quantidade"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Depois de <code>Produto b = a; b.Nome = "kiwi";</code>, quanto vale <code>a.Nome</code>?</p>
+<label><input type="radio" name="q4"> O nome antigo, porque <code>b</code> é uma cópia.</label>
+<label><input type="radio" name="q4"> <code>"kiwi"</code>, porque <code>a</code> e <code>b</code> apontam para o mesmo objeto.</label>
+<label><input type="radio" name="q4"> <code>null</code>.</label>
+<label><input type="radio" name="q4"> Não compila.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. O que <code>Produto[] cesta = new Produto[3];</code> cria?</p>
+<label><input type="radio" name="q5"> Três produtos com nome vazio.</label>
+<label><input type="radio" name="q5"> Um produto com três campos.</label>
+<label><input type="radio" name="q5"> Um array com três posições, todas <code>null</code>.</label>
+<label><input type="radio" name="q5"> Nada: é um erro de compilação.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Dois arquivos soltos, <code>app.cs</code> e <code>produto.cs</code>, e <code>dotnet run app.cs</code> dá <code>CS0246</code>. Por quê?</p>
+<label><input type="radio" name="q6"> Porque o arquivo deveria se chamar <code>Produto.cs</code>, com maiúscula.</label>
+<label><input type="radio" name="q6"> Porque falta <code>public</code> na classe.</label>
+<label><input type="radio" name="q6"> Porque a classe precisa vir antes das instruções.</label>
+<label><input type="radio" name="q6"> Porque o <code>dotnet run arquivo.cs</code> compila só aquele arquivo; para vários, use um projeto.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>class Produto { … }</code> declara o molde; <code>new Produto()</code> cria cada objeto. Acesse com o ponto: <code>maca.Nome</code>.</li>
+  <li><code>Produto p = new Produto();</code>, <code>var p = new Produto();</code> e <code>Produto p = new();</code> fazem a mesma coisa.</li>
+  <li>A variável guarda uma <strong>referência</strong>: <code>b = a</code> não copia o objeto, e <code>a == b</code> compara endereços.</li>
+  <li>Uma referência pode ser <code>null</code> (<code>Produto?</code>); usar o ponto nela dá <code>NullReferenceException</code>, código 134. <code>new Produto[3]</code> cria só posições vazias, e sem aviso.</li>
+  <li>Classes ficam no fim do arquivo (<code>CS8803</code>) ou em arquivos próprios, num projeto (<code>dotnet run</code> compila todos; só um arquivo com instruções, senão <code>CS8802</code>).</li>
+  <li>Próxima aula: <a href="campos.html">Campos</a>, as variáveis de cada objeto.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
