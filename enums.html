@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Enums — listas fechadas de opções e [Flags] | Guia C#</title>
+<meta name="description" content="Enums em C# para quem está começando: declarar um enum, nome e número de cada opção, valores escolhidos, Enum.GetValues, switch com enum e os avisos CS8509 e CS8524, Enum.TryParse e a ArgumentException do Parse, [Flags] com |, &amp;, ~ e HasFlag, e os erros reais CS0266, CS0117 e CS0029 do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Enums</span></h1>
+
+<p class="intro">Um pedido da lojinha da Ana pode estar "novo", "pago", "enviado" ou "entregue". Nada além disso. Guardar isso num <code>string</code> abre a porta para erros de digitação (<code>"Pagoo"</code>, <code>"pago"</code>, <code>"PAGO"</code>), e guardar num <code>int</code> (0, 1, 2, 3) deixa o código cheio de números mágicos que ninguém lembra o que querem dizer. O <code>enum</code> (de <em>enumeration</em>, "enumeração", uma lista) resolve os dois problemas: é um tipo com uma <strong>lista fechada de opções com nome</strong>, conferida pelo compilador.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como declarar e usar um <code>enum</code>.</li>
+  <li>O número por trás de cada opção, como escolher esses números e como percorrer todas as opções.</li>
+  <li>Os erros que o compilador cobra (<code>CS0266</code>, <code>CS0117</code>, <code>CS0029</code>).</li>
+  <li>Enum no <code>switch</code> e os avisos <code>CS8509</code> e <code>CS8524</code>.</li>
+  <li>Transformar texto em enum com <code>Enum.TryParse</code>.</li>
+  <li><code>[Flags]</code>: combinar várias opções ao mesmo tempo, com <code>|</code>, <code>&amp;</code>, <code>~</code> e <code>HasFlag</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com <code>dotnet run arquivo.cs</code> no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: um cardápio, não um papel em branco</h2>
+<p>Numa lanchonete, o pedido pode ser feito de dois jeitos. Num papel em branco, o cliente escreve o que quiser, e o cozinheiro recebe "x-bacom", "xis bacon", "X-BACON"... Num <strong>cardápio</strong>, o cliente marca uma das opções impressas, e não existe como pedir algo que não está lá. Um <code>enum</code> é o cardápio: as opções são fixas, têm nome, e o compilador recusa qualquer coisa fora da lista.</p>
+
+<hr>
+
+<h2>Um <code>enum</code> simples</h2>
+
+<pre class="file" data-file="status.cs">StatusPedido status = StatusPedido.Novo;
+Console.WriteLine(status);
+
+status = StatusPedido.Pago;
+Console.WriteLine($"Agora o pedido está: {status}");
+
+if (status == StatusPedido.Pago)
+{
+    Console.WriteLine("Pode separar os produtos.");
+}
+
+enum StatusPedido
+{
+    Novo,
+    Pago,
+    Enviado,
+    Entregue
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>enum StatusPedido { Novo, Pago, Enviado, Entregue }</dt><dd>Declara um tipo novo, <code>StatusPedido</code>, com quatro opções, separadas por vírgulas. Como as classes, o enum fica depois das instruções de nível superior (ou num arquivo próprio). Cada opção também se chama <strong>membro</strong> do enum. Os nomes seguem o PascalCase, e o nome do enum fica no <strong>singular</strong> (cada variável guarda <strong>um</strong> status).</dd>
+  <dt>StatusPedido status = StatusPedido.Novo;</dt><dd>Uma variável do tipo <code>StatusPedido</code>. Ela só aceita uma das quatro opções, sempre escrita com o nome do enum na frente: <code>StatusPedido.Novo</code>.</dd>
+  <dt>Console.WriteLine(status)</dt><dd>Mostrar um enum mostra o <strong>nome</strong> da opção.</dd>
+  <dt>status == StatusPedido.Pago</dt><dd>Enums se comparam com <code>==</code> e <code>!=</code>.</dd>
+</dl>
+
+<pre class="term">$ dotnet run status.cs
+Novo
+Agora o pedido está: Pago
+Pode separar os produtos.</pre>
+
+<hr>
+
+<h2>O número por trás de cada nome</h2>
+<p>Por dentro, cada opção de um enum é um <strong>número inteiro</strong> (um <code>int</code>). A primeira vale 0, a segunda 1, e assim por diante. Um <em>cast</em> (veja <a href="conversao-tipos.html">Conversão de Tipos</a>) mostra e converte:</p>
+
+<pre class="file" data-file="numeros.cs">StatusPedido s = StatusPedido.Enviado;
+int numero = (int)s;
+Console.WriteLine($"{s} = {numero}");
+
+StatusPedido outro = (StatusPedido)1;
+Console.WriteLine(outro);
+
+StatusPedido estranho = (StatusPedido)42;
+Console.WriteLine(estranho);
+Console.WriteLine(Enum.IsDefined(estranho));
+
+foreach (StatusPedido st in Enum.GetValues&lt;StatusPedido&gt;())
+{
+    Console.WriteLine($"{(int)st}: {st}");
+}
+
+enum StatusPedido
+{
+    Novo,
+    Pago,
+    Enviado,
+    Entregue
+}
+</pre>
+
+<pre class="term">$ dotnet run numeros.cs
+Enviado = 2
+Pago
+42         « 42 não tem nome, então aparece o número
+False
+0: Novo
+1: Pago
+2: Enviado
+3: Entregue</pre>
+
+<dl class="anatomy">
+  <dt>(int)s</dt><dd>Do enum para o número: <code>Enviado</code> é a terceira opção, então vale 2.</dd>
+  <dt>(StatusPedido)1</dt><dd>Do número para o enum: o 1 é o <code>Pago</code>.</dd>
+  <dt>(StatusPedido)42</dt><dd>Cuidado: o <em>cast</em> aceita <strong>qualquer</strong> número, mesmo sem opção correspondente. O C# não confere. Na saída aparece só <code>42</code>.</dd>
+  <dt>Enum.IsDefined(estranho)</dt><dd>Pergunta se o valor é uma das opções com nome. Use antes de confiar num número que veio de fora (de um arquivo, do usuário).</dd>
+  <dt>Enum.GetValues&lt;StatusPedido&gt;()</dt><dd>Devolve todas as opções, na ordem, para percorrer com <a href="foreach.html"><code>foreach</code></a>. Há também <code>Enum.GetNames&lt;StatusPedido&gt;()</code>, que devolve os nomes como <code>string</code>.</dd>
+</dl>
+
+<div class="trycs" data-goal="out:Cancelado = 4">
+<p class="try-task"><strong>Missão:</strong> a lojinha passou a aceitar cancelamentos. Acrescente a opção <code>Cancelado</code> no <strong>fim</strong> do enum e troque <code>StatusPedido.Enviado</code> por <code>StatusPedido.Cancelado</code> na primeira linha. A saída deve ser <code>Cancelado = 4</code>. Teste também colocar o <code>Cancelado</code> no começo da lista: os números de todos mudam!</p>
+<pre class="script">StatusPedido s = StatusPedido.Enviado;
+Console.WriteLine($"{s} = {(int)s}");
+
+enum StatusPedido
+{
+    Novo,
+    Pago,
+    Enviado,
+    Entregue
+}
+</pre>
+<pre class="solucao">StatusPedido s = StatusPedido.Cancelado;
+Console.WriteLine($"{s} = {(int)s}");
+
+enum StatusPedido
+{
+    Novo,
+    Pago,
+    Enviado,
+    Entregue,
+    Cancelado
+}
+</pre>
+</div>
+
+<h3>Escolher os números</h3>
+<p>Você pode dizer o número de cada opção com <code>=</code>. As opções sem número continuam contando a partir da anterior:</p>
+
+<pre class="file" data-file="valores.cs">Console.WriteLine((int)Prioridade.Baixa);
+Console.WriteLine((int)Prioridade.Alta);
+Console.WriteLine((int)HttpStatus.NaoEncontrado);
+
+enum Prioridade
+{
+    Baixa = 1,
+    Media,
+    Alta
+}
+
+enum HttpStatus
+{
+    Ok = 200,
+    NaoEncontrado = 404,
+    ErroNoServidor = 500
+}
+</pre>
+
+<pre class="term">$ dotnet run valores.cs
+1
+3          « Baixa = 1, Media = 2, Alta = 3
+404</pre>
+
+<p>Escolha os números quando eles <strong>significam</strong> algo fora do programa (os códigos do HTTP, um código gravado num banco de dados). Se o enum é gravado em arquivo como número, fixe os valores: assim, acrescentar uma opção no meio da lista não muda o significado do que já estava gravado.</p>
+
+<div class="tip">
+<strong>Outro tipo por baixo</strong>
+<p>O número por trás é um <code>int</code>, mas dá para escolher outro tipo inteiro, para economizar memória: <code>enum Nivel : byte { Facil, Medio, Dificil }</code>. Só vale a pena em casos especiais (milhões de valores, arquivos binários).</p>
+</div>
+
+<hr>
+
+<h2>O compilador protege a lista</h2>
+<p>A Ana escreveu três linhas erradas de propósito:</p>
+
+<div class="warning">
+<strong>Este código tem erros de propósito</strong>
+<pre class="file" data-file="erro1.cs">StatusPedido s = 1;
+StatusPedido t = StatusPedido.Cancelado;
+string texto = "Pago";
+StatusPedido u = texto;
+
+enum StatusPedido { Novo, Pago, Enviado, Entregue }
+</pre>
+</div>
+
+<pre class="term">$ dotnet run erro1.cs
+/home/ana/cs/erro1.cs(1,18): error CS0266: Não é possível converter implicitamente tipo "int" em "StatusPedido". Existe uma conversão explícita (há uma conversão ausente?)
+/home/ana/cs/erro1.cs(2,31): error CS0117: "StatusPedido" não contém uma definição para "Cancelado"
+/home/ana/cs/erro1.cs(4,18): error CS0029: Não é possível converter implicitamente tipo "string" em "StatusPedido"
+/home/ana/cs/erro1.cs(1,14): warning CS0219: A variável "s" é atribuída, mas seu valor nunca é usado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<ul>
+  <li><strong>Linha 1, <code>CS0266</code>:</strong> um número não vira enum sozinho. Se for mesmo o que você quer, escreva o <em>cast</em>: <code>(StatusPedido)1</code>. (A única exceção é o <code>0</code>, que o C# aceita sem <em>cast</em>.)</li>
+  <li><strong>Linha 2, <code>CS0117</code>:</strong> a opção <code>Cancelado</code> não existe. É exatamente a proteção do "cardápio": um erro de digitação, como <code>StatusPedido.Pagoo</code>, também cai aqui, na hora de compilar, e não depois, com o programa rodando.</li>
+  <li><strong>Linha 4, <code>CS0029</code>:</strong> um texto não vira enum. Para isso existe o <code>Enum.TryParse</code>, mais abaixo.</li>
+</ul>
+
+<hr>
+
+<h2>Enum no <code>switch</code></h2>
+<p>Enums e <a href="switch-expressoes.html">expressões switch</a> foram feitos um para o outro: cada opção, uma resposta.</p>
+
+<pre class="file" data-file="switch.cs">StatusPedido[] todos = [StatusPedido.Novo, StatusPedido.Pago, StatusPedido.Enviado, StatusPedido.Entregue];
+foreach (StatusPedido s in todos)
+{
+    Console.WriteLine($"{s}: {Descrever(s)}");
+}
+
+string Descrever(StatusPedido s) =&gt; s switch
+{
+    StatusPedido.Novo =&gt; "aguardando pagamento",
+    StatusPedido.Pago =&gt; "separando os produtos",
+    StatusPedido.Enviado =&gt; "a caminho",
+    StatusPedido.Entregue =&gt; "concluído",
+};
+
+enum StatusPedido { Novo, Pago, Enviado, Entregue }
+</pre>
+
+<pre class="term">$ dotnet run switch.cs
+/home/ana/cs/switch.cs(7,39): warning CS8524: A expressão switch não lida com alguns valores do seu tipo de entrada (sem limitação) que envolvem um valor de enumeração não nomeado. Por exemplo, o padrão '(StatusPedido)4' não está coberto.
+Novo: aguardando pagamento
+Pago: separando os produtos
+Enviado: a caminho
+Entregue: concluído</pre>
+
+<p>Funciona, mas com um aviso curioso. As quatro opções estão cobertas, então do que o compilador reclama? Do <code>(StatusPedido)42</code> que você viu acima: como um <em>cast</em> pode criar um valor sem nome, o compilador lembra que o <code>switch</code> não sabe o que fazer com ele (o exemplo dele é o <code>(StatusPedido)4</code>). O conserto é um braço <code>_</code> ("qualquer outra coisa") no fim:</p>
+
+<pre class="file" data-file="switch2.cs">string Descrever(StatusPedido s) =&gt; s switch
+{
+    StatusPedido.Novo =&gt; "aguardando pagamento",
+    StatusPedido.Pago =&gt; "separando os produtos",
+    StatusPedido.Enviado =&gt; "a caminho",
+    StatusPedido.Entregue =&gt; "concluído",
+    _ =&gt; "desconhecido",
+};
+</pre>
+
+<p>Com o <code>_</code>, o aviso some e a saída é a mesma. E se faltar uma opção <strong>com nome</strong>? A Ana apagou a linha do <code>Entregue</code> (e o <code>_</code>):</p>
+
+<pre class="term">$ dotnet run switch3.cs
+/home/ana/cs/switch3.cs(7,39): warning CS8509: A expressão switch não manipula todos os valores possíveis do tipo de entrada (ela não é exaustiva). Por exemplo, o padrão 'StatusPedido.Entregue' não é coberto.
+Novo: aguardando pagamento
+Pago: separando os produtos
+Enviado: a caminho
+Unhandled exception. System.Runtime.CompilerServices.SwitchExpressionException: Non-exhaustive switch expression failed to match its input.
+Unmatched value was Entregue.
+   at &lt;PrivateImplementationDetails&gt;.ThrowSwitchExpressionException(Object unmatchedValue)
+   at Program.&lt;&lt;Main&gt;$&gt;g__Descrever|0_0(StatusPedido s) in /home/ana/cs/switch3.cs:line 7
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/switch3.cs:line 4</pre>
+
+<p>O aviso <code>CS8509</code> já dizia qual opção faltava. A Ana ignorou, e o programa quebrou ao chegar no <code>Entregue</code> ("valor não encontrado: <code>Entregue</code>"), com o código de saída 134. Esse é um bom motivo para <strong>não</strong> colocar o <code>_</code> logo de cara: sem ele, quando alguém acrescentar uma opção nova ao enum, o compilador avisa todos os <code>switch</code> que precisam ser atualizados.</p>
+
+<hr>
+
+<h2>De texto para enum: <code>Enum.TryParse</code></h2>
+<p>Quando o status vem de fora (digitado, lido de um arquivo), ele chega como texto. O <code>Enum.TryParse</code> faz a conversão com segurança, como o <code>int.TryParse</code> (veja <a href="parse.html">Parse e TryParse</a>):</p>
+
+<pre class="file" data-file="parse.cs">string[] digitados = ["Pago", "enviado", "Cancelado", "2"];
+foreach (string texto in digitados)
+{
+    if (Enum.TryParse(texto, ignoreCase: true, out StatusPedido status))
+    {
+        Console.WriteLine($"\"{texto}\" → {status}");
+    }
+    else
+    {
+        Console.WriteLine($"\"{texto}\" não é um status");
+    }
+}
+
+enum StatusPedido { Novo, Pago, Enviado, Entregue }
+</pre>
+
+<dl class="anatomy">
+  <dt>Enum.TryParse(texto, ignoreCase: true, out StatusPedido status)</dt><dd>Tenta converter. Devolve <code>true</code> e preenche <code>status</code> se der certo, ou <code>false</code> se não der. O tipo do enum vem da variável do <code>out</code>.</dd>
+  <dt>ignoreCase: true</dt><dd>"Ignorar maiúsculas e minúsculas": aceita <code>"enviado"</code>, <code>"ENVIADO"</code>. Sem ele, só o nome exato. (É um <a href="parametros-opcionais.html">argumento nomeado</a>.)</dd>
+</dl>
+
+<pre class="term">$ dotnet run parse.cs
+"Pago" → Pago
+"enviado" → Enviado
+"Cancelado" não é um status
+"2" → Enviado      « surpresa: números também são aceitos</pre>
+
+<p>A última linha é uma pegadinha: o <code>TryParse</code> também aceita <strong>números</strong>, e aceitaria até <code>"42"</code>, um valor sem nome. Se a entrada não pode ser um número, confira depois com <code>Enum.IsDefined(status)</code> ou rejeite textos que são números.</p>
+
+<p>O irmão sem "Try", <code>Enum.Parse&lt;StatusPedido&gt;("Cancelado")</code>, lança uma exceção quando o texto não é uma opção:</p>
+
+<pre class="term">$ dotnet run parse-erro.cs
+Unhandled exception. System.ArgumentException: Requested value 'Cancelado' was not found.
+   at System.Enum.TryParseByName[TStorage](RuntimeType enumType, ReadOnlySpan`1 value, Boolean ignoreCase, Boolean throwOnFailure, TStorage&amp; result)
+   at System.Enum.Parse[TEnum](String value, Boolean ignoreCase)
+   at System.Enum.Parse[TEnum](String value)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/parse-erro.cs:line 1</pre>
+
+<p>"O valor pedido, <code>Cancelado</code>, não foi encontrado." Com entrada do usuário, prefira sempre o <code>TryParse</code>.</p>
+
+<hr>
+
+<h2><code>[Flags]</code>: várias opções ao mesmo tempo</h2>
+<p>Um pedido está em <strong>um</strong> status por vez. Mas há listas em que várias opções valem juntas: as permissões de um arquivo (ler, escrever, apagar), os dias de funcionamento da loja, os ingredientes extras de um lanche. Para isso, o enum ganha o atributo <code>[Flags]</code> ("bandeiras", como bandeirinhas levantadas ou abaixadas) e opções com valores <strong>1, 2, 4, 8…</strong> (as potências de 2):</p>
+
+<pre class="file" data-file="flags.cs">Permissoes ana = Permissoes.Ler | Permissoes.Escrever;
+Console.WriteLine(ana);
+Console.WriteLine((int)ana);
+
+Console.WriteLine(ana.HasFlag(Permissoes.Escrever));
+Console.WriteLine(ana.HasFlag(Permissoes.Apagar));
+
+ana |= Permissoes.Apagar;
+Console.WriteLine(ana);
+
+ana &amp;= ~Permissoes.Escrever;
+Console.WriteLine(ana);
+
+Console.WriteLine(Permissoes.Nenhuma);
+Console.WriteLine(Permissoes.Tudo);
+
+[Flags]
+enum Permissoes
+{
+    Nenhuma = 0,
+    Ler = 1,
+    Escrever = 2,
+    Apagar = 4,
+    Tudo = Ler | Escrever | Apagar
+}
+</pre>
+
+<pre class="term">$ dotnet run flags.cs
+Ler, Escrever      « as duas bandeiras juntas
+3                  « 1 + 2
+True
+False
+Tudo               « Ler, Escrever e Apagar = 7, que tem nome
+Ler, Apagar        « o Escrever foi tirado
+Nenhuma
+Tudo</pre>
+
+<dl class="anatomy">
+  <dt>[Flags]</dt><dd>Um <a href="atributos.html">atributo</a>: uma etiqueta entre colchetes, antes do enum. Ele avisa que as opções podem ser combinadas e faz o <code>ToString()</code> mostrar a combinação (<code>Ler, Escrever</code>).</dd>
+  <dt>Ler = 1, Escrever = 2, Apagar = 4</dt><dd>Cada opção é uma potência de 2. Em binário, cada uma é um único "interruptor": <code>001</code>, <code>010</code>, <code>100</code>. Assim, qualquer combinação dá um número único.</dd>
+  <dt>Nenhuma = 0</dt><dd>A opção "nenhuma bandeira". É o valor padrão de qualquer enum, e é bom ela ter nome.</dd>
+  <dt>Tudo = Ler | Escrever | Apagar</dt><dd>Uma opção que é a combinação de outras.</dd>
+  <dt>Permissoes.Ler | Permissoes.Escrever</dt><dd>O <code>|</code> ("ou" bit a bit) <strong>junta</strong> bandeiras: <code>001 | 010 = 011</code>.</dd>
+  <dt>ana.HasFlag(Permissoes.Escrever)</dt><dd>"Tem esta bandeira?" Devolve <code>true</code> ou <code>false</code>. O mesmo que <code>(ana &amp; Permissoes.Escrever) != 0</code>, com o <code>&amp;</code> ("e" bit a bit), que fica só com as bandeiras em comum.</dd>
+  <dt>ana |= Permissoes.Apagar;</dt><dd>Levanta uma bandeira (veja <a href="operadores-atribuicao.html">Operadores de Atribuição</a>).</dd>
+  <dt>ana &amp;= ~Permissoes.Escrever;</dt><dd>Abaixa uma bandeira. O <code>~</code> inverte todos os interruptores (<code>010</code> vira <code>…101</code>), e o <code>&amp;</code> mantém tudo, menos o <code>Escrever</code>.</dd>
+</dl>
+
+<p>Para ver os interruptores, o programa abaixo mostra cada opção em binário (<code>Convert.ToString(n, 2)</code> escreve o número na base 2):</p>
+
+<pre class="file" data-file="binario.cs">foreach (Permissoes p in Enum.GetValues&lt;Permissoes&gt;())
+{
+    Console.WriteLine($"{p,-9} {(int)p,2} {Convert.ToString((int)p, 2).PadLeft(3, '0')}");
+}
+
+// … o enum Permissoes de antes
+</pre>
+
+<pre class="term">$ dotnet run binario.cs
+Nenhuma    0 000
+Ler        1 001
+Escrever   2 010
+Apagar     4 100
+Tudo       7 111</pre>
+
+<h3>Sem <code>[Flags]</code></h3>
+<p>Os operadores <code>|</code>, <code>&amp;</code> e o <code>HasFlag</code> funcionam mesmo sem o atributo. O que muda é o <code>ToString()</code>: tirando o <code>[Flags]</code> do exemplo, a primeira linha da saída vira <code>3</code>, em vez de <code>Ler, Escrever</code>, e o <code>Ler, Apagar</code> vira <code>5</code>. O atributo é o que diz "este número é uma combinação".</p>
+
+<h3>A armadilha: esquecer os valores</h3>
+<p>O <code>[Flags]</code> não muda os números das opções. Sem os <code>= 1</code>, <code>= 2</code>, <code>= 4</code>, elas continuam valendo 0, 1, 2, 3…, e as combinações se misturam:</p>
+
+<pre class="file" data-file="flagserr.cs">Console.WriteLine(Dias.Segunda | Dias.Terca);
+Console.WriteLine(Dias.Quarta);
+
+[Flags]
+enum Dias
+{
+    Segunda,
+    Terca,
+    Quarta,
+    Quinta
+}
+</pre>
+
+<pre class="term">$ dotnet run flagserr.cs
+Terca      « Segunda vale 0: juntar com 0 não muda nada
+Quarta</pre>
+
+<p>Nenhum erro, nenhum aviso: só um resultado errado. Num enum <code>[Flags]</code>, <strong>escreva sempre os valores</strong>. E, por convenção, dê a ele um nome no <strong>plural</strong> (<code>Permissoes</code>, <code>Dias</code>), porque uma variável pode guardar várias opções.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS0117: "… não contém uma definição para …"</strong>
+<pre class="term">$ dotnet run erro1.cs
+/home/ana/cs/erro1.cs(2,31): error CS0117: "StatusPedido" não contém uma definição para "Cancelado"</pre>
+<p><strong>O que aconteceu:</strong> a opção não existe no enum, ou o nome está escrito diferente (maiúsculas contam).</p>
+<p><strong>Como resolver:</strong> corrija o nome ou acrescente a opção ao enum.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0266 / CS0029: número ou texto no lugar de um enum</strong>
+<p><strong>Como resolver:</strong> para número, <code>(StatusPedido)n</code> (e confira com <code>Enum.IsDefined</code>); para texto, <code>Enum.TryParse(texto, out StatusPedido s)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS8509 e <code>SwitchExpressionException</code></strong>
+<pre class="term">/home/ana/cs/switch3.cs(7,39): warning CS8509: A expressão switch não manipula todos os valores possíveis do tipo de entrada (ela não é exaustiva). Por exemplo, o padrão 'StatusPedido.Entregue' não é coberto.</pre>
+<p><strong>O que aconteceu:</strong> faltou uma opção no <code>switch</code>. Se esse valor aparecer, o programa quebra.</p>
+<p><strong>Como resolver:</strong> acrescente o braço que falta. O aviso <code>CS8524</code> (valores sem nome) se resolve com um <code>_ =&gt; …</code> no fim.</p>
+</div>
+
+<div class="cenario">
+<strong>Um enum <code>[Flags]</code> que mostra a combinação errada</strong>
+<p><strong>O que aconteceu:</strong> as opções não são potências de 2 (faltou <code>= 1</code>, <code>= 2</code>, <code>= 4</code>…).</p>
+<p><strong>Como resolver:</strong> dê os valores explicitamente, com <code>Nenhuma = 0</code> no começo.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>enum StatusPedido { Novo, Pago }</code></td><td>Declara um enum (Novo = 0, Pago = 1)</td></tr>
+<tr><td><code>enum Prioridade { Baixa = 1, Media, Alta }</code></td><td>Escolhe os números</td></tr>
+<tr><td><code>(int)s</code> / <code>(StatusPedido)1</code></td><td>Enum → número / número → enum</td></tr>
+<tr><td><code>s.ToString()</code></td><td>O nome da opção (ou o número, se não tiver nome)</td></tr>
+<tr><td><code>Enum.GetValues&lt;T&gt;()</code>, <code>Enum.GetNames&lt;T&gt;()</code></td><td>Todas as opções / todos os nomes</td></tr>
+<tr><td><code>Enum.IsDefined(valor)</code></td><td>O valor é uma opção com nome?</td></tr>
+<tr><td><code>Enum.TryParse(texto, true, out T v)</code></td><td>Texto → enum, sem exceção, ignorando maiúsculas</td></tr>
+<tr><td><code>[Flags] enum P { Nenhuma = 0, A = 1, B = 2, C = 4 }</code></td><td>Opções combináveis</td></tr>
+<tr><td><code>a | b</code>, <code>v.HasFlag(a)</code>, <code>v &amp;= ~a</code></td><td>Juntar, testar e tirar bandeiras</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Declarar</h3>
+<p>Complete para declarar o enum <code>Tamanho</code> com <code>P</code>, <code>M</code> e <code>G</code>:</p>
+<div class="ex-code"><input data-answer="enum" aria-label="palavra-chave"> Tamanho { P, M, G }</div>
+</div>
+
+<div class="exercise">
+<h3>2. O número</h3>
+<p>No enum <code>Tamanho { P, M, G }</code>, quanto vale <code>(int)Tamanho.G</code>?</p>
+<div class="ex-code"><input data-answer="2" aria-label="número"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Juntar bandeiras</h3>
+<p>Complete para dar à Bia as permissões de ler <strong>e</strong> apagar:</p>
+<div class="ex-code">Permissoes bia = Permissoes.Ler <input data-answer="|" aria-label="operador"> Permissoes.Apagar;</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. O que mostra <code>Console.WriteLine((StatusPedido)42);</code>, se o enum só tem 4 opções?</p>
+<label><input type="radio" name="q4"> Erro de compilação</label>
+<label><input type="radio" name="q4"> Uma exceção</label>
+<label><input type="radio" name="q4"> <code>42</code></label>
+<label><input type="radio" name="q4"> <code>Entregue</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Qual é o jeito seguro de transformar o texto digitado pelo usuário num enum?</p>
+<label><input type="radio" name="q5"> <code>(StatusPedido)texto</code></label>
+<label><input type="radio" name="q5"> <code>Enum.TryParse(texto, out StatusPedido s)</code></label>
+<label><input type="radio" name="q5"> <code>Enum.Parse&lt;StatusPedido&gt;(texto)</code></label>
+<label><input type="radio" name="q5"> <code>StatusPedido s = texto;</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Qual é a lista de valores certa para um enum <code>[Flags]</code> com quatro opções?</p>
+<label><input type="radio" name="q6"> 0, 1, 2, 3</label>
+<label><input type="radio" name="q6"> 1, 2, 3, 4</label>
+<label><input type="radio" name="q6"> 10, 20, 30, 40</label>
+<label><input type="radio" name="q6"> 1, 2, 4, 8</label>
+</div>
+
+<div class="trycs" data-goal="out:Bia: Ler\, Apagar,out:Bia pode escrever? False,src:\[Flags\]">
+<p class="try-task"><strong>Missão final:</strong> rode o programa: ele diz que a Bia pode escrever, mas ela só recebeu <code>Ler</code> e <code>Apagar</code>! As opções valem 0, 1, 2, 3, e <code>Ler | Apagar</code> (1 | 3) dá 3, que é o próprio <code>Apagar</code>, que "contém" o 2 do <code>Escrever</code>. Conserte o enum: coloque <code>[Flags]</code> e os valores <code>Nenhuma = 0</code>, <code>Ler = 1</code>, <code>Escrever = 2</code>, <code>Apagar = 4</code>. A saída deve ter <code>Bia: Ler, Apagar</code> e <code>Bia pode escrever? False</code>.</p>
+<pre class="script">Permissoes bia = Permissoes.Ler | Permissoes.Apagar;
+Console.WriteLine($"Bia: {bia}");
+Console.WriteLine($"Bia pode escrever? {bia.HasFlag(Permissoes.Escrever)}");
+Console.WriteLine($"Bia pode apagar? {bia.HasFlag(Permissoes.Apagar)}");
+
+enum Permissoes
+{
+    Nenhuma,
+    Ler,
+    Escrever,
+    Apagar
+}
+</pre>
+<pre class="solucao">Permissoes bia = Permissoes.Ler | Permissoes.Apagar;
+Console.WriteLine($"Bia: {bia}");
+Console.WriteLine($"Bia pode escrever? {bia.HasFlag(Permissoes.Escrever)}");
+Console.WriteLine($"Bia pode apagar? {bia.HasFlag(Permissoes.Apagar)}");
+
+[Flags]
+enum Permissoes
+{
+    Nenhuma = 0,
+    Ler = 1,
+    Escrever = 2,
+    Apagar = 4
+}
+</pre>
+</div>
+
+<pre class="term">$ dotnet run permissoes.cs      « antes do conserto
+Bia: Apagar
+Bia pode escrever? True
+Bia pode apagar? True
+$ dotnet run permissoes.cs      « depois
+Bia: Ler, Apagar
+Bia pode escrever? False
+Bia pode apagar? True</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>enum</code> = um tipo com uma lista fechada de opções com nome. O compilador recusa opções que não existem (<code>CS0117</code>), números (<code>CS0266</code>) e textos (<code>CS0029</code>).</li>
+  <li>Cada opção é um número (0, 1, 2… ou os que você escolher com <code>=</code>). <code>(int)s</code> e <code>(Enum)n</code> convertem; o <em>cast</em> aceita qualquer número, então confira com <code>Enum.IsDefined</code>.</li>
+  <li><code>Enum.GetValues&lt;T&gt;()</code> percorre as opções. <code>Enum.TryParse</code> converte texto com segurança (e aceita números!).</li>
+  <li>No <code>switch</code>, cubra todas as opções: <code>CS8509</code> avisa a que falta; <code>CS8524</code> pede um <code>_</code> para valores sem nome.</li>
+  <li><code>[Flags]</code> com valores 0, 1, 2, 4, 8… permite combinar: <code>|</code> junta, <code>HasFlag</code> testa, <code>&amp;= ~</code> tira, e o <code>ToString()</code> mostra <code>Ler, Escrever</code>. Próxima aula: <a href="records.html">Records</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
