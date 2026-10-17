@@ -37,7 +37,7 @@
 
 <div class="warning">
 <strong>Nesta aula, a Ana usa um projeto</strong>
-<p>No .NET 10, o <code>dotnet run arquivo.cs</code> (de um arquivo só) vem preparado para virar um programa "nativo" (AOT, seção "Quando dá errado"), e nesse modo o <code>JsonSerializer</code> simples é <strong>desligado</strong>. Por isso, os exemplos desta aula rodam num projeto, criado com <code>dotnet new console -o Agenda</code> (aula <a href="projetos-console.html">Projetos</a>). O código vai no <code>Program.cs</code> e roda com <code>dotnet run</code>. O editor do guia funciona como um projeto.</p>
+<p>No .NET 10, o <code>dotnet run arquivo.cs</code> (de um arquivo só) vem preparado para virar um programa "nativo" (AOT, seção "Quando dá errado"), e nesse modo o <code>JsonSerializer</code> simples é <strong>desligado</strong>. Por isso, os exemplos desta aula rodam num projeto, criado com <code>dotnet new console -o Agenda</code> (aula <a href="projetos-console.html">Projetos</a>). O código vai no <code>Program.cs</code> e roda com <code>dotnet run</code>. Nas caixas "Experimente", o record fica numa aba à parte, para a caixa também funcionar como um projeto.</p>
 </div>
 
 <pre class="term" data-cwd="~/projetos">$ dotnet new console -o Agenda
@@ -157,8 +157,8 @@ Bruno mora em Curitiba</pre>
 string json = File.ReadAllText("contato.json");
 Console.WriteLine(json);
 // transforme o json num Contato e mostre "Nome mora em Cidade"
-
-record Contato(string Nome, string Cidade, string Telefone);
+</pre>
+<pre class="script" data-file="Contato.cs">record Contato(string Nome, string Cidade, string Telefone);
 </pre>
 <pre class="script" data-file="contato.json">{
   "Nome": "Carla",
@@ -174,10 +174,10 @@ if (c != null)
 {
     Console.WriteLine($"{c.Nome} mora em {c.Cidade}");
 }
-
-record Contato(string Nome, string Cidade, string Telefone);
 </pre>
 </div>
+
+<p>Nas caixas desta aula, o record fica numa aba própria, <code>Contato.cs</code>. Com dois arquivos <code>.cs</code>, a caixa funciona como um projeto, igual ao <code>~/projetos/Agenda</code> da Ana (no projeto, ele também pode ficar num arquivo separado; todos os <code>.cs</code> da pasta são compilados juntos).</p>
 
 <hr>
 
@@ -562,8 +562,8 @@ List&lt;Contato&gt; agenda = JsonSerializer.Deserialize&lt;List&lt;Contato&gt;&g
 
 Console.WriteLine($"{agenda.Count} contatos");
 // 3. mostre o arquivo
-
-record Contato(string Nome, string Cidade, string Telefone);
+</pre>
+<pre class="script" data-file="Contato.cs">record Contato(string Nome, string Cidade, string Telefone);
 </pre>
 <pre class="script" data-file="contatos.json">[
   {
@@ -589,8 +589,6 @@ File.WriteAllText("contatos.json", JsonSerializer.Serialize(agenda, opcoes));
 
 Console.WriteLine($"{agenda.Count} contatos");
 Console.WriteLine(File.ReadAllText("contatos.json"));
-
-record Contato(string Nome, string Cidade, string Telefone);
 </pre>
 </div>
 
