@@ -1,0 +1,1651 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Projeto Agenda de Contatos — List, record e JSON | Guia C#</title>
+<meta name="description" content="Projeto passo a passo: a agenda de contatos da Ana em C#, num projeto dotnet new console. Um menu com while e switch, uma List de records Contato, busca sem diferenciar maiúsculas, remoção, e a agenda guardada num arquivo contatos.json com System.Text.Json (WriteIndented e acentos sem é). Quatro versões com saídas reais do .NET 10 e os erros Collection was modified, CS0246 e JsonException.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Projeto <span class="hl">Agenda de Contatos (JSON)</span></h1>
+
+<p class="intro">A Ana quer guardar os telefones dos clientes da lojinha num programa: cadastrar, listar, procurar, apagar e, o mais importante, <strong>não perder nada</strong> quando o programa fecha. É o primeiro projeto que <strong>lembra</strong> das coisas: a agenda fica num arquivo <code>contatos.json</code>, que o programa lê ao abrir e grava ao sair. No caminho, você monta um menu, trabalha com uma <code>List</code> de records e conhece o JSON, o formato que quase todo programa usa para guardar e trocar dados.</p>
+
+<div class="note">
+<strong>Você vai praticar</strong>
+<ul>
+  <li>Um menu que repete com <a href="while.html">while</a> e <a href="switch.html">switch</a>, chamando <a href="funcoes-locais.html">funções locais</a>.</li>
+  <li>Uma <a href="list.html">List&lt;Contato&gt;</a> que cresce com <code>Add</code> e diminui com <code>Remove</code>.</li>
+  <li>Buscar sem ligar para maiúsculas com <code>StringComparison.OrdinalIgnoreCase</code> (<a href="metodos-string.html">Métodos de String</a>).</li>
+  <li>Guardar e ler a lista num arquivo com <a href="json.html">System.Text.Json</a>, sem estragar os acentos.</li>
+  <li>Tratar um arquivo com defeito com <a href="try-catch.html">try e catch</a>.</li>
+  <li>Trabalhar num <a href="projetos-console.html">projeto</a> com dois arquivos: <code>Program.cs</code> e <code>Contato.cs</code>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>O que vamos construir</h2>
+<p>A agenda pronta. Na primeira vez, ela começa vazia, e a Ana cadastra dois contatos:</p>
+
+<pre class="term" data-cwd="~/projetos/Agenda">$ dotnet run
+=== Agenda da Ana ===
+Contatos carregados: 0
+
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 2
+Nenhum contato.
+
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 1
+Nome: José Carlos
+Telefone: 31 2222-1111
+José Carlos adicionado.
+
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 1
+Nome: Conceição
+Telefone: 11 91234-5678
+Conceição adicionado.
+
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 0
+Agenda salva em contatos.json. Até logo!</pre>
+
+<p>No dia seguinte, os dois continuam lá:</p>
+
+<pre class="term" data-cwd="~/projetos/Agenda">$ dotnet run
+=== Agenda da Ana ===
+Contatos carregados: 2
+
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 2
+  José Carlos: 31 2222-1111
+  Conceição: 11 91234-5678
+
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 1
+Nome: Bruno Lima
+Telefone: 11 98765-4321
+Bruno Lima adicionado.
+
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 3
+Buscar por: lima
+  Bruno Lima: 11 98765-4321
+
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 0
+Agenda salva em contatos.json. Até logo!
+$ cat contatos.json
+[
+  {
+    "Nome": "José Carlos",
+    "Telefone": "31 2222-1111"
+  },
+  {
+    "Nome": "Conceição",
+    "Telefone": "11 91234-5678"
+  },
+  {
+    "Nome": "Bruno Lima",
+    "Telefone": "11 98765-4321"
+  }
+]</pre>
+
+<ol class="passo">
+  <li><a href="#versao1">O menu, a lista e o record</a> (adicionar e listar).</li>
+  <li><a href="#versao2">Buscar e remover</a>.</li>
+  <li><a href="#versao3">Salvar num arquivo JSON</a>.</li>
+  <li><a href="#versao4">Carregar ao abrir</a> (e o arquivo com defeito).</li>
+</ol>
+
+<h3>Antes de começar</h3>
+<p>Você precisa ter visto <a href="list.html">List&lt;T&gt;</a>, <a href="records.html">Records</a>, <a href="switch.html">switch</a>, <a href="funcoes-locais.html">Funções Locais</a> e, para as versões 3 e 4, <a href="json.html">JSON</a> e <a href="try-catch.html">try e catch</a>.</p>
+<p>Este projeto tem <strong>dois arquivos</strong> e usa JSON, por isso é um <strong>projeto</strong>, e não um arquivo solto. (No <code>dotnet run arquivo.cs</code>, o .NET 10 desliga o jeito simples de usar o <code>JsonSerializer</code>; a aula <a href="json.html">JSON</a> explica por quê.) A Ana cria o projeto em <code>~/projetos</code>:</p>
+
+<pre class="term">$ mkdir -p projetos
+$ cd projetos
+$ dotnet new console -o Agenda
+O modelo "Aplicativo do Console" foi criado com êxito.
+
+Processando ações pós-criação...
+Restaurando /home/ana/projetos/Agenda/Agenda.csproj:
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Agenda/Agenda.csproj restaurado (em 104 ms).
+A restauração foi bem-sucedida.
+
+$ cd Agenda</pre>
+
+<p>O <code>dotnet new</code> já cria um <code>Program.cs</code> com um "Hello, World!". A Ana troca o conteúdo dele pelo código da versão 1 e cria, ao lado, o arquivo <code>Contato.cs</code>, com uma linha só. Todos os <code>.cs</code> da pasta são compilados juntos, então o <code>Program.cs</code> enxerga o <code>Contato</code>. Nas caixas Experimente, os dois arquivos aparecem como <strong>abas</strong>.</p>
+
+<pre class="file" data-file="Contato.cs">record Contato(string Nome, string Telefone);
+</pre>
+
+<hr>
+
+<h2 id="versao1">Versão 1 · O menu, a lista e o record</h2>
+<p>Um contato tem nome e telefone: um <a href="records.html">record</a> resolve. Os contatos ficam numa <a href="list.html">List&lt;Contato&gt;</a>, uma lista que cresce conforme a Ana cadastra (um array teria tamanho fixo). E o programa é um <strong>menu</strong>: mostra as opções, lê a escolha, faz a tarefa e volta para o menu, até a Ana escolher <code>0</code>.</p>
+
+<pre class="file" data-file="Program.cs">List&lt;Contato&gt; contatos = new();
+
+Console.WriteLine("=== Agenda da Ana ===");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1 Adicionar  2 Listar  0 Sair");
+    Console.Write("Opção: ");
+    string opcao = Console.ReadLine() ?? "0";
+    if (opcao == "0")
+    {
+        break;
+    }
+
+    switch (opcao)
+    {
+        case "1":
+            Adicionar();
+            break;
+        case "2":
+            Listar();
+            break;
+        default:
+            Console.WriteLine("Opção inválida.");
+            break;
+    }
+}
+Console.WriteLine("Até logo!");
+
+void Adicionar()
+{
+    Console.Write("Nome: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Console.Write("Telefone: ");
+    string telefone = (Console.ReadLine() ?? "").Trim();
+    if (nome == "")
+    {
+        Console.WriteLine("O nome não pode ficar vazio.");
+        return;
+    }
+    contatos.Add(new Contato(nome, telefone));
+    Console.WriteLine($"{nome} adicionado.");
+}
+
+void Listar()
+{
+    if (contatos.Count == 0)
+    {
+        Console.WriteLine("Nenhum contato.");
+        return;
+    }
+    foreach (Contato contato in contatos)
+    {
+        Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>List&lt;Contato&gt; contatos = new();</dt><dd>Uma lista vazia de contatos. O <code>new()</code> sem o nome do tipo funciona porque o tipo já está escrito à esquerda (<em>target-typed new</em>).</dd>
+  <dt>string opcao = Console.ReadLine() ?? "0";</dt><dd>A opção fica como texto, e o <code>switch</code> compara textos. Se a entrada acabar (<code>null</code>), vale como <code>"0"</code>: sai do programa, em vez de repetir o menu para sempre.</dd>
+  <dt>case "1": Adicionar(); break;</dt><dd>Cada opção chama uma <strong>função local</strong>, declarada mais abaixo. Assim o menu fica curto e cada tarefa tem nome.</dd>
+  <dt>void Adicionar()</dt><dd>Uma <a href="funcoes-locais.html">função local</a>: um método escrito direto no arquivo, depois das instruções. Sem <code>static</code>, ela enxerga as variáveis do programa principal, como <code>contatos</code>.</dd>
+  <dt>(Console.ReadLine() ?? "").Trim()</dt><dd>Lê o texto e tira os espaços das pontas: <code>" Bruno "</code> vira <code>"Bruno"</code>.</dd>
+  <dt>if (nome == "") { …; return; }</dt><dd>Um contato sem nome não entra. O <code>return</code> sai só da função, e o programa volta ao menu.</dd>
+  <dt>contatos.Add(new Contato(nome, telefone));</dt><dd>Cria o contato e põe no fim da lista.</dd>
+  <dt>contatos.Count</dt><dd>Quantos contatos a lista tem agora.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/projetos/Agenda">$ dotnet run
+=== Agenda da Ana ===
+
+1 Adicionar  2 Listar  0 Sair
+Opção: 1
+Nome: Bruno Lima
+Telefone: 11 98765-4321
+Bruno Lima adicionado.
+
+1 Adicionar  2 Listar  0 Sair
+Opção: 1
+Nome: Carla
+Telefone: 21 3333-4444
+Carla adicionado.
+
+1 Adicionar  2 Listar  0 Sair
+Opção: 2
+  Bruno Lima: 11 98765-4321
+  Carla: 21 3333-4444
+
+1 Adicionar  2 Listar  0 Sair
+Opção: 7
+Opção inválida.
+
+1 Adicionar  2 Listar  0 Sair
+Opção: 1
+Nome:
+Telefone:
+O nome não pode ficar vazio.
+
+1 Adicionar  2 Listar  0 Sair
+Opção: 0
+Até logo!</pre>
+
+<div class="trycs" data-stdin="1\nBruno Lima\n11 98765-4321\n2\n0\n" data-goal="out:Bruno Lima: 11 98765-4321,src:case\s+&quot;2&quot;">
+<p class="try-task"><strong>Missão (versão 1):</strong> a opção 2 ainda não existe: o programa responde <code>Opção inválida.</code>. Acrescente o <code>case "2":</code> que chama <code>Listar();</code> (com o <code>break</code>). A entrada cadastra o Bruno, pede a lista e sai.</p>
+<pre class="script" data-file="Program.cs">List&lt;Contato&gt; contatos = new();
+
+Console.WriteLine("=== Agenda da Ana ===");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1 Adicionar  2 Listar  0 Sair");
+    Console.Write("Opção: ");
+    string opcao = Console.ReadLine() ?? "0";
+    if (opcao == "0")
+    {
+        break;
+    }
+
+    switch (opcao)
+    {
+        case "1":
+            Adicionar();
+            break;
+        // acrescente aqui o case "2"
+        default:
+            Console.WriteLine("Opção inválida.");
+            break;
+    }
+}
+Console.WriteLine("Até logo!");
+
+void Adicionar()
+{
+    Console.Write("Nome: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Console.Write("Telefone: ");
+    string telefone = (Console.ReadLine() ?? "").Trim();
+    if (nome == "")
+    {
+        Console.WriteLine("O nome não pode ficar vazio.");
+        return;
+    }
+    contatos.Add(new Contato(nome, telefone));
+    Console.WriteLine($"{nome} adicionado.");
+}
+
+void Listar()
+{
+    if (contatos.Count == 0)
+    {
+        Console.WriteLine("Nenhum contato.");
+        return;
+    }
+    foreach (Contato contato in contatos)
+    {
+        Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+    }
+}
+</pre>
+<pre class="script" data-file="Contato.cs">record Contato(string Nome, string Telefone);
+</pre>
+<pre class="solucao" data-file="Program.cs">List&lt;Contato&gt; contatos = new();
+
+Console.WriteLine("=== Agenda da Ana ===");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1 Adicionar  2 Listar  0 Sair");
+    Console.Write("Opção: ");
+    string opcao = Console.ReadLine() ?? "0";
+    if (opcao == "0")
+    {
+        break;
+    }
+
+    switch (opcao)
+    {
+        case "1":
+            Adicionar();
+            break;
+        case "2":
+            Listar();
+            break;
+        default:
+            Console.WriteLine("Opção inválida.");
+            break;
+    }
+}
+Console.WriteLine("Até logo!");
+
+void Adicionar()
+{
+    Console.Write("Nome: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Console.Write("Telefone: ");
+    string telefone = (Console.ReadLine() ?? "").Trim();
+    if (nome == "")
+    {
+        Console.WriteLine("O nome não pode ficar vazio.");
+        return;
+    }
+    contatos.Add(new Contato(nome, telefone));
+    Console.WriteLine($"{nome} adicionado.");
+}
+
+void Listar()
+{
+    if (contatos.Count == 0)
+    {
+        Console.WriteLine("Nenhum contato.");
+        return;
+    }
+    foreach (Contato contato in contatos)
+    {
+        Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao2">Versão 2 · Buscar e remover</h2>
+<p>Com dezenas de contatos, a Ana precisa <strong>procurar</strong> ("quem era a Carla mesmo?") e <strong>apagar</strong> quem saiu da lista. O menu ganha as opções 3 e 4:</p>
+
+<pre class="file" data-file="Program.cs">Console.WriteLine("1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair");
+…
+        case "3":
+            Buscar();
+            break;
+        case "4":
+            Remover();
+            break;
+</pre>
+
+<p>E duas funções novas, no fim do arquivo:</p>
+
+<pre class="file" data-file="Program.cs">void Buscar()
+{
+    Console.Write("Buscar por: ");
+    string termo = (Console.ReadLine() ?? "").Trim();
+    int achados = 0;
+    foreach (Contato contato in contatos)
+    {
+        if (contato.Nome.Contains(termo, StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+            achados++;
+        }
+    }
+    if (achados == 0)
+    {
+        Console.WriteLine("Ninguém encontrado.");
+    }
+}
+
+void Remover()
+{
+    Console.Write("Nome para remover: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Contato? alvo = null;
+    foreach (Contato contato in contatos)
+    {
+        if (contato.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase))
+        {
+            alvo = contato;
+            break;
+        }
+    }
+    if (alvo is null)
+    {
+        Console.WriteLine($"{nome} não está na agenda.");
+        return;
+    }
+    contatos.Remove(alvo);
+    Console.WriteLine($"{alvo.Nome} removido.");
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>contato.Nome.Contains(termo, StringComparison.OrdinalIgnoreCase)</dt><dd>"O nome contém o termo?", sem ligar para maiúsculas e minúsculas (<em>ignore case</em>): <code>car</code> acha <code>Carla Souza</code>. Sem o segundo argumento, <code>Contains</code> diferencia <code>c</code> de <code>C</code>.</dd>
+  <dt>int achados = 0;</dt><dd>Conta quantos combinaram, para dizer "Ninguém encontrado." quando for zero.</dd>
+  <dt>contato.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase)</dt><dd>Para remover, o nome tem de ser <strong>igual</strong> (sem ligar para maiúsculas), não só conter: "Remover Ana" não deve apagar a "Ana Paula".</dd>
+  <dt>Contato? alvo = null;</dt><dd>O contato a remover. Começa como "nenhum" (o <code>?</code> deixa guardar <code>null</code>, veja <a href="referencias-anulaveis.html">Referências Anuláveis</a>).</dd>
+  <dt>break;</dt><dd>Achou: para de procurar.</dd>
+  <dt>contatos.Remove(alvo);</dt><dd>Tira esse contato da lista, <strong>depois</strong> do <code>foreach</code> (veja o cenário abaixo).</dd>
+</dl>
+
+<pre class="term" data-cwd="~/projetos/Agenda">$ dotnet run
+=== Agenda da Ana ===
+…                                         « a Ana cadastrou Bruno Lima, Carla Souza e José Carlos
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 3
+Buscar por: CAR
+  Carla Souza: 21 3333-4444
+  José Carlos: 31 2222-1111
+
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 4
+Nome para remover: carla souza
+Carla Souza removido.
+
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 4
+Nome para remover: Diego
+Diego não está na agenda.
+
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 2
+  Bruno Lima: 11 98765-4321
+  José Carlos: 31 2222-1111
+
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 0
+Até logo!</pre>
+
+<p>A busca por <code>CAR</code> achou a <strong>Car</strong>la e o José <strong>Car</strong>los, e a remoção aceitou <code>carla souza</code> em minúsculas.</p>
+
+<div class="cenario">
+<strong>Remover dentro do <code>foreach</code>: <code>Collection was modified</code></strong>
+<p>A primeira versão do <code>Remover</code> da Ana tirava o contato da lista ali mesmo, dentro do laço:</p>
+<pre class="file" data-file="Program.cs">void Remover()
+{
+    Console.Write("Nome para remover: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    foreach (Contato contato in contatos)
+    {
+        if (contato.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase))
+        {
+            contatos.Remove(contato);
+            Console.WriteLine($"{contato.Nome} removido.");
+        }
+    }
+}
+</pre>
+<pre class="term" data-cwd="~/projetos/Agenda">$ dotnet run
+…                                         « a Ana cadastrou Bruno Lima, Carla Souza e José Carlos
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 4
+Nome para remover: bruno lima
+Bruno Lima removido.
+Unhandled exception. System.InvalidOperationException: Collection was modified; enumeration operation may not execute.
+   at System.Collections.Generic.List`1.Enumerator.MoveNext()
+   at Program.&lt;&lt;Main&gt;$&gt;g__Remover|0_3(&lt;&gt;c__DisplayClass0_0&amp;) in /home/ana/projetos/Agenda/Program.cs:line 87
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/projetos/Agenda/Program.cs:line 27
+$ echo $?
+134</pre>
+<p><strong>O que significa:</strong> "a coleção foi modificada; a enumeração não pode continuar". O <code>Remove</code> funcionou (apareceu "Bruno Lima removido."), mas o <code>foreach</code> da linha 87 estava no meio da lista: quando foi buscar o próximo contato, viu que a lista tinha mudado debaixo dele e lançou a exceção. O <code>g__Remover|0_3</code> é o nome que o compilador dá à função local <code>Remover</code>, e a linha 27 é quem a chamou, no menu.</p>
+<p><strong>Como consertar:</strong> nunca mude uma lista enquanto um <code>foreach</code> passa por ela. Ache primeiro, remova depois, como na versão 2. Outra saída é <code>contatos.RemoveAll(c =&gt; c.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase))</code>, que procura e remove de uma vez (é uma <a href="lambdas.html">lambda</a>).</p>
+</div>
+
+<div class="trycs" data-stdin="1\nBruno Lima\n11 98765-4321\n1\nCarla Souza\n21 3333-4444\n3\ncar\n0\n" data-goal="out:Carla Souza: 21 3333-4444,src:Contains\(\s*termo">
+<p class="try-task"><strong>Missão (versão 2):</strong> a busca por <code>car</code> não acha a Carla, porque o <code>Buscar</code> compara o nome inteiro, com maiúsculas: <code>contato.Nome == termo</code>. Troque por <code>contato.Nome.Contains(termo, StringComparison.OrdinalIgnoreCase)</code>.</p>
+<pre class="script" data-file="Program.cs">List&lt;Contato&gt; contatos = new();
+
+Console.WriteLine("=== Agenda da Ana ===");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair");
+    Console.Write("Opção: ");
+    string opcao = Console.ReadLine() ?? "0";
+    if (opcao == "0")
+    {
+        break;
+    }
+
+    switch (opcao)
+    {
+        case "1":
+            Adicionar();
+            break;
+        case "2":
+            Listar();
+            break;
+        case "3":
+            Buscar();
+            break;
+        case "4":
+            Remover();
+            break;
+        default:
+            Console.WriteLine("Opção inválida.");
+            break;
+    }
+}
+Console.WriteLine("Até logo!");
+
+void Adicionar()
+{
+    Console.Write("Nome: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Console.Write("Telefone: ");
+    string telefone = (Console.ReadLine() ?? "").Trim();
+    if (nome == "")
+    {
+        Console.WriteLine("O nome não pode ficar vazio.");
+        return;
+    }
+    contatos.Add(new Contato(nome, telefone));
+    Console.WriteLine($"{nome} adicionado.");
+}
+
+void Listar()
+{
+    if (contatos.Count == 0)
+    {
+        Console.WriteLine("Nenhum contato.");
+        return;
+    }
+    foreach (Contato contato in contatos)
+    {
+        Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+    }
+}
+
+void Buscar()
+{
+    Console.Write("Buscar por: ");
+    string termo = (Console.ReadLine() ?? "").Trim();
+    int achados = 0;
+    foreach (Contato contato in contatos)
+    {
+        if (contato.Nome == termo)
+        {
+            Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+            achados++;
+        }
+    }
+    if (achados == 0)
+    {
+        Console.WriteLine("Ninguém encontrado.");
+    }
+}
+
+void Remover()
+{
+    Console.Write("Nome para remover: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Contato? alvo = null;
+    foreach (Contato contato in contatos)
+    {
+        if (contato.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase))
+        {
+            alvo = contato;
+            break;
+        }
+    }
+    if (alvo is null)
+    {
+        Console.WriteLine($"{nome} não está na agenda.");
+        return;
+    }
+    contatos.Remove(alvo);
+    Console.WriteLine($"{alvo.Nome} removido.");
+}
+</pre>
+<pre class="script" data-file="Contato.cs">record Contato(string Nome, string Telefone);
+</pre>
+<pre class="solucao" data-file="Program.cs">List&lt;Contato&gt; contatos = new();
+
+Console.WriteLine("=== Agenda da Ana ===");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair");
+    Console.Write("Opção: ");
+    string opcao = Console.ReadLine() ?? "0";
+    if (opcao == "0")
+    {
+        break;
+    }
+
+    switch (opcao)
+    {
+        case "1":
+            Adicionar();
+            break;
+        case "2":
+            Listar();
+            break;
+        case "3":
+            Buscar();
+            break;
+        case "4":
+            Remover();
+            break;
+        default:
+            Console.WriteLine("Opção inválida.");
+            break;
+    }
+}
+Console.WriteLine("Até logo!");
+
+void Adicionar()
+{
+    Console.Write("Nome: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Console.Write("Telefone: ");
+    string telefone = (Console.ReadLine() ?? "").Trim();
+    if (nome == "")
+    {
+        Console.WriteLine("O nome não pode ficar vazio.");
+        return;
+    }
+    contatos.Add(new Contato(nome, telefone));
+    Console.WriteLine($"{nome} adicionado.");
+}
+
+void Listar()
+{
+    if (contatos.Count == 0)
+    {
+        Console.WriteLine("Nenhum contato.");
+        return;
+    }
+    foreach (Contato contato in contatos)
+    {
+        Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+    }
+}
+
+void Buscar()
+{
+    Console.Write("Buscar por: ");
+    string termo = (Console.ReadLine() ?? "").Trim();
+    int achados = 0;
+    foreach (Contato contato in contatos)
+    {
+        if (contato.Nome.Contains(termo, StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+            achados++;
+        }
+    }
+    if (achados == 0)
+    {
+        Console.WriteLine("Ninguém encontrado.");
+    }
+}
+
+void Remover()
+{
+    Console.Write("Nome para remover: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Contato? alvo = null;
+    foreach (Contato contato in contatos)
+    {
+        if (contato.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase))
+        {
+            alvo = contato;
+            break;
+        }
+    }
+    if (alvo is null)
+    {
+        Console.WriteLine($"{nome} não está na agenda.");
+        return;
+    }
+    contatos.Remove(alvo);
+    Console.WriteLine($"{alvo.Nome} removido.");
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao3">Versão 3 · Salvar num arquivo JSON</h2>
+<p>Até aqui, tudo o que a Ana cadastra some quando o programa fecha: a lista mora na memória. Para guardar, o programa escreve a lista num <strong>arquivo</strong>. Em que formato? O <strong>JSON</strong> (<em>JavaScript Object Notation</em>) é texto puro, fácil de ler por pessoas e por programas, e o .NET já sabe transformar objetos em JSON e de volta (veja <a href="json.html">JSON</a>). Transformar um objeto em texto se chama <strong>serializar</strong>.</p>
+
+<pre class="file" data-file="Program.cs">using System.Text.Encodings.Web;
+using System.Text.Json;
+
+const string Arquivo = "contatos.json";
+JsonSerializerOptions opcoes = new JsonSerializerOptions
+{
+    WriteIndented = true,
+    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+};
+
+List&lt;Contato&gt; contatos = new();
+
+Console.WriteLine("=== Agenda da Ana ===");
+// … o menu continua igual …
+Salvar();
+Console.WriteLine($"Agenda salva em {Arquivo}. Até logo!");
+
+// … Adicionar, Listar, Buscar e Remover continuam iguais …
+
+void Salvar()
+{
+    string json = JsonSerializer.Serialize(contatos, opcoes);
+    File.WriteAllText(Arquivo, json);
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>using System.Text.Json;</dt><dd>Traz o <code>JsonSerializer</code> e o <code>JsonSerializerOptions</code>. Esse <a href="namespaces.html">namespace</a> não vem incluído sozinho.</dd>
+  <dt>using System.Text.Encodings.Web;</dt><dd>Traz o <code>JavaScriptEncoder</code>, para os acentos (veja o cenário).</dd>
+  <dt>const string Arquivo = "contatos.json";</dt><dd>O nome do arquivo, num lugar só. Sem pasta no nome, ele fica na pasta em que o programa roda: <code>~/projetos/Agenda</code>.</dd>
+  <dt>WriteIndented = true</dt><dd>"Escrever com recuo": um campo por linha, fácil de ler. Sem isso, sai tudo numa linha.</dd>
+  <dt>JsonSerializer.Serialize(contatos, opcoes)</dt><dd>Transforma a lista inteira num texto JSON: <code>[ … ]</code> é a lista, cada <code>{ … }</code> é um contato, com os nomes das propriedades entre aspas.</dd>
+  <dt>File.WriteAllText(Arquivo, json);</dt><dd>Cria o arquivo (ou troca o conteúdo, se já existir) com esse texto (<a href="arquivos.html">Arquivos</a>).</dd>
+  <dt>Salvar(); depois do laço</dt><dd>A agenda é salva quando a Ana escolhe <code>0</code>.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/projetos/Agenda">$ dotnet run
+=== Agenda da Ana ===
+
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 1
+Nome: José Carlos
+Telefone: 31 2222-1111
+José Carlos adicionado.
+
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 1
+Nome: Conceição
+Telefone: 11 91234-5678
+Conceição adicionado.
+
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 0
+Agenda salva em contatos.json. Até logo!
+$ cat contatos.json
+[
+  {
+    "Nome": "José Carlos",
+    "Telefone": "31 2222-1111"
+  },
+  {
+    "Nome": "Conceição",
+    "Telefone": "11 91234-5678"
+  }
+]</pre>
+
+<div class="cenario">
+<strong><code>"José"</code>: os acentos viraram códigos</strong>
+<p>Sem a linha do <code>Encoder</code>, o arquivo da Ana saiu assim:</p>
+<pre class="term" data-cwd="~/projetos/Agenda">$ cat contatos.json
+[
+  {
+    "Nome": "José Carlos",
+    "Telefone": "31 2222-1111"
+  },
+  {
+    "Nome": "Conceição",
+    "Telefone": "11 91234-5678"
+  }
+]</pre>
+<p><strong>O que aconteceu:</strong> por segurança, o <code>JsonSerializer</code> escreve toda letra fora do inglês básico como um código: <code>é</code> é o <code>é</code>, <code>ç</code> o <code>ç</code> e <code>ã</code> o <code>ã</code>. Não é um erro: ao ler o arquivo de volta, o programa recebe "José" certinho. Mas o arquivo fica difícil de ler para uma pessoa.</p>
+<p><strong>Como consertar:</strong> <code>Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping</code> nas opções. O "Unsafe" ("inseguro") é porque um JSON assim não deve ser colado direto dentro de uma página da web; para um arquivo do seu programa, é tranquilo.</p>
+</div>
+
+<div class="cenario">
+<strong>Esqueci o <code>using</code>: erros <code>CS0246</code> e <code>CS0103</code></strong>
+<pre class="term" data-cwd="~/projetos/Agenda">$ dotnet run
+/home/ana/projetos/Agenda/Program.cs(4,1): error CS0246: O nome do tipo ou do namespace "JsonSerializerOptions" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?) [/home/ana/projetos/Agenda/Agenda.csproj]
+/home/ana/projetos/Agenda/Program.cs(4,36): error CS0246: O nome do tipo ou do namespace "JsonSerializerOptions" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?) [/home/ana/projetos/Agenda/Agenda.csproj]
+/home/ana/projetos/Agenda/Program.cs(117,19): error CS0103: O nome "JsonSerializer" não existe no contexto atual [/home/ana/projetos/Agenda/Agenda.csproj]
+/home/ana/projetos/Agenda/Program.cs(130,16): error CS0103: O nome "JsonSerializer" não existe no contexto atual [/home/ana/projetos/Agenda/Agenda.csproj]
+/home/ana/projetos/Agenda/Program.cs(132,12): error CS0246: O nome do tipo ou do namespace "JsonException" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?) [/home/ana/projetos/Agenda/Agenda.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> cinco erros, uma causa só. Sem <code>using System.Text.Json;</code>, o compilador não conhece nenhum nome desse namespace: nem o tipo <code>JsonSerializerOptions</code> (<code>CS0246</code>, "tipo não encontrado"), nem a classe <code>JsonSerializer</code> (<code>CS0103</code>, "nome não existe"), nem o <code>JsonException</code>. Num projeto, cada linha termina com o nome do <code>.csproj</code> entre colchetes. A própria mensagem dá a dica: "está faltando uma diretiva using?".</p>
+<p><strong>Como consertar:</strong> a primeira linha do arquivo, <code>using System.Text.Json;</code>.</p>
+</div>
+
+<div class="trycs" data-stdin="1\nJosé Carlos\n31 2222-1111\n0\n" data-goal="out:&quot;Nome&quot;: &quot;José Carlos&quot;,src:UnsafeRelaxedJsonEscaping">
+<p class="try-task"><strong>Missão (versão 3):</strong> o programa salva, mas o arquivo mostra <code>"José Carlos"</code> (a última linha do <code>Program.cs</code> mostra o arquivo, só para conferir). Nas opções, acrescente <code>Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping</code> (não esqueça a vírgula depois de <code>WriteIndented = true</code>) e o <code>using System.Text.Encodings.Web;</code> no topo.</p>
+<pre class="script" data-file="Program.cs">using System.Text.Json;
+
+const string Arquivo = "contatos.json";
+JsonSerializerOptions opcoes = new JsonSerializerOptions
+{
+    WriteIndented = true
+};
+
+List&lt;Contato&gt; contatos = new();
+
+Console.WriteLine("=== Agenda da Ana ===");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair");
+    Console.Write("Opção: ");
+    string opcao = Console.ReadLine() ?? "0";
+    if (opcao == "0")
+    {
+        break;
+    }
+
+    switch (opcao)
+    {
+        case "1":
+            Adicionar();
+            break;
+        case "2":
+            Listar();
+            break;
+        case "3":
+            Buscar();
+            break;
+        case "4":
+            Remover();
+            break;
+        default:
+            Console.WriteLine("Opção inválida.");
+            break;
+    }
+}
+Salvar();
+Console.WriteLine($"Agenda salva em {Arquivo}. Até logo!");
+Console.WriteLine(File.ReadAllText(Arquivo)); // só para conferir o arquivo
+
+void Adicionar()
+{
+    Console.Write("Nome: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Console.Write("Telefone: ");
+    string telefone = (Console.ReadLine() ?? "").Trim();
+    if (nome == "")
+    {
+        Console.WriteLine("O nome não pode ficar vazio.");
+        return;
+    }
+    contatos.Add(new Contato(nome, telefone));
+    Console.WriteLine($"{nome} adicionado.");
+}
+
+void Listar()
+{
+    if (contatos.Count == 0)
+    {
+        Console.WriteLine("Nenhum contato.");
+        return;
+    }
+    foreach (Contato contato in contatos)
+    {
+        Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+    }
+}
+
+void Buscar()
+{
+    Console.Write("Buscar por: ");
+    string termo = (Console.ReadLine() ?? "").Trim();
+    int achados = 0;
+    foreach (Contato contato in contatos)
+    {
+        if (contato.Nome.Contains(termo, StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+            achados++;
+        }
+    }
+    if (achados == 0)
+    {
+        Console.WriteLine("Ninguém encontrado.");
+    }
+}
+
+void Remover()
+{
+    Console.Write("Nome para remover: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Contato? alvo = null;
+    foreach (Contato contato in contatos)
+    {
+        if (contato.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase))
+        {
+            alvo = contato;
+            break;
+        }
+    }
+    if (alvo is null)
+    {
+        Console.WriteLine($"{nome} não está na agenda.");
+        return;
+    }
+    contatos.Remove(alvo);
+    Console.WriteLine($"{alvo.Nome} removido.");
+}
+
+void Salvar()
+{
+    string json = JsonSerializer.Serialize(contatos, opcoes);
+    File.WriteAllText(Arquivo, json);
+}
+</pre>
+<pre class="script" data-file="Contato.cs">record Contato(string Nome, string Telefone);
+</pre>
+<pre class="solucao" data-file="Program.cs">using System.Text.Encodings.Web;
+using System.Text.Json;
+
+const string Arquivo = "contatos.json";
+JsonSerializerOptions opcoes = new JsonSerializerOptions
+{
+    WriteIndented = true,
+    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+};
+
+List&lt;Contato&gt; contatos = new();
+
+Console.WriteLine("=== Agenda da Ana ===");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair");
+    Console.Write("Opção: ");
+    string opcao = Console.ReadLine() ?? "0";
+    if (opcao == "0")
+    {
+        break;
+    }
+
+    switch (opcao)
+    {
+        case "1":
+            Adicionar();
+            break;
+        case "2":
+            Listar();
+            break;
+        case "3":
+            Buscar();
+            break;
+        case "4":
+            Remover();
+            break;
+        default:
+            Console.WriteLine("Opção inválida.");
+            break;
+    }
+}
+Salvar();
+Console.WriteLine($"Agenda salva em {Arquivo}. Até logo!");
+Console.WriteLine(File.ReadAllText(Arquivo)); // só para conferir o arquivo
+
+void Adicionar()
+{
+    Console.Write("Nome: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Console.Write("Telefone: ");
+    string telefone = (Console.ReadLine() ?? "").Trim();
+    if (nome == "")
+    {
+        Console.WriteLine("O nome não pode ficar vazio.");
+        return;
+    }
+    contatos.Add(new Contato(nome, telefone));
+    Console.WriteLine($"{nome} adicionado.");
+}
+
+void Listar()
+{
+    if (contatos.Count == 0)
+    {
+        Console.WriteLine("Nenhum contato.");
+        return;
+    }
+    foreach (Contato contato in contatos)
+    {
+        Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+    }
+}
+
+void Buscar()
+{
+    Console.Write("Buscar por: ");
+    string termo = (Console.ReadLine() ?? "").Trim();
+    int achados = 0;
+    foreach (Contato contato in contatos)
+    {
+        if (contato.Nome.Contains(termo, StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+            achados++;
+        }
+    }
+    if (achados == 0)
+    {
+        Console.WriteLine("Ninguém encontrado.");
+    }
+}
+
+void Remover()
+{
+    Console.Write("Nome para remover: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Contato? alvo = null;
+    foreach (Contato contato in contatos)
+    {
+        if (contato.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase))
+        {
+            alvo = contato;
+            break;
+        }
+    }
+    if (alvo is null)
+    {
+        Console.WriteLine($"{nome} não está na agenda.");
+        return;
+    }
+    contatos.Remove(alvo);
+    Console.WriteLine($"{alvo.Nome} removido.");
+}
+
+void Salvar()
+{
+    string json = JsonSerializer.Serialize(contatos, opcoes);
+    File.WriteAllText(Arquivo, json);
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao4">Versão 4 · Carregar ao abrir</h2>
+<p>A agenda já é salva, mas o programa ainda começa com a lista vazia: o arquivo é escrito e nunca lido. Falta o caminho de volta: ao abrir, ler o <code>contatos.json</code> e transformar o texto numa lista (<strong>desserializar</strong>). Três situações precisam de cuidado: a primeira vez, quando o arquivo ainda não existe; o arquivo normal; e um arquivo com defeito.</p>
+
+<pre class="file" data-file="Program.cs">using System.Text.Encodings.Web;
+using System.Text.Json;
+
+const string Arquivo = "contatos.json";
+JsonSerializerOptions opcoes = new JsonSerializerOptions
+{
+    WriteIndented = true,
+    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+};
+
+Console.WriteLine("=== Agenda da Ana ===");
+List&lt;Contato&gt; contatos = Carregar();
+Console.WriteLine($"Contatos carregados: {contatos.Count}");
+// … o menu, as outras funções e o Salvar continuam iguais …
+
+List&lt;Contato&gt; Carregar()
+{
+    if (!File.Exists(Arquivo))
+    {
+        return [];
+    }
+    try
+    {
+        string json = File.ReadAllText(Arquivo);
+        return JsonSerializer.Deserialize&lt;List&lt;Contato&gt;&gt;(json) ?? [];
+    }
+    catch (JsonException)
+    {
+        Console.WriteLine($"Aviso: {Arquivo} está com defeito. Começando com a agenda vazia.");
+        return [];
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>List&lt;Contato&gt; contatos = Carregar();</dt><dd>A lista agora começa com o que estava no arquivo.</dd>
+  <dt>if (!File.Exists(Arquivo)) return [];</dt><dd>Na primeira vez, não há arquivo: começa com uma lista vazia (o <code>[]</code> é uma <a href="list.html">expressão de coleção</a> <span class="versao">C# 12</span>).</dd>
+  <dt>JsonSerializer.Deserialize&lt;List&lt;Contato&gt;&gt;(json)</dt><dd>Lê o texto JSON e monta uma <code>List&lt;Contato&gt;</code>. Entre <code>&lt; &gt;</code> vai o tipo que você espera receber.</dd>
+  <dt>?? []</dt><dd>O <code>Deserialize</code> pode devolver <code>null</code> (se o arquivo tiver só a palavra <code>null</code>, por exemplo). Nesse caso, lista vazia.</dd>
+  <dt>catch (JsonException)</dt><dd>Se o texto não for um JSON válido, o <code>Deserialize</code> lança <code>JsonException</code>. Em vez de cair, o programa avisa e começa vazio.</dd>
+</dl>
+
+<p>A saída é a do começo da página: na segunda vez, <code>Contatos carregados: 2</code>.</p>
+
+<div class="cenario">
+<strong>O arquivo cortado: <code>JsonException</code></strong>
+<p>O notebook da Ana desligou no meio de uma gravação, e o <code>contatos.json</code> ficou pela metade:</p>
+<pre class="term" data-cwd="~/projetos/Agenda">$ cat contatos.json
+[
+  {
+    "Nome": "José Carlos",
+    "Telefone": "31 2222-1111"
+  },
+  {
+    "Nome": "Concei</pre>
+<p>Sem o <code>try</code>/<code>catch</code> no <code>Carregar</code>, a agenda nem abriu:</p>
+<pre class="term" data-cwd="~/projetos/Agenda">$ dotnet run
+=== Agenda da Ana ===
+Unhandled exception. System.Text.Json.JsonException: '0x0A' is invalid within a JSON string. The string should be correctly escaped. Path: $[1].Nome | LineNumber: 6 | BytePositionInLine: 19.
+ ---> System.Text.Json.JsonReaderException: '0x0A' is invalid within a JSON string. The string should be correctly escaped. LineNumber: 6 | BytePositionInLine: 19.
+…                                         « mais 20 linhas de rastro
+   at Program.&lt;&lt;Main&gt;$&gt;g__Carregar|0_5() in /home/ana/projetos/Agenda/Program.cs:line 129
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/projetos/Agenda/Program.cs:line 12</pre>
+<p><strong>O que significa:</strong> o leitor de JSON achou uma quebra de linha (<code>0x0A</code>) dentro de um texto que não foi fechado, o <code>"Concei</code>. A mensagem diz até onde: <code>$[1].Nome</code> (o <code>Nome</code> do segundo contato), linha 6 do arquivo (contando do 0), posição 19. Com o <code>try</code>/<code>catch</code> da versão 4, a agenda abre:</p>
+<pre class="term" data-cwd="~/projetos/Agenda">$ dotnet run
+=== Agenda da Ana ===
+Aviso: contatos.json está com defeito. Começando com a agenda vazia.
+Contatos carregados: 0
+
+1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair
+Opção: 0
+Agenda salva em contatos.json. Até logo!
+$ cat contatos.json
+[]</pre>
+<p><strong>Mas repare:</strong> ao sair, o programa salvou a agenda vazia <strong>por cima</strong> do arquivo com defeito, e o José Carlos, que ainda dava para recuperar à mão, se perdeu. Uma agenda de verdade guardaria uma cópia do arquivo ruim antes (é o desafio 1).</p>
+</div>
+
+<div class="trycs" data-stdin="2\n0\n" data-goal="out:Contatos carregados: 2,out:Conceição: 11 91234-5678,src:Deserialize">
+<p class="try-task"><strong>Missão (versão 4):</strong> o arquivo <code>contatos.json</code> (na terceira aba) já tem dois contatos, mas o <code>Carregar</code> sempre devolve a lista vazia. Complete-o: leia o texto com <code>File.ReadAllText(Arquivo)</code> e devolva <code>JsonSerializer.Deserialize&lt;List&lt;Contato&gt;&gt;(json) ?? []</code>. Se quiser, proteja com o <code>try</code>/<code>catch (JsonException)</code>. A entrada pede a lista e sai.</p>
+<pre class="script" data-file="Program.cs">using System.Text.Encodings.Web;
+using System.Text.Json;
+
+const string Arquivo = "contatos.json";
+JsonSerializerOptions opcoes = new JsonSerializerOptions
+{
+    WriteIndented = true,
+    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+};
+
+Console.WriteLine("=== Agenda da Ana ===");
+List&lt;Contato&gt; contatos = Carregar();
+Console.WriteLine($"Contatos carregados: {contatos.Count}");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair");
+    Console.Write("Opção: ");
+    string opcao = Console.ReadLine() ?? "0";
+    if (opcao == "0")
+    {
+        break;
+    }
+
+    switch (opcao)
+    {
+        case "1":
+            Adicionar();
+            break;
+        case "2":
+            Listar();
+            break;
+        case "3":
+            Buscar();
+            break;
+        case "4":
+            Remover();
+            break;
+        default:
+            Console.WriteLine("Opção inválida.");
+            break;
+    }
+}
+Salvar();
+Console.WriteLine($"Agenda salva em {Arquivo}. Até logo!");
+
+void Adicionar()
+{
+    Console.Write("Nome: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Console.Write("Telefone: ");
+    string telefone = (Console.ReadLine() ?? "").Trim();
+    if (nome == "")
+    {
+        Console.WriteLine("O nome não pode ficar vazio.");
+        return;
+    }
+    contatos.Add(new Contato(nome, telefone));
+    Console.WriteLine($"{nome} adicionado.");
+}
+
+void Listar()
+{
+    if (contatos.Count == 0)
+    {
+        Console.WriteLine("Nenhum contato.");
+        return;
+    }
+    foreach (Contato contato in contatos)
+    {
+        Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+    }
+}
+
+void Buscar()
+{
+    Console.Write("Buscar por: ");
+    string termo = (Console.ReadLine() ?? "").Trim();
+    int achados = 0;
+    foreach (Contato contato in contatos)
+    {
+        if (contato.Nome.Contains(termo, StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+            achados++;
+        }
+    }
+    if (achados == 0)
+    {
+        Console.WriteLine("Ninguém encontrado.");
+    }
+}
+
+void Remover()
+{
+    Console.Write("Nome para remover: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Contato? alvo = null;
+    foreach (Contato contato in contatos)
+    {
+        if (contato.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase))
+        {
+            alvo = contato;
+            break;
+        }
+    }
+    if (alvo is null)
+    {
+        Console.WriteLine($"{nome} não está na agenda.");
+        return;
+    }
+    contatos.Remove(alvo);
+    Console.WriteLine($"{alvo.Nome} removido.");
+}
+
+void Salvar()
+{
+    string json = JsonSerializer.Serialize(contatos, opcoes);
+    File.WriteAllText(Arquivo, json);
+}
+
+List&lt;Contato&gt; Carregar()
+{
+    if (!File.Exists(Arquivo))
+    {
+        return [];
+    }
+    // leia o texto do arquivo e converta numa List&lt;Contato&gt;
+    return [];
+}
+</pre>
+<pre class="script" data-file="Contato.cs">record Contato(string Nome, string Telefone);
+</pre>
+<pre class="script" data-file="contatos.json">[
+  {
+    "Nome": "José Carlos",
+    "Telefone": "31 2222-1111"
+  },
+  {
+    "Nome": "Conceição",
+    "Telefone": "11 91234-5678"
+  }
+]
+</pre>
+<pre class="solucao" data-file="Program.cs">using System.Text.Encodings.Web;
+using System.Text.Json;
+
+const string Arquivo = "contatos.json";
+JsonSerializerOptions opcoes = new JsonSerializerOptions
+{
+    WriteIndented = true,
+    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+};
+
+Console.WriteLine("=== Agenda da Ana ===");
+List&lt;Contato&gt; contatos = Carregar();
+Console.WriteLine($"Contatos carregados: {contatos.Count}");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair");
+    Console.Write("Opção: ");
+    string opcao = Console.ReadLine() ?? "0";
+    if (opcao == "0")
+    {
+        break;
+    }
+
+    switch (opcao)
+    {
+        case "1":
+            Adicionar();
+            break;
+        case "2":
+            Listar();
+            break;
+        case "3":
+            Buscar();
+            break;
+        case "4":
+            Remover();
+            break;
+        default:
+            Console.WriteLine("Opção inválida.");
+            break;
+    }
+}
+Salvar();
+Console.WriteLine($"Agenda salva em {Arquivo}. Até logo!");
+
+void Adicionar()
+{
+    Console.Write("Nome: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Console.Write("Telefone: ");
+    string telefone = (Console.ReadLine() ?? "").Trim();
+    if (nome == "")
+    {
+        Console.WriteLine("O nome não pode ficar vazio.");
+        return;
+    }
+    contatos.Add(new Contato(nome, telefone));
+    Console.WriteLine($"{nome} adicionado.");
+}
+
+void Listar()
+{
+    if (contatos.Count == 0)
+    {
+        Console.WriteLine("Nenhum contato.");
+        return;
+    }
+    foreach (Contato contato in contatos)
+    {
+        Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+    }
+}
+
+void Buscar()
+{
+    Console.Write("Buscar por: ");
+    string termo = (Console.ReadLine() ?? "").Trim();
+    int achados = 0;
+    foreach (Contato contato in contatos)
+    {
+        if (contato.Nome.Contains(termo, StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+            achados++;
+        }
+    }
+    if (achados == 0)
+    {
+        Console.WriteLine("Ninguém encontrado.");
+    }
+}
+
+void Remover()
+{
+    Console.Write("Nome para remover: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Contato? alvo = null;
+    foreach (Contato contato in contatos)
+    {
+        if (contato.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase))
+        {
+            alvo = contato;
+            break;
+        }
+    }
+    if (alvo is null)
+    {
+        Console.WriteLine($"{nome} não está na agenda.");
+        return;
+    }
+    contatos.Remove(alvo);
+    Console.WriteLine($"{alvo.Nome} removido.");
+}
+
+void Salvar()
+{
+    string json = JsonSerializer.Serialize(contatos, opcoes);
+    File.WriteAllText(Arquivo, json);
+}
+
+List&lt;Contato&gt; Carregar()
+{
+    if (!File.Exists(Arquivo))
+    {
+        return [];
+    }
+    try
+    {
+        string json = File.ReadAllText(Arquivo);
+        return JsonSerializer.Deserialize&lt;List&lt;Contato&gt;&gt;(json) ?? [];
+    }
+    catch (JsonException)
+    {
+        Console.WriteLine($"Aviso: {Arquivo} está com defeito. Começando com a agenda vazia.");
+        return [];
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>O programa completo</h2>
+<p>A versão final tem dois arquivos. O <code>Contato.cs</code>:</p>
+<pre class="file" data-file="Contato.cs">record Contato(string Nome, string Telefone);
+</pre>
+<p>E o <code>Program.cs</code>:</p>
+<pre class="file" data-file="Program.cs">using System.Text.Encodings.Web;
+using System.Text.Json;
+
+const string Arquivo = "contatos.json";
+JsonSerializerOptions opcoes = new JsonSerializerOptions
+{
+    WriteIndented = true,
+    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+};
+
+Console.WriteLine("=== Agenda da Ana ===");
+List&lt;Contato&gt; contatos = Carregar();
+Console.WriteLine($"Contatos carregados: {contatos.Count}");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1 Adicionar  2 Listar  3 Buscar  4 Remover  0 Sair");
+    Console.Write("Opção: ");
+    string opcao = Console.ReadLine() ?? "0";
+    if (opcao == "0")
+    {
+        break;
+    }
+
+    switch (opcao)
+    {
+        case "1":
+            Adicionar();
+            break;
+        case "2":
+            Listar();
+            break;
+        case "3":
+            Buscar();
+            break;
+        case "4":
+            Remover();
+            break;
+        default:
+            Console.WriteLine("Opção inválida.");
+            break;
+    }
+}
+Salvar();
+Console.WriteLine($"Agenda salva em {Arquivo}. Até logo!");
+
+void Adicionar()
+{
+    Console.Write("Nome: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Console.Write("Telefone: ");
+    string telefone = (Console.ReadLine() ?? "").Trim();
+    if (nome == "")
+    {
+        Console.WriteLine("O nome não pode ficar vazio.");
+        return;
+    }
+    contatos.Add(new Contato(nome, telefone));
+    Console.WriteLine($"{nome} adicionado.");
+}
+
+void Listar()
+{
+    if (contatos.Count == 0)
+    {
+        Console.WriteLine("Nenhum contato.");
+        return;
+    }
+    foreach (Contato contato in contatos)
+    {
+        Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+    }
+}
+
+void Buscar()
+{
+    Console.Write("Buscar por: ");
+    string termo = (Console.ReadLine() ?? "").Trim();
+    int achados = 0;
+    foreach (Contato contato in contatos)
+    {
+        if (contato.Nome.Contains(termo, StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine($"  {contato.Nome}: {contato.Telefone}");
+            achados++;
+        }
+    }
+    if (achados == 0)
+    {
+        Console.WriteLine("Ninguém encontrado.");
+    }
+}
+
+void Remover()
+{
+    Console.Write("Nome para remover: ");
+    string nome = (Console.ReadLine() ?? "").Trim();
+    Contato? alvo = null;
+    foreach (Contato contato in contatos)
+    {
+        if (contato.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase))
+        {
+            alvo = contato;
+            break;
+        }
+    }
+    if (alvo is null)
+    {
+        Console.WriteLine($"{nome} não está na agenda.");
+        return;
+    }
+    contatos.Remove(alvo);
+    Console.WriteLine($"{alvo.Nome} removido.");
+}
+
+void Salvar()
+{
+    string json = JsonSerializer.Serialize(contatos, opcoes);
+    File.WriteAllText(Arquivo, json);
+}
+
+List&lt;Contato&gt; Carregar()
+{
+    if (!File.Exists(Arquivo))
+    {
+        return [];
+    }
+    try
+    {
+        string json = File.ReadAllText(Arquivo);
+        return JsonSerializer.Deserialize&lt;List&lt;Contato&gt;&gt;(json) ?? [];
+    }
+    catch (JsonException)
+    {
+        Console.WriteLine($"Aviso: {Arquivo} está com defeito. Começando com a agenda vazia.");
+        return [];
+    }
+}
+</pre>
+<p>O que o projeto juntou: um <a href="records.html">record</a>, uma <a href="list.html">List&lt;T&gt;</a>, um menu com <a href="while.html">while</a> e <a href="switch.html">switch</a>, <a href="funcoes-locais.html">funções locais</a>, <a href="metodos-string.html">Contains e Equals</a> com <code>StringComparison</code>, <a href="json.html">JSON</a>, <a href="arquivos.html">File</a> e <a href="try-catch.html">try e catch</a>, num <a href="projetos-console.html">projeto</a> com dois arquivos.</p>
+
+<hr>
+
+<h2>Desafios extras</h2>
+<ol>
+  <li><strong>Não perder o arquivo com defeito.</strong> No <code>catch</code>, antes de começar vazio, copie o arquivo ruim com <code>File.Copy(Arquivo, Arquivo + ".bak", true)</code> e avise a Ana.</li>
+  <li><strong>Sem nomes repetidos.</strong> No <code>Adicionar</code>, recuse um nome que já está na agenda (use o mesmo <code>Equals</code> com <code>OrdinalIgnoreCase</code> do <code>Remover</code>).</li>
+  <li><strong>Em ordem alfabética.</strong> Liste os contatos em ordem de nome com <code>contatos.OrderBy(c =&gt; c.Nome)</code> (veja <a href="linq-ordenar.html">Ordenar</a>).</li>
+  <li><strong>Mais um campo.</strong> Acrescente o e-mail ao <code>Contato</code>. O que acontece ao carregar um arquivo antigo, sem o campo <code>Email</code>? (Veja <a href="json.html">JSON</a>.)</li>
+  <li><strong>Editar.</strong> Uma opção 5 que troca o telefone de um contato. Dica: records não mudam, então use <code>with</code> e troque o contato na lista: <code>contatos[i] = contatos[i] with { Telefone = novo };</code>.</li>
+  <li><strong>Salvar a cada mudança.</strong> Chame <code>Salvar()</code> depois de cada <code>Add</code> e <code>Remove</code>: assim, se o programa cair, nada se perde.</li>
+</ol>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">1. Por que a agenda usa uma <code>List&lt;Contato&gt;</code> e não um array <code>Contato[]</code>?</p>
+<label><input type="radio" name="q1"> Porque arrays não guardam records.</label>
+<label><input type="radio" name="q1"> Porque a lista cresce e diminui com <code>Add</code> e <code>Remove</code>; o array tem tamanho fixo.</label>
+<label><input type="radio" name="q1"> Porque a lista é salva sozinha no disco.</label>
+<label><input type="radio" name="q1"> Porque o JSON só aceita listas.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">2. O que <code>"Carla Souza".Contains("car", StringComparison.OrdinalIgnoreCase)</code> devolve?</p>
+<label><input type="radio" name="q2"> <code>false</code>, porque "car" está em minúsculas.</label>
+<label><input type="radio" name="q2"> <code>0</code></label>
+<label><input type="radio" name="q2"> Um erro de compilação.</label>
+<label><input type="radio" name="q2"> <code>true</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">3. O que acontece ao chamar <code>contatos.Remove(c)</code> dentro de um <code>foreach (var c in contatos)</code> e o laço continuar?</p>
+<label><input type="radio" name="q3"> <code>InvalidOperationException</code>: a coleção foi modificada durante a enumeração.</label>
+<label><input type="radio" name="q3"> O contato é removido e o laço continua normalmente.</label>
+<label><input type="radio" name="q3"> O compilador dá o erro <code>CS0103</code>.</label>
+<label><input type="radio" name="q3"> A lista é apagada inteira.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. No arquivo salvo, <code>"José"</code> apareceu no lugar de <code>"José"</code>. O que isso quer dizer?</p>
+<label><input type="radio" name="q4"> O arquivo está corrompido e não pode ser lido.</label>
+<label><input type="radio" name="q4"> O nome foi gravado errado e precisa ser digitado de novo.</label>
+<label><input type="radio" name="q4"> É o <code>é</code> escrito como código; ao ler, volta a ser "José". Com <code>UnsafeRelaxedJsonEscaping</code>, o acento sai direto.</label>
+<label><input type="radio" name="q4"> O JSON não aceita acentos.</label>
+</div>
+
+<div class="exercise">
+<p>5. Complete a linha que transforma a lista em texto JSON:</p>
+<div class="ex-code">string json = JsonSerializer.<input data-answer="Serialize" aria-label="método" size="10">(contatos, opcoes);</div>
+</div>
+
+<div class="exercise">
+<p>6. Complete o tipo da exceção de um JSON com defeito:</p>
+<div class="ex-code">catch (<input data-answer="JsonException" aria-label="exceção" size="14">)</div>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um menu é um <code>while (true)</code> que mostra as opções, lê a escolha e chama uma função para cada uma; <code>?? "0"</code> faz o fim da entrada valer como "sair".</li>
+  <li>Funções locais sem <code>static</code> enxergam as variáveis do programa principal, como a lista.</li>
+  <li><code>Contains</code> e <code>Equals</code> com <code>StringComparison.OrdinalIgnoreCase</code> comparam sem ligar para maiúsculas.</li>
+  <li>Nunca mude uma lista dentro de um <code>foreach</code> sobre ela: ache primeiro, remova depois (ou use <code>RemoveAll</code>).</li>
+  <li><code>JsonSerializer.Serialize</code> + <code>File.WriteAllText</code> salvam; <code>File.ReadAllText</code> + <code>Deserialize</code> carregam. <code>WriteIndented</code> e <code>UnsafeRelaxedJsonEscaping</code> deixam o arquivo legível.</li>
+  <li>Confira se o arquivo existe e trate <code>JsonException</code>: um arquivo com defeito não pode derrubar o programa.</li>
+</ul>
+<p>Próximo projeto: <a href="projeto-banco.html">Conta Bancária (classes)</a>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
