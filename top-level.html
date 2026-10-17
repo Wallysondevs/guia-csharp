@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Program.cs e o Main — instruções de nível superior e static void Main | Guia C#</title>
+<meta name="description" content="O mesmo programa C# em duas formas: com instruções de nível superior (C# 9) e com class Program e static void Main(string[] args). O que é o ponto de entrada, o que o compilador gera, args e código de saída, --use-program-main, quando cada forma aparece e os erros CS5001, CS8803, CS8802, CS0260 e CS7022, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Program.cs e o Main</span></h1>
+
+<p class="intro">O <code>Program.cs</code> que o <code>dotnet new console</code> criou tem uma linha só: <code>Console.WriteLine("Hello, World!");</code>. Mas abra um livro de C#, um tutorial de alguns anos atrás ou o código de uma empresa, e o mesmo "Olá, mundo" aparece com <strong>onze</strong> linhas: <code>using</code>, <code>namespace</code>, <code>class Program</code>, <code>static void Main(string[] args)</code> e um monte de chaves. Nesta aula você vai ver que os dois são <strong>o mesmo programa</strong>, entender o que cada linha da forma clássica faz, descobrir o que o compilador escreve escondido na forma curta e saber quando vai encontrar cada uma.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é o <strong>ponto de entrada</strong> de um programa.</li>
+  <li>A forma clássica, com <code>class Program</code> e <code>static void Main(string[] args)</code>, linha por linha.</li>
+  <li>A forma curta, com <strong>instruções de nível superior</strong> <span class="versao">C# 9</span>, e o que o compilador gera a partir dela.</li>
+  <li>Como as duas formas recebem os argumentos (<code>args</code>) e devolvem o código de saída.</li>
+  <li>Como gerar um projeto na forma clássica com <code>--use-program-main</code>.</li>
+  <li>As regras da forma curta: um arquivo só, e antes das classes.</li>
+  <li>Quando cada forma aparece, e qual usar.</li>
+  <li>Os erros <code>CS5001</code>, <code>CS8803</code>, <code>CS8802</code>, <code>CS0260</code> e o aviso <code>CS7022</code>.</li>
+</ul>
+</div>
+
+<p>Os programas desta aula foram rodados na máquina fictícia da Ana com o <strong>.NET 10 SDK</strong> (C# 14), na pasta <code>~/cs</code> com <code>dotnet run arquivo.cs</code> e na pasta <code>~/projetos</code> com projetos. As saídas foram copiadas da tela.</p>
+
+<hr>
+
+<h2>A ideia: a porta de entrada</h2>
+<p>Um prédio grande tem muitas portas, mas só uma é a <strong>entrada principal</strong>, com a placa "Entrada". Quem chega sabe por onde começar. Uma casinha de um cômodo só não precisa de placa: você abre a porta e já está lá dentro.</p>
+
+<p>Um programa também precisa de uma entrada: o lugar onde ele <strong>começa a rodar</strong>. Isso se chama <strong>ponto de entrada</strong> (em inglês, <em>entry point</em>). Em C#, o ponto de entrada é um <strong>método</strong> (um bloco de código com nome) chamado <code>Main</code>, "principal".</p>
+
+<ul>
+  <li>Na <strong>forma clássica</strong>, você escreve a placa: monta a classe <code>Program</code> e o método <code>Main</code> com todas as letras.</li>
+  <li>Na <strong>forma curta</strong>, você escreve só o que o programa faz, direto no arquivo, e o compilador põe a placa sozinho.</li>
+</ul>
+
+<hr>
+
+<h2>1. A forma clássica: <code>static void Main(string[] args)</code></h2>
+<p>Este é o programa da Ana escrito como nos livros. Ele cumprimenta e conta quantos argumentos recebeu (os argumentos são as palavras escritas depois do nome do programa; aula <a href="args.html">Argumentos da Linha de Comando</a>):</p>
+
+<pre class="file" data-file="antigo.cs">using System;
+
+namespace Saudacao
+{
+    internal class Program
+    {
+        static void Main(string[] args)
+        {
+            Console.WriteLine("Olá, Ana!");
+            Console.WriteLine($"Você passou {args.Length} argumento(s).");
+        }
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run antigo.cs
+Olá, Ana!
+Você passou 0 argumento(s).
+$ dotnet run antigo.cs -- maçã banana
+Olá, Ana!
+Você passou 2 argumento(s).      « o -- separa as opções do dotnet dos argumentos do programa</pre>
+
+<p>São muitas palavras novas de uma vez. Você não precisa dominar nenhuma delas agora: cada uma tem a sua aula. Por enquanto, basta saber o papel de cada linha:</p>
+
+<dl class="anatomy">
+  <dt>using System;</dt><dd>"Usando o <code>System</code>": deixa você escrever <code>Console</code> em vez do nome completo, <code>System.Console</code>. Nos projetos novos, essa linha vem <strong>implícita</strong> (o <code>ImplicitUsings</code> do <code>.csproj</code>, aula <a href="projetos-console.html">Projetos</a>), por isso pode ser omitida. Aula <a href="namespaces.html">Namespaces e using</a>.</dd>
+  <dt>namespace Saudacao</dt><dd>Um <strong>namespace</strong> ("espaço de nomes") é como o sobrenome de uma família: agrupa as classes e evita confusão entre dois <code>Program</code> de projetos diferentes. É opcional.</dd>
+  <dt>{ … }</dt><dd>As <strong>chaves</strong> marcam o começo e o fim de cada bloco: o do namespace, o da classe e o do método. Cada <code>{</code> tem a sua <code>}</code> (aula <a href="sintaxe.html">Sintaxe</a>).</dd>
+  <dt>internal class Program</dt><dd>Uma <strong>classe</strong> chamada <code>Program</code>. Em C#, todo método precisa morar dentro de uma classe. O <code>internal</code> ("interno": visível só dentro deste programa) é opcional, porque já é o padrão. Classes são do Nível 2: <a href="classes-objetos.html">Classes e Objetos</a> e <a href="modificadores-acesso.html">public, private e internal</a>.</dd>
+  <dt>static</dt><dd>"Estático": o método pertence à classe, e não a um objeto criado a partir dela. O .NET chama o <code>Main</code> antes de existir qualquer objeto, por isso ele <strong>precisa</strong> ser <code>static</code> (aula <a href="static.html">static</a>).</dd>
+  <dt>void</dt><dd>"Vazio": o método não devolve nenhum valor (aula <a href="retorno.html">Valor de Retorno</a>). Logo abaixo você vê a versão que devolve um número.</dd>
+  <dt>Main</dt><dd>O nome que o .NET procura para começar o programa. Com <strong>M maiúsculo</strong>: <code>main</code> não serve (veja em <a href="#errado">Quando dá errado</a>).</dd>
+  <dt>(string[] args)</dt><dd>O <strong>parâmetro</strong> do método: <code>args</code> é uma lista (um <em>array</em>) de textos (<code>string</code>) com os argumentos da linha de comando. Aulas <a href="parametros.html">Parâmetros</a> e <a href="arrays.html">Arrays</a>.</dd>
+  <dt>Console.WriteLine(…);</dt><dd>As instruções que o programa realmente executa, de cima para baixo. É só aqui que está o "trabalho".</dd>
+</dl>
+
+<p>Repare na proporção: de 13 linhas, só <strong>duas</strong> fazem alguma coisa. As outras onze são a "embalagem" que o C# exigia até 2020.</p>
+
+<hr>
+
+<h2>2. A forma curta: instruções de nível superior <span class="versao">C# 9</span></h2>
+<p>Desde o C# 9 (novembro de 2020), você pode escrever as instruções direto no arquivo, sem classe e sem <code>Main</code>. Elas se chamam <strong>instruções de nível superior</strong> (em inglês, <em>top-level statements</em>): ficam no "nível de cima" do arquivo, fora de qualquer bloco.</p>
+
+<pre class="file" data-file="novo.cs">Console.WriteLine("Olá, Ana!");
+Console.WriteLine($"Você passou {args.Length} argumento(s).");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run novo.cs
+Olá, Ana!
+Você passou 0 argumento(s).
+$ dotnet run novo.cs -- maçã banana
+Olá, Ana!
+Você passou 2 argumento(s).</pre>
+
+<p>A <strong>mesma saída</strong>, nas duas execuções. Repare que o <code>args</code> continua existindo, mesmo sem ninguém ter escrito <code>string[] args</code>: o compilador o oferece de presente para as instruções de nível superior.</p>
+
+<h3>O que o compilador faz por você</h3>
+<p>A forma curta não é outra linguagem. Ao ver instruções soltas no arquivo, o compilador <strong>escreve sozinho</strong> a embalagem: uma classe chamada <code>Program</code> e um método de entrada com um nome especial, <code>&lt;Main&gt;$</code>, com <code>args</code> e tudo. As suas linhas vão para dentro desse método.</p>
+
+<p>Dá para ver esse nome escondido quando o programa cai com um erro. Este programa tenta ler a posição 5 de uma lista que só tem duas notas:</p>
+
+<pre class="file" data-file="excecao.cs">int[] notas = { 9, 8 };
+Console.WriteLine(notas[5]);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run excecao.cs; echo "código de saída: $?"
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/excecao.cs:line 2
+código de saída: 134</pre>
+
+<p>A segunda linha diz <strong>onde</strong> o erro aconteceu: em <code>Program.&lt;Main&gt;$(String[] args)</code>, ou seja, no método <code>&lt;Main&gt;$</code> da classe <code>Program</code>, que você não escreveu. (A mensagem em si, "índice fora dos limites do array", é do .NET e sai sempre em inglês; as exceções têm aula própria, <a href="excecoes.html">Exceções</a>.) Com a forma clássica, a mesma linha mostra o nome que <em>você</em> escreveu:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run excecao2.cs
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Notas.Program.Main() in /home/ana/cs/excecao2.cs:line 8</pre>
+
+<p>Aqui o <code>excecao2.cs</code> tem <code>namespace Notas</code>, <code>class Program</code> e <code>static void Main()</code>, e o erro está na linha 8. O <code>&lt;</code> e o <code>$</code> no nome gerado são de propósito: nenhum programador consegue escrever um nome assim, então ele nunca vai bater com um nome seu.</p>
+
+<h3>Lado a lado</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na forma clássica você escreve…</th><th>Na forma curta, quem cuida é…</th></tr>
+<tr><td><code>using System;</code></td><td>o <code>ImplicitUsings</code> (os <code>using</code> implícitos)</td></tr>
+<tr><td><code>namespace Saudacao { … }</code></td><td>ninguém: o código fica sem namespace, o que é permitido</td></tr>
+<tr><td><code>class Program { … }</code></td><td>o compilador, que cria a classe <code>Program</code></td></tr>
+<tr><td><code>static void Main(string[] args) { … }</code></td><td>o compilador, que cria o método <code>&lt;Main&gt;$</code> com o <code>args</code></td></tr>
+<tr><td>as instruções dentro do <code>Main</code></td><td>você: são as únicas linhas do arquivo</td></tr>
+</table>
+</div>
+
+<div class="trycs" data-goal="out:Olá, Ana!,out:Bem-vinda à lojinha.,semaviso,src:^Console\.WriteLine">
+<p class="try-task"><strong>Missão:</strong> este programa está na forma clássica. Reescreva-o na forma curta: apague o <code>using</code>, o <code>namespace</code>, a classe, o <code>Main</code> e todas as chaves, e deixe só as duas linhas de <code>Console.WriteLine</code>, encostadas na margem esquerda. A saída tem de continuar igual, sem avisos.</p>
+<pre class="script">using System;
+
+namespace Lojinha
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            Console.WriteLine("Olá, Ana!");
+            Console.WriteLine("Bem-vinda à lojinha.");
+        }
+    }
+}
+</pre>
+<pre class="solucao">Console.WriteLine("Olá, Ana!");
+Console.WriteLine("Bem-vinda à lojinha.");
+</pre>
+</div>
+
+<hr>
+
+<h2>3. O código de saída: <code>return</code> e <code>int Main</code></h2>
+<p>Todo programa, ao terminar, devolve um número ao sistema: o <strong>código de saída</strong>. <code>0</code> quer dizer "deu tudo certo"; outro número quer dizer "algo deu errado" (o terminal mostra o último com <code>echo $?</code>). Até agora ele foi sempre 0. Na forma curta, um <code>return</code> com um número escolhe o código:</p>
+
+<pre class="file" data-file="sai.cs">Console.WriteLine("Saindo com 3");
+return 3;
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sai.cs; echo "código de saída: $?"
+Saindo com 3
+código de saída: 3</pre>
+
+<p>Na forma clássica, o <code>Main</code> precisa anunciar que devolve um número: troca-se o <code>void</code> por <code>int</code> (número inteiro). E o <code>args</code> pode ser deixado de fora, se o programa não usa argumentos:</p>
+
+<pre class="file" data-file="intmain.cs">class Program
+{
+    static int Main()
+    {
+        System.Console.WriteLine("Sem args e com código de saída");
+        return 7;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run intmain.cs; echo "código de saída: $?"
+Sem args e com código de saída
+código de saída: 7</pre>
+
+<p>(Sem <code>using System;</code>, o arquivo usa o nome completo, <code>System.Console</code>. Funcionaria também só com <code>Console</code>, por causa dos <code>using</code> implícitos.) As formas aceitas para o <code>Main</code>:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Assinatura</th><th>Recebe os argumentos?</th><th>Devolve o código de saída?</th></tr>
+<tr><td><code>static void Main()</code></td><td>Não</td><td>Não (sempre 0)</td></tr>
+<tr><td><code>static void Main(string[] args)</code></td><td>Sim</td><td>Não (sempre 0)</td></tr>
+<tr><td><code>static int Main()</code></td><td>Não</td><td>Sim, com <code>return</code></td></tr>
+<tr><td><code>static int Main(string[] args)</code></td><td>Sim</td><td>Sim, com <code>return</code></td></tr>
+<tr><td><code>static async Task Main(…)</code> e <code>static async Task&lt;int&gt; Main(…)</code></td><td>Opcional</td><td>Só a versão com <code>Task&lt;int&gt;</code>; aula <a href="async-await.html">async e await</a></td></tr>
+</table>
+</div>
+
+<p>Na forma curta, você não escolhe nada disso: o compilador olha o seu código e gera o <code>Main</code> certo. Ele sempre recebe o <code>args</code> (repare no <code>(String[] args)</code> do erro da seção 2, num programa que nem usava argumentos); se você escreveu <code>return 3;</code>, ele passa a devolver <code>int</code>.</p>
+
+<hr>
+
+<h2>4. Gerar um projeto na forma clássica: <code>--use-program-main</code></h2>
+<p>O modelo <code>console</code> gera a forma curta. Para ter a clássica, use a opção <code>--use-program-main</code> ("usar o Main do Program"):</p>
+
+<pre class="term" data-cwd="~/projetos">$ dotnet new console -o Antigo --use-program-main
+O modelo "Aplicativo do Console" foi criado com êxito.
+
+Processando ações pós-criação...
+Restaurando /home/ana/projetos/Antigo/Antigo.csproj:
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Antigo/Antigo.csproj restaurado (em 104 ms).
+A restauração foi bem-sucedida.
+$ cat Antigo/Program.cs
+namespace Antigo;
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        Console.WriteLine("Hello, World!");
+    }
+}
+$ cd Antigo &amp;&amp; dotnet run
+Hello, World!</pre>
+
+<p>É a forma clássica, mas um pouco enxugada pelo C# moderno:</p>
+<ul>
+  <li><strong>Sem <code>using System;</code></strong>: ele é implícito nos projetos novos.</li>
+  <li><code>namespace Antigo;</code>, com <strong>ponto e vírgula</strong> e sem chaves: é o <strong>namespace de arquivo</strong> <span class="versao">C# 10</span>, que vale para o arquivo inteiro e economiza um nível de recuo. O nome é o do projeto.</li>
+  <li><strong>Sem <code>internal</code></strong>, que já é o padrão.</li>
+</ul>
+
+<hr>
+
+<h2>5. As regras da forma curta</h2>
+<p>As instruções de nível superior são práticas, mas têm duas regras.</p>
+
+<h3>Só um arquivo pode ter instruções soltas</h3>
+<p>Um programa tem uma entrada só. Num projeto com vários <code>.cs</code>, apenas <strong>um</strong> deles pode ter instruções de nível superior. Se a Ana criar um <code>Outro.cs</code> com um <code>Console.WriteLine</code> solto ao lado do <code>Program.cs</code>, o projeto para de compilar:</p>
+
+<pre class="term" data-cwd="~/projetos/Ola">$ dotnet build 2&gt;&amp;1 | grep -m1 error
+/home/ana/projetos/Ola/Program.cs(1,1): error CS8802: Apenas uma unidade de compilação pode ter instruções de nível superior. [/home/ana/projetos/Ola/Ola.csproj]</pre>
+
+<p><strong>Unidade de compilação</strong> é o nome técnico de "um arquivo <code>.cs</code>". (O <code>2&gt;&amp;1 | grep -m1 error</code> só filtra a primeira linha com <code>error</code>, para a saída caber aqui.) Os outros arquivos de um projeto guardam classes e métodos, como você vai fazer no Nível 2.</p>
+
+<h3>Primeiro as instruções, depois as classes</h3>
+<p>No mesmo arquivo das instruções soltas, você pode criar <strong>funções</strong> (métodos sem classe, que o compilador põe dentro do <code>Main</code> gerado; aula <a href="funcoes-locais.html">Funções Locais</a>) e <strong>classes</strong>. Mas as classes têm de vir <strong>depois</strong> das instruções:</p>
+
+<pre class="file" data-file="completo.cs">Console.WriteLine("Lojinha da Ana");
+MostrarPreco("Caderno", 12.50m);
+MostrarPreco("Caneta", 3.20m);
+
+void MostrarPreco(string produto, decimal preco)
+{
+    Console.WriteLine($"{produto}: {preco:C}");
+}
+
+class Ajudante
+{
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run completo.cs
+Lojinha da Ana
+Caderno: R$ 12,50
+Caneta: R$ 3,20</pre>
+
+<p>(Não se preocupe com o <code>void MostrarPreco</code>, o <code>12.50m</code> e o <code>{preco:C}</code>: são métodos, <code>decimal</code> e formatação de dinheiro, cada um com a sua aula. O que importa aqui é a <strong>ordem</strong>: instruções, depois a função, e a classe no fim.) Com a classe <strong>antes</strong> das instruções, o compilador recusa:</p>
+
+<pre class="file" data-file="ordem.cs">class Ajudante
+{
+}
+
+Console.WriteLine("Olá!");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ordem.cs
+/home/ana/cs/ordem.cs(5,1): error CS8803: As instruções de nível superior precisam preceder as declarações de namespace e de tipo.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Precisam preceder" = "precisam vir antes". <strong>Declarações de tipo</strong> são as classes (e seus primos: <code>struct</code>, <code>record</code>, <code>enum</code>, <code>interface</code>).</p>
+
+<h3>Antes do C# 9, a forma curta não existia</h3>
+<p>Num projeto configurado para uma versão antiga da linguagem (com <code>&lt;LangVersion&gt;8&lt;/LangVersion&gt;</code> no <code>.csproj</code>), a mesma linha solta é recusada, com uma mensagem que diz exatamente qual versão é preciso:</p>
+
+<pre class="term" data-cwd="~/projetos/Velho">$ dotnet build 2&gt;&amp;1 | grep error | sort -u
+/home/ana/projetos/Velho/Program.cs(1,1): error CS8400: O recurso 'instruções de nível superior' não está disponível em C# 8.0. Use a versão de linguagem 9.0 ou superior. [/home/ana/projetos/Velho/Velho.csproj]</pre>
+
+<p>É por isso que todo o código escrito antes de 2020 usa o <code>Main</code>. Você não precisa mexer no <code>LangVersion</code>: o .NET 10 usa o C# 14, que tem tudo.</p>
+
+<hr>
+
+<h2>Quando cada forma aparece, e qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você vai ver a forma…</th><th>Onde</th></tr>
+<tr><td><strong>curta</strong> (instruções de nível superior)</td><td>No modelo <code>dotnet new console</code> desde o .NET 6 (novembro de 2021); nos arquivos soltos do <code>dotnet run arquivo.cs</code>; na documentação atual da Microsoft; em todas as aulas deste guia.</td></tr>
+<tr><td><strong>clássica</strong> (<code>static void Main</code>)</td><td>Em livros, cursos e respostas na internet anteriores a 2021; em projetos antigos (.NET Framework, .NET Core 3.1, .NET 5); em empresas que preferem tudo explícito; com <code>--use-program-main</code>.</td></tr>
+</table>
+</div>
+
+<p><strong>Qual usar:</strong> para programas novos, a forma <strong>curta</strong>. Ela é a padrão, tem menos coisas para errar e deixa à vista só o que o programa faz. Mas aprenda a <strong>ler</strong> a forma clássica, porque você vai encontrá-la o tempo todo. Quando copiar um exemplo antigo, existem dois caminhos: rodar como está (as duas formas funcionam no .NET 10) ou tirar as linhas de dentro do <code>Main</code> e jogar fora a embalagem, como na missão acima. O que <strong>não</strong> dá é misturar as duas no mesmo programa.</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS5001: Programa não contém um método "Main" estático adequado para um ponto de entrada</code></strong>
+<p><strong>O que significa:</strong> o compilador procurou a porta de entrada e não achou. Repare que a mensagem não tem <code>arquivo(linha,coluna)</code>: o problema não está numa linha, está na <strong>falta</strong> de alguma coisa. Este <code>minusculo.cs</code> tem <code>static void main</code>, com <code>m</code> minúsculo:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run minusculo.cs
+error CS5001: Programa não contém um método "Main" estático adequado para um ponto de entrada
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p>O C# diferencia maiúsculas de minúsculas: <code>main</code> e <code>Main</code> são nomes diferentes. O mesmo erro aparece quando falta o <code>static</code> (<code>void Main(string[] args)</code>) ou quando o arquivo só tem classes, sem nenhuma instrução solta. Em inglês: <code>Program does not contain a static 'Main' method suitable for an entry point</code>.</p>
+<p><strong>Como consertar:</strong> escreva <code>static void Main(string[] args)</code> exatamente assim, ou use a forma curta.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8803: As instruções de nível superior precisam preceder as declarações de namespace e de tipo.</code></strong>
+<p><strong>O que significa:</strong> há uma instrução solta <strong>depois</strong> de uma classe ou de um namespace (seção 5). Em inglês: <code>Top-level statements must precede namespace and type declarations.</code></p>
+<p><strong>Como consertar:</strong> mova as instruções para o topo do arquivo e deixe as classes no fim.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8802: Apenas uma unidade de compilação pode ter instruções de nível superior.</code></strong>
+<p><strong>O que significa:</strong> dois arquivos do mesmo projeto têm instruções soltas (seção 5). Em inglês: <code>Only one compilation unit can have top-level statements.</code></p>
+<p><strong>Como consertar:</strong> deixe as instruções soltas só no <code>Program.cs</code>. Os outros arquivos ficam só com classes.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0260: Modificador parcial ausente na declaração do tipo "Program"</code></strong>
+<p><strong>O que significa:</strong> a Ana colou um exemplo antigo, com <code>class Program</code> e <code>Main</code>, embaixo de uma instrução solta. Agora existem <strong>duas</strong> classes <code>Program</code>: a que o compilador gera para a instrução solta e a do exemplo.</p>
+<pre class="file" data-file="misto.cs">Console.WriteLine("Olá do topo!");
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        Console.WriteLine("Olá do Main!");
+    }
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run misto.cs
+/home/ana/cs/misto.cs(3,7): error CS0260: Modificador parcial ausente na declaração do tipo "Program"; existe outra declaração parcial deste tipo
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p>A mensagem fala de <code>partial</code> ("parcial"), um recurso que permite dividir uma classe em pedaços (aula <a href="partial.html">Classes Parciais</a>), mas o problema de verdade é a mistura das duas formas. Em inglês: <code>Missing partial modifier on declaration of type 'Program'; another partial declaration of this type exists</code>.</p>
+<p><strong>Como consertar:</strong> escolha uma forma. Ou apague a instrução solta e fique com o <code>Main</code>, ou tire as linhas de dentro do <code>Main</code> e apague a classe.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS7022: O ponto de entrada do programa é o código global. Ignorando o ponto de entrada 'Inicio.Main(string[])'.</code></strong>
+<p><strong>O que significa:</strong> a mesma mistura, mas com a classe de outro nome (<code>class Inicio</code>). Não há conflito de nomes, então o programa compila, e o compilador avisa que <strong>escolheu</strong> as instruções soltas ("o código global") como entrada. O <code>Main</code> da classe <code>Inicio</code> nunca roda:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run misto2.cs
+/home/ana/cs/misto2.cs(5,17): warning CS7022: O ponto de entrada do programa é o código global. Ignorando o ponto de entrada 'Inicio.Main(string[])'.
+Olá do topo!                     « o "Olá do Main!" nunca aparece</pre>
+<p>É um aviso, e não um erro: o programa roda, mas não do jeito que a Ana esperava. Em inglês: <code>The entry point of the program is global code; ignoring 'Inicio.Main(string[])' entry point.</code></p>
+<p><strong>Como consertar:</strong> o mesmo do <code>CS0260</code>: uma forma só.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que é</th></tr>
+<tr><td><code>Console.WriteLine("…");</code> solto no arquivo</td><td>Instrução de nível superior <span class="versao">C# 9</span>: o compilador gera <code>Program</code> e <code>&lt;Main&gt;$</code></td></tr>
+<tr><td><code>static void Main(string[] args) { … }</code></td><td>Ponto de entrada clássico, dentro de uma classe</td></tr>
+<tr><td><code>static int Main()</code></td><td>Ponto de entrada que devolve o código de saída</td></tr>
+<tr><td><code>args</code></td><td>Os argumentos da linha de comando, nas duas formas</td></tr>
+<tr><td><code>return 3;</code> (forma curta)</td><td>Termina o programa com o código de saída 3</td></tr>
+<tr><td><code>namespace Nome;</code> <span class="versao">C# 10</span></td><td>Namespace de arquivo: vale para o arquivo todo, sem chaves</td></tr>
+<tr><td><code>dotnet new console --use-program-main</code></td><td>Projeto novo na forma clássica</td></tr>
+<tr><td><code>CS5001</code></td><td>Falta um <code>static Main</code> (ou instruções soltas)</td></tr>
+<tr><td><code>CS8803</code> / <code>CS8802</code></td><td>Instrução solta depois de classe / em dois arquivos</td></tr>
+<tr><td><code>CS0260</code> / <code>CS7022</code></td><td>As duas formas misturadas</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O nome da entrada</h3>
+<p>Complete a linha do ponto de entrada clássico:</p>
+<div class="ex-code">static void <input data-answer="Main" aria-label="nome do método">(string[] args)</div>
+</div>
+
+<div class="exercise">
+<h3>2. A palavra obrigatória</h3>
+<p>Que palavra falta para este <code>Main</code> ser aceito como ponto de entrada?</p>
+<div class="ex-code"><input data-answer="static" aria-label="palavra"> void Main(string[] args)</div>
+</div>
+
+<div class="exercise">
+<h3>3. O código de saída</h3>
+<p>Complete o tipo para que o <code>Main</code> possa devolver um código de saída com <code>return</code>:</p>
+<div class="ex-code">static <input data-answer="int" aria-label="tipo"> Main()</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Um programa na forma curta tem só <code>Console.WriteLine(args.Length);</code>. De onde vem o <code>args</code>?</p>
+<label><input type="radio" name="q4"> Do <code>using System;</code>.</label>
+<label><input type="radio" name="q4"> Do método de entrada que o compilador gera, que recebe os argumentos.</label>
+<label><input type="radio" name="q4"> De lugar nenhum: o programa não compila.</label>
+<label><input type="radio" name="q4"> Do arquivo <code>.csproj</code>.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Num erro, a pilha mostra <code>at Program.&lt;Main&gt;$(String[] args)</code>. O que isso indica?</p>
+<label><input type="radio" name="q5"> Que o programa tem um <code>Main</code> escrito errado.</label>
+<label><input type="radio" name="q5"> Que o <code>.NET</code> está desatualizado.</label>
+<label><input type="radio" name="q5"> Que o erro aconteceu nas instruções de nível superior, dentro do método gerado pelo compilador.</label>
+<label><input type="radio" name="q5"> Que o programa usa a forma clássica.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Qual é o problema deste arquivo? <code>class Ajuda { }</code> na linha 1 e <code>Console.WriteLine("Oi");</code> na linha 3.</p>
+<label><input type="radio" name="q6"> A instrução solta vem depois de uma classe: erro <code>CS8803</code>.</label>
+<label><input type="radio" name="q6"> Falta o <code>static void Main</code>: erro <code>CS5001</code>.</label>
+<label><input type="radio" name="q6"> Nenhum: compila e mostra <code>Oi</code>.</label>
+<label><input type="radio" name="q6"> A classe deveria se chamar <code>Program</code>.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">7. Para um programa novo no .NET 10, o que o guia recomenda?</p>
+<label><input type="radio" name="q7"> Sempre a forma clássica, porque é a única que funciona em projetos.</label>
+<label><input type="radio" name="q7"> As duas no mesmo arquivo, para ter as vantagens de cada uma.</label>
+<label><input type="radio" name="q7"> A forma clássica com <code>main</code> minúsculo.</label>
+<label><input type="radio" name="q7"> A forma curta, sabendo ler a clássica, que aparece em muito código antigo.</label>
+</div>
+
+<h3>Missão final: o exemplo do livro</h3>
+
+<div class="trycs" data-goal="outre:^Notas da Ana\nMatemática: 9\nHistória: 8\n$,compila">
+<p class="try-task"><strong>Missão:</strong> a Ana copiou este exemplo de um livro antigo e ele não compila. Rode e leia o erro: falta o ponto de entrada. Há <strong>dois</strong> enganos na linha do método. Conserte a linha (mantendo a forma clássica) para o programa mostrar:</p>
+<pre class="out">Notas da Ana
+Matemática: 9
+História: 8</pre>
+<pre class="script">using System;
+
+namespace Boletim
+{
+    class Program
+    {
+        void main(string[] args)
+        {
+            Console.WriteLine("Notas da Ana");
+            Console.WriteLine("Matemática: 9");
+            Console.WriteLine("História: 8");
+        }
+    }
+}
+</pre>
+<pre class="solucao">using System;
+
+namespace Boletim
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            Console.WriteLine("Notas da Ana");
+            Console.WriteLine("Matemática: 9");
+            Console.WriteLine("História: 8");
+        }
+    }
+}
+</pre>
+</div>
+
+<p>Depois de consertar, experimente o outro caminho: apague tudo menos as três linhas de <code>Console.WriteLine</code> e rode de novo. A saída é a mesma.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Todo programa tem um <strong>ponto de entrada</strong>, onde ele começa a rodar. Em C#, é o método <code>Main</code>.</li>
+  <li><strong>Forma clássica:</strong> <code>class Program</code> com <code>static void Main(string[] args)</code>. <code>Main</code> com M maiúsculo e <code>static</code> obrigatório; <code>int Main</code> devolve o código de saída e o <code>args</code> é opcional.</li>
+  <li><strong>Forma curta</strong> <span class="versao">C# 9</span>: as instruções direto no arquivo. O compilador gera a classe <code>Program</code> e o método <code>&lt;Main&gt;$</code>, com <code>args</code>; um <code>return 3;</code> vira o código de saída.</li>
+  <li>As duas formas são o mesmo programa e dão a mesma saída. <code>dotnet new console</code> gera a curta; <code>--use-program-main</code>, a clássica (com <code>namespace Nome;</code> de arquivo).</li>
+  <li>Regras da forma curta: só um arquivo do projeto (<code>CS8802</code>) e antes das classes (<code>CS8803</code>). Misturar as duas formas dá <code>CS0260</code> ou <code>CS7022</code>; faltar a entrada dá <code>CS5001</code>.</li>
+  <li>Use a forma curta em programas novos, e saiba ler a clássica, que está em todo código anterior a 2021.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
