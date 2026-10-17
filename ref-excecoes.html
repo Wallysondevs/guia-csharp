@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Exceções — as mais comuns, a mensagem real e como evitar | Guia C#</title>
+<meta name="description" content="Referência das exceções do .NET 10: NullReferenceException, IndexOutOfRangeException, FormatException, KeyNotFoundException, InvalidOperationException, FileNotFoundException e outras 20, cada uma com o código que provoca, a mensagem real do dotnet no Linux, o que significa, como evitar e a aula do guia. Com a hierarquia, as propriedades de Exception, try/catch/when/finally, os ThrowIf e o código de saída 134.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Exceções</span></h1>
+
+<p class="intro">Uma <strong>exceção</strong> é o jeito de o .NET dizer "não consigo continuar": o índice não existe, o texto não é número, o arquivo sumiu. Se ninguém trata, o programa para e mostra a mensagem. Esta página lista as exceções que você mais vai ver, cada uma com o código que a provoca, a mensagem <strong>real</strong>, o que ela quer dizer e como evitar. Para aprender com calma, veja <a href="excecoes.html">Exceções</a>, <a href="try-catch.html">try e catch</a> e <a href="throw.html">throw</a>.</p>
+
+<div class="note">
+<strong>Como usar esta página</strong>
+<ul>
+  <li>Copie um pedaço da mensagem que apareceu para você (por exemplo, <code>was not in a correct format</code>) e procure com <kbd>Ctrl</kbd>+<kbd>F</kbd>.</li>
+  <li>No Linux, as mensagens das exceções saem <strong>em inglês</strong>, mesmo com o sistema em português (o .NET não traz a tradução delas). As do <strong>compilador</strong> (<code>CSxxxx</code>) saem em português: estão em <a href="ref-erros.html">Erros do Compilador</a>.</li>
+  <li>Todas foram provocadas de verdade, no <code>dotnet</code> 10.0.112 da máquina da Ana (pasta <code>~/cs/exc</code>), e conferidas no editor do guia. Onde o editor mostra outra coisa, a tabela diz.</li>
+</ul>
+</div>
+
+<p>Atalhos: <a href="#ler">Ler uma exceção</a> · <a href="#catalogo">As exceções mais comuns</a> · <a href="#hierarquia">A família</a> · <a href="#propriedades">O que tem dentro</a> · <a href="#tratar">Tratar</a> · <a href="#lancar">Lançar</a> · <a href="#evitar">Evitar em vez de tratar</a> · <a href="#experimente">Experimente</a></p>
+
+<hr>
+
+<h2 id="ler">Como ler uma exceção não tratada</h2>
+<pre class="file" data-file="naotratada.cs">int[] notas = [7, 9, 5];
+Console.WriteLine("Antes");
+Console.WriteLine(notas[3]);
+Console.WriteLine("Depois");
+</pre>
+<pre class="term" data-cwd="~/cs/exc">$ dotnet run naotratada.cs
+Antes
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/exc/naotratada.cs:line 3
+$ echo $?
+134</pre>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Pedaço</th><th>O que quer dizer</th></tr>
+<tr><td><code>Unhandled exception.</code></td><td>"Exceção não tratada": nenhum <code>catch</code> pegou, e o programa parou ali. O <code>Depois</code> nunca apareceu.</td></tr>
+<tr><td><code>System.IndexOutOfRangeException</code></td><td>O <strong>tipo</strong> da exceção, com o namespace. É o que você escreve num <code>catch</code>.</td></tr>
+<tr><td><code>Index was outside the bounds of the array.</code></td><td>A <strong>mensagem</strong> (a propriedade <code>Message</code>): "o índice estava fora dos limites do array".</td></tr>
+<tr><td><code>at Program.&lt;Main&gt;$(String[] args)</code></td><td>O <strong>rastro</strong> (stack trace): os métodos em andamento, do mais recente (em cima) para o mais antigo. <code>&lt;Main&gt;$</code> é o nome que o compilador dá às instruções de nível superior.</td></tr>
+<tr><td><code>in /home/ana/cs/exc/naotratada.cs:line 3</code></td><td>Arquivo e linha. Leia o rastro de cima para baixo até achar o primeiro arquivo <strong>seu</strong>: as linhas de <code>System.…</code> são de dentro do .NET.</td></tr>
+<tr><td><code>134</code></td><td>O código de saída de um programa que caiu por exceção, no Linux (é o sinal <code>SIGABRT</code>: 128 + 6). Um programa que termina bem sai com <code>0</code>.</td></tr>
+</table>
+</div>
+
+<h2 id="catalogo">As exceções mais comuns</h2>
+<p>Este programa provoca 30 exceções, uma por linha, e mostra o tipo e a mensagem de cada uma. Antes de rodar, a Ana criou um arquivo só de leitura, para a linha 20:</p>
+<pre class="file" data-file="catalogo.cs">// catalogo.cs — provoca cada exceção e mostra o tipo e a mensagem
+using System.Collections;
+
+string? nulo = null;
+int[] v = [1, 2, 3];
+List&lt;int&gt; lista = [1, 2, 3];
+Dictionary&lt;string, int&gt; d = new() { ["a"] = 1 };
+object texto = "x";
+int zero = 0;
+int? semValor = null;
+string grande = "99999999999";
+string titulo = "  ";
+int quantidade = -5;
+
+Provocar(1, () =&gt; _ = nulo!.Length);
+Provocar(2, () =&gt; _ = v[3]);
+Provocar(3, () =&gt; _ = lista[3]);
+Provocar(4, () =&gt; _ = d["b"]);
+Provocar(5, () =&gt; d.Add("a", 2));
+Provocar(6, () =&gt; _ = int.Parse("abc"));
+Provocar(7, () =&gt; _ = int.Parse(grande));
+Provocar(8, () =&gt; _ = checked(int.MaxValue + zero + 1));
+Provocar(9, () =&gt; _ = 10 / zero);
+Provocar(10, () =&gt; _ = (int)texto);
+Provocar(11, () =&gt; _ = new List&lt;int&gt;().First());
+Provocar(12, () =&gt; { foreach (int x in lista) lista.Add(x); });
+Provocar(13, () =&gt; _ = semValor!.Value);
+Provocar(14, () =&gt; _ = int.Parse(nulo!));
+Provocar(15, () =&gt; ArgumentNullException.ThrowIfNull(nulo));
+Provocar(16, () =&gt; ArgumentException.ThrowIfNullOrWhiteSpace(titulo));
+Provocar(17, () =&gt; ArgumentOutOfRangeException.ThrowIfNegative(quantidade));
+Provocar(18, () =&gt; _ = File.ReadAllText("nao-existe.txt"));
+Provocar(19, () =&gt; _ = File.ReadAllText("pasta-que-nao-existe/a.txt"));
+Provocar(20, () =&gt; File.WriteAllText("somente-leitura.txt", "oi"));
+Provocar(21, () =&gt; ((IList)v).Add(4));
+Provocar(22, () =&gt; { var w = new StringWriter(); w.Dispose(); w.Write("oi"); });
+Provocar(23, () =&gt; throw new NotImplementedException());
+Provocar(24, () =&gt; _ = "Ana".Substring(5));
+Provocar(25, () =&gt; _ = new string('x', -1));
+Provocar(26, () =&gt; _ = DateTime.Parse("31/02/2026"));
+Provocar(27, () =&gt; _ = Enum.Parse&lt;DayOfWeek&gt;("Segunda"));
+Provocar(28, () =&gt; { var c = new CancellationTokenSource(); c.Cancel(); c.Token.ThrowIfCancellationRequested(); });
+Provocar(29, () =&gt; _ = decimal.Parse("1,5,0"));
+Provocar(30, () =&gt; _ = Convert.ToInt32("12a"));
+
+static void Provocar(int n, Action acao)
+{
+    try
+    {
+        acao();
+        Console.WriteLine($"{n,2} (nenhuma exceção)");
+    }
+    catch (Exception e)
+    {
+        Console.WriteLine($"{n,2} {e.GetType().FullName}: {e.Message}");
+    }
+}
+</pre>
+<pre class="term" data-cwd="~/cs/exc">$ touch somente-leitura.txt
+$ chmod 444 somente-leitura.txt
+$ dotnet run catalogo.cs
+ 1 System.NullReferenceException: Object reference not set to an instance of an object.
+ 2 System.IndexOutOfRangeException: Index was outside the bounds of the array.
+ 3 System.ArgumentOutOfRangeException: Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')
+ 4 System.Collections.Generic.KeyNotFoundException: The given key 'b' was not present in the dictionary.
+ 5 System.ArgumentException: An item with the same key has already been added. Key: a
+ 6 System.FormatException: The input string 'abc' was not in a correct format.
+ 7 System.OverflowException: Value was either too large or too small for an Int32.
+ 8 System.OverflowException: Arithmetic operation resulted in an overflow.
+ 9 System.DivideByZeroException: Attempted to divide by zero.
+10 System.InvalidCastException: Unable to cast object of type 'System.String' to type 'System.Int32'.
+11 System.InvalidOperationException: Sequence contains no elements
+12 System.InvalidOperationException: Collection was modified; enumeration operation may not execute.
+13 System.InvalidOperationException: Nullable object must have a value.
+14 System.ArgumentNullException: Value cannot be null. (Parameter 's')
+15 System.ArgumentNullException: Value cannot be null. (Parameter 'nulo')
+16 System.ArgumentException: The value cannot be an empty string or composed entirely of whitespace. (Parameter 'titulo')
+17 System.ArgumentOutOfRangeException: quantidade ('-5') must be a non-negative value. (Parameter 'quantidade')
+Actual value was -5.
+18 System.IO.FileNotFoundException: Could not find file '/home/ana/cs/exc/nao-existe.txt'.
+19 System.IO.DirectoryNotFoundException: Could not find a part of the path '/home/ana/cs/exc/pasta-que-nao-existe/a.txt'.
+20 System.UnauthorizedAccessException: Access to the path '/home/ana/cs/exc/somente-leitura.txt' is denied.
+21 System.NotSupportedException: Collection was of a fixed size.
+22 System.ObjectDisposedException: Cannot write to a closed TextWriter.
+23 System.NotImplementedException: The method or operation is not implemented.
+24 System.ArgumentOutOfRangeException: startIndex cannot be larger than length of string. (Parameter 'startIndex')
+25 System.ArgumentOutOfRangeException: count ('-1') must be a non-negative value. (Parameter 'count')
+Actual value was -1.
+26 System.FormatException: String '31/02/2026' was not recognized as a valid DateTime.
+27 System.ArgumentException: Requested value 'Segunda' was not found.
+28 System.OperationCanceledException: The operation was canceled.
+29 System.FormatException: The input string '1,5,0' was not in a correct format.
+30 System.FormatException: The input string '12a' was not in a correct format.</pre>
+
+<h3>Dados e valores</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>#</th><th>Exceção</th><th>Quando acontece</th><th>Mensagem real</th><th>Como evitar</th><th>Aula</th></tr>
+<tr><td>1</td><td><code>NullReferenceException</code></td><td>usar <code>.</code> num valor <code>null</code></td><td><code>Object reference not set to an instance of an object.</code></td><td>confira <code>is null</code>, use <code>?.</code> e <code>??</code>, e leve a sério o aviso <code>CS8602</code></td><td><a href="referencias-anulaveis.html">Referências Anuláveis</a></td></tr>
+<tr><td>13</td><td><code>InvalidOperationException</code></td><td><code>.Value</code> de um <code>int?</code> sem valor</td><td><code>Nullable object must have a value.</code></td><td><code>HasValue</code>, <code>?? padrão</code> ou <code>GetValueOrDefault()</code></td><td><a href="null.html">null</a></td></tr>
+<tr><td>6</td><td><code>FormatException</code></td><td><code>int.Parse("abc")</code></td><td><code>The input string 'abc' was not in a correct format.</code></td><td><code>int.TryParse</code> com o que o usuário digita</td><td><a href="parse.html">Parse e TryParse</a></td></tr>
+<tr><td>29, 30</td><td><code>FormatException</code></td><td><code>decimal.Parse("1,5,0")</code>, <code>Convert.ToInt32("12a")</code></td><td><code>The input string '1,5,0' was not in a correct format.</code></td><td><code>decimal.TryParse</code>; atenção à <a href="cultura.html">cultura</a> (vírgula ou ponto)</td><td><a href="parse.html">Parse e TryParse</a></td></tr>
+<tr><td>26</td><td><code>FormatException</code></td><td><code>DateTime.Parse("31/02/2026")</code></td><td><code>String '31/02/2026' was not recognized as a valid DateTime.</code></td><td><code>DateTime.TryParse</code> (fevereiro não tem dia 31)</td><td><a href="datas.html">Datas e Horas</a></td></tr>
+<tr><td>7</td><td><code>OverflowException</code></td><td><code>int.Parse("99999999999")</code></td><td><code>Value was either too large or too small for an Int32.</code></td><td><code>TryParse</code> (devolve <code>false</code>), ou <code>long</code></td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td>8</td><td><code>OverflowException</code></td><td>conta que estoura dentro de <code>checked</code></td><td><code>Arithmetic operation resulted in an overflow.</code></td><td>um tipo maior (<code>long</code>, <code>decimal</code>)</td><td><a href="ref-tipos.html#estouro">Tipos e Limites</a></td></tr>
+<tr><td>9</td><td><code>DivideByZeroException</code></td><td>inteiro dividido por zero</td><td><code>Attempted to divide by zero.</code></td><td>confira o divisor antes (com <code>double</code>, não há exceção: dá <code>∞</code>)</td><td><a href="operadores-aritmeticos.html">Operadores Aritméticos</a></td></tr>
+<tr><td>10</td><td><code>InvalidCastException</code></td><td><code>(int)texto</code> com <code>object texto = "x"</code></td><td>lab: <code>Unable to cast object of type 'System.String' to type 'System.Int32'.</code><br>editor: <code>Specified cast is not valid.</code></td><td>teste com <code>is</code> (<code>if (o is int n)</code>) ou use <code>as</code></td><td><a href="pattern-matching.html">Pattern Matching</a></td></tr>
+<tr><td>27</td><td><code>ArgumentException</code></td><td><code>Enum.Parse&lt;DayOfWeek&gt;("Segunda")</code></td><td><code>Requested value 'Segunda' was not found.</code></td><td><code>Enum.TryParse</code></td><td><a href="enums.html">Enums</a></td></tr>
+</table>
+</div>
+
+<h3>Arrays, listas, textos e coleções</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>#</th><th>Exceção</th><th>Quando acontece</th><th>Mensagem real</th><th>Como evitar</th><th>Aula</th></tr>
+<tr><td>2</td><td><code>IndexOutOfRangeException</code></td><td><code>v[3]</code> num array de 3 (ou <code>"Ana"[3]</code>)</td><td><code>Index was outside the bounds of the array.</code></td><td>as posições vão de 0 a <code>Length - 1</code>; percorra com <code>foreach</code></td><td><a href="arrays.html">Arrays</a></td></tr>
+<tr><td>3</td><td><code>ArgumentOutOfRangeException</code></td><td><code>lista[3]</code> numa <code>List</code> de 3</td><td><code>Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')</code></td><td>de 0 a <code>Count - 1</code></td><td><a href="list.html">List&lt;T&gt;</a></td></tr>
+<tr><td>24</td><td><code>ArgumentOutOfRangeException</code></td><td><code>"Ana".Substring(5)</code></td><td><code>startIndex cannot be larger than length of string. (Parameter 'startIndex')</code></td><td>confira o <code>Length</code></td><td><a href="metodos-string.html">Métodos de String</a></td></tr>
+<tr><td>25</td><td><code>ArgumentOutOfRangeException</code></td><td><code>new string('x', -1)</code></td><td><code>count ('-1') must be a non-negative value. (Parameter 'count')</code> <code>Actual value was -1.</code></td><td>não passe tamanhos negativos</td><td><a href="ref-string.html">string</a></td></tr>
+<tr><td>4</td><td><code>KeyNotFoundException</code></td><td><code>d["b"]</code> com a chave ausente</td><td><code>The given key 'b' was not present in the dictionary.</code></td><td><code>TryGetValue</code> ou <code>GetValueOrDefault</code></td><td><a href="dictionary.html">Dictionary</a></td></tr>
+<tr><td>5</td><td><code>ArgumentException</code></td><td><code>d.Add("a", 2)</code> com a chave já existente</td><td><code>An item with the same key has already been added. Key: a</code></td><td><code>d["a"] = 2</code> (troca) ou <code>TryAdd</code></td><td><a href="dictionary.html">Dictionary</a></td></tr>
+<tr><td>11</td><td><code>InvalidOperationException</code></td><td><code>First()</code> numa sequência vazia</td><td><code>Sequence contains no elements</code></td><td><code>FirstOrDefault</code>, ou <code>Any()</code> antes</td><td><a href="ref-linq.html#elementos">LINQ</a></td></tr>
+<tr><td>12</td><td><code>InvalidOperationException</code></td><td>mudar a lista dentro do <code>foreach</code> dela</td><td><code>Collection was modified; enumeration operation may not execute.</code></td><td><code>RemoveAll</code>, ou percorra uma cópia (<code>.ToList()</code>)</td><td><a href="foreach.html">foreach</a></td></tr>
+<tr><td>21</td><td><code>NotSupportedException</code></td><td><code>Add</code> num array (pela interface <code>IList</code>)</td><td><code>Collection was of a fixed size.</code></td><td>array tem tamanho fixo: use <code>List</code></td><td><a href="arrays.html">Arrays</a></td></tr>
+</table>
+</div>
+<p>Outras de coleções e LINQ, com a mensagem: <code>Queue empty.</code>, <code>Stack empty.</code>, <code>Sequence contains no matching element</code>, <code>Sequence contains more than one element</code> (em <a href="ref-colecoes.html#erros">Coleções</a> e <a href="ref-linq.html#erros">LINQ</a>).</p>
+
+<h3>Argumentos (lançadas pelos seus métodos)</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>#</th><th>Exceção</th><th>Quando acontece</th><th>Mensagem real</th><th>Aula</th></tr>
+<tr><td>14</td><td><code>ArgumentNullException</code></td><td><code>int.Parse(null)</code></td><td><code>Value cannot be null. (Parameter 's')</code></td><td><a href="parse.html">Parse e TryParse</a></td></tr>
+<tr><td>15</td><td><code>ArgumentNullException</code></td><td><code>ArgumentNullException.ThrowIfNull(nulo)</code> <span class="versao">.NET 6</span></td><td><code>Value cannot be null. (Parameter 'nulo')</code></td><td><a href="throw.html">throw</a></td></tr>
+<tr><td>16</td><td><code>ArgumentException</code></td><td><code>ArgumentException.ThrowIfNullOrWhiteSpace(titulo)</code> <span class="versao">.NET 8</span></td><td><code>The value cannot be an empty string or composed entirely of whitespace. (Parameter 'titulo')</code></td><td><a href="throw.html">throw</a></td></tr>
+<tr><td>17</td><td><code>ArgumentOutOfRangeException</code></td><td><code>ArgumentOutOfRangeException.ThrowIfNegative(quantidade)</code> <span class="versao">.NET 8</span></td><td><code>quantidade ('-5') must be a non-negative value. (Parameter 'quantidade')</code> <code>Actual value was -5.</code></td><td><a href="throw.html">throw</a></td></tr>
+</table>
+</div>
+<p>Os <code>ThrowIf…</code> descobrem sozinhos o nome da variável (o <code>(Parameter 'titulo')</code>). Há também <code>ThrowIfNullOrEmpty</code>, <code>ThrowIfZero</code>, <code>ThrowIfNegativeOrZero</code>, <code>ThrowIfGreaterThan</code> e <code>ThrowIfLessThan</code>.</p>
+
+<h3>Arquivos e recursos</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>#</th><th>Exceção</th><th>Quando acontece</th><th>Mensagem real</th><th>Como evitar</th><th>Aula</th></tr>
+<tr><td>18</td><td><code>FileNotFoundException</code></td><td>ler um arquivo que não existe</td><td><code>Could not find file '/home/ana/cs/exc/nao-existe.txt'.</code></td><td><code>File.Exists</code> antes; a mensagem mostra o caminho completo em que o programa procurou</td><td><a href="arquivos.html">Arquivos</a></td></tr>
+<tr><td>19</td><td><code>DirectoryNotFoundException</code></td><td>a pasta do caminho não existe</td><td><code>Could not find a part of the path '/home/ana/cs/exc/pasta-que-nao-existe/a.txt'.</code></td><td><code>Directory.CreateDirectory</code> antes de gravar</td><td><a href="caminhos.html">Pastas e Caminhos</a></td></tr>
+<tr><td>20</td><td><code>UnauthorizedAccessException</code></td><td>gravar num arquivo sem permissão</td><td><code>Access to the path '/home/ana/cs/exc/somente-leitura.txt' is denied.</code></td><td>grave na pasta da usuária; trate com <code>try</code>/<code>catch</code></td><td><a href="arquivos.html">Arquivos</a></td></tr>
+<tr><td>22</td><td><code>ObjectDisposedException</code></td><td>usar um <code>StreamWriter</code> depois de fechado</td><td><code>Cannot write to a closed TextWriter.</code></td><td>use o objeto só dentro do bloco do <code>using</code></td><td><a href="using-dispose.html">using e IDisposable</a></td></tr>
+<tr><td>28</td><td><code>OperationCanceledException</code></td><td>uma tarefa cancelada com <code>CancellationToken</code></td><td><code>The operation was canceled.</code></td><td>trate no <code>catch</code>: em geral, é o usuário que cancelou</td><td><a href="cancelamento.html">Cancelamento</a></td></tr>
+<tr><td>23</td><td><code>NotImplementedException</code></td><td><code>throw new NotImplementedException()</code>: "ainda não escrevi isto"</td><td><code>The method or operation is not implemented.</code></td><td>escreva o método</td><td><a href="interfaces.html">Interfaces</a></td></tr>
+</table>
+</div>
+<p>Todas as exceções de arquivo descendem de <code>IOException</code>: um <code>catch (IOException)</code> pega todas (menos a <code>UnauthorizedAccessException</code>, que é de outra família).</p>
+
+<h3>Stack overflow: a que não dá para tratar</h3>
+<pre class="file" data-file="recursao.cs">static int Contar(int n) =&gt; Contar(n + 1) + 1;
+Console.WriteLine(Contar(0));
+</pre>
+<pre class="term" data-cwd="~/cs/exc">$ dotnet run recursao.cs
+Stack overflow.
+Repeated 261726 times:
+--------------------------------
+   at Program.&lt;&lt;Main&gt;$&gt;g__Contar|0_0(Int32)
+--------------------------------
+   at Program.&lt;Main&gt;$(System.String[])
+$ echo $?
+134</pre>
+<p>Uma <a href="recursao.html">recursão</a> sem caso de parada enche a pilha de chamadas. O .NET encerra o programa na hora: nenhum <code>catch</code> pega uma <code>StackOverflowException</code>. O <code>Repeated 261726 times</code> é quantas vezes o <code>Contar</code> chegou a se chamar. No editor do guia, a mensagem é outra: <code>Unhandled exception. System.StackOverflowException: The requested operation caused a stack overflow.</code>, seguida de muitas linhas <code>at Program.&lt;&lt;Main&gt;$&gt;g__Contar|0_0(Int32 n)</code>. <strong>Como consertar:</strong> toda recursão precisa de um caso que para sem chamar de novo.</p>
+
+<hr>
+
+<h2 id="hierarquia">A família das exceções</h2>
+<p>Toda exceção é uma classe que herda de <code>Exception</code>. Um <code>catch</code> pega a classe que você escreveu <strong>e todas as filhas</strong>:</p>
+<pre class="file">Exception
+├── SystemException
+│   ├── ArgumentException
+│   │   ├── ArgumentNullException
+│   │   └── ArgumentOutOfRangeException
+│   ├── ArithmeticException
+│   │   ├── DivideByZeroException
+│   │   └── OverflowException
+│   ├── FormatException
+│   ├── IndexOutOfRangeException
+│   ├── InvalidCastException
+│   ├── InvalidOperationException
+│   │   └── ObjectDisposedException
+│   ├── IO.IOException
+│   │   ├── IO.FileNotFoundException
+│   │   └── IO.DirectoryNotFoundException
+│   ├── Collections.Generic.KeyNotFoundException
+│   ├── NotSupportedException
+│   ├── NotImplementedException
+│   ├── NullReferenceException
+│   ├── OperationCanceledException
+│   └── UnauthorizedAccessException
+└── (as suas: class SaldoInsuficienteException : Exception)</pre>
+<p>Por isso, num <code>try</code> com vários <code>catch</code>, a mais específica vem primeiro: <code>catch (FileNotFoundException)</code> antes de <code>catch (IOException)</code>, e <code>catch (Exception)</code> por último. Ao contrário, o compilador reclama com o erro <code>CS0160</code> (veja <a href="ref-erros.html">Erros do Compilador</a>). Para criar a sua, aula <a href="excecoes-proprias.html">Exceções Próprias</a>.</p>
+
+<h2 id="propriedades">O que tem dentro de uma exceção</h2>
+<pre class="file" data-file="propriedades.cs">// propriedades.cs — o que um objeto Exception tem dentro
+try
+{
+    Carregar("config.txt");
+}
+catch (Exception e)
+{
+    Console.WriteLine($"Tipo: {e.GetType().Name}");
+    Console.WriteLine($"Message: {e.Message}");
+    Console.WriteLine($"InnerException: {e.InnerException?.GetType().Name}");
+    Console.WriteLine($"InnerException.Message: {e.InnerException?.Message}");
+    Console.WriteLine("StackTrace:");
+    Console.WriteLine(e.StackTrace);
+}
+
+static void Carregar(string arquivo)
+{
+    try
+    {
+        File.ReadAllText(arquivo);
+    }
+    catch (FileNotFoundException e)
+    {
+        throw new InvalidOperationException($"Não consegui carregar {arquivo}.", e);
+    }
+}
+</pre>
+<pre class="term" data-cwd="~/cs/exc">$ dotnet run propriedades.cs
+Tipo: InvalidOperationException
+Message: Não consegui carregar config.txt.
+InnerException: FileNotFoundException
+InnerException.Message: Could not find file '/home/ana/cs/exc/config.txt'.
+StackTrace:
+   at Program.&lt;&lt;Main&gt;$&gt;g__Carregar|0_0(String arquivo) in /home/ana/cs/exc/propriedades.cs:line 24
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/exc/propriedades.cs:line 4</pre>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Membro</th><th>O que é</th></tr>
+<tr><td><code>Message</code></td><td>a mensagem, para pessoas</td></tr>
+<tr><td><code>GetType().Name</code></td><td>o tipo (<code>FileNotFoundException</code>)</td></tr>
+<tr><td><code>StackTrace</code></td><td>o rastro, como texto</td></tr>
+<tr><td><code>InnerException</code></td><td>a exceção original, quando uma exceção foi "embrulhada" em outra (o segundo argumento do construtor, como no <code>Carregar</code>)</td></tr>
+<tr><td><code>ToString()</code></td><td>tudo junto: tipo, mensagem, exceção interna e rastro</td></tr>
+<tr><td><code>ParamName</code></td><td>só em <code>ArgumentException</code> e filhas: o nome do parâmetro culpado</td></tr>
+<tr><td><code>FileName</code></td><td>só em <code>FileNotFoundException</code>: o caminho do arquivo</td></tr>
+</table>
+</div>
+<p>O nome estranho <code>&lt;&lt;Main&gt;$&gt;g__Carregar|0_0</code> é como o compilador chama uma <a href="funcoes-locais.html">função local</a> das instruções de nível superior. Leia só o <code>Carregar</code>.</p>
+
+<h2 id="tratar">Tratar: <code>try</code>, <code>catch</code>, <code>when</code> e <code>finally</code></h2>
+<pre class="file" data-file="trycatch.cs">// trycatch.cs — tratar, filtrar, finally e relançar
+foreach (string entrada in new[] { "10", "zero", "0", "99999999999" })
+{
+    try
+    {
+        int n = int.Parse(entrada);
+        Console.WriteLine($"100 / {n} = {100 / n}");
+    }
+    catch (FormatException)
+    {
+        Console.WriteLine($"'{entrada}' não é número.");
+    }
+    catch (Exception e) when (e is DivideByZeroException or OverflowException)
+    {
+        Console.WriteLine($"'{entrada}': {e.GetType().Name}");
+    }
+    finally
+    {
+        Console.WriteLine("  (fim da tentativa)");
+    }
+}
+</pre>
+<pre class="term" data-cwd="~/cs/exc">$ dotnet run trycatch.cs
+100 / 10 = 10
+  (fim da tentativa)
+'zero' não é número.
+  (fim da tentativa)
+'0': DivideByZeroException
+  (fim da tentativa)
+'99999999999': OverflowException
+  (fim da tentativa)</pre>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>O que faz</th><th>Aula</th></tr>
+<tr><td><code>try { … }</code></td><td>o código que pode lançar</td><td rowspan="4"><a href="try-catch.html">try e catch</a></td></tr>
+<tr><td><code>catch (FormatException) { … }</code></td><td>pega esse tipo (e as filhas); sem variável, quando não precisa da mensagem</td></tr>
+<tr><td><code>catch (IOException e) { … e.Message … }</code></td><td>pega e dá um nome, para ler a mensagem</td></tr>
+<tr><td><code>catch (Exception e) when (condição)</code> <span class="versao">C# 6</span></td><td>só pega se a condição for verdadeira; senão, a exceção continua subindo</td></tr>
+<tr><td><code>finally { … }</code></td><td>roda <strong>sempre</strong>: deu certo, deu exceção tratada, ou não tratada</td><td><a href="finally.html">finally</a></td></tr>
+<tr><td><code>using var recurso = …;</code></td><td>um <code>finally</code> automático que fecha o recurso</td><td><a href="using-dispose.html">using e IDisposable</a></td></tr>
+</table>
+</div>
+
+<h2 id="lancar">Lançar: <code>throw</code></h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Quando usar</th><th>Aula</th></tr>
+<tr><td><code>throw new ArgumentException("…", nameof(param));</code></td><td>o argumento recebido não serve</td><td rowspan="5"><a href="throw.html">throw</a></td></tr>
+<tr><td><code>throw new InvalidOperationException("…");</code></td><td>o objeto não está num estado que permite isso (sacar de uma conta encerrada)</td></tr>
+<tr><td><code>ArgumentNullException.ThrowIfNull(x);</code></td><td>o jeito curto de recusar <code>null</code> <span class="versao">.NET 6</span></td></tr>
+<tr><td><code>throw;</code> (dentro do <code>catch</code>)</td><td>relança a mesma exceção, mantendo o rastro original. <strong>Não</strong> escreva <code>throw e;</code>, que apaga o rastro.</td></tr>
+<tr><td><code>throw new MinhaException("…", e);</code></td><td>embrulha a original como <code>InnerException</code> (como no <code>Carregar</code> acima)</td></tr>
+<tr><td><code>x ?? throw new …</code></td><td><code>throw</code> como expressão <span class="versao">C# 7</span>: <code>Nome = nome ?? throw new ArgumentNullException(nameof(nome));</code></td><td><a href="operadores-null.html">Operadores ??</a></td></tr>
+</table>
+</div>
+
+<h2 id="evitar">Evitar em vez de tratar</h2>
+<p>Exceção é para o que é <strong>excepcional</strong>. Para o que acontece sempre (o usuário digita errado, a chave não existe), há métodos que perguntam antes, sem exceção nenhuma:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Em vez de…</th><th>Que lança…</th><th>Use…</th></tr>
+<tr><td><code>int.Parse(texto)</code></td><td><code>FormatException</code>, <code>OverflowException</code></td><td><code>int.TryParse(texto, out int n)</code></td></tr>
+<tr><td><code>d[chave]</code></td><td><code>KeyNotFoundException</code></td><td><code>d.TryGetValue(chave, out var v)</code></td></tr>
+<tr><td><code>lista.First(…)</code></td><td><code>InvalidOperationException</code></td><td><code>lista.FirstOrDefault(…)</code> e conferir o <code>null</code></td></tr>
+<tr><td><code>fila.Dequeue()</code></td><td><code>InvalidOperationException</code></td><td><code>fila.TryDequeue(out var x)</code></td></tr>
+<tr><td><code>(int)objeto</code></td><td><code>InvalidCastException</code></td><td><code>if (objeto is int n)</code></td></tr>
+<tr><td><code>File.ReadAllText(caminho)</code> sem saber se existe</td><td><code>FileNotFoundException</code></td><td><code>if (File.Exists(caminho))</code> (e ainda um <code>try</code>, porque o arquivo pode sumir entre as duas linhas)</td></tr>
+<tr><td><code>texto.Length</code> com <code>texto</code> anulável</td><td><code>NullReferenceException</code></td><td><code>texto?.Length ?? 0</code></td></tr>
+</table>
+</div>
+
+<h2 id="experimente">Experimente</h2>
+<div class="trycs" data-stdin="vinte" data-goal="out:Idade inválida.,exit:0">
+<p class="try-task"><strong>Missão:</strong> a entrada já vem preenchida com <code>vinte</code>, e o programa cai com <code>FormatException</code> (código de saída 134). Troque o <code>int.Parse</code> por <code>int.TryParse</code> para ele mostrar <code>Idade inválida.</code> e terminar normalmente.</p>
+<pre class="script">Console.Write("Sua idade: ");
+string texto = Console.ReadLine() ?? "";
+int idade = int.Parse(texto);
+Console.WriteLine($"Ano que vem você terá {idade + 1}.");
+</pre>
+<pre class="solucao">Console.Write("Sua idade: ");
+string texto = Console.ReadLine() ?? "";
+if (int.TryParse(texto, out int idade))
+{
+    Console.WriteLine($"Ano que vem você terá {idade + 1}.");
+}
+else
+{
+    Console.WriteLine("Idade inválida.");
+}
+</pre>
+</div>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> descomente uma linha por vez e rode. Leia o tipo e a mensagem de cada exceção, depois conserte a linha.</p>
+<pre class="script">int[] notas = [7, 9, 5];
+string? apelido = null;
+Dictionary&lt;string, int&gt; idades = new() { ["Ana"] = 29 };
+
+// Console.WriteLine(notas[3]);
+// Console.WriteLine(apelido!.Length);
+// Console.WriteLine(idades["Bruno"]);
+// Console.WriteLine(int.Parse("dez"));
+// Console.WriteLine(new List&lt;int&gt;().First());
+Console.WriteLine("Fim do programa.");
+</pre>
+</div>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma exceção não tratada mostra <code>Unhandled exception.</code>, o tipo, a mensagem (em inglês) e o rastro, e o programa sai com o código 134.</li>
+  <li>Leia o rastro de cima para baixo até o primeiro arquivo seu: ali está a linha culpada.</li>
+  <li>As campeãs: <code>NullReferenceException</code>, <code>IndexOutOfRangeException</code>/<code>ArgumentOutOfRangeException</code>, <code>FormatException</code>, <code>KeyNotFoundException</code>, <code>InvalidOperationException</code> e <code>FileNotFoundException</code>.</li>
+  <li>Prefira evitar: <code>TryParse</code>, <code>TryGetValue</code>, <code>FirstOrDefault</code>, <code>is</code>, <code>?.</code>.</li>
+  <li>Para tratar: <code>try</code>/<code>catch</code> do mais específico para o mais geral, <code>when</code> para filtrar, <code>finally</code> ou <code>using</code> para liberar recursos, <code>throw;</code> para relançar.</li>
+  <li>Stack overflow não se trata: conserte a recursão.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
