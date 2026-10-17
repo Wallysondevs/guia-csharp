@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Delegates — variáveis que guardam métodos | Guia C#</title>
+<meta name="description" content="Delegates em C# para quem nunca programou: declarar um tipo delegate, guardar um método numa variável, chamar com () e Invoke, passar um método como parâmetro, juntar vários com += e -=, ?.Invoke para o delegate nulo e os erros reais CS0123, CS0407, CS1593, CS7036 e CS8803, com saídas do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Delegates</span></h1>
+
+<p class="intro">Até agora, as variáveis guardavam <strong>dados</strong>: um número, um texto, uma lista. Um <strong>delegate</strong> ("delegado", "representante") é uma variável que guarda um <strong>método</strong>. Com ele, você pode trocar a regra de um programa sem mexer no resto, e passar um comportamento para outro método do mesmo jeito que passa um número. É a base das <a href="lambdas.html">lambdas</a>, dos <a href="eventos.html">eventos</a> e do <a href="linq.html">LINQ</a>, os próximos assuntos do guia.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é um delegate e por que ele existe.</li>
+  <li>Como declarar um <strong>tipo delegate</strong>: <code>delegate decimal RegraDePreco(decimal preco);</code>.</li>
+  <li>Como guardar um método numa variável, chamar com <code>()</code> ou <code>Invoke</code> e trocar o método guardado.</li>
+  <li>Como passar um método como <strong>parâmetro</strong> de outro método.</li>
+  <li>Como juntar vários métodos num delegate só, com <code>+=</code> e <code>-=</code>.</li>
+  <li>O que acontece quando o delegate está vazio (<code>null</code>) e como evitar o erro com <code>?.Invoke</code>.</li>
+  <li>Os erros reais: assinatura errada (<code>CS0123</code>, <code>CS0407</code>), argumentos errados (<code>CS1593</code>), parênteses a mais (<code>CS7036</code>) e o delegate no lugar errado do arquivo (<code>CS8803</code>).</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> (C# 14) na máquina da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code> (veja <a href="dotnet-run.html">Rodar com dotnet run</a>). Você pode repetir cada um no editor do guia, que compila e roda C# de verdade no navegador.</p>
+
+<hr>
+
+<h2>A ideia: a etiqueta de preço que muda de regra</h2>
+<p>Na lojinha da Ana, o caixa calcula o preço de cada produto. Num dia comum, o preço é o da etiqueta. Na Black Friday, tudo sai com 30% de desconto. Para os clientes de atacado, 10%.</p>
+
+<p>A Ana não quer reescrever o caixa a cada promoção. Ela quer um caixa com um <strong>encaixe</strong>, onde ela pluga a regra do dia: "hoje a regra é a da Black Friday". O caixa não sabe qual é a regra; ele só sabe que a regra <strong>recebe um preço e devolve um preço</strong>.</p>
+
+<p>Esse encaixe é um <strong>delegate</strong>. Ele tem um formato (recebe <code>decimal</code>, devolve <code>decimal</code>), e qualquer método com esse formato pode ser plugado nele. O nome vem do verbo "delegar": o caixa <em>delega</em> a conta para o método que estiver plugado.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na lojinha</th><th>Em C#</th></tr>
+<tr><td>O formato do encaixe: "recebe um preço, devolve um preço"</td><td>O <strong>tipo delegate</strong>: <code>delegate decimal RegraDePreco(decimal preco);</code></td></tr>
+<tr><td>As regras que cabem no encaixe</td><td><strong>Métodos</strong> com a mesma assinatura: <code>PrecoNormal</code>, <code>BlackFriday</code></td></tr>
+<tr><td>O encaixe com uma regra plugada</td><td>Uma <strong>variável</strong> do tipo delegate: <code>RegraDePreco regra = BlackFriday;</code></td></tr>
+<tr><td>O caixa usando a regra</td><td>A <strong>chamada</strong>: <code>regra(50m)</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. Declarar um tipo delegate e guardar um método</h2>
+<p>O primeiro programa cria o formato do encaixe, pluga a regra normal, usa, troca pela regra da Black Friday e usa de novo:</p>
+
+<pre class="file" data-file="regras.cs">RegraDePreco regra = PrecoNormal;
+Console.WriteLine($"Normal: {regra(50m):C}");
+
+regra = BlackFriday;
+Console.WriteLine($"Black Friday: {regra(50m):C}");
+Console.WriteLine($"Com Invoke: {regra.Invoke(50m):C}");
+
+static decimal PrecoNormal(decimal preco) =&gt; preco;
+static decimal BlackFriday(decimal preco) =&gt; preco * 0.7m;
+
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+
+<pre class="term">$ dotnet run regras.cs
+Normal: R$ 50,00
+Black Friday: R$ 35,00
+Com Invoke: R$ 35,00</pre>
+
+<p>Comece pela <strong>última linha</strong>, que cria o formato. Ela parece a primeira linha de um método, com a palavra <code>delegate</code> na frente e um <code>;</code> no lugar do corpo:</p>
+
+<dl class="anatomy">
+  <dt>delegate</dt><dd>Palavra-chave: "o que vem a seguir é um <strong>tipo</strong> de delegate", um formato de método. Não é um método; é um molde.</dd>
+  <dt>decimal</dt><dd>O <strong>tipo de retorno</strong> que os métodos plugados precisam ter.</dd>
+  <dt>RegraDePreco</dt><dd>O <strong>nome do tipo</strong>, em PascalCase, como o de uma classe. Depois desta linha, <code>RegraDePreco</code> é um tipo, como <code>int</code> ou <code>string</code>.</dd>
+  <dt>(decimal preco)</dt><dd>Os <strong>parâmetros</strong> que os métodos plugados precisam receber. O nome <code>preco</code> só documenta; os métodos podem usar outro nome.</dd>
+  <dt>;</dt><dd>Não tem corpo: o delegate só descreve o formato. Quem faz a conta são os métodos.</dd>
+</dl>
+
+<p>Agora o resto, linha a linha:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>RegraDePreco regra = PrecoNormal;</code></td><td>Cria a variável <code>regra</code>, do tipo <code>RegraDePreco</code>, e guarda nela o método <code>PrecoNormal</code>. Repare: <strong>sem parênteses</strong>. <code>PrecoNormal</code> é o método em si; <code>PrecoNormal(50m)</code> seria o resultado de chamá-lo.</td></tr>
+<tr><td><code>regra(50m)</code></td><td>Chama o método que está guardado em <code>regra</code>, passando <code>50m</code>. Neste momento é o <code>PrecoNormal</code>, que devolve o próprio preço.</td></tr>
+<tr><td><code>regra = BlackFriday;</code></td><td>Troca o método guardado. A variável é a mesma; a regra plugada mudou.</td></tr>
+<tr><td><code>regra.Invoke(50m)</code></td><td>O mesmo que <code>regra(50m)</code>, escrito por extenso. <code>Invoke</code> quer dizer "invocar", chamar.</td></tr>
+<tr><td><code>static decimal PrecoNormal(…) =&gt; preco;</code></td><td>Um método que recebe <code>decimal</code> e devolve <code>decimal</code>: cabe no encaixe. O <code>=&gt;</code> é o corpo de uma linha (veja <a href="metodos.html">Métodos</a>).</td></tr>
+<tr><td><code>static decimal BlackFriday(…) =&gt; preco * 0.7m;</code></td><td>Outro método com o mesmo formato: devolve 70% do preço (30% de desconto).</td></tr>
+</table>
+</div>
+
+<div class="note">
+<strong>Onde fica cada coisa no arquivo</strong>
+<p>Num arquivo rodado com <code>dotnet run arquivo.cs</code>, a ordem é: primeiro as <strong>instruções</strong> (o programa), depois os métodos e, <strong>por último</strong>, as declarações de tipo (<code>delegate</code>, <code>class</code>, <code>record</code>…). Os métodos escritos no meio das instruções são <a href="funcoes-locais.html">funções locais</a>, e funcionam como qualquer método. Se o <code>delegate</code> vier antes das instruções, dá o erro <code>CS8803</code> (veja <a href="#errado">Quando dá errado</a>).</p>
+</div>
+
+<h3>O delegate não sabe qual regra está plugada</h3>
+<p>A linha <code>Console.WriteLine($"Black Friday: {regra(50m):C}");</code> não menciona a Black Friday em lugar nenhum: ela só diz <code>regra(50m)</code>. Quem decide o que acontece é o método guardado em <code>regra</code> naquele momento. É exatamente o encaixe do caixa da Ana.</p>
+
+<div class="trycs" data-goal="outre:Atacado: R\$\s45\,00,src:regra\s*=\s*Atacado\s*;">
+<p class="try-task"><strong>Missão:</strong> crie o método <code>Atacado</code>, que dá 10% de desconto (<code>preco * 0.9m</code>), e troque a regra para ele antes da segunda linha de saída. A saída deve ser <code>Atacado: R$ 45,00</code>.</p>
+<pre class="script">RegraDePreco regra = PrecoNormal;
+Console.WriteLine($"Normal: {regra(50m):C}");
+
+// troque a regra aqui
+Console.WriteLine($"Atacado: {regra(50m):C}");
+
+static decimal PrecoNormal(decimal preco) =&gt; preco;
+// crie o método Atacado aqui
+
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+<pre class="solucao">RegraDePreco regra = PrecoNormal;
+Console.WriteLine($"Normal: {regra(50m):C}");
+
+regra = Atacado;
+Console.WriteLine($"Atacado: {regra(50m):C}");
+
+static decimal PrecoNormal(decimal preco) =&gt; preco;
+static decimal Atacado(decimal preco) =&gt; preco * 0.9m;
+
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Passar um método como parâmetro</h2>
+<p>Guardar o método numa variável já é útil, mas o grande poder do delegate é outro: um delegate pode ser <strong>parâmetro</strong> de um método. Assim, quem chama decide a regra.</p>
+
+<pre class="file" data-file="mostrar.cs">decimal[] precos = [12.50m, 30m, 7.90m];
+
+MostrarPrecos(precos, PrecoNormal);
+MostrarPrecos(precos, BlackFriday);
+
+void MostrarPrecos(decimal[] lista, RegraDePreco regra)
+{
+    foreach (decimal p in lista)
+    {
+        Console.WriteLine($"{p:C} -&gt; {regra(p):C}");
+    }
+    Console.WriteLine("---");
+}
+
+static decimal PrecoNormal(decimal preco) =&gt; preco;
+static decimal BlackFriday(decimal preco) =&gt; preco * 0.7m;
+
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+
+<pre class="term">$ dotnet run mostrar.cs
+R$ 12,50 -&gt; R$ 12,50
+R$ 30,00 -&gt; R$ 30,00
+R$ 7,90 -&gt; R$ 7,90
+---
+R$ 12,50 -&gt; R$ 8,75
+R$ 30,00 -&gt; R$ 21,00
+R$ 7,90 -&gt; R$ 5,53
+---</pre>
+
+<dl class="anatomy">
+  <dt>RegraDePreco regra</dt><dd>Um parâmetro como outro qualquer, só que o tipo é o delegate. Quem chamar <code>MostrarPrecos</code> tem de mandar um método com o formato certo.</dd>
+  <dt>regra(p)</dt><dd>Dentro do método, a regra recebida é chamada para cada preço. <code>MostrarPrecos</code> nunca sabe se está dando desconto ou não.</dd>
+  <dt>MostrarPrecos(precos, BlackFriday)</dt><dd>Na chamada, o método vai <strong>sem parênteses</strong>: você está entregando a regra, não o resultado dela.</dd>
+</dl>
+
+<p>O <code>7,90 × 0,7</code> dá <code>5,53</code> exatos, e o formato <code>C</code> (de <em>currency</em>, "moeda") mostra os centavos com o <code>R$</code> da cultura brasileira (veja <a href="formatacao.html">Formatar Números</a>).</p>
+
+<p>Sem delegate, a Ana precisaria de dois métodos quase iguais (<code>MostrarPrecosNormais</code> e <code>MostrarPrecosBlackFriday</code>), e um terceiro a cada promoção nova. Com o delegate, o laço é escrito uma vez só, e cada promoção é um método pequeno.</p>
+
+<hr>
+
+<h2>3. Vários métodos num delegate só (<code>+=</code> e <code>-=</code>)</h2>
+<p>Um delegate pode guardar <strong>uma lista de métodos</strong>. Quando você chama o delegate, todos rodam, na ordem em que foram adicionados. Isso se chama delegate <strong>multicast</strong> ("transmissão para vários"). É útil para <strong>avisos</strong>: quando a Ana vende um produto, o caixa e o estoque precisam saber.</p>
+
+<pre class="file" data-file="avisos.cs">Aviso? avisos = null;
+avisos += AvisarCaixa;
+avisos += AvisarEstoque;
+avisos("Caderno vendido");
+
+Console.WriteLine("---");
+avisos -= AvisarCaixa;
+avisos?.Invoke("Lápis vendido");
+
+Console.WriteLine("---");
+avisos -= AvisarEstoque;
+Console.WriteLine(avisos is null);
+avisos?.Invoke("Borracha vendida");
+Console.WriteLine("fim");
+
+static void AvisarCaixa(string msg) =&gt; Console.WriteLine($"[caixa] {msg}");
+static void AvisarEstoque(string msg) =&gt; Console.WriteLine($"[estoque] {msg}");
+
+delegate void Aviso(string mensagem);
+</pre>
+
+<pre class="term">$ dotnet run avisos.cs
+[caixa] Caderno vendido
+[estoque] Caderno vendido
+---
+[estoque] Lápis vendido
+---
+True
+fim</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>delegate void Aviso(string mensagem);</code></td><td>Um formato que recebe um texto e não devolve nada (<code>void</code>).</td></tr>
+<tr><td><code>Aviso? avisos = null;</code></td><td>Começa vazio. O <code>?</code> diz que a variável pode ser <code>null</code> (veja <a href="referencias-anulaveis.html">Referências Anuláveis</a>).</td></tr>
+<tr><td><code>avisos += AvisarCaixa;</code></td><td>Adiciona um método à lista. Agora <code>avisos</code> tem um.</td></tr>
+<tr><td><code>avisos += AvisarEstoque;</code></td><td>Adiciona outro. Agora tem dois.</td></tr>
+<tr><td><code>avisos("Caderno vendido");</code></td><td>Chama os <strong>dois</strong>, na ordem: primeiro o caixa, depois o estoque.</td></tr>
+<tr><td><code>avisos -= AvisarCaixa;</code></td><td>Tira o método da lista. Sobra só o do estoque.</td></tr>
+<tr><td><code>avisos?.Invoke("Lápis vendido");</code></td><td>Chama <strong>se</strong> a lista não estiver vazia. O <code>?.</code> é o operador condicional nulo (veja <a href="operadores-null.html">Operadores ??, ?. e ??=</a>).</td></tr>
+<tr><td><code>avisos -= AvisarEstoque;</code></td><td>Tira o último. Uma lista vazia de métodos vira <code>null</code>: a linha seguinte mostra <code>True</code>.</td></tr>
+<tr><td><code>avisos?.Invoke("Borracha vendida");</code></td><td>Como <code>avisos</code> é <code>null</code>, nada acontece, e o programa continua até o <code>fim</code>.</td></tr>
+</table>
+</div>
+
+<h3>E se o delegate devolve um valor?</h3>
+<p>Com vários métodos que devolvem algo, todos rodam, mas a chamada devolve só o resultado do <strong>último</strong>:</p>
+
+<pre class="file" data-file="multicast.cs">Calculo c = Dobro;
+c += Triplo;
+Console.WriteLine(c(10));
+Console.WriteLine(c.GetInvocationList().Length);
+Console.WriteLine(c.GetType().BaseType);
+
+static int Dobro(int x) { Console.WriteLine("Dobro rodou"); return x * 2; }
+static int Triplo(int x) { Console.WriteLine("Triplo rodou"); return x * 3; }
+
+delegate int Calculo(int x);
+</pre>
+
+<pre class="term">$ dotnet run multicast.cs
+Dobro rodou
+Triplo rodou
+30                        « só o resultado do último (Triplo); o 20 do Dobro se perdeu
+2                         « GetInvocationList: a lista tem 2 métodos
+System.MulticastDelegate  « todo tipo delegate é, por baixo, uma classe que herda daqui</pre>
+
+<p>Por isso, na prática, o multicast é usado com delegates <code>void</code>, como o <code>Aviso</code>. É assim que funcionam os <a href="eventos.html">eventos</a>.</p>
+
+<hr>
+
+<h2 id="nulo">4. O delegate vazio: <code>NullReferenceException</code></h2>
+<p>Chamar um delegate que está <code>null</code> (sem nenhum método) derruba o programa. O compilador avisa antes:</p>
+
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="nulo.cs">Aviso? avisos = null;
+avisos("Caderno vendido");
+
+delegate void Aviso(string mensagem);
+</pre>
+
+<pre class="term">$ dotnet run nulo.cs
+/home/ana/cs/nulo.cs(2,1): warning CS8602: Desreferência de uma referência possivelmente nula.
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/nulo.cs:line 2
+$ echo $?
+134</pre>
+
+<ul>
+  <li>O <strong>aviso</strong> <code>CS8602</code> (do compilador, em português): "desreferência de uma referência possivelmente nula", ou seja, você está usando algo que pode ser <code>null</code>.</li>
+  <li>A <strong>exceção</strong> (do programa rodando, em inglês): "referência de objeto não definida para uma instância de um objeto". Não havia método nenhum para chamar.</li>
+  <li>O código de saída <code>134</code> é o de um programa que terminou com uma exceção não tratada.</li>
+</ul>
+
+<p><strong>Como consertar:</strong> chame com <code>avisos?.Invoke("Caderno vendido");</code>. O <code>?.</code> só chama se houver método; se não houver, a linha não faz nada. Repare que <code>avisos?("…")</code> não existe em C#: com o <code>?.</code>, use sempre o <code>Invoke</code>.</p>
+
+<div class="tip">
+<strong>Leia os avisos</strong>
+<p>O compilador também acompanha o <code>-=</code>: depois de <code>avisos -= AvisarCaixa;</code>, ele sabe que a lista pode ter ficado vazia e avisa <code>CS8602</code> se você chamar <code>avisos(…)</code> direto. Foi por isso que o programa <code>avisos.cs</code> usou <code>?.Invoke</code> depois de cada <code>-=</code>. Veja <a href="avisos.html">Avisos do Compilador</a>.</p>
+</div>
+
+<hr>
+
+<h2>Delegate próprio, <code>Func</code> ou lambda: qual usar</h2>
+<p>Você acabou de ver a forma "completa": declarar o tipo e escrever um método com nome para cada regra. Ela é a base de tudo, mas no dia a dia o C# oferece dois atalhos, cada um com aula própria:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Exemplo</th><th>Quando usar</th></tr>
+<tr><td>Tipo delegate próprio + método com nome</td><td><code>delegate decimal RegraDePreco(decimal preco);</code><br><code>RegraDePreco r = BlackFriday;</code></td><td>Quando o nome do tipo ajuda a entender o código (<code>RegraDePreco</code> diz mais que "recebe e devolve decimal") e em <a href="eventos.html">eventos</a>.</td></tr>
+<tr><td>Delegates prontos do .NET</td><td><code>Func&lt;decimal, decimal&gt; r = BlackFriday;</code></td><td>Na maioria dos casos: você não precisa declarar tipo nenhum. Aula <a href="func-action.html">Func, Action e Predicate</a>.</td></tr>
+<tr><td>Lambda (método sem nome)</td><td><code>RegraDePreco r = p =&gt; p * 0.7m;</code></td><td>Quando a regra é curta e só usada ali. Aula <a href="lambdas.html">Lambdas</a>.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS0123: o método não tem os parâmetros do delegate</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="assinatura.cs">RegraDePreco regra = Desconto;
+Console.WriteLine(regra(50m));
+
+static decimal Desconto(int porcento) =&gt; porcento;
+
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+<pre class="term">$ dotnet run assinatura.cs
+/home/ana/cs/assinatura.cs(1,22): error CS0123: Nenhuma sobrecarga de "Desconto" corresponde ao representante "RegraDePreco"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> "nenhuma versão de <code>Desconto</code> combina com o delegate <code>RegraDePreco</code>". A tradução em português chama o delegate de <strong>representante</strong>; em inglês, a mensagem é <code>No overload for 'Desconto' matches delegate 'RegraDePreco'</code>. O delegate recebe um <code>decimal</code>, e <code>Desconto</code> recebe um <code>int</code>.</p>
+<p><strong>Como consertar:</strong> os parâmetros do método precisam ser os mesmos do delegate, na mesma ordem: <code>static decimal Desconto(decimal preco)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0407: o tipo de retorno não combina</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="retorno.cs">RegraDePreco regra = Arredondar;
+Console.WriteLine(regra(9.99m));
+
+static int Arredondar(decimal preco) =&gt; (int)preco;
+
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+<pre class="term">$ dotnet run retorno.cs
+/home/ana/cs/retorno.cs(1,22): error CS0407: "int Arredondar(decimal)" tem o tipo de retorno incorreto
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> os parâmetros combinam, mas o método devolve <code>int</code> e o delegate promete <code>decimal</code>.</p>
+<p><strong>Como consertar:</strong> faça o método devolver o tipo do delegate (<code>static decimal Arredondar(decimal preco) =&gt; Math.Floor(preco);</code>) ou crie outro tipo delegate para métodos que devolvem <code>int</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS7036: parênteses depois do nome do método</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="parenteses.cs">RegraDePreco regra = PrecoNormal();
+Console.WriteLine(regra(50m));
+
+static decimal PrecoNormal(decimal preco) =&gt; preco;
+
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+<pre class="term">$ dotnet run parenteses.cs
+/home/ana/cs/parenteses.cs(1,22): error CS7036: Não há nenhum argumento fornecido que corresponda ao parâmetro necessário 'preco' de 'PrecoNormal(decimal)'
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> com os parênteses, <code>PrecoNormal()</code> é uma <strong>chamada</strong>, e falta o argumento <code>preco</code>. O compilador nem chega a pensar em delegate.</p>
+<p><strong>Como consertar:</strong> para guardar o método, escreva só o nome: <code>RegraDePreco regra = PrecoNormal;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1593: número errado de argumentos na chamada</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="argumentos.cs">RegraDePreco regra = PrecoNormal;
+Console.WriteLine(regra(50m, 10));
+
+static decimal PrecoNormal(decimal preco) =&gt; preco;
+
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+<pre class="term">$ dotnet run argumentos.cs
+/home/ana/cs/argumentos.cs(2,19): error CS1593: Delegado "RegraDePreco" não obtém 2 argumentos
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> "o delegate <code>RegraDePreco</code> não recebe 2 argumentos" (em inglês, <code>Delegate 'RegraDePreco' does not take 2 arguments</code>). Ele foi declarado com um só.</p>
+<p><strong>Como consertar:</strong> chame com os argumentos que o tipo delegate pede (<code>regra(50m)</code>), ou mude a declaração do tipo, se a regra realmente precisa de mais um dado.</p>
+</div>
+
+<div class="cenario">
+<strong>CS8803: o <code>delegate</code> antes das instruções</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="ordem.cs">delegate decimal RegraDePreco(decimal preco);
+
+RegraDePreco regra = PrecoNormal;
+Console.WriteLine(regra(50m));
+
+static decimal PrecoNormal(decimal preco) =&gt; preco;
+</pre>
+<pre class="term">$ dotnet run ordem.cs
+/home/ana/cs/ordem.cs(3,1): error CS8803: As instruções de nível superior precisam preceder as declarações de namespace e de tipo.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> a declaração <code>delegate …;</code> cria um <strong>tipo</strong>, e num arquivo com instruções soltas (veja <a href="top-level.html">Program.cs e o Main</a>) os tipos ficam no fim.</p>
+<p><strong>Como consertar:</strong> mova a linha do <code>delegate</code> para o final do arquivo. Num projeto com vários arquivos, ela também pode ir num arquivo próprio, como uma classe.</p>
+</div>
+
+<div class="cenario">
+<strong>NullReferenceException: chamar um delegate vazio</strong>
+<p>Visto na <a href="#nulo">seção 4</a>: <code>Object reference not set to an instance of an object.</code>, código de saída <code>134</code>. <strong>Como consertar:</strong> <code>delegate?.Invoke(…)</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>delegate decimal Regra(decimal p);</code></td><td>Declara um tipo delegate: métodos que recebem um <code>decimal</code> e devolvem um <code>decimal</code>.</td></tr>
+<tr><td><code>Regra r = Metodo;</code></td><td>Guarda um método (sem parênteses) numa variável do tipo delegate.</td></tr>
+<tr><td><code>r(50m)</code> ou <code>r.Invoke(50m)</code></td><td>Chama o método guardado.</td></tr>
+<tr><td><code>r = OutroMetodo;</code></td><td>Troca o método guardado.</td></tr>
+<tr><td><code>void Usar(Regra r) { … r(x) … }</code></td><td>Recebe um método como parâmetro.</td></tr>
+<tr><td><code>Usar(Metodo);</code></td><td>Passa um método como argumento.</td></tr>
+<tr><td><code>d += Metodo;</code> / <code>d -= Metodo;</code></td><td>Adiciona / remove um método da lista (multicast).</td></tr>
+<tr><td><code>d?.Invoke(x);</code></td><td>Chama só se houver algum método (evita <code>NullReferenceException</code>).</td></tr>
+<tr><td><code>d.GetInvocationList()</code></td><td>Devolve a lista de métodos guardados.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Declarar o formato</h3>
+<p>Complete a declaração de um tipo delegate <code>Conversor</code> para métodos que recebem um <code>string</code> e devolvem um <code>int</code>:</p>
+<div class="ex-code"><input data-answer="delegate int Conversor(string texto);|delegate int Conversor(string s);|delegate int Conversor(string valor);|delegate int Conversor(string t);" aria-label="declaração"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Guardar o método</h3>
+<p>Guarde o método <code>BlackFriday</code> na variável <code>regra</code>:</p>
+<div class="ex-code">RegraDePreco regra = <input data-answer="BlackFriday;|BlackFriday" aria-label="valor"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Chamar com segurança</h3>
+<p>Chame o delegate <code>avisos</code> com o texto <code>"Fechou o caixa"</code> sem derrubar o programa se ele estiver vazio:</p>
+<div class="ex-code"><input data-answer="avisos?.Invoke(&quot;Fechou o caixa&quot;);" aria-label="chamada"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Com <code>delegate decimal RegraDePreco(decimal preco);</code>, qual método <strong>pode</strong> ser guardado numa <code>RegraDePreco</code>?</p>
+<label><input type="radio" name="q4"> <code>static int Arredondar(decimal p)</code></label>
+<label><input type="radio" name="q4"> <code>static decimal Dobro(decimal valor)</code></label>
+<label><input type="radio" name="q4"> <code>static decimal Desconto(decimal p, int porcento)</code></label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Um delegate <code>Calculo</code> guarda <code>Dobro</code> e depois <code>Triplo</code> (com <code>+=</code>). O que <code>c(10)</code> devolve?</p>
+<label><input type="radio" name="q5"> <code>20</code>, só o primeiro roda.</label>
+<label><input type="radio" name="q5"> <code>50</code>, a soma dos dois.</label>
+<label><input type="radio" name="q5"> <code>30</code>: os dois rodam, mas só o resultado do último é devolvido.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Qual a diferença entre <code>r = PrecoNormal;</code> e <code>r = PrecoNormal(50m);</code>?</p>
+<label><input type="radio" name="q6"> A primeira guarda o método; a segunda chama o método e tenta guardar o resultado (um <code>decimal</code>), o que não é um delegate.</label>
+<label><input type="radio" name="q6"> Nenhuma; os parênteses são opcionais.</label>
+<label><input type="radio" name="q6"> A primeira não compila.</label>
+</div>
+
+<div class="trycs" data-goal="outre:Total normal: R\$\s50\,40,outre:Total Black Friday: R\$\s35\,28,src:RegraDePreco\s+\w+\s*\)">
+<p class="try-task"><strong>Missão final:</strong> o método <code>Total</code> soma os preços do carrinho, mas sempre com o preço normal. Acrescente um parâmetro <code>RegraDePreco regra</code>, use <code>regra(p)</code> na soma e mostre também o total da Black Friday. A saída deve ser <code>Total normal: R$ 50,40</code> e <code>Total Black Friday: R$ 35,28</code>.</p>
+<pre class="script">decimal[] carrinho = [12.50m, 30m, 7.90m];
+
+Console.WriteLine($"Total normal: {Total(carrinho):C}");
+
+decimal Total(decimal[] precos)
+{
+    decimal soma = 0m;
+    foreach (decimal p in precos)
+    {
+        soma += p;
+    }
+    return soma;
+}
+
+static decimal PrecoNormal(decimal preco) =&gt; preco;
+static decimal BlackFriday(decimal preco) =&gt; preco * 0.7m;
+
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+<pre class="solucao">decimal[] carrinho = [12.50m, 30m, 7.90m];
+
+Console.WriteLine($"Total normal: {Total(carrinho, PrecoNormal):C}");
+Console.WriteLine($"Total Black Friday: {Total(carrinho, BlackFriday):C}");
+
+decimal Total(decimal[] precos, RegraDePreco regra)
+{
+    decimal soma = 0m;
+    foreach (decimal p in precos)
+    {
+        soma += regra(p);
+    }
+    return soma;
+}
+
+static decimal PrecoNormal(decimal preco) =&gt; preco;
+static decimal BlackFriday(decimal preco) =&gt; preco * 0.7m;
+
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+</div>
+
+<p>No código inicial, o compilador avisa <code>CS8321</code> ("a função local 'PrecoNormal' está declarada, mas nunca é usada"), porque ninguém usa as regras ainda. O aviso some quando você as passa para o <code>Total</code>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um <strong>delegate</strong> é uma variável que guarda um <strong>método</strong>. O tipo dele descreve o formato: <code>delegate decimal RegraDePreco(decimal preco);</code>.</li>
+  <li>Guarde o método <strong>sem parênteses</strong> (<code>regra = BlackFriday;</code>) e chame com <code>regra(50m)</code> ou <code>regra.Invoke(50m)</code>.</li>
+  <li>O método precisa ter os mesmos parâmetros (<code>CS0123</code>) e o mesmo retorno (<code>CS0407</code>) do delegate.</li>
+  <li>Um delegate pode ser parâmetro: quem chama decide a regra, e o laço é escrito uma vez só.</li>
+  <li><code>+=</code> e <code>-=</code> juntam e tiram métodos (multicast). Todos rodam na ordem; com retorno, vale o do último.</li>
+  <li>Um delegate sem métodos é <code>null</code>; chamá-lo dá <code>NullReferenceException</code>. Use <code>?.Invoke(…)</code>.</li>
+  <li>Num arquivo com instruções soltas, a declaração <code>delegate</code> fica no fim (<code>CS8803</code>).</li>
+</ul>
+
+<p>Próxima aula: <a href="lambdas.html">Lambdas</a>, o jeito curto de escrever a regra direto onde ela é usada: <code>p =&gt; p * 0.7m</code>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
