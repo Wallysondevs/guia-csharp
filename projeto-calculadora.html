@@ -1,0 +1,788 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Projeto Calculadora — ReadLine, TryParse, switch e while | Guia C#</title>
+<meta name="description" content="Projeto passo a passo: a calculadora da Ana em C#. Lê dois números e uma operação com Console.ReadLine, escolhe a conta com switch, protege a entrada com double.TryParse, evita a divisão por zero num método Calcular e repete até a pessoa digitar sair. Quatro versões com saídas reais do .NET 10, os erros FormatException e CS0163 e o ∞ da divisão por zero.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Projeto <span class="hl">Calculadora</span></h1>
+
+<p class="intro">O primeiro projeto: uma calculadora no terminal. A Ana digita um número, a operação e outro número, e o programa mostra a conta. Parece simples, e é por isso que é um ótimo começo: cabe num arquivo só e, mesmo assim, junta quase tudo o que o Nível 1 ensina. No caminho aparecem três problemas de verdade: a pessoa digita uma palavra no lugar do número, alguém divide por zero e o programa precisa repetir sem você rodar de novo.</p>
+
+<div class="note">
+<strong>Você vai praticar</strong>
+<ul>
+  <li>Ler o teclado com <a href="readline.html">Console.ReadLine</a> e converter o texto em número (<a href="parse.html">Parse e TryParse</a>).</li>
+  <li>Escolher a conta com <a href="switch.html">switch</a>.</li>
+  <li>Proteger o programa de entradas erradas com <code>double.TryParse</code>.</li>
+  <li>Separar a conta num <a href="metodos.html">método</a> que devolve o texto do resultado.</li>
+  <li>Repetir com <a href="while.html">while</a>, <a href="break-continue.html">break e continue</a>, e contar as contas.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>O que vamos construir</h2>
+<p>A calculadora pronta, na máquina da Ana:</p>
+
+<pre class="term" data-cwd="~/cs/calculadora">$ dotnet run calculadora.cs
+=== Calculadora da Ana ===
+Digite sair para terminar.
+
+Primeiro número: 10
+Operação (+ - * /): +
+Segundo número: 5
+10 + 5 = 15
+
+Primeiro número: 8
+Operação (+ - * /): /
+Segundo número: 0
+Não dá para dividir por zero.
+
+Primeiro número: abc
+Isso não é um número.
+
+Primeiro número: 2,5
+Operação (+ - * /): *
+Segundo número: 4
+2,5 * 4 = 10
+
+Primeiro número: sair
+Até logo! Contas feitas: 3.</pre>
+
+<ol class="passo">
+  <li><a href="#versao1">Dois números e a soma</a>.</li>
+  <li><a href="#versao2">A operação: um <code>switch</code></a>.</li>
+  <li><a href="#versao3">Entrada segura e divisão por zero</a> (<code>TryParse</code> e o método <code>Calcular</code>).</li>
+  <li><a href="#versao4">Repetir até "sair"</a> (<code>while</code>, <code>break</code> e <code>continue</code>).</li>
+</ol>
+
+<h3>Antes de começar</h3>
+<p>Você precisa ter visto <a href="variaveis.html">Variáveis</a>, <a href="readline.html">Ler do Teclado</a>, <a href="interpolacao.html">Interpolação</a> e <a href="if-else.html">if e else</a>; para as versões 2 a 4, <a href="switch.html">switch</a>, <a href="metodos.html">Métodos</a> e <a href="while.html">while</a>. O programa é um arquivo só, <code>calculadora.cs</code>, rodado com <code>dotnet run calculadora.cs</code> (veja <a href="projetos.html">Sobre os Projetos</a>):</p>
+
+<pre class="term">$ mkdir -p cs/calculadora
+$ cd cs/calculadora</pre>
+
+<hr>
+
+<h2 id="versao1">Versão 1 · Dois números e a soma</h2>
+<p>O começo de qualquer calculadora: perguntar dois números e somar. O <code>Console.ReadLine()</code> devolve sempre um <strong>texto</strong> (<code>string</code>), mesmo que a Ana digite <code>10</code>. Para fazer conta, é preciso converter esse texto num número com <code>double.Parse</code>. Usamos <code>double</code> para aceitar números com vírgula, como <code>2,5</code>.</p>
+
+<pre class="file" data-file="calculadora.cs">Console.WriteLine("=== Calculadora da Ana ===");
+
+Console.Write("Primeiro número: ");
+double primeiro = double.Parse(Console.ReadLine()!);
+
+Console.Write("Segundo número: ");
+double segundo = double.Parse(Console.ReadLine()!);
+
+double soma = primeiro + segundo;
+Console.WriteLine($"{primeiro} + {segundo} = {soma}");
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>Console.Write("Primeiro número: ");</code></td><td>Mostra a pergunta <strong>sem pular linha</strong> (<code>Write</code>, não <code>WriteLine</code>): o cursor fica logo depois dos dois-pontos, esperando a resposta.</td></tr>
+<tr><td><code>Console.ReadLine()</code></td><td>Espera a Ana digitar e apertar Enter, e devolve o que ela digitou, como texto.</td></tr>
+<tr><td><code>!</code></td><td>Diz ao compilador "confie em mim, isto não é <code>null</code>". O <code>ReadLine</code> devolve <code>null</code> quando a entrada acaba; sem o <code>!</code>, o compilador avisaria (<code>CS8604</code>). Na versão 3 trocamos isso por algo mais seguro.</td></tr>
+<tr><td><code>double.Parse(…)</code></td><td>Converte o texto <code>"10"</code> no número <code>10</code>. Como a máquina da Ana está em português, a casa decimal é a <strong>vírgula</strong>: <code>2,5</code>.</td></tr>
+<tr><td><code>$"{primeiro} + {segundo} = {soma}"</code></td><td>Uma <a href="interpolacao.html">interpolação</a>: cada <code>{…}</code> é trocado pelo valor da variável.</td></tr>
+</table>
+</div>
+
+<pre class="term" data-cwd="~/cs/calculadora">$ dotnet run calculadora.cs
+=== Calculadora da Ana ===
+Primeiro número: 10
+Segundo número: 5
+10 + 5 = 15
+$ dotnet run calculadora.cs
+=== Calculadora da Ana ===
+Primeiro número: 7,5
+Segundo número: 2,25
+7,5 + 2,25 = 9,75</pre>
+
+<p>Repare que <code>10.0 + 5.0</code> aparece como <code>15</code>, sem o <code>,0</code>: o C# não mostra casas decimais que são zero.</p>
+
+<div class="trycs" data-stdin="10\n5\n" data-goal="out:10 - 5 = 5">
+<p class="try-task"><strong>Missão (versão 1):</strong> além da soma, mostre a <strong>subtração</strong> no formato <code>10 - 5 = 5</code>. A entrada da missão é <code>10</code> e <code>5</code> (as respostas não aparecem na saída, porque ninguém as digitou).</p>
+<pre class="script" data-file="calculadora.cs">Console.WriteLine("=== Calculadora da Ana ===");
+
+Console.Write("Primeiro número: ");
+double primeiro = double.Parse(Console.ReadLine()!);
+
+Console.Write("Segundo número: ");
+double segundo = double.Parse(Console.ReadLine()!);
+
+double soma = primeiro + segundo;
+Console.WriteLine($"{primeiro} + {segundo} = {soma}");
+// mostre também a subtração
+</pre>
+<pre class="solucao" data-file="calculadora.cs">Console.WriteLine("=== Calculadora da Ana ===");
+
+Console.Write("Primeiro número: ");
+double primeiro = double.Parse(Console.ReadLine()!);
+
+Console.Write("Segundo número: ");
+double segundo = double.Parse(Console.ReadLine()!);
+
+double soma = primeiro + segundo;
+Console.WriteLine($"{primeiro} + {segundo} = {soma}");
+Console.WriteLine($"{primeiro} - {segundo} = {primeiro - segundo}");
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao2">Versão 2 · A operação: um <code>switch</code></h2>
+<p>Agora a Ana escolhe a conta. Entre os dois números, o programa pergunta a operação e guarda o texto (<code>"+"</code>, <code>"-"</code>, <code>"*"</code> ou <code>"/"</code>). Para escolher o que fazer com cada um, o <a href="switch.html">switch</a> é mais limpo do que quatro <code>if</code> seguidos.</p>
+
+<pre class="file" data-file="calculadora.cs">Console.WriteLine("=== Calculadora da Ana ===");
+
+Console.Write("Primeiro número: ");
+double primeiro = double.Parse(Console.ReadLine()!);
+
+Console.Write("Operação (+ - * /): ");
+string operacao = Console.ReadLine()!;
+
+Console.Write("Segundo número: ");
+double segundo = double.Parse(Console.ReadLine()!);
+
+switch (operacao)
+{
+    case "+":
+        Console.WriteLine($"{primeiro} + {segundo} = {primeiro + segundo}");
+        break;
+    case "-":
+        Console.WriteLine($"{primeiro} - {segundo} = {primeiro - segundo}");
+        break;
+    case "*":
+        Console.WriteLine($"{primeiro} * {segundo} = {primeiro * segundo}");
+        break;
+    case "/":
+        Console.WriteLine($"{primeiro} / {segundo} = {primeiro / segundo}");
+        break;
+    default:
+        Console.WriteLine($"Operação desconhecida: {operacao}");
+        break;
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>string operacao = Console.ReadLine()!;</dt><dd>A operação fica como texto: não há nada para converter.</dd>
+  <dt>switch (operacao)</dt><dd>"Conforme o valor de <code>operacao</code>…". O C# compara o texto com cada <code>case</code>, de cima para baixo.</dd>
+  <dt>case "+":</dt><dd>Se <code>operacao</code> for <code>"+"</code>, roda as linhas até o <code>break</code>.</dd>
+  <dt>break;</dt><dd>Sai do <code>switch</code>. Em C#, todo <code>case</code> com código <strong>tem</strong> de terminar com <code>break</code> (ou <code>return</code>); veja o cenário abaixo.</dd>
+  <dt>default:</dt><dd>"Nenhum dos anteriores": a Ana digitou outra coisa, como <code>%</code> ou <code>x</code>.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs/calculadora">$ dotnet run calculadora.cs
+=== Calculadora da Ana ===
+Primeiro número: 10
+Operação (+ - * /): /
+Segundo número: 3
+10 / 3 = 3,3333333333333335
+$ dotnet run calculadora.cs
+=== Calculadora da Ana ===
+Primeiro número: 10
+Operação (+ - * /): %
+Segundo número: 3
+Operação desconhecida: %</pre>
+
+<p>O <code>3,3333333333333335</code> tem um <code>5</code> no fim, e não <code>3</code>: o <code>double</code> guarda os números em base 2 e não consegue representar 10/3 exatamente (veja <a href="decimais.html">float, double e decimal</a>). Para uma calculadora, tudo bem; para dinheiro, use <code>decimal</code>.</p>
+
+<div class="cenario">
+<strong>Esqueci um <code>break</code>: erro <code>CS0163</code></strong>
+<p>A Ana apagou sem querer o <code>break</code> do <code>case "+"</code>:</p>
+<pre class="term" data-cwd="~/cs/calculadora">$ dotnet run calculadora.cs
+/home/ana/cs/calculadora/calculadora.cs(14,5): error CS0163: Controle não pode passar através de um rótulo case ("case "+":") para outro
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> na linha 14 está o <code>case "+":</code>. Sem o <code>break</code>, o programa "cairia" do <code>case "+"</code> para dentro do <code>case "-"</code> e faria as duas contas (em inglês, <em>Control cannot fall through from one case label to another</em>). Em C e Java isso é permitido e causa defeitos; o C# proíbe.</p>
+<p><strong>Como consertar:</strong> termine cada <code>case</code> com <code>break;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>10 dividido por 0 dá ∞</strong>
+<pre class="term" data-cwd="~/cs/calculadora">$ dotnet run calculadora.cs
+=== Calculadora da Ana ===
+Primeiro número: 10
+Operação (+ - * /): /
+Segundo número: 0
+10 / 0 = ∞</pre>
+<p><strong>O que aconteceu:</strong> com <code>double</code>, dividir por zero não é erro: o resultado é o valor especial "infinito", que em português aparece como <code>∞</code>. (Com <code>int</code> ou <code>decimal</code>, a mesma conta lançaria <code>DivideByZeroException</code>.) Para uma calculadora, <code>∞</code> não é uma resposta útil. A versão 3 conserta.</p>
+</div>
+
+<div class="cenario">
+<strong>"dez" no lugar de 10: <code>FormatException</code></strong>
+<pre class="term" data-cwd="~/cs/calculadora">$ dotnet run calculadora.cs
+=== Calculadora da Ana ===
+Primeiro número: dez
+Unhandled exception. System.FormatException: The input string 'dez' was not in a correct format.
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+   at System.Double.Parse(String s)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/calculadora/calculadora.cs:line 4
+$ echo $?
+134</pre>
+<p><strong>O que significa:</strong> "o texto 'dez' não está num formato correto". O <code>double.Parse</code> da <strong>linha 4</strong> não sabe ler "dez", lança uma exceção, ninguém a trata e o programa cai com o código 134. Uma calculadora que cai com um erro de digitação não serve. A versão 3 também conserta isso.</p>
+</div>
+
+<div class="trycs" data-stdin="10\n/\n4\n" data-goal="out:10 / 4 = 2\,5">
+<p class="try-task"><strong>Missão (versão 2):</strong> a calculadora já soma, subtrai e multiplica. Acrescente o <code>case "/"</code> para a divisão (não esqueça o <code>break</code>). A entrada da missão é <code>10</code>, <code>/</code> e <code>4</code>.</p>
+<pre class="script" data-file="calculadora.cs">Console.WriteLine("=== Calculadora da Ana ===");
+
+Console.Write("Primeiro número: ");
+double primeiro = double.Parse(Console.ReadLine()!);
+
+Console.Write("Operação (+ - * /): ");
+string operacao = Console.ReadLine()!;
+
+Console.Write("Segundo número: ");
+double segundo = double.Parse(Console.ReadLine()!);
+
+switch (operacao)
+{
+    case "+":
+        Console.WriteLine($"{primeiro} + {segundo} = {primeiro + segundo}");
+        break;
+    case "-":
+        Console.WriteLine($"{primeiro} - {segundo} = {primeiro - segundo}");
+        break;
+    case "*":
+        Console.WriteLine($"{primeiro} * {segundo} = {primeiro * segundo}");
+        break;
+    // acrescente aqui o case "/"
+    default:
+        Console.WriteLine($"Operação desconhecida: {operacao}");
+        break;
+}
+</pre>
+<pre class="solucao" data-file="calculadora.cs">Console.WriteLine("=== Calculadora da Ana ===");
+
+Console.Write("Primeiro número: ");
+double primeiro = double.Parse(Console.ReadLine()!);
+
+Console.Write("Operação (+ - * /): ");
+string operacao = Console.ReadLine()!;
+
+Console.Write("Segundo número: ");
+double segundo = double.Parse(Console.ReadLine()!);
+
+switch (operacao)
+{
+    case "+":
+        Console.WriteLine($"{primeiro} + {segundo} = {primeiro + segundo}");
+        break;
+    case "-":
+        Console.WriteLine($"{primeiro} - {segundo} = {primeiro - segundo}");
+        break;
+    case "*":
+        Console.WriteLine($"{primeiro} * {segundo} = {primeiro * segundo}");
+        break;
+    case "/":
+        Console.WriteLine($"{primeiro} / {segundo} = {primeiro / segundo}");
+        break;
+    default:
+        Console.WriteLine($"Operação desconhecida: {operacao}");
+        break;
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao3">Versão 3 · Entrada segura e divisão por zero</h2>
+<p>Duas mudanças. Primeiro, o <code>double.Parse</code> vira <code>double.TryParse</code> ("tentar converter"): em vez de cair, ele devolve <code>false</code> quando o texto não é um número, e o programa avisa a Ana. Segundo, a conta vai para um <strong>método</strong> <code>Calcular</code>, que recebe os dois números e a operação e devolve o texto do resultado. Lá dentro fica fácil tratar a divisão por zero.</p>
+
+<pre class="file" data-file="calculadora.cs">Console.WriteLine("=== Calculadora da Ana ===");
+
+Console.Write("Primeiro número: ");
+if (!double.TryParse(Console.ReadLine(), out double primeiro))
+{
+    Console.WriteLine("Isso não é um número.");
+    return;
+}
+
+Console.Write("Operação (+ - * /): ");
+string operacao = Console.ReadLine() ?? "";
+
+Console.Write("Segundo número: ");
+if (!double.TryParse(Console.ReadLine(), out double segundo))
+{
+    Console.WriteLine("Isso não é um número.");
+    return;
+}
+
+Console.WriteLine(Calcular(primeiro, operacao, segundo));
+
+static string Calcular(double a, string operacao, double b)
+{
+    switch (operacao)
+    {
+        case "+":
+            return $"{a} + {b} = {a + b}";
+        case "-":
+            return $"{a} - {b} = {a - b}";
+        case "*":
+            return $"{a} * {b} = {a * b}";
+        case "/":
+            if (b == 0)
+            {
+                return "Não dá para dividir por zero.";
+            }
+            return $"{a} / {b} = {a / b}";
+        default:
+            return $"Operação desconhecida: {operacao}";
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>double.TryParse(Console.ReadLine(), out double primeiro)</dt><dd>Tenta converter o texto. Se der certo, devolve <code>true</code> e guarda o número na variável nova <code>primeiro</code> (o <code>out</code>, veja <a href="ref-out-in.html">ref, out e in</a>). Se não der, devolve <code>false</code>. O <code>TryParse</code> aceita <code>null</code>, por isso o <code>!</code> sumiu.</dd>
+  <dt>if (!…) { …; return; }</dt><dd>O <code>!</code> na frente é o "não" (<a href="operadores-logicos.html">operadores lógicos</a>): "se <strong>não</strong> conseguiu converter". O <code>return</code> termina o programa ali mesmo.</dd>
+  <dt>Console.ReadLine() ?? ""</dt><dd>Se a entrada acabou e veio <code>null</code>, usa um texto vazio (o operador <code>??</code>, veja <a href="operadores-null.html">Operadores ??, ?. e ??=</a>). O texto vazio cai no <code>default</code>.</dd>
+  <dt>static string Calcular(double a, string operacao, double b)</dt><dd>Um <a href="metodos.html">método</a> que <strong>devolve</strong> (<code>return</code>) um <code>string</code>. Os nomes <code>a</code> e <code>b</code> são só dele: o <code>primeiro</code> chega em <code>a</code>, o <code>segundo</code> em <code>b</code> (<a href="parametros.html">Parâmetros</a>).</dd>
+  <dt>case "+": return …;</dt><dd>Com <code>return</code>, o <code>break</code> não é necessário: o <code>return</code> já sai do método inteiro.</dd>
+  <dt>if (b == 0) return "Não dá para dividir por zero.";</dt><dd>Confere <strong>antes</strong> de dividir. Nada de <code>∞</code>.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs/calculadora">$ dotnet run calculadora.cs
+=== Calculadora da Ana ===
+Primeiro número: dez
+Isso não é um número.
+$ dotnet run calculadora.cs
+=== Calculadora da Ana ===
+Primeiro número: 10
+Operação (+ - * /): /
+Segundo número: 0
+Não dá para dividir por zero.
+$ dotnet run calculadora.cs
+=== Calculadora da Ana ===
+Primeiro número: 10
+Operação (+ - * /): *
+Segundo número: 3
+10 * 3 = 30</pre>
+
+<div class="tip">
+<strong>Por que um método que devolve texto?</strong>
+<p>O programa principal ficou curto: perguntar, perguntar, perguntar, mostrar. Toda a regra das contas mora em <code>Calcular</code>, e ele não lê nem escreve nada no console: recebe valores e devolve um resultado. Um método assim é fácil de testar sozinho (veja <a href="testes.html">Testes</a>) e de reaproveitar, como você vai ver na versão 4.</p>
+</div>
+
+<div class="trycs" data-stdin="10\n/\n0\n" data-goal="out:Não dá para dividir por zero.,src:b\s*==\s*0">
+<p class="try-task"><strong>Missão (versão 3):</strong> a divisão ainda dá <code>10 / 0 = ∞</code>. No <code>case "/"</code> do método <code>Calcular</code>, antes do <code>return</code> da divisão, confira <code>if (b == 0)</code> e devolva <code>"Não dá para dividir por zero."</code>. A entrada da missão é <code>10</code>, <code>/</code> e <code>0</code>.</p>
+<pre class="script" data-file="calculadora.cs">Console.WriteLine("=== Calculadora da Ana ===");
+
+Console.Write("Primeiro número: ");
+if (!double.TryParse(Console.ReadLine(), out double primeiro))
+{
+    Console.WriteLine("Isso não é um número.");
+    return;
+}
+
+Console.Write("Operação (+ - * /): ");
+string operacao = Console.ReadLine() ?? "";
+
+Console.Write("Segundo número: ");
+if (!double.TryParse(Console.ReadLine(), out double segundo))
+{
+    Console.WriteLine("Isso não é um número.");
+    return;
+}
+
+Console.WriteLine(Calcular(primeiro, operacao, segundo));
+
+static string Calcular(double a, string operacao, double b)
+{
+    switch (operacao)
+    {
+        case "+":
+            return $"{a} + {b} = {a + b}";
+        case "-":
+            return $"{a} - {b} = {a - b}";
+        case "*":
+            return $"{a} * {b} = {a * b}";
+        case "/":
+            // confira aqui se b é zero
+            return $"{a} / {b} = {a / b}";
+        default:
+            return $"Operação desconhecida: {operacao}";
+    }
+}
+</pre>
+<pre class="solucao" data-file="calculadora.cs">Console.WriteLine("=== Calculadora da Ana ===");
+
+Console.Write("Primeiro número: ");
+if (!double.TryParse(Console.ReadLine(), out double primeiro))
+{
+    Console.WriteLine("Isso não é um número.");
+    return;
+}
+
+Console.Write("Operação (+ - * /): ");
+string operacao = Console.ReadLine() ?? "";
+
+Console.Write("Segundo número: ");
+if (!double.TryParse(Console.ReadLine(), out double segundo))
+{
+    Console.WriteLine("Isso não é um número.");
+    return;
+}
+
+Console.WriteLine(Calcular(primeiro, operacao, segundo));
+
+static string Calcular(double a, string operacao, double b)
+{
+    switch (operacao)
+    {
+        case "+":
+            return $"{a} + {b} = {a + b}";
+        case "-":
+            return $"{a} - {b} = {a - b}";
+        case "*":
+            return $"{a} * {b} = {a * b}";
+        case "/":
+            if (b == 0)
+            {
+                return "Não dá para dividir por zero.";
+            }
+            return $"{a} / {b} = {a / b}";
+        default:
+            return $"Operação desconhecida: {operacao}";
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao4">Versão 4 · Repetir até "sair"</h2>
+<p>Rodar o programa de novo para cada conta é cansativo. Na versão final, tudo fica dentro de um <code>while (true)</code>, um laço "para sempre", e a Ana sai digitando <code>sair</code> no lugar do primeiro número. Quando ela erra um número, o programa não termina mais: avisa e pula para a próxima conta. No fim, mostra quantas contas foram feitas.</p>
+
+<pre class="file" data-file="calculadora.cs">Console.WriteLine("=== Calculadora da Ana ===");
+Console.WriteLine("Digite sair para terminar.");
+
+int contas = 0;
+while (true)
+{
+    Console.WriteLine();
+    Console.Write("Primeiro número: ");
+    string entrada = Console.ReadLine() ?? "sair";
+    if (entrada == "sair")
+    {
+        break;
+    }
+    if (!double.TryParse(entrada, out double primeiro))
+    {
+        Console.WriteLine("Isso não é um número.");
+        continue;
+    }
+
+    Console.Write("Operação (+ - * /): ");
+    string operacao = Console.ReadLine() ?? "sair";
+
+    Console.Write("Segundo número: ");
+    if (!double.TryParse(Console.ReadLine(), out double segundo))
+    {
+        Console.WriteLine("Isso não é um número.");
+        continue;
+    }
+
+    Console.WriteLine(Calcular(primeiro, operacao, segundo));
+    contas++;
+}
+
+Console.WriteLine($"Até logo! Contas feitas: {contas}.");
+
+static string Calcular(double a, string operacao, double b)
+{
+    switch (operacao)
+    {
+        case "+":
+            return $"{a} + {b} = {a + b}";
+        case "-":
+            return $"{a} - {b} = {a - b}";
+        case "*":
+            return $"{a} * {b} = {a * b}";
+        case "/":
+            if (b == 0)
+            {
+                return "Não dá para dividir por zero.";
+            }
+            return $"{a} / {b} = {a / b}";
+        default:
+            return $"Operação desconhecida: {operacao}";
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>while (true)</dt><dd>Um laço sem fim: a condição é sempre verdadeira. Quem decide a hora de parar é o <code>break</code> lá dentro (veja <a href="while.html">while</a>).</dd>
+  <dt>Console.WriteLine();</dt><dd>Uma linha em branco entre uma conta e outra, para a tela ficar legível.</dd>
+  <dt>string entrada = Console.ReadLine() ?? "sair";</dt><dd>Primeiro guardamos o texto, porque ele pode ser <code>"sair"</code> ou um número. Se a entrada acabar (<code>null</code>, por exemplo com <kbd>Ctrl</kbd>+<kbd>D</kbd> no terminal), o <code>??</code> faz de conta que a Ana digitou <code>sair</code>. Sem isso, o laço pediria números para sempre.</dd>
+  <dt>break;</dt><dd>Sai do <code>while</code>. O programa continua na linha depois do laço, o "Até logo!".</dd>
+  <dt>continue;</dt><dd>Pula o resto da volta e começa a próxima: a Ana errou o número, então pedimos tudo de novo (<a href="break-continue.html">break e continue</a>).</dd>
+  <dt>contas++;</dt><dd>Soma 1 no contador a cada conta que chegou ao <code>Calcular</code> (<a href="incremento.html">++ e --</a>).</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs/calculadora">$ dotnet run calculadora.cs
+=== Calculadora da Ana ===
+Digite sair para terminar.
+
+Primeiro número: 10
+Operação (+ - * /): +
+Segundo número: 5
+10 + 5 = 15
+
+Primeiro número: 7
+Operação (+ - * /): %
+Segundo número: 2
+Operação desconhecida: %
+
+Primeiro número: sair
+Até logo! Contas feitas: 2.</pre>
+
+<p>A conta com <code>%</code> também entrou no contador: ela chegou ao <code>Calcular</code>, que respondeu "Operação desconhecida". Contar só as contas que deram certo é o desafio 2.</p>
+
+<div class="trycs" data-stdin="10\n+\n5\n8\n*\n2\nsair\n" data-goal="out:Contas feitas: 2.,out:8 * 2 = 16">
+<p class="try-task"><strong>Missão (versão 4):</strong> o laço já funciona, mas o fim sempre diz <code>Contas feitas: 0.</code>. Conte cada conta com <code>contas++;</code> logo depois do <code>Console.WriteLine(Calcular(…))</code>. A entrada da missão faz duas contas (<code>10 + 5</code> e <code>8 * 2</code>) e depois <code>sair</code>.</p>
+<pre class="script" data-file="calculadora.cs">Console.WriteLine("=== Calculadora da Ana ===");
+Console.WriteLine("Digite sair para terminar.");
+
+int contas = 0;
+while (true)
+{
+    Console.WriteLine();
+    Console.Write("Primeiro número: ");
+    string entrada = Console.ReadLine() ?? "sair";
+    if (entrada == "sair")
+    {
+        break;
+    }
+    if (!double.TryParse(entrada, out double primeiro))
+    {
+        Console.WriteLine("Isso não é um número.");
+        continue;
+    }
+
+    Console.Write("Operação (+ - * /): ");
+    string operacao = Console.ReadLine() ?? "sair";
+
+    Console.Write("Segundo número: ");
+    if (!double.TryParse(Console.ReadLine(), out double segundo))
+    {
+        Console.WriteLine("Isso não é um número.");
+        continue;
+    }
+
+    Console.WriteLine(Calcular(primeiro, operacao, segundo));
+    // conte a conta
+}
+
+Console.WriteLine($"Até logo! Contas feitas: {contas}.");
+
+static string Calcular(double a, string operacao, double b)
+{
+    switch (operacao)
+    {
+        case "+":
+            return $"{a} + {b} = {a + b}";
+        case "-":
+            return $"{a} - {b} = {a - b}";
+        case "*":
+            return $"{a} * {b} = {a * b}";
+        case "/":
+            if (b == 0)
+            {
+                return "Não dá para dividir por zero.";
+            }
+            return $"{a} / {b} = {a / b}";
+        default:
+            return $"Operação desconhecida: {operacao}";
+    }
+}
+</pre>
+<pre class="solucao" data-file="calculadora.cs">Console.WriteLine("=== Calculadora da Ana ===");
+Console.WriteLine("Digite sair para terminar.");
+
+int contas = 0;
+while (true)
+{
+    Console.WriteLine();
+    Console.Write("Primeiro número: ");
+    string entrada = Console.ReadLine() ?? "sair";
+    if (entrada == "sair")
+    {
+        break;
+    }
+    if (!double.TryParse(entrada, out double primeiro))
+    {
+        Console.WriteLine("Isso não é um número.");
+        continue;
+    }
+
+    Console.Write("Operação (+ - * /): ");
+    string operacao = Console.ReadLine() ?? "sair";
+
+    Console.Write("Segundo número: ");
+    if (!double.TryParse(Console.ReadLine(), out double segundo))
+    {
+        Console.WriteLine("Isso não é um número.");
+        continue;
+    }
+
+    Console.WriteLine(Calcular(primeiro, operacao, segundo));
+    contas++;
+}
+
+Console.WriteLine($"Até logo! Contas feitas: {contas}.");
+
+static string Calcular(double a, string operacao, double b)
+{
+    switch (operacao)
+    {
+        case "+":
+            return $"{a} + {b} = {a + b}";
+        case "-":
+            return $"{a} - {b} = {a - b}";
+        case "*":
+            return $"{a} * {b} = {a * b}";
+        case "/":
+            if (b == 0)
+            {
+                return "Não dá para dividir por zero.";
+            }
+            return $"{a} / {b} = {a / b}";
+        default:
+            return $"Operação desconhecida: {operacao}";
+    }
+}
+</pre>
+</div>
+
+<div class="cenario">
+<strong>"10.5" virou 105</strong>
+<p>A Ana testou um número com <strong>ponto</strong>, como nas calculadoras de celular em inglês:</p>
+<pre class="term" data-cwd="~/cs/calculadora">$ dotnet run calculadora.cs
+=== Calculadora da Ana ===
+Digite sair para terminar.
+
+Primeiro número: 10.5
+Operação (+ - * /): +
+Segundo número: 1
+105 + 1 = 106
+
+Primeiro número: sair
+Até logo! Contas feitas: 1.</pre>
+<p><strong>O que aconteceu:</strong> em português, o ponto separa os milhares (<code>1.000</code>), e o <code>TryParse</code> leu <code>10.5</code> como "cento e cinco". Não é um erro do programa: ele seguiu a <a href="cultura.html">cultura</a> da máquina. Na tela, porém, o <code>105</code> mostra o que aconteceu, e a Ana percebeu. <strong>Como consertar:</strong> diga na pergunta qual separador usar ("use vírgula"), ou veja o desafio 4.</p>
+</div>
+
+<hr>
+
+<h2>O programa completo</h2>
+<p>A versão final é a versão 4, acima. O que o projeto juntou: <a href="readline.html">Console.ReadLine</a>, <a href="parse.html">TryParse</a>, o operador <a href="operadores-null.html">??</a>, <a href="switch.html">switch</a>, um <a href="metodos.html">método</a> com <a href="retorno.html">valor de retorno</a>, <a href="while.html">while</a>, <a href="break-continue.html">break e continue</a> e um contador com <code>++</code>.</p>
+
+<h3>Rodando com a entrada de um arquivo</h3>
+<p>Para testar várias contas de uma vez, a Ana guardou as respostas em <code>contas.txt</code>, uma por linha, e mandou o arquivo para o programa com <code>&lt;</code> (veja <a href="projetos.html">Sobre os Projetos</a>). As respostas não aparecem, porque ninguém as digitou:</p>
+
+<pre class="term" data-cwd="~/cs/calculadora">$ cat contas.txt
+10
++
+5
+sair
+$ dotnet run calculadora.cs &lt; contas.txt
+=== Calculadora da Ana ===
+Digite sair para terminar.
+
+Primeiro número: Operação (+ - * /): Segundo número: 10 + 5 = 15
+
+Primeiro número: Até logo! Contas feitas: 1.</pre>
+
+<hr>
+
+<h2>Desafios extras</h2>
+<ol>
+  <li><strong>Mais operações.</strong> Acrescente <code>%</code> (o resto da divisão) e <code>^</code> (potência, com <code>Math.Pow(a, b)</code>; veja <a href="math.html">Math</a>).</li>
+  <li><strong>Só as contas certas.</strong> Faça o contador subir só quando a conta deu certo. Dica: o <code>Calcular</code> pode devolver também um <code>bool</code>, numa <a href="tuplas.html">tupla</a>: <code>(bool Ok, string Texto)</code>.</li>
+  <li><strong>Expressão switch.</strong> Reescreva o <code>Calcular</code> com uma <a href="switch-expressoes.html">expressão switch</a>: <code>operacao switch { "+" =&gt; …, _ =&gt; … }</code>.</li>
+  <li><strong>Ponto ou vírgula.</strong> Antes de converter, troque o ponto por vírgula com <code>entrada.Replace('.', ',')</code> (veja <a href="metodos-string.html">Métodos de String</a>). Que problema isso cria para quem digita <code>1.000</code>?</li>
+  <li><strong>Uma linha só.</strong> Leia a conta inteira numa linha, como <code>10 + 5</code>, e separe as partes com <code>Split(' ')</code>.</li>
+</ol>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">1. O que <code>Console.ReadLine()</code> devolve quando a Ana digita <code>10</code> e aperta Enter?</p>
+<label><input type="radio" name="q1"> O número inteiro 10.</label>
+<label><input type="radio" name="q1"> O texto <code>"10"</code>, que ainda precisa ser convertido.</label>
+<label><input type="radio" name="q1"> O número 10.0, do tipo <code>double</code>.</label>
+<label><input type="radio" name="q1"> Nada: é preciso usar <code>Console.Read</code>.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">2. Com <code>double</code>, o que <code>10.0 / 0</code> mostra na máquina da Ana?</p>
+<label><input type="radio" name="q2"> <code>0</code></label>
+<label><input type="radio" name="q2"> Uma <code>DivideByZeroException</code>.</label>
+<label><input type="radio" name="q2"> O erro de compilação <code>CS0020</code>.</label>
+<label><input type="radio" name="q2"> <code>∞</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">3. Dentro do <code>while (true)</code>, o que o <code>continue</code> faz?</p>
+<label><input type="radio" name="q3"> Pula o resto da volta atual e começa a próxima.</label>
+<label><input type="radio" name="q3"> Sai do laço.</label>
+<label><input type="radio" name="q3"> Termina o programa.</label>
+<label><input type="radio" name="q3"> Repete a última linha.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Por que o C# dá o erro <code>CS0163</code> quando falta o <code>break</code> num <code>case</code>?</p>
+<label><input type="radio" name="q4"> Porque o <code>switch</code> só aceita números.</label>
+<label><input type="radio" name="q4"> Porque o <code>default</code> é obrigatório.</label>
+<label><input type="radio" name="q4"> Porque o C# não deixa um <code>case</code> "cair" no seguinte sem querer.</label>
+<label><input type="radio" name="q4"> Porque o <code>break</code> fecha o arquivo.</label>
+</div>
+
+<div class="exercise">
+<p>5. Complete a conversão que <strong>não</strong> lança exceção:</p>
+<div class="ex-code">if (double.<input data-answer="TryParse" aria-label="método" size="10">(Console.ReadLine(), out double numero))</div>
+</div>
+
+<div class="exercise">
+<p>6. Complete o operador que usa <code>"sair"</code> quando o <code>ReadLine</code> devolve <code>null</code>:</p>
+<div class="ex-code">string entrada = Console.ReadLine() <input data-answer="??" aria-label="operador" size="3"> "sair";</div>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>Console.ReadLine()</code> devolve texto; para fazer conta, converta com <code>double.Parse</code> ou, melhor, <code>double.TryParse</code>.</li>
+  <li><code>Parse</code> com texto errado lança <code>FormatException</code> e o programa cai (código 134); <code>TryParse</code> devolve <code>false</code> e você decide o que fazer.</li>
+  <li>O <code>switch</code> escolhe pela operação; cada <code>case</code> termina com <code>break</code> ou <code>return</code> (senão, <code>CS0163</code>).</li>
+  <li>Com <code>double</code>, dividir por zero dá <code>∞</code>; confira antes de dividir.</li>
+  <li>Um método que recebe valores e devolve o resultado deixa o programa principal curto e a regra fácil de testar.</li>
+  <li><code>while (true)</code> com <code>break</code> e <code>continue</code> faz o menu "até sair"; <code>?? "sair"</code> evita o laço infinito quando a entrada acaba.</li>
+</ul>
+<p>Próximo projeto: <a href="projeto-adivinhacao.html">Jogo de Adivinhação</a>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
