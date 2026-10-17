@@ -138,7 +138,7 @@ Idade (Int32) = 29</pre>
 
 <div class="note">
 <strong>No editor do guia</strong>
-<p>O editor desta página compila com o mesmo compilador, mas <strong>não roda esses analisadores</strong>: o aviso <code>IL2075</code> não aparece na caixa, e o resultado do programa é igual ao do <code>dotnet</code>. Conferido com o testador do guia em todos os exemplos desta aula.</p>
+<p>O editor desta página roda os mesmos analisadores do <code>dotnet run arquivo.cs</code>: o aviso <code>IL2075</code> aparece na caixa, igualzinho, e o resultado do programa também é o mesmo. Conferido com o testador do guia.</p>
 </div>
 
 <div class="trycs" data-goal="out:Nome = Caneta,out:Preco = 2\,50,out:Cor = azul,src:GetProperties\s*\(">
@@ -436,7 +436,7 @@ Unhandled exception. System.Reflection.TargetInvocationException: Exception has 
    at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
    at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/invocar.cs:line 3</pre>
 <p><strong>O que quer dizer:</strong> "o alvo da chamada lançou uma exceção". O método <code>Dividir</code> rodou e dividiu por zero; o <code>Invoke</code> pegou essa <code>DivideByZeroException</code> e a <strong>embrulhou</strong> numa <code>TargetInvocationException</code>. A exceção de verdade é a de dentro, depois do <code>---&gt;</code>: é ela que diz o problema e a linha (6). <strong>Como consertar:</strong> o problema está no método chamado, não na reflexão. Num <a href="try-catch.html"><code>try/catch</code></a>, a exceção original fica em <code>ex.InnerException</code>.</p>
-<p>No editor do guia, o rastro dessas duas exceções vem mais curto: as linhas <code>at System.Reflection…</code> de dentro do .NET não aparecem, e na <code>TargetInvocationException</code> some também a linha <code>at Calculadora.Dividir(…) … line 6</code> da exceção de dentro. O tipo das exceções, as mensagens e a linha 3 do <code>Program.&lt;Main&gt;$</code> são as mesmas. Quando precisar saber a linha exata dentro do método chamado, rode com <code>dotnet run</code>.</p>
+<p>No editor do guia, o rastro dessas duas exceções vem mais curto: as linhas <code>at System.Reflection…</code> de dentro do .NET não aparecem. O resto é igual: o tipo das exceções, as mensagens, a linha 6 do <code>Calculadora.Dividir</code> (na exceção de dentro) e a linha 3 do <code>Program.&lt;Main&gt;$</code>.</p>
 </div>
 
 <hr>
@@ -579,7 +579,7 @@ Email: obrigatório
   <li><code>GetProperties()</code> e <code>GetValue(obj)</code> percorrem as propriedades de qualquer objeto; <code>GetMethod("Nome")</code> e <code>Invoke(obj, args)</code> chamam um método pelo nome; <code>Activator.CreateInstance</code> cria objetos.</li>
   <li><code>GetCustomAttribute&lt;A&gt;()</code> lê atributos: é assim que validadores, serializadores e frameworks de teste funcionam.</li>
   <li>Os erros de reflexão só aparecem ao rodar: <code>null</code> quando o nome não existe, <code>TargetParameterCountException</code> com argumentos errados, <code>TargetInvocationException</code> embrulhando a exceção do método chamado.</li>
-  <li>Reflexão é lenta, ignora o <code>private</code> e atrapalha programas enxugados (avisos <code>IL2075</code>/<code>IL2026</code>, que o <code>dotnet run arquivo.cs</code> mostra e o editor não). Use quando não houver outro jeito; se você conhece o tipo, use o tipo.</li>
+  <li>Reflexão é lenta, ignora o <code>private</code> e atrapalha programas enxugados (avisos <code>IL2075</code>/<code>IL2026</code>, que o <code>dotnet run arquivo.cs</code> e o editor do guia mostram). Use quando não houver outro jeito; se você conhece o tipo, use o tipo.</li>
 </ul>
 
 <p>Próxima aula: <a href="regex.html">Expressões Regulares (Regex)</a>, para procurar e validar padrões dentro de textos.</p>
