@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Pattern Matching — is, switch, padrões de propriedade, posicionais e de lista | Guia C#</title>
+<meta name="description" content="Pattern matching em C# para iniciantes: is com padrão de tipo, is null e is not, padrões relacionais com and, or e not, switch com when, padrões de propriedade, posicionais, de tupla e de lista, exaustividade (CS8509) e os erros CS0165, CS0136 e CS8510, com saídas reais do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Pattern Matching</span></h1>
+
+<p class="intro"><strong>Pattern matching</strong> (em português, "casamento de padrões") é perguntar "este valor tem esta forma?" e, na mesma tacada, <strong>pegar as partes</strong> dele para usar. "É um texto? Então me dê o texto." "É uma pessoa com menos de 18 anos?" "É uma lista que começa com 1 e 2?" Desde o C# 7, a cada versão a linguagem ganhou um tipo novo de padrão, e hoje eles aparecem em todo código moderno, no <code>is</code> e no <code>switch</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O <code>is</code> com <strong>padrão de tipo</strong> <span class="versao">C# 7</span>: testar o tipo e já ganhar uma variável.</li>
+  <li>Onde essa variável pode ser usada (erros <code>CS0165</code> e <code>CS0136</code>), <code>is null</code> e <code>is not</code> <span class="versao">C# 9</span>.</li>
+  <li>Padrões <strong>relacionais</strong> e <strong>lógicos</strong> <span class="versao">C# 9</span>: <code>&gt;= 7</code>, <code>and</code>, <code>or</code>, <code>not</code>.</li>
+  <li>O <code>switch</code> com padrões e guardas <code>when</code>.</li>
+  <li>Padrões de <strong>propriedade</strong> (<code>{ Idade: &lt; 18 }</code>), <strong>posicionais</strong> (<code>(0, 0)</code>), de <strong>tupla</strong> e de <strong>lista</strong> <span class="versao">C# 11</span> (<code>[1, 2, ..]</code>).</li>
+  <li>Por que o <code>switch</code> precisa cobrir todos os casos (aviso <code>CS8509</code> e a exceção <code>SwitchExpressionException</code>) e o erro <code>CS8510</code>.</li>
+</ul>
+</div>
+
+<p>Esta aula usa o que você viu em <a href="polimorfismo.html">polimorfismo</a> (uma variável <code>object</code> guarda um <code>string</code>, um <code>int</code>…), <a href="conversao-tipos.html">conversão de tipos</a>, <a href="switch-expressoes.html">expressões switch</a> e <a href="records.html">records</a>. Os exemplos rodaram com <code>dotnet run</code> no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código</h2>
+<p>Imagine a Ana separando as encomendas da loja. Chega uma caixa fechada. Ela pergunta: "isto é uma caixa de frutas?". Se for, ela <strong>abre e pega as frutas</strong>. Se for de livros, faz outra coisa. A pergunta e o "abrir" andam juntos: ninguém pergunta "é de frutas?", ouve "sim" e depois confere de novo antes de abrir.</p>
+<p>No C# antigo era isso que acontecia: o programa perguntava o tipo com <code>is</code> ("é um…?") e, mesmo depois do "sim", precisava <strong>converter</strong> o valor com um <em>cast</em>. Um <strong>padrão</strong> junta as duas coisas: "se for um <code>string</code>, chame-o de <code>texto</code>". E o padrão pode perguntar muito mais que o tipo: o valor, as propriedades, os itens de uma lista.</p>
+
+<hr>
+
+<h2>1. O jeito antigo e o padrão de tipo <span class="versao">C# 7</span></h2>
+<p>Uma variável do tipo <code>object</code> aceita qualquer valor. Mas, por ser genérica, não deixa você chamar métodos de <code>string</code>, como <code>ToUpper()</code> (deixar em maiúsculas). Era preciso testar e converter:</p>
+
+<pre class="file" data-file="tipo.cs">object coisa = "banana";
+
+// Jeito antigo: testar, depois converter (cast)
+if (coisa is string)
+{
+    string texto = (string)coisa;
+    Console.WriteLine("Antigo: " + texto.ToUpper());
+}
+
+// Jeito novo (C# 7): testar e já dar um nome
+if (coisa is string texto2)
+{
+    Console.WriteLine("Novo: " + texto2.ToUpper());
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tipo.cs
+Antigo: BANANA
+Novo: BANANA</pre>
+
+<dl class="anatomy">
+  <dt>coisa</dt><dd>O valor que você quer examinar.</dd>
+  <dt>is</dt><dd>"É…?". A expressão inteira dá <code>true</code> ou <code>false</code>.</dd>
+  <dt>string</dt><dd>O tipo que você está testando.</dd>
+  <dt>texto2</dt><dd>A novidade: o nome de uma <strong>variável de padrão</strong>. Se o teste der <code>true</code>, ela já nasce do tipo <code>string</code>, com o mesmo valor. Sem cast.</dd>
+</dl>
+
+<p>O conjunto <code>string texto2</code> é o <strong>padrão de tipo</strong> (em inglês, <em>declaration pattern</em>): um tipo e um nome. Por que o nome <code>texto2</code>, e não <code>texto</code> de novo? Porque a variável de padrão de um <code>if</code> vale no <strong>bloco em volta</strong>, e já existe um <code>texto</code> lá dentro; o erro que isso dá está em "Quando dá errado". Com vários <code>else if</code>, cada tipo é tratado do seu jeito:</p>
+
+<pre class="file" data-file="descrever.cs">Descrever("maçã");
+Descrever(21);
+Descrever(7.5);
+Descrever(true);
+Descrever(null);
+
+void Descrever(object? item)
+{
+    if (item is string s)
+    {
+        Console.WriteLine($"Texto com {s.Length} letras: {s}");
+    }
+    else if (item is int n)
+    {
+        Console.WriteLine($"Número inteiro; o dobro é {n * 2}");
+    }
+    else if (item is double d)
+    {
+        Console.WriteLine($"Número decimal; a metade é {d / 2}");
+    }
+    else if (item is null)
+    {
+        Console.WriteLine("Nada (null)");
+    }
+    else
+    {
+        Console.WriteLine($"Não sei descrever: {item}");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run descrever.cs
+Texto com 4 letras: maçã
+Número inteiro; o dobro é 42
+Número decimal; a metade é 3,75
+Não sei descrever: True
+Nada (null)</pre>
+
+<p>Cada chamada caiu num ramo. O <code>21</code> casou com <code>int n</code>, e dentro do ramo <code>n</code> é um número de verdade: dá para fazer <code>n * 2</code>. O <code>true</code> é um <code>bool</code>, não casou com nenhum padrão e foi para o <code>else</code>. E o <code>null</code>? Ele <strong>nunca</strong> casa com um padrão de tipo (<code>null is string s</code> dá <code>false</code>), por isso existe o <code>is null</code>.</p>
+
+<h3>Onde a variável de padrão pode ser usada</h3>
+<p>A variável <code>s</code> só pode ser <strong>lida</strong> onde o compilador tem <strong>certeza</strong> de que o teste deu certo:</p>
+<ul>
+  <li>Dentro do <code>if</code> que testou: pode.</li>
+  <li>Depois de um <code>&amp;&amp;</code> (e): pode, porque o lado direito só roda se o esquerdo deu <code>true</code>. <code>o is string s &amp;&amp; s.Length &gt; 3</code> funciona.</li>
+  <li>Depois de um <code>||</code> (ou): <strong>não</strong>, porque o lado direito roda justamente quando o teste deu <code>false</code>.</li>
+  <li>Com <code>is not</code> e um <code>return</code>: pode <strong>depois</strong> do <code>if</code>, porque só chega lá quem passou no teste.</li>
+</ul>
+
+<pre class="file" data-file="escopo.cs">BoasVindas("Ana");
+BoasVindas(10);
+
+object[] itens = ["Ana", 42, "kiwi", 3.5];
+foreach (var o in itens)
+{
+    if (o is string s &amp;&amp; s.Length &gt; 3)
+    {
+        Console.WriteLine($"Palavra longa: {s}");
+    }
+}
+
+void BoasVindas(object nome)
+{
+    if (nome is not string s)
+    {
+        Console.WriteLine("Isso não é um nome.");
+        return;
+    }
+    Console.WriteLine($"Olá, {s}!");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run escopo.cs
+Olá, Ana!
+Isso não é um nome.
+Palavra longa: kiwi</pre>
+
+<p><code>"Ana"</code> é texto, mas tem só 3 letras, então o <code>&amp;&amp;</code> deu <code>false</code>; <code>42</code> e <code>3.5</code> nem são textos. Só <code>"kiwi"</code> passou. Na <code>BoasVindas</code>, o <code>is not</code> <span class="versao">C# 9</span> ("não é") inverte o teste: quem não é texto sai pelo <code>return</code>, e quem continua é texto, com <code>s</code> garantido.</p>
+
+<div class="tip">
+<strong><code>is null</code> e <code>is not null</code></strong>
+<p>Para testar se algo é nulo, o código moderno escreve <code>x is null</code> e <code>x is not null</code> em vez de <code>x == null</code> e <code>x != null</code>. O resultado é o mesmo na maioria dos casos, mas o <code>is</code> não pode ser enganado por uma classe que redefiniu o <code>==</code> (veja <a href="sobrecarga-operadores.html">Sobrecarga de Operadores</a>) e se lê como português: "nome não é nulo".</p>
+</div>
+
+<div class="trycs" data-goal="out:Soma: 49,src:\bis\s+int\s+\w+">
+<p class="try-task"><strong>Missão:</strong> o array <code>itens</code> mistura textos e números. Use <code>is</code> com padrão de tipo (<code>o is int n</code>) para somar <strong>só os inteiros</strong> e mostrar <code>Soma: 49</code>.</p>
+<pre class="script">object[] itens = ["Ana", 42, "kiwi", 7, 2.5];
+int soma = 0;
+foreach (var o in itens)
+{
+    // teste aqui se o é um int e some
+}
+Console.WriteLine($"Soma: {soma}");
+</pre>
+<pre class="solucao">object[] itens = ["Ana", 42, "kiwi", 7, 2.5];
+int soma = 0;
+foreach (var o in itens)
+{
+    if (o is int n)
+    {
+        soma += n;
+    }
+}
+Console.WriteLine($"Soma: {soma}");
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Padrões de constante, relacionais e lógicos <span class="versao">C# 9</span></h2>
+<p>Um padrão não precisa ser um tipo. Pode ser um <strong>valor fixo</strong> (padrão de constante: <code>is 'a'</code>, <code>is null</code>), uma <strong>comparação</strong> (padrão relacional: <code>is &gt;= 7</code>) e combinações com as palavras <code>and</code> (e), <code>or</code> (ou) e <code>not</code> (não):</p>
+
+<pre class="file" data-file="relacionais.cs">char c = 'q';
+Console.WriteLine(c is &gt;= 'a' and &lt;= 'z');
+Console.WriteLine(c is 'a' or 'e' or 'i' or 'o' or 'u');
+string? nome = null;
+Console.WriteLine(nome is null);
+Console.WriteLine(nome is not null);
+int dia = 6;
+Console.WriteLine(dia is 6 or 7 ? "fim de semana" : "dia útil");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run relacionais.cs
+True
+False
+True
+False
+fim de semana</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>Lê-se</th><th>Sem padrão seria</th></tr>
+<tr><td><code>c is &gt;= 'a' and &lt;= 'z'</code></td><td>"c está entre a e z" (é letra minúscula)</td><td><code>c &gt;= 'a' &amp;&amp; c &lt;= 'z'</code></td></tr>
+<tr><td><code>c is 'a' or 'e' or 'i' or 'o' or 'u'</code></td><td>"c é uma vogal"</td><td><code>c == 'a' || c == 'e' || …</code></td></tr>
+<tr><td><code>nome is null</code></td><td>"nome é nulo"</td><td><code>nome == null</code></td></tr>
+<tr><td><code>dia is 6 or 7</code></td><td>"dia é 6 ou 7"</td><td><code>dia == 6 || dia == 7</code></td></tr>
+</table>
+</div>
+
+<p>A vantagem: o valor testado (<code>c</code>, <code>dia</code>) aparece <strong>uma vez só</strong>. Em <code>dia is 6 or 7</code> é impossível cair no erro clássico de escrever <code>dia == 6 || 7</code>. Repare que <code>and</code>, <code>or</code> e <code>not</code> só valem <strong>dentro de padrões</strong>; fora deles, continue com <code>&amp;&amp;</code>, <code>||</code> e <code>!</code>.</p>
+
+<h3>No <code>switch</code></h3>
+<p>Os padrões relacionais brilham numa <a href="switch-expressoes.html">expressão switch</a>. Os braços são testados <strong>de cima para baixo</strong>, e o primeiro que casar ganha:</p>
+
+<pre class="file" data-file="notas.cs">Console.WriteLine(Classificar(9));
+Console.WriteLine(Classificar(6.5));
+Console.WriteLine(Classificar(3));
+Console.WriteLine(Classificar(11));
+
+string Classificar(double nota) =&gt; nota switch
+{
+    &lt; 0 or &gt; 10 =&gt; "nota inválida",
+    &gt;= 7 =&gt; "aprovada",
+    &gt;= 5 =&gt; "recuperação",
+    _ =&gt; "reprovada",
+};
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run notas.cs
+aprovada
+recuperação
+reprovada
+nota inválida</pre>
+
+<p>O <code>11</code> casou logo no primeiro braço (<code>&gt; 10</code>). O <code>6.5</code> não casou com <code>&gt;= 7</code>, mas casou com <code>&gt;= 5</code>. O <code>_</code> (sublinhado) é o <strong>descarte</strong>: casa com qualquer coisa, como o <code>default</code> do <code>switch</code> antigo.</p>
+
+<div class="trycs" data-goal="out:8\,5 °C: frio,out:22\,4 °C: agradável,out:31 °C: quente,out:-3 °C: congelando,src:switch">
+<p class="try-task"><strong>Missão:</strong> complete o <code>switch</code> com padrões relacionais: abaixo de 0 é <code>congelando</code>, abaixo de 15 é <code>frio</code>, abaixo de 25 é <code>agradável</code> e o resto é <code>quente</code>.</p>
+<pre class="script">double[] temperaturas = [8.5, 15, 22.4, 31, -3];
+foreach (var t in temperaturas)
+{
+    string clima = t switch
+    {
+        // escreva os braços aqui
+        _ =&gt; "?",
+    };
+    Console.WriteLine($"{t} °C: {clima}");
+}
+</pre>
+<pre class="solucao">double[] temperaturas = [8.5, 15, 22.4, 31, -3];
+foreach (var t in temperaturas)
+{
+    string clima = t switch
+    {
+        &lt; 0 =&gt; "congelando",
+        &lt; 15 =&gt; "frio",
+        &lt; 25 =&gt; "agradável",
+        _ =&gt; "quente",
+    };
+    Console.WriteLine($"{t} °C: {clima}");
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Padrões de tipo no <code>switch</code>, com <code>when</code></h2>
+<p>Uma escada de <code>if … else if</code> testando tipos fica comprida. No <code>switch</code>, cada braço pode ser um padrão de tipo. E quando o padrão sozinho não basta, a <strong>guarda</strong> <code>when</code> ("quando") acrescenta uma condição qualquer:</p>
+
+<pre class="file" data-file="tipos.cs">Console.WriteLine(Descrever(10));
+Console.WriteLine(Descrever(2.5));
+Console.WriteLine(Descrever("pera"));
+Console.WriteLine(Descrever('x'));
+Console.WriteLine(Descrever(null));
+
+string Descrever(object? item) =&gt; item switch
+{
+    null =&gt; "nada",
+    int n when n &lt; 0 =&gt; $"inteiro negativo {n}",
+    int n =&gt; $"inteiro {n}",
+    double d =&gt; $"decimal {d}",
+    string s =&gt; $"texto \"{s}\"",
+    _ =&gt; $"outra coisa: {item}",
+};
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tipos.cs
+inteiro 10
+decimal 2,5
+texto "pera"
+outra coisa: x
+nada</pre>
+
+<dl class="anatomy">
+  <dt>item switch {</dt><dd>Examina <code>item</code> e produz um valor (o texto que a função devolve).</dd>
+  <dt>null =&gt;</dt><dd>Padrão de constante: casa só com <code>null</code>.</dd>
+  <dt>int n</dt><dd>Padrão de tipo: casa com inteiros e cria <code>n</code>.</dd>
+  <dt>when n &lt; 0</dt><dd>A guarda: o braço só vale se, além de ser inteiro, <code>n</code> for negativo. Ela pode usar a variável do padrão e qualquer expressão <code>bool</code>.</dd>
+  <dt>_ =&gt;</dt><dd>Todo o resto (aqui, o <code>char</code> <code>'x'</code>).</dd>
+</dl>
+
+<div class="warning">
+<strong>A ordem importa</strong>
+<p>O caso mais <strong>específico</strong> vem primeiro. Se <code>int n</code> (sem guarda) viesse antes de <code>int n when n &lt; 0</code>, o segundo nunca seria alcançado. Quando o compilador consegue provar isso, ele recusa o programa com o erro <code>CS8510</code> (veja "Quando dá errado").</p>
+</div>
+
+<hr>
+
+<h2>4. Padrões de propriedade: olhar dentro do objeto <span class="versao">C# 8</span></h2>
+<p>Um <strong>padrão de propriedade</strong> abre chaves e testa as propriedades do objeto: <code>{ Idade: &lt; 18 }</code> lê-se "tem a propriedade <code>Idade</code> menor que 18". Dentro das chaves, cada propriedade recebe outro padrão, de qualquer tipo:</p>
+
+<pre class="file" data-file="ingresso.cs">List&lt;Pessoa&gt; pessoas =
+[
+    new("Ana", 29, new("Recife", "PE")),
+    new("Bruno", 15, new("Olinda", "PE")),
+    new("Carla", 70, new("Natal", "RN")),
+];
+
+foreach (var p in pessoas)
+{
+    string ingresso = p switch
+    {
+        { Idade: &lt; 18 } =&gt; "meia (estudante)",
+        { Idade: &gt;= 65 } =&gt; "meia (idoso)",
+        _ =&gt; "inteira",
+    };
+    Console.WriteLine($"{p.Nome}: {ingresso}");
+}
+
+foreach (var p in pessoas)
+{
+    if (p is { Endereco.Estado: "PE", Idade: &gt;= 18 })
+    {
+        Console.WriteLine($"{p.Nome} vota em Pernambuco");
+    }
+}
+
+if (pessoas[2] is { Nome: var nome, Endereco: { Cidade: var cidade } })
+{
+    Console.WriteLine($"{nome} mora em {cidade}");
+}
+
+record Endereco(string Cidade, string Estado);
+record Pessoa(string Nome, int Idade, Endereco Endereco);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ingresso.cs
+Ana: inteira
+Bruno: meia (estudante)
+Carla: meia (idoso)
+Ana vota em Pernambuco
+Carla mora em Natal</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Padrão</th><th>O que testa</th></tr>
+<tr><td><code>{ Idade: &lt; 18 }</code></td><td>A propriedade <code>Idade</code> é menor que 18.</td></tr>
+<tr><td><code>{ Endereco.Estado: "PE", Idade: &gt;= 18 }</code></td><td>Duas condições ao mesmo tempo (a vírgula é um "e"). <code>Endereco.Estado</code> entra na propriedade de dentro: é o <strong>padrão de propriedade estendido</strong> <span class="versao">C# 10</span>.</td></tr>
+<tr><td><code>{ Nome: var nome, Endereco: { Cidade: var cidade } }</code></td><td>O padrão <code>var</code> casa com qualquer valor e o guarda numa variável. As chaves dentro das chaves fazem o mesmo que <code>Endereco.Cidade</code>, no estilo antigo do C# 8.</td></tr>
+</table>
+</div>
+
+<p>Um padrão de propriedade também exige que o objeto <strong>não seja nulo</strong>. Por isso <code>x is { }</code> (chaves vazias) é um jeito curto de dizer "<code>x</code> não é nulo". E uma pessoa cadastrada <strong>sem endereço</strong> (<code>Endereco</code> nulo) simplesmente não casa com <code>{ Endereco.Estado: "PE" }</code>: o teste dá <code>False</code>, em vez de lançar <code>NullReferenceException</code> como <code>p.Endereco.Estado == "PE"</code> lançaria.</p>
+
+<hr>
+
+<h2>5. Padrões posicionais e de tupla <span class="versao">C# 8</span></h2>
+<p>Um <a href="records.html">record</a> como <code>record Ponto(int X, int Y)</code> sabe se <strong>desconstruir</strong> em <code>X</code> e <code>Y</code>, na ordem em que foram declarados. O <strong>padrão posicional</strong> usa essa ordem: <code>(0, 0)</code> quer dizer "X é 0 e Y é 0".</p>
+
+<pre class="file" data-file="ponto.cs">Console.WriteLine(Descrever(new Ponto(0, 0)));
+Console.WriteLine(Descrever(new Ponto(0, 5)));
+Console.WriteLine(Descrever(new Ponto(2, 2)));
+Console.WriteLine(Descrever(new Ponto(3, 1)));
+
+Console.WriteLine(Quadrante(new Ponto(3, -1)));
+
+string Descrever(Ponto p) =&gt; p switch
+{
+    (0, 0) =&gt; "a origem",
+    (0, var y) =&gt; $"no eixo vertical, altura {y}",
+    var (x, y) when x == y =&gt; "na diagonal",
+    (var x, _) =&gt; $"ponto com x = {x}",
+};
+
+string Quadrante(Ponto p) =&gt; p switch
+{
+    ( &gt; 0, &gt; 0) =&gt; "1º quadrante",
+    ( &lt; 0, &gt; 0) =&gt; "2º quadrante",
+    ( &lt; 0, &lt; 0) =&gt; "3º quadrante",
+    ( &gt; 0, &lt; 0) =&gt; "4º quadrante",
+    _ =&gt; "em cima de um eixo",
+};
+
+record Ponto(int X, int Y);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ponto.cs
+a origem
+no eixo vertical, altura 5
+na diagonal
+ponto com x = 3
+4º quadrante</pre>
+
+<dl class="anatomy">
+  <dt>(0, 0)</dt><dd>Um padrão para cada parte, na ordem do record: X é 0 e Y é 0.</dd>
+  <dt>(0, var y)</dt><dd>X tem de ser 0; Y pode ser qualquer coisa, e fica guardado em <code>y</code>.</dd>
+  <dt>var (x, y) when x == y</dt><dd>Abre o ponto em <code>x</code> e <code>y</code> e usa a guarda para compará-los.</dd>
+  <dt>(var x, _)</dt><dd>O <code>_</code> descarta a parte que não interessa. Este braço casa com qualquer ponto: ele fecha o <code>switch</code>.</dd>
+  <dt>( &gt; 0, &lt; 0)</dt><dd>Cada posição aceita qualquer padrão, inclusive os relacionais.</dd>
+</dl>
+
+<p>O mesmo vale para <a href="tuplas.html">tuplas</a>: monte uma tupla na hora com <code>(a, b)</code> e examine as duas coisas juntas. Um jogo de pedra, papel e tesoura fica assim:</p>
+
+<pre class="file" data-file="jokenpo.cs">Console.WriteLine(Jogar("pedra", "tesoura"));
+Console.WriteLine(Jogar("papel", "tesoura"));
+Console.WriteLine(Jogar("papel", "papel"));
+
+string Jogar(string a, string b) =&gt; (a, b) switch
+{
+    var (x, y) when x == y =&gt; "empate",
+    ("pedra", "tesoura") or ("tesoura", "papel") or ("papel", "pedra") =&gt; "jogador 1 ganhou",
+    _ =&gt; "jogador 2 ganhou",
+};
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run jokenpo.cs
+jogador 1 ganhou
+jogador 2 ganhou
+empate</pre>
+
+<hr>
+
+<h2>6. Padrões de lista <span class="versao">C# 11</span></h2>
+<p>O padrão mais novo olha os <strong>itens</strong> de um array ou de uma lista, entre colchetes, na ordem. O <code>..</code> (dois pontos) quer dizer "qualquer quantidade de itens aqui, até nenhum":</p>
+
+<pre class="file" data-file="listas.cs">int[][] listas = [[], [7], [1, 2], [1, 2, 3, 4], [5, 0, 9]];
+foreach (var l in listas)
+{
+    string d = l switch
+    {
+        [] =&gt; "vazia",
+        [var unico] =&gt; $"só um: {unico}",
+        [1, 2, ..] =&gt; "começa com 1, 2",
+        [var primeiro, .., var ultimo] =&gt; $"de {primeiro} até {ultimo}",
+    };
+    Console.WriteLine($"[{string.Join(", ", l)}] -&gt; {d}");
+}
+
+string[] comando = ["copiar", "a.txt", "b.txt", "c.txt"];
+if (comando is ["copiar", var origem, .. var destinos])
+{
+    Console.WriteLine($"Copiar {origem} para {destinos.Length} lugar(es): {string.Join(" ", destinos)}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run listas.cs
+[] -&gt; vazia
+[7] -&gt; só um: 7
+[1, 2] -&gt; começa com 1, 2
+[1, 2, 3, 4] -&gt; começa com 1, 2
+[5, 0, 9] -&gt; de 5 até 9
+Copiar a.txt para 2 lugar(es): b.txt c.txt</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Padrão</th><th>Casa com</th></tr>
+<tr><td><code>[]</code></td><td>Uma lista vazia.</td></tr>
+<tr><td><code>[var unico]</code></td><td>Exatamente um item, guardado em <code>unico</code>.</td></tr>
+<tr><td><code>[1, 2, ..]</code></td><td>Começa com 1 e 2; depois, qualquer quantidade (inclusive nada: <code>[1, 2]</code> casou).</td></tr>
+<tr><td><code>[var primeiro, .., var ultimo]</code></td><td>Pelo menos dois itens; pega o primeiro e o último.</td></tr>
+<tr><td><code>["copiar", var origem, .. var destinos]</code></td><td>O <code>.. var destinos</code> é um <strong>padrão de fatia</strong>: guarda "o resto" num array novo.</td></tr>
+</table>
+</div>
+
+<p>É o mesmo <code>..</code> dos <a href="indices-intervalos.html">intervalos</a> (<code>texto[1..]</code>). Repare que este <code>switch</code> não tem <code>_</code>: os quatro braços já cobrem todas as quantidades possíveis (0, 1, e 2 ou mais), e o compilador percebe isso sozinho.</p>
+
+<hr>
+
+<h2>7. Exaustividade: o <code>switch</code> precisa cobrir tudo</h2>
+<p>Uma expressão <code>switch</code> <strong>produz um valor</strong>, então precisa de uma resposta para toda entrada possível. Os braços juntos devem ser <strong>exaustivos</strong> ("esgotar as possibilidades"). Se não forem, o C# <strong>compila</strong>, mas avisa, e o programa quebra quando chega um valor esquecido:</p>
+
+<pre class="file" data-file="exaustivo.cs">Console.WriteLine(Nota(8));
+Console.WriteLine(Nota(-1));
+
+string Nota(int n) =&gt; n switch
+{
+    &gt;= 7 =&gt; "aprovado",
+    &gt;= 0 and &lt; 7 =&gt; "reprovado",
+};
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run exaustivo.cs
+/home/ana/cs/exaustivo.cs(4,25): warning CS8509: A expressão switch não manipula todos os valores possíveis do tipo de entrada (ela não é exaustiva). Por exemplo, o padrão '-1' não é coberto.
+aprovado
+Unhandled exception. System.Runtime.CompilerServices.SwitchExpressionException: Non-exhaustive switch expression failed to match its input.
+Unmatched value was -1.
+   at &lt;PrivateImplementationDetails&gt;.ThrowSwitchExpressionException(Object unmatchedValue)
+   at Program.&lt;&lt;Main&gt;$&gt;g__Nota|0_0(Int32 n) in /home/ana/cs/exaustivo.cs:line 4
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/exaustivo.cs:line 2</pre>
+
+<p>O aviso <code>CS8509</code> chega a dar um exemplo do que falta: "o padrão '-1' não é coberto". O programa rodou mesmo assim, mostrou <code>aprovado</code> e, quando chegou o <code>-1</code>, lançou a <a href="excecoes.html">exceção</a> <code>SwitchExpressionException</code> ("a expressão switch não exaustiva não casou com a entrada"), com código de saída 134. <strong>Leve esse aviso a sério</strong>: acrescente o braço que falta ou um <code>_ =&gt; …</code> no fim.</p>
+
+<div class="note">
+<strong>E com classes e records?</strong>
+<p>Com uma hierarquia (por exemplo, <code>abstract record Forma</code> com <code>Circulo</code> e <code>Retangulo</code>), o C# 14 <strong>não</strong> sabe que não existem outras formas: qualquer pessoa pode criar mais uma. Mesmo tratando <code>Circulo</code> e <code>Retangulo</code>, o compilador dá <code>CS8509</code> dizendo que o padrão <code>'_'</code> não é coberto. Por isso, nesses casos, termine com <code>_ =&gt; …</code> (de preferência lançando uma exceção que diga o que aconteceu). O mesmo vale para <a href="enums.html">enums</a>: um <code>(Cor)7</code> é um valor válido do tipo, e o aviso é o <code>CS8524</code>.</p>
+</div>
+
+<hr>
+
+<h2>Antes × depois</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Antes</th><th>Depois</th><th>Desde</th></tr>
+<tr><td>Testar o tipo e usar</td><td><code>if (o is string) { var s = (string)o; … }</code></td><td><code>if (o is string s) { … }</code></td><td>C# 7</td></tr>
+<tr><td>Não é nulo</td><td><code>if (x != null)</code></td><td><code>if (x is not null)</code></td><td>C# 9</td></tr>
+<tr><td>Está numa faixa</td><td><code>n &gt;= 1 &amp;&amp; n &lt;= 10</code></td><td><code>n is &gt;= 1 and &lt;= 10</code></td><td>C# 9</td></tr>
+<tr><td>É um de vários valores</td><td><code>d == 6 || d == 7</code></td><td><code>d is 6 or 7</code></td><td>C# 9</td></tr>
+<tr><td>Testar propriedades</td><td><code>p != null &amp;&amp; p.Idade &lt; 18</code></td><td><code>p is { Idade: &lt; 18 }</code></td><td>C# 8</td></tr>
+<tr><td>Propriedade de dentro</td><td><code>p.Endereco != null &amp;&amp; p.Endereco.Estado == "PE"</code></td><td><code>p is { Endereco.Estado: "PE" }</code></td><td>C# 10</td></tr>
+<tr><td>Duas coisas juntas</td><td><code>if</code> dentro de <code>if</code></td><td><code>(a, b) switch { ("pedra", "tesoura") =&gt; … }</code></td><td>C# 8</td></tr>
+<tr><td>Começo de uma lista</td><td><code>l.Length &gt;= 2 &amp;&amp; l[0] == 1 &amp;&amp; l[1] == 2</code></td><td><code>l is [1, 2, ..]</code></td><td>C# 11</td></tr>
+</table>
+</div>
+
+<h2>Qual usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Use</th></tr>
+<tr><td>Testar <strong>uma</strong> condição num <code>if</code></td><td><code>is</code> com o padrão</td></tr>
+<tr><td>Escolher um valor entre <strong>vários</strong> casos</td><td>Expressão <code>switch</code> com padrões</td></tr>
+<tr><td>Uma condição que nenhum padrão expressa (comparar duas variáveis, chamar um método)</td><td>Guarda <code>when</code></td></tr>
+<tr><td>Testar propriedades de um objeto pelo nome</td><td>Padrão de propriedade <code>{ Nome: … }</code></td></tr>
+<tr><td>Testar as partes de um record ou de uma tupla pela posição</td><td>Padrão posicional <code>(…, …)</code></td></tr>
+<tr><td>Testar os itens de um array ou de uma lista</td><td>Padrão de lista <code>[…]</code></td></tr>
+<tr><td>Comparar com <code>null</code></td><td><code>is null</code> / <code>is not null</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<h3>Usar a variável de padrão onde o teste pode ter falhado</h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="fora.cs">object coisa = "uva";
+if (coisa is string s)
+{
+    Console.WriteLine("É texto");
+}
+Console.WriteLine(s.Length);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run fora.cs
+/home/ana/cs/fora.cs(6,19): error CS0165: Uso de variável local não atribuída "s"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> "uso de variável local não atribuída" (<em>Use of unassigned local variable 's'</em>). A variável <code>s</code> <strong>existe</strong> na linha 6 (ela vale no bloco em volta do <code>if</code>), mas só ganha valor se o teste der certo; ali o compilador não tem essa certeza. O mesmo erro aparece com <code>if (coisa is string s || s.Length &gt; 0)</code>, porque o lado direito do <code>||</code> roda justamente quando o teste falhou. <strong>Como consertar:</strong> use <code>s</code> só dentro do <code>if</code> (ou depois de um <code>&amp;&amp;</code>), ou inverta o teste: <code>if (coisa is not string s) return;</code>, como na <code>BoasVindas</code>.</p>
+</div>
+
+<div class="cenario">
+<h3>O mesmo nome dentro e fora do <code>if</code></h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="nome.cs">object coisa = "banana";
+if (coisa is string)
+{
+    string texto = (string)coisa;
+    Console.WriteLine(texto);
+}
+if (coisa is string texto)
+{
+    Console.WriteLine(texto);
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run nome.cs
+/home/ana/cs/nome.cs(4,12): error CS0136: Um local ou um parâmetro denominado "texto" não pode ser declarado neste escopo porque esse nome é usado em um escopo delimitador de local para definir um local ou parâmetro
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> o <code>texto</code> do padrão, na linha 7, pertence ao bloco <strong>de fora</strong> (aqui, o programa inteiro). Então o <code>texto</code> da linha 4, dentro das chaves do primeiro <code>if</code>, tenta usar um nome que já é de um escopo que o envolve. Repare que o erro aponta a linha 4, não a 7. <strong>Como consertar:</strong> use nomes diferentes, como fizemos com <code>texto2</code>, ou coloque cada teste dentro de um método próprio.</p>
+</div>
+
+<div class="cenario">
+<h3>Caso geral antes do caso específico</h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="ordem.cs">Console.WriteLine(Nota(8));
+
+string Nota(int n) =&gt; n switch
+{
+    &gt;= 0 =&gt; "válida",
+    &gt;= 7 =&gt; "aprovado",
+    _ =&gt; "inválida",
+};
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ordem.cs
+/home/ana/cs/ordem.cs(6,5): error CS8510: O padrão não está acessível. Ele já foi manipulado por um ARM anterior da expressão do comutador ou não é possível fazer a correspondência.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> a tradução é estranha ("ARM" é <em>arm</em>, braço, e "comutador" é o <code>switch</code>). Em inglês: <em>The pattern has already been handled by a previous arm of the switch expression</em>. Todo número <code>&gt;= 7</code> também é <code>&gt;= 0</code>, então o braço da linha 6 nunca seria usado. <strong>Como consertar:</strong> do mais específico para o mais geral: <code>&gt;= 7</code> primeiro, depois <code>&gt;= 0</code>.</p>
+</div>
+
+<div class="cenario">
+<h3>Switch sem cobrir tudo</h3>
+<p>Aviso <code>CS8509</code> ao compilar e <code>SwitchExpressionException</code> ao rodar (seção 7). <strong>Como consertar:</strong> acrescente o braço que falta (o aviso sugere um exemplo) ou um <code>_ =&gt; …</code> no fim.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Padrão</th><th>Exemplo</th><th>Casa quando</th><th>Desde</th></tr>
+<tr><td>Tipo (declaração)</td><td><code>o is string s</code></td><td><code>o</code> é <code>string</code> (cria <code>s</code>)</td><td>C# 7</td></tr>
+<tr><td>Constante</td><td><code>x is 0</code>, <code>x is null</code>, <code>x is "PE"</code></td><td>É igual ao valor</td><td>C# 7</td></tr>
+<tr><td><code>var</code></td><td><code>{ Nome: var n }</code></td><td>Sempre (guarda o valor)</td><td>C# 7</td></tr>
+<tr><td>Descarte</td><td><code>_</code></td><td>Sempre</td><td>C# 8</td></tr>
+<tr><td>Propriedade</td><td><code>{ Idade: &lt; 18 }</code>, <code>{ }</code></td><td>Não é nulo e as propriedades casam</td><td>C# 8</td></tr>
+<tr><td>Propriedade estendida</td><td><code>{ Endereco.Estado: "PE" }</code></td><td>A propriedade de dentro casa</td><td>C# 10</td></tr>
+<tr><td>Posicional / tupla</td><td><code>(0, var y)</code>, <code>("pedra", "papel")</code></td><td>As partes casam, na ordem</td><td>C# 8</td></tr>
+<tr><td>Relacional</td><td><code>&gt;= 7</code>, <code>&lt; 0</code></td><td>A comparação é verdadeira</td><td>C# 9</td></tr>
+<tr><td>Lógico</td><td><code>&gt;= 0 and &lt;= 10</code>, <code>6 or 7</code>, <code>not null</code></td><td>Combinação de padrões</td><td>C# 9</td></tr>
+<tr><td>Lista</td><td><code>[]</code>, <code>[1, ..]</code>, <code>[var a, .., var z]</code></td><td>Os itens casam, na ordem</td><td>C# 11</td></tr>
+<tr><td>Fatia</td><td><code>[_, .. var resto]</code></td><td>Guarda o trecho do meio</td><td>C# 11</td></tr>
+<tr><td>Guarda</td><td><code>int n when n &gt; 0 =&gt; …</code></td><td>O padrão casa <strong>e</strong> a condição é verdadeira</td><td>C# 7</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<p>1. Complete para testar se <code>o</code> é um <code>string</code> e chamá-lo de <code>nome</code>:</p>
+<div class="ex-code">if (o <input data-answer="is string nome">) { Console.WriteLine(nome.Length); }</div>
+</div>
+
+<div class="exercise">
+<p>2. Complete o padrão para "n está entre 1 e 10, inclusive":</p>
+<div class="ex-code">if (n is &gt;= 1 <input data-answer="and"> &lt;= 10)</div>
+</div>
+
+<div class="exercise">
+<p>3. Complete o padrão de lista que casa com "qualquer lista que comece com 0":</p>
+<div class="ex-code">if (numeros is <input data-answer="[0, ..]|[0,..]">)</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. O que <code>p is { Idade: &gt;= 18 }</code> faz se <code>p</code> for <code>null</code>?</p>
+<label><input type="radio" name="q4"> Lança <code>NullReferenceException</code>.</label>
+<label><input type="radio" name="q4"> Não compila.</label>
+<label><input type="radio" name="q4"> Dá <code>false</code>: o padrão de propriedade exige um objeto não nulo.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Uma expressão <code>switch</code> deu o aviso <code>CS8509</code>. O que acontece ao rodar?</p>
+<label><input type="radio" name="q5"> Nada: o C# devolve <code>null</code> para os casos esquecidos.</label>
+<label><input type="radio" name="q5"> Funciona até chegar um valor que nenhum braço cobre; aí lança <code>SwitchExpressionException</code>.</label>
+<label><input type="radio" name="q5"> O programa nem compila.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que <code>if (o is string s || s.Length &gt; 0)</code> dá <code>CS0165</code>?</p>
+<label><input type="radio" name="q6"> Porque o lado direito do <code>||</code> roda quando o teste falhou, e aí <code>s</code> não tem valor.</label>
+<label><input type="radio" name="q6"> Porque <code>Length</code> não existe em <code>string</code>.</label>
+<label><input type="radio" name="q6"> Porque não se pode usar <code>is</code> dentro de um <code>if</code>.</label>
+</div>
+
+<div class="trycs" data-goal="out:Pix de 50\,00 para ana@email.com,out:Cartão à vista: 80\,00,out:Cartão em 4x de 30\,00,out:Pix sem chave!,src:Cartao\s*\(\s*1\s*\,\s*var\b">
+<p class="try-task"><strong>Missão final:</strong> a loja da Ana aceita Pix e cartão. Complete o <code>switch</code> com padrões: um <code>Pix</code> com a chave vazia vira <code>Pix sem chave!</code>; os outros Pix viram <code>Pix de 50,00 para ana@email.com</code>; um <code>Cartao</code> com 1 parcela vira <code>Cartão à vista: 80,00</code>; com mais parcelas, <code>Cartão em 4x de 30,00</code> (o valor dividido pelas parcelas). Use um padrão posicional para o cartão: <code>Cartao(1, var valor)</code>.</p>
+<pre class="script">List&lt;Pagamento&gt; pagamentos = [new Pix("ana@email.com", 50.00m), new Cartao(1, 80.00m), new Cartao(4, 120.00m), new Pix("", 10.00m)];
+foreach (var p in pagamentos) Console.WriteLine(Descrever(p));
+
+string Descrever(Pagamento p) =&gt; p switch
+{
+    // escreva os braços aqui
+    _ =&gt; "?",
+};
+
+abstract record Pagamento;
+record Pix(string Chave, decimal Valor) : Pagamento;
+record Cartao(int Parcelas, decimal Valor) : Pagamento;
+</pre>
+<pre class="solucao">List&lt;Pagamento&gt; pagamentos = [new Pix("ana@email.com", 50.00m), new Cartao(1, 80.00m), new Cartao(4, 120.00m), new Pix("", 10.00m)];
+foreach (var p in pagamentos) Console.WriteLine(Descrever(p));
+
+string Descrever(Pagamento p) =&gt; p switch
+{
+    Pix { Chave: "" } =&gt; "Pix sem chave!",
+    Pix(var chave, var valor) =&gt; $"Pix de {valor} para {chave}",
+    Cartao(1, var valor) =&gt; $"Cartão à vista: {valor}",
+    Cartao(var n, var valor) =&gt; $"Cartão em {n}x de {valor / n}",
+    _ =&gt; "?",
+};
+
+abstract record Pagamento;
+record Pix(string Chave, decimal Valor) : Pagamento;
+record Cartao(int Parcelas, decimal Valor) : Pagamento;
+</pre>
+</div>
+
+<p>A solução, na máquina da Ana. O braço <code>_ =&gt; "?"</code> continua lá: sem ele, o compilador daria o <code>CS8509</code>, porque alguém poderia criar outro tipo de <code>Pagamento</code> (seção 7).</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run pagamentos.cs
+Pix de 50,00 para ana@email.com
+Cartão à vista: 80,00
+Cartão em 4x de 30,00
+Pix sem chave!</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um <strong>padrão</strong> testa a forma de um valor e já extrai as partes, sem cast. Ele aparece no <code>is</code> e nos braços do <code>switch</code>.</li>
+  <li><code>o is string s</code> <span class="versao">C# 7</span> cria <code>s</code>, que só pode ser lida onde o teste certamente deu certo (senão, <code>CS0165</code>). A variável vale no bloco em volta do <code>if</code> (nome repetido: <code>CS0136</code>).</li>
+  <li><code>is null</code>, <code>is not null</code>, <code>&gt;= 7</code>, <code>and</code>, <code>or</code>, <code>not</code> <span class="versao">C# 9</span> deixam testes de faixa e de valores curtos e legíveis.</li>
+  <li><code>{ Idade: &lt; 18 }</code> testa propriedades (<code>{ A.B: … }</code> desde o C# 10); <code>(0, var y)</code> testa partes de records e tuplas; <code>[1, .., var ultimo]</code> <span class="versao">C# 11</span> testa os itens de listas.</li>
+  <li>A guarda <code>when</code> acrescenta uma condição; os braços são testados de cima para baixo, do específico para o geral (senão, <code>CS8510</code>).</li>
+  <li>Uma expressão <code>switch</code> precisa ser exaustiva: o aviso <code>CS8509</code> vira <code>SwitchExpressionException</code> ao rodar. Com classes e enums, termine com <code>_ =&gt; …</code>.</li>
+</ul>
+
+<p>Próxima aula: <a href="sobrecarga-operadores.html">Sobrecarga de Operadores</a>, para ensinar o <code>+</code> e o <code>==</code> a funcionar com as suas classes.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
