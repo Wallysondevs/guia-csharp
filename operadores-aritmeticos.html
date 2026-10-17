@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Operadores Aritméticos — +, -, *, / e % | Guia C#</title>
+<meta name="description" content="Operadores aritméticos em C# para quem nunca programou: soma, subtração, multiplicação, divisão e resto (%), a divisão inteira (7 / 2 = 3), o resto para horas, dúzias e números pares, a divisão por zero (DivideByZeroException × ∞), a ordem das contas, a pegadinha do ^ (não é potência) e o + que junta textos, com saídas reais do .NET 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Operadores Aritméticos</span></h1>
+
+<p class="intro">Fazer contas é uma das coisas que o computador faz de melhor. No C#, as contas usam <strong>operadores</strong>: símbolos como <code>+</code> e <code>*</code> que pegam dois valores e produzem um resultado. Quatro deles você conhece da escola. O quinto, o <code>%</code>, é novo e muito útil. E a divisão guarda uma surpresa: <code>7 / 2</code> dá <code>3</code>. Nesta aula você vai entender cada um, com as contas da lojinha da Ana.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Os cinco operadores: <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code> e <code>%</code>.</li>
+  <li>A <strong>divisão inteira</strong>: por que <code>7 / 2</code> dá <code>3</code>, e como obter <code>3,5</code>.</li>
+  <li>O <strong>resto</strong> (<code>%</code>): horas e minutos, dúzias, par ou ímpar.</li>
+  <li>A divisão por zero: <code>DivideByZeroException</code> com inteiros, <code>∞</code> com <code>double</code>.</li>
+  <li>A ordem das contas (<code>*</code> antes de <code>+</code>) e os parênteses.</li>
+  <li>Duas pegadinhas: <code>^</code> não é potência, e <code>+</code> com texto junta em vez de somar.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: a calculadora, com uma tecla a mais</h2>
+<p>Os operadores do C# são as teclas de uma calculadora: <code>+</code> soma, <code>-</code> subtrai, <code>*</code> multiplica (no teclado não há o ×) e <code>/</code> divide (não há o ÷). A tecla a mais é o <code>%</code>, que dá o <strong>resto</strong> da divisão, aquele número que sobrava na "conta armada" da escola.</p>
+<p>Os valores dos dois lados de um operador se chamam <strong>operandos</strong>. Em <code>a + b</code>, o operador é <code>+</code> e os operandos são <code>a</code> e <code>b</code>. E o tipo dos operandos decide o tipo do resultado, como você vai ver na divisão.</p>
+
+<hr>
+
+<h2>1. Os cinco operadores</h2>
+
+<pre class="file" data-file="arit1.cs">int a = 17;
+int b = 5;
+Console.WriteLine(a + b);
+Console.WriteLine(a - b);
+Console.WriteLine(a * b);
+Console.WriteLine(a / b);
+Console.WriteLine(a % b);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run arit1.cs
+22
+12
+85
+3          « 17 / 5 = 3, e não 3,4
+2          « o resto: 17 = 5 × 3 + 2</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>Nome</th><th>Exemplo</th><th>Resultado</th></tr>
+<tr><td><code>+</code></td><td>Soma (adição)</td><td><code>17 + 5</code></td><td><code>22</code></td></tr>
+<tr><td><code>-</code></td><td>Subtração</td><td><code>17 - 5</code></td><td><code>12</code></td></tr>
+<tr><td><code>*</code></td><td>Multiplicação</td><td><code>17 * 5</code></td><td><code>85</code></td></tr>
+<tr><td><code>/</code></td><td>Divisão</td><td><code>17 / 5</code></td><td><code>3</code> (com dois <code>int</code>)</td></tr>
+<tr><td><code>%</code></td><td>Resto da divisão (módulo)</td><td><code>17 % 5</code></td><td><code>2</code></td></tr>
+</table>
+</div>
+
+<p>O resultado de uma conta pode ir para uma variável, para o <code>Console.WriteLine</code> ou para outra conta. Os espaços em volta do operador não são obrigatórios (<code>a+b</code> funciona), mas o padrão do C# é usar um de cada lado: <code>a + b</code>.</p>
+
+<h3>Uma conta da lojinha</h3>
+
+<pre class="file" data-file="lojinha.cs">decimal precoCaderno = 12.90m;
+decimal precoCaneta = 2.50m;
+int cadernos = 3;
+int canetas = 4;
+decimal total = precoCaderno * cadernos + precoCaneta * canetas;
+decimal pago = 100m;
+decimal troco = pago - total;
+Console.WriteLine($"Total: {total}");
+Console.WriteLine($"Troco: {troco}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run lojinha.cs
+Total: 48,70
+Troco: 51,30</pre>
+
+<p>3 cadernos de R$ 12,90 (38,70) mais 4 canetas de R$ 2,50 (10,00) dão 48,70; o troco de R$ 100 é 51,30. As multiplicações foram feitas antes da soma, como na matemática (seção 5). Dinheiro em <code>decimal</code>, como sempre (aula <a href="decimais.html">float, double e decimal</a>).</p>
+
+<hr>
+
+<h2>2. A divisão inteira</h2>
+<p>Quando os <strong>dois</strong> lados da divisão são inteiros, o resultado também é inteiro: a parte depois da vírgula é <strong>jogada fora</strong> (não é arredondada). Se pelo menos um dos lados tem vírgula, a divisão é a de sempre:</p>
+
+<pre class="file" data-file="divint.cs">Console.WriteLine(7 / 2);
+Console.WriteLine(-7 / 2);
+Console.WriteLine(7 % 2);
+Console.WriteLine(-7 % 2);
+Console.WriteLine(7 % -2);
+Console.WriteLine(7.0 / 2);
+Console.WriteLine(7 / 2.0);
+Console.WriteLine(7m / 2);
+Console.WriteLine(5.5 % 2);
+Console.WriteLine(1 / 3);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run divint.cs
+3
+-3
+1
+-1
+1
+3,5
+3,5
+3,5
+1,5
+0</pre>
+
+<dl class="anatomy">
+  <dt>7 / 2 → 3 · -7 / 2 → -3</dt><dd>Dois <code>int</code>: divisão inteira. O corte é sempre em direção ao zero: -3,5 vira -3 (não -4).</dd>
+  <dt>7 % 2 → 1 · -7 % 2 → -1 · 7 % -2 → 1</dt><dd>O resto tem o sinal do número da <strong>esquerda</strong>. Vale a regra: <code>(a / b) * b + a % b == a</code>. Para -7: (-3) × 2 + (-1) = -7.</dd>
+  <dt>7.0 / 2 · 7 / 2.0 · 7m / 2</dt><dd>Basta um dos lados ser <code>double</code> (ou <code>decimal</code>) para a divisão ter vírgula: o outro lado é convertido antes (aula <a href="conversao-tipos.html">Conversão de Tipos</a>).</dd>
+  <dt>5.5 % 2 → 1,5</dt><dd>O <code>%</code> também funciona com vírgula: 5,5 = 2 × 2 + 1,5.</dd>
+  <dt>1 / 3 → 0</dt><dd>A armadilha clássica: um terço, em inteiros, é zero.</dd>
+</dl>
+
+<h3>A média que perdeu a vírgula</h3>
+
+<pre class="file" data-file="mediaint.cs">int nota1 = 7;
+int nota2 = 8;
+double media = (nota1 + nota2) / 2;
+Console.WriteLine($"Média: {media}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run mediaint.cs
+Média: 7           « devia ser 7,5</pre>
+
+<p>A variável é <code>double</code>, mas a conta <code>(nota1 + nota2) / 2</code> só tem <code>int</code>: é feita em inteiros (15 / 2 = 7) e só <strong>depois</strong> vai para a variável. Nenhum aviso. Há três consertos, todos fazendo um lado da divisão ter vírgula:</p>
+<ul>
+  <li><code>(nota1 + nota2) / 2.0</code>: escrever o número fixo com ponto;</li>
+  <li><code>(double)(nota1 + nota2) / 2</code>: converter um dos lados com um cast;</li>
+  <li>declarar as notas como <code>double</code> desde o começo (o melhor, se notas podem ter vírgula).</li>
+</ul>
+
+<div class="trycs" data-goal="out:Média: 7\,5,semaviso">
+<p class="try-task"><strong>Missão:</strong> a média de 7 e 8 sai <code>Média: 7</code>. Conserte a conta para mostrar <code>Média: 7,5</code> (qualquer um dos três consertos vale).</p>
+<pre class="script" data-file="media.cs">int nota1 = 7;
+int nota2 = 8;
+double media = (nota1 + nota2) / 2;
+Console.WriteLine($"Média: {media}");
+</pre>
+<pre class="solucao" data-file="media.cs">int nota1 = 7;
+int nota2 = 8;
+double media = (nota1 + nota2) / 2.0;
+Console.WriteLine($"Média: {media}");
+</pre>
+</div>
+
+<hr>
+
+<h2>3. O resto: <code>%</code></h2>
+<p>O <code>%</code> parece estranho no começo, mas resolve vários problemas do dia a dia. Junto com a divisão inteira, ele "quebra" uma quantidade em partes:</p>
+
+<pre class="file" data-file="restos.cs">int totalMinutos = 135;
+int horas = totalMinutos / 60;
+int minutos = totalMinutos % 60;
+Console.WriteLine($"{totalMinutos} minutos = {horas} h {minutos} min");
+int numero = 14;
+Console.WriteLine($"{numero} % 2 = {numero % 2}");
+int ovos = 50;
+Console.WriteLine($"{ovos / 12} dúzias e {ovos % 12} ovos soltos");
+int ano = 2026;
+Console.WriteLine(ano % 10);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run restos.cs
+135 minutos = 2 h 15 min
+14 % 2 = 0
+4 dúzias e 2 ovos soltos
+6</pre>
+
+<dl class="anatomy">
+  <dt>totalMinutos / 60 · totalMinutos % 60</dt><dd>Quantas horas inteiras cabem em 135 minutos (2), e quantos minutos sobram (15). É o mesmo jeito de converter segundos em minutos, centavos em reais, dias em semanas.</dd>
+  <dt>numero % 2</dt><dd>O resto da divisão por 2 diz se o número é <strong>par</strong> (resto 0) ou <strong>ímpar</strong> (resto 1). Você vai usar isso com <a href="if-else.html">if</a>: <code>if (numero % 2 == 0)</code>.</dd>
+  <dt>ovos / 12 · ovos % 12</dt><dd>Quantas caixas de dúzia e quantos ovos sobram fora das caixas.</dd>
+  <dt>ano % 10</dt><dd>O resto por 10 é o último dígito do número. Por 100, os dois últimos.</dd>
+</dl>
+
+<p>Em inglês, o <code>%</code> se chama <em>remainder</em> ("resto") ou <em>modulo</em>. Não confunda com porcentagem: <code>50 % 10</code> é <code>0</code> (o resto), não "10% de 50". Porcentagem se faz com multiplicação: <code>50 * 0.10m</code>.</p>
+
+<hr>
+
+<h2>4. Divisão por zero</h2>
+<p>Com inteiros, dividir por zero <strong>para o programa</strong>:</p>
+
+<pre class="file" data-file="divzeroi.cs">int pizzas = 8;
+int pessoas = 0;
+Console.WriteLine(pizzas / pessoas);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run divzeroi.cs
+Unhandled exception. System.DivideByZeroException: Attempted to divide by zero.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/divzeroi.cs:line 3
+$ echo $?
+134</pre>
+
+<p><code>System.DivideByZeroException</code> é a "exceção de divisão por zero"; <em>Attempted to divide by zero</em> = "tentativa de dividir por zero"; e a última linha diz onde: <code>divzeroi.cs</code>, linha 3. O código de saída 134 é o de um programa que morreu com exceção. O <code>%</code> com zero à direita faz o mesmo, e o <code>decimal</code> também (aula <a href="decimais.html">float, double e decimal</a>).</p>
+
+<p>Se o zero está escrito direto no código, o compilador percebe antes:</p>
+
+<pre class="file" data-file="divzeroconst.cs">int x = 10 / 0;
+Console.WriteLine(x);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run divzeroconst.cs
+/home/ana/cs/divzeroconst.cs(1,9): error CS0020: Divisão por zero constante
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Com <code>double</code>, a divisão por zero <strong>não</strong> para o programa. O resultado é um valor especial:</p>
+
+<pre class="file" data-file="divzerodouble.cs">double km = 150;
+double litros = 0;
+Console.WriteLine(km / litros);
+Console.WriteLine(-km / litros);
+Console.WriteLine(0.0 / litros);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run divzerodouble.cs
+∞
+-∞
+NaN</pre>
+
+<p>Infinito (<code>∞</code>), menos infinito e <code>NaN</code> (<em>Not a Number</em>, "não é um número"). Em pt-BR, o .NET mostra o símbolo <code>∞</code>. O programa segue, mas com um consumo de "infinitos quilômetros por litro". Em qualquer tipo, a solução é a mesma: confira o divisor antes de dividir, com <code>if (litros != 0)</code> (aula <a href="if-else.html">if e else</a>).</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Conta</th><th>Com <code>int</code> (ou <code>long</code>, <code>decimal</code>)</th><th>Com <code>double</code></th></tr>
+<tr><td><code>x / 0</code></td><td><code>DivideByZeroException</code></td><td><code>∞</code> ou <code>-∞</code></td></tr>
+<tr><td><code>0 / 0</code></td><td><code>DivideByZeroException</code></td><td><code>NaN</code></td></tr>
+<tr><td><code>x % 0</code></td><td><code>DivideByZeroException</code></td><td><code>NaN</code></td></tr>
+<tr><td><code>10 / 0</code> escrito no código</td><td>não compila: <code>CS0020</code></td><td><code>∞</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>5. A ordem das contas</h2>
+<p>Como na matemática, <code>*</code>, <code>/</code> e <code>%</code> são feitos antes de <code>+</code> e <code>-</code>. Entre operadores do mesmo grupo, a conta vai da esquerda para a direita. Os parênteses mudam a ordem:</p>
+
+<pre class="file" data-file="precedencia1.cs">Console.WriteLine(2 + 3 * 4);
+Console.WriteLine((2 + 3) * 4);
+Console.WriteLine(10 - 4 - 3);
+Console.WriteLine(100 / 10 / 5);
+Console.WriteLine(10 - 2 * 3 + 8 / 4);
+Console.WriteLine(7 + 8 / 2);
+Console.WriteLine((7 + 8) / 2.0);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run precedencia1.cs
+14
+20
+3
+2
+6
+11
+7,5</pre>
+
+<dl class="anatomy">
+  <dt>2 + 3 * 4 → 14</dt><dd>Primeiro 3 × 4 = 12, depois 2 + 12.</dd>
+  <dt>(2 + 3) * 4 → 20</dt><dd>Os parênteses vêm primeiro: 5 × 4.</dd>
+  <dt>10 - 4 - 3 → 3 · 100 / 10 / 5 → 2</dt><dd>Mesmo grupo: da esquerda para a direita. (10 - 4) - 3 e (100 / 10) / 5.</dd>
+  <dt>10 - 2 * 3 + 8 / 4 → 6</dt><dd>2 × 3 = 6 e 8 / 4 = 2; depois 10 - 6 + 2.</dd>
+  <dt>7 + 8 / 2 → 11</dt><dd>O erro mais comum na média: só o 8 foi dividido. A média de 7 e 8 é <code>(7 + 8) / 2.0</code>.</dd>
+</dl>
+
+<p>Na dúvida, use parênteses: eles nunca atrapalham e deixam a intenção clara. A tabela completa da ordem de todos os operadores está em <a href="precedencia.html">Precedência</a>.</p>
+
+<h3>O sinal de menos sozinho</h3>
+<p>O <code>-</code> também funciona com um operando só, na frente de um valor: troca o sinal. É o "menos unário":</p>
+
+<pre class="file" data-file="unario.cs">int temperatura = 5;
+int negativa = -temperatura;
+Console.WriteLine(negativa);
+Console.WriteLine(-negativa);
+Console.WriteLine(+temperatura);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run unario.cs
+-5
+5
+5</pre>
+
+<p>O <code>+</code> unário existe, mas não muda nada. E os operadores <code>++</code> e <code>--</code>, que somam e subtraem 1, têm aula própria: <a href="incremento.html">++ e --</a>.</p>
+
+<hr>
+
+<h2>6. Duas pegadinhas</h2>
+
+<h3><code>^</code> não é potência</h3>
+<p>Em calculadoras e planilhas, <code>2^3</code> é "2 elevado a 3". No C#, não:</p>
+
+<pre class="file" data-file="potencia.cs">Console.WriteLine(2 ^ 3);
+Console.WriteLine(Math.Pow(2, 3));
+Console.WriteLine(5 * 5);
+Console.WriteLine(Math.Sqrt(16));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run potencia.cs
+1          « não é 8!
+8
+25
+4</pre>
+
+<p>O <code>^</code> do C# é o "ou exclusivo" de bits, um operador de outro assunto (aula <a href="operadores-logicos.html">Operadores Lógicos</a>). Ele compila sem aviso e dá um número sem relação com a potência. O C# não tem operador de potência: use <code>Math.Pow(base, expoente)</code> ("potência"), que devolve um <code>double</code>, ou multiplique (<code>5 * 5</code>). A raiz quadrada é <code>Math.Sqrt</code>. Mais em <a href="math.html">Matemática (Math)</a>.</p>
+
+<h3><code>+</code> com texto junta, não soma</h3>
+<p>Se um dos lados do <code>+</code> é uma <code>string</code>, ele vira o operador de <strong>juntar textos</strong> (concatenar):</p>
+
+<pre class="file" data-file="concat.cs">Console.WriteLine("1" + 2);
+Console.WriteLine(1 + 2 + "3");
+Console.WriteLine("1" + 2 + 3);
+Console.WriteLine("1" + (2 + 3));
+Console.WriteLine("Total: " + 10 + 5);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run concat.cs
+12
+33
+123
+15
+Total: 105         « a Ana queria "Total: 15"</pre>
+
+<dl class="anatomy">
+  <dt>"1" + 2 → 12</dt><dd>Texto + número: o número vira texto e os dois se juntam.</dd>
+  <dt>1 + 2 + "3" → 33</dt><dd>Da esquerda para a direita: primeiro 1 + 2 = 3 (dois números, soma), depois 3 + "3" = "33".</dd>
+  <dt>"1" + 2 + 3 → 123</dt><dd>Primeiro "1" + 2 = "12" (texto), depois "12" + 3 = "123".</dd>
+  <dt>"1" + (2 + 3) → 15</dt><dd>Os parênteses fazem a soma antes: "1" + 5.</dd>
+  <dt>"Total: " + 10 + 5 → Total: 105</dt><dd>O erro de verdade: os números foram grudados no texto um de cada vez. Conserto: <code>"Total: " + (10 + 5)</code>, ou a interpolação <code>$"Total: {10 + 5}"</code>, que faz a conta dentro das chaves (aula <a href="interpolacao.html">Interpolação</a>).</dd>
+</dl>
+
+<p>Os outros operadores não funcionam com texto. <code>"10" - "3"</code> não compila (veja "Quando dá errado"). Para fazer contas com números que estão num texto, converta primeiro: aula <a href="parse.html">Texto → Número</a>.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>A divisão perdeu a parte decimal (<code>7 / 2</code> deu <code>3</code>)</strong>
+<p><strong>O que significa:</strong> divisão inteira: os dois lados eram inteiros. O compilador não avisa.</p>
+<p><strong>Como consertar:</strong> faça um dos lados ter vírgula: <code>7 / 2.0</code>, <code>(double)soma / quantidade</code>, ou variáveis <code>double</code>/<code>decimal</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>System.DivideByZeroException: Attempted to divide by zero.</code></strong>
+<p><strong>O que significa:</strong> uma divisão (ou um <code>%</code>) de inteiros ou de <code>decimal</code> por zero, durante a execução. O programa parou com código 134.</p>
+<p><strong>Como consertar:</strong> confira o divisor antes: <code>if (pessoas != 0)</code>. Se o zero veio do usuário, peça outro valor.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0020: Divisão por zero constante</code></strong>
+<p><strong>O que significa:</strong> o zero está escrito no código (ou numa <a href="constantes.html">constante</a>), e o compilador recusa. Em inglês: <code>Division by constant zero</code>.</p>
+<p><strong>Como consertar:</strong> corrija o divisor.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0019: O operador "-" não pode ser aplicado a operandos dos tipos "string" e "string"</code></strong>
+<pre class="file" data-file="subtrairstring.cs">string a = "10";
+string b = "3";
+Console.WriteLine(a - b);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run subtrairstring.cs
+/home/ana/cs/subtrairstring.cs(3,19): error CS0019: O operador "-" não pode ser aplicado a operandos dos tipos "string" e "string"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> <code>"10"</code> e <code>"3"</code> são textos, e não existe "texto menos texto". O mesmo erro aparece misturando <code>decimal</code> com <code>double</code> (<code>preco * 1.1</code>).</p>
+<p><strong>Como consertar:</strong> converta os textos para número (<code>int.Parse</code>, <code>int.TryParse</code>) ou guarde números em variáveis numéricas desde o começo.</p>
+</div>
+
+<div class="cenario">
+<strong>Saiu <code>Total: 105</code> em vez de <code>Total: 15</code></strong>
+<p><strong>O que significa:</strong> o <code>+</code> juntou textos, porque a conta começava com uma <code>string</code>.</p>
+<p><strong>Como consertar:</strong> parênteses em volta da soma, <code>"Total: " + (10 + 5)</code>, ou interpolação, <code>$"Total: {10 + 5}"</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>2 ^ 3</code> deu <code>1</code></strong>
+<p><strong>O que significa:</strong> <code>^</code> não é potência no C#; é o "ou exclusivo".</p>
+<p><strong>Como consertar:</strong> <code>Math.Pow(2, 3)</code> (dá o <code>double</code> <code>8</code>).</p>
+</div>
+
+<div class="cenario">
+<strong>A conta deu um número enorme negativo</strong>
+<p><strong>O que significa:</strong> estouro: o resultado não coube no tipo e deu a volta (<code>int.MaxValue + 1</code> = <code>-2147483648</code>).</p>
+<p><strong>Como consertar:</strong> use <code>long</code> e, para conferir, <code>checked( … )</code> (aula <a href="inteiros.html">Inteiros</a>).</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th><th>Exemplo</th></tr>
+<tr><td><code>a + b</code></td><td>Soma; com texto, junta</td><td><code>2 + 3</code> = 5; <code>"a" + 1</code> = <code>"a1"</code></td></tr>
+<tr><td><code>a - b</code>, <code>-a</code></td><td>Subtração; troca de sinal</td><td><code>5 - 8</code> = -3</td></tr>
+<tr><td><code>a * b</code></td><td>Multiplicação</td><td><code>4 * 2.5</code> = 10</td></tr>
+<tr><td><code>a / b</code></td><td>Divisão; entre inteiros, corta a parte decimal</td><td><code>7 / 2</code> = 3; <code>7 / 2.0</code> = 3,5</td></tr>
+<tr><td><code>a % b</code></td><td>Resto (sinal do <code>a</code>)</td><td><code>17 % 5</code> = 2; <code>-7 % 2</code> = -1</td></tr>
+<tr><td><code>( … )</code></td><td>Faz primeiro</td><td><code>(2 + 3) * 4</code> = 20</td></tr>
+<tr><td><code>Math.Pow(b, e)</code></td><td>Potência (não existe <code>^</code> para isso)</td><td><code>Math.Pow(2, 10)</code> = 1024</td></tr>
+<tr><td colspan="3">Ordem: parênteses; depois <code>*</code> <code>/</code> <code>%</code>; depois <code>+</code> <code>-</code>; no mesmo grupo, da esquerda para a direita.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Divisão inteira</h3>
+<p>Quanto vale <code>9 / 4</code> em C#?</p>
+<div class="ex-code"><input data-answer="2" aria-label="valor"></div>
+</div>
+
+<div class="exercise">
+<h3>2. O resto</h3>
+<p>Quanto vale <code>9 % 4</code>?</p>
+<div class="ex-code"><input data-answer="1" aria-label="valor"></div>
+</div>
+
+<div class="exercise">
+<h3>3. A ordem</h3>
+<p>Quanto vale <code>2 + 10 / 2 * 3</code>?</p>
+<div class="ex-code"><input data-answer="17" aria-label="valor"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Qual expressão dá a média de 7 e 8 com vírgula (<code>7,5</code>)?</p>
+<label><input type="radio" name="q4"> <code>7 + 8 / 2</code></label>
+<label><input type="radio" name="q4"> <code>(7 + 8) / 2</code></label>
+<label><input type="radio" name="q4"> <code>(7 + 8) / 2.0</code></label>
+<label><input type="radio" name="q4"> <code>(double)((7 + 8) / 2)</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Para saber se um número <code>n</code> é par, qual conta você usa?</p>
+<label><input type="radio" name="q5"> <code>n / 2 == 0</code></label>
+<label><input type="radio" name="q5"> <code>n % 2 == 0</code></label>
+<label><input type="radio" name="q5"> <code>n ^ 2 == 0</code></label>
+<label><input type="radio" name="q5"> <code>n * 2 == 0</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. O que <code>Console.WriteLine("Idade: " + 20 + 9);</code> mostra?</p>
+<label><input type="radio" name="q6"> <code>Idade: 29</code></label>
+<label><input type="radio" name="q6"> <code>Idade: 20 + 9</code></label>
+<label><input type="radio" name="q6"> Não compila</label>
+<label><input type="radio" name="q6"> <code>Idade: 209</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">7. <code>int a = 10, b = 0; Console.WriteLine(a / b);</code> O que acontece?</p>
+<label><input type="radio" name="q7"> O programa para com <code>DivideByZeroException</code></label>
+<label><input type="radio" name="q7"> Mostra <code>∞</code></label>
+<label><input type="radio" name="q7"> Mostra <code>0</code></label>
+<label><input type="radio" name="q7"> Não compila: <code>CS0020</code></label>
+</div>
+
+<h3>Missão final: o filme em horas</h3>
+
+<div class="trycs" data-goal="out:O filme tem 2 h 22 min,src:%">
+<p class="try-task"><strong>Missão:</strong> o filme da sessão tem 142 minutos. Complete as contas de <code>horas</code> e <code>minutos</code> (troque os <code>0</code>) usando a divisão inteira <code>/</code> e o resto <code>%</code> por 60, para mostrar <code>O filme tem 2 h 22 min</code>.</p>
+<pre class="script" data-file="filme.cs">int duracao = 142;
+int horas = 0;
+int minutos = 0;
+Console.WriteLine($"O filme tem {horas} h {minutos} min");
+</pre>
+<pre class="solucao" data-file="filme.cs">int duracao = 142;
+int horas = duracao / 60;
+int minutos = duracao % 60;
+Console.WriteLine($"O filme tem {horas} h {minutos} min");
+</pre>
+</div>
+
+<p>Depois de cumprir a missão, troque 142 por 59 e por 600 e veja as horas e os minutos mudarem sozinhos.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Os operadores aritméticos: <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code> e <code>%</code> (resto).</li>
+  <li>Entre dois inteiros, <code>/</code> corta a parte decimal: <code>7 / 2</code> = 3, <code>1 / 3</code> = 0. Basta um lado com vírgula para a divisão ser normal: <code>7 / 2.0</code> = 3,5.</li>
+  <li><code>%</code> dá o resto: horas e minutos (<code>/ 60</code> e <code>% 60</code>), par ou ímpar (<code>% 2</code>). O sinal do resto é o do número da esquerda.</li>
+  <li>Divisão por zero: <code>DivideByZeroException</code> com inteiros e <code>decimal</code>; <code>∞</code>, <code>-∞</code> ou <code>NaN</code> com <code>double</code>; <code>CS0020</code> se o zero está escrito no código.</li>
+  <li><code>*</code>, <code>/</code> e <code>%</code> antes de <code>+</code> e <code>-</code>; parênteses primeiro; no mesmo grupo, da esquerda para a direita.</li>
+  <li><code>^</code> não é potência (use <code>Math.Pow</code>), e <code>+</code> com texto junta (<code>"Total: " + 10 + 5</code> = <code>Total: 105</code>).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
