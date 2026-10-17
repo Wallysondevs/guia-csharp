@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Task — Task.Run, Task.WhenAll e Task.WhenAny | Guia C#</title>
+<meta name="description" content="Task em C# para quem nunca programou: o que é uma tarefa, Status, Task.Run para tirar uma conta pesada do caminho, Task.WhenAll para esperar várias tarefas e juntar os resultados, WhenAll com LINQ, Task.WhenAny para a primeira resposta e para desistir depois de um tempo, exceções e AggregateException, Task.FromResult, e os erros do laço com Task.Run, do .Wait() e do CS0029, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Task</span></h1>
+
+<p class="intro">Na aula <a href="async-await.html">async e await</a>, cada método assíncrono devolvia uma <code>Task</code> ("tarefa"), e o <code>await</code> esperava por ela. Nesta aula, a tarefa vira a protagonista. Você vai ver o que existe dentro de uma <code>Task</code>, mandar uma conta pesada para outra thread com <code>Task.Run</code>, baixar três arquivos ao mesmo tempo com <code>Task.WhenAll</code>, pegar a loja que responde primeiro com <code>Task.WhenAny</code> e desistir de quem demora demais.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma <code>Task</code>, os seus estados (<code>Status</code>) e o <code>Task&lt;T&gt;</code>, que carrega um resultado.</li>
+  <li>Rodar uma conta demorada com <code>Task.Run</code>, sem travar o programa principal.</li>
+  <li>Esperar várias tarefas com <code>Task.WhenAll</code> e receber os resultados em ordem.</li>
+  <li>Criar uma tarefa por item com LINQ (<code>Select</code>) e esperar todas.</li>
+  <li>Pegar a primeira que terminar com <code>Task.WhenAny</code>, e usar isso para desistir depois de um tempo.</li>
+  <li>O que acontece com as exceções de várias tarefas (<code>AggregateException</code>).</li>
+</ul>
+</div>
+
+<p>Os programas rodam com <code>dotnet run</code> na pasta <code>~/cs</code> da Ana, num notebook com 8 núcleos. Os tempos medidos variam um pouco de uma execução para outra; quando várias tarefas rodam juntas, a <strong>ordem</strong> de algumas linhas também pode mudar.</p>
+
+<hr>
+
+<h2>A ideia: a senha da lanchonete</h2>
+<p>Na lanchonete, você faz o pedido e recebe uma <strong>senha</strong>. A senha não é o lanche: é a <strong>promessa</strong> de um lanche. Com ela na mão, você pode sentar, conversar, olhar o celular. Pela senha, dá para saber se o pedido ainda está na fila, se já está pronto ou se deu problema ("acabou o pão"). Quando chamam o seu número, você troca a senha pelo lanche.</p>
+<p>Uma <code>Task</code> é essa senha. Um <code>Task&lt;string&gt;</code> é a senha de um <code>string</code>, que você recebe com <code>await</code>. E nada impede você de fazer vários pedidos e ficar com várias senhas ao mesmo tempo: é o que o <code>Task.WhenAll</code> organiza.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>Senha de…</th><th>O <code>await</code> devolve</th></tr>
+<tr><td><code>Task</code></td><td>um trabalho sem resultado (gravar, enviar)</td><td>nada</td></tr>
+<tr><td><code>Task&lt;int&gt;</code></td><td>um <code>int</code> (contar, somar)</td><td>um <code>int</code></td></tr>
+<tr><td><code>Task&lt;string&gt;</code></td><td>um <code>string</code> (ler, baixar)</td><td>um <code>string</code></td></tr>
+</table>
+</div>
+
+<p>As classes ficam em <code>System.Threading.Tasks</code>, que já vem incluído.</p>
+
+<hr>
+
+<h2>1. Os estados de uma tarefa</h2>
+
+<pre class="file" data-file="status.cs">Task espera = Task.Delay(1000);
+Console.WriteLine(espera.Status);
+Console.WriteLine(espera.IsCompleted);
+await espera;
+Console.WriteLine(espera.Status);
+Console.WriteLine(espera.IsCompleted);
+
+Task&lt;int&gt; pronta = Task.FromResult(42);
+Console.WriteLine($"{pronta.Status} {await pronta}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run status.cs
+WaitingForActivation
+False
+RanToCompletion
+True
+RanToCompletion 42</pre>
+
+<dl class="anatomy">
+  <dt>Task.Delay(1000)</dt><dd>Uma tarefa que termina daqui a 1 segundo. Sem <code>await</code> na frente, você fica com a tarefa (a senha) na variável.</dd>
+  <dt>espera.Status</dt><dd>O estado, um <a href="enums.html">enum</a> <code>TaskStatus</code>. <code>WaitingForActivation</code> ("esperando ser ativada") quer dizer "ainda não terminou". Os principais estados finais são <code>RanToCompletion</code> ("rodou até o fim", deu certo), <code>Faulted</code> ("com defeito", lançou uma exceção) e <code>Canceled</code> (cancelada, aula <a href="cancelamento.html">Cancelamento</a>).</dd>
+  <dt>espera.IsCompleted</dt><dd><code>true</code> quando a tarefa terminou, de qualquer jeito. Também existem <code>IsCompletedSuccessfully</code> (terminou bem) e <code>IsFaulted</code> (deu erro).</dd>
+  <dt>Task.FromResult(42)</dt><dd>Uma tarefa que <strong>já nasce pronta</strong>, com o resultado dentro. Útil quando um método precisa devolver <code>Task&lt;int&gt;</code> mas, às vezes, já tem a resposta (por exemplo, guardada de uma consulta anterior). Para uma <code>Task</code> sem resultado, <code>Task.CompletedTask</code>.</dd>
+</dl>
+
+<p>Na prática, você quase nunca olha o <code>Status</code>: o <code>await</code> espera, entrega o resultado e lança a exceção, se houver. Mas ele ajuda a entender o que é uma tarefa: um objeto que diz <strong>em que pé está</strong> um trabalho.</p>
+
+<hr>
+
+<h2>2. Uma conta pesada: Task.Run</h2>
+<p>O <code>Task.Delay</code> e os métodos <code>…Async</code> de arquivos e da internet esperam por um "aparelho" (o relógio, o disco, a rede). Mas e se o trabalho demorado é uma <strong>conta</strong>, o próprio processador trabalhando? Aí o <code>await</code> sozinho não ajuda: alguém tem de fazer a conta. O <code>Task.Run</code> ("rodar tarefa") entrega a conta para uma <strong>thread</strong> do <em>pool</em> de threads do .NET, um grupo de "ajudantes" que ficam esperando trabalho (aula <a href="threads.html">Threads</a>). Num computador com vários núcleos, várias contas andam ao mesmo tempo:</p>
+
+<pre class="file" data-file="run.cs">using System.Diagnostics;
+
+Console.WriteLine($"Programa principal: thread {Environment.CurrentManagedThreadId}");
+Stopwatch relogio = Stopwatch.StartNew();
+long a = Calcular("A");
+long b = Calcular("B");
+long c = Calcular("C");
+long d = Calcular("D");
+Console.WriteLine($"Um depois do outro: {a + b + c + d} em {relogio.Elapsed.TotalSeconds:F1} s");
+
+relogio.Restart();
+Task&lt;long&gt;[] tarefas =
+[
+    Task.Run(() =&gt; Calcular("A")),
+    Task.Run(() =&gt; Calcular("B")),
+    Task.Run(() =&gt; Calcular("C")),
+    Task.Run(() =&gt; Calcular("D")),
+];
+long[] partes = await Task.WhenAll(tarefas);
+Console.WriteLine($"Com Task.Run: {partes.Sum()} em {relogio.Elapsed.TotalSeconds:F1} s");
+
+long Calcular(string nome)
+{
+    Console.WriteLine($"  {nome} na thread {Environment.CurrentManagedThreadId}");
+    long soma = 0;
+    for (int i = 0; i &lt; 300_000_000; i++)
+    {
+        soma += i % 7;
+    }
+    return soma;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run run.cs
+Programa principal: thread 1
+  A na thread 1
+  B na thread 1
+  C na thread 1
+  D na thread 1
+Um depois do outro: 3599999988 em 4,1 s
+  A na thread 4
+  C na thread 7
+  B na thread 5
+  D na thread 8
+Com Task.Run: 3599999988 em 2,0 s
+$ dotnet run run.cs               « de novo: a ordem e o tempo mudam um pouco
+Programa principal: thread 1
+  A na thread 1
+  B na thread 1
+  C na thread 1
+  D na thread 1
+Um depois do outro: 3599999988 em 4,1 s
+  A na thread 4
+  B na thread 5
+  C na thread 7
+  D na thread 8
+Com Task.Run: 3599999988 em 2,6 s</pre>
+
+<dl class="anatomy">
+  <dt>Environment.CurrentManagedThreadId</dt><dd>O número da thread que está rodando aquela linha. O programa principal é a thread 1.</dd>
+  <dt>Task.Run(() =&gt; Calcular("A"))</dt><dd>Recebe uma <a href="lambdas.html">lambda</a> com o trabalho e o coloca na fila do pool de threads. Devolve na hora um <code>Task&lt;long&gt;</code>, porque a lambda devolve <code>long</code>. Repare: o <code>Calcular</code> é um método comum, sem <code>async</code>.</dd>
+  <dt>A na thread 4, C na thread 7…</dt><dd>Cada conta rodou numa thread diferente do pool, ao mesmo tempo que as outras. A ordem das mensagens depende de qual começou primeiro, e muda de uma execução para outra.</dd>
+  <dt>await Task.WhenAll(tarefas)</dt><dd>Espera as quatro (seção 3) e devolve os quatro resultados num <code>long[]</code>.</dd>
+  <dt>4,1 s → 2,0 s</dt><dd>As contas são as mesmas, e o resultado também (<code>3599999988</code>). Mas, divididas entre núcleos, terminaram em metade do tempo. Não foi 4 vezes mais rápido porque os núcleos dividem outras coisas (a memória, o calor, os outros programas abertos).</dd>
+</dl>
+
+<div class="warning">
+<strong>No editor do guia, uma thread só</strong>
+<p>O .NET do editor roda em WebAssembly, dentro do navegador, com <strong>uma thread só</strong>. Nele, o <code>Task.Run</code> funciona e dá o mesmo resultado, mas todas as contas rodam na thread 1, uma depois da outra, e o tempo não cai. Para ver a diferença de velocidade, rode no seu computador. As missões desta aula usam <code>Task.Delay</code>, que funciona igual nos dois.</p>
+</div>
+
+<hr>
+
+<h2>3. Várias tarefas: Task.WhenAll</h2>
+<p>A Ana vai baixar três arquivos. Cada download é uma espera (a rede), simulada aqui com <code>Task.Delay</code>. Em vez de baixar um depois do outro, ela começa os três e espera <strong>todos</strong>:</p>
+
+<pre class="file" data-file="baixar.cs">using System.Diagnostics;
+
+(string Nome, int Segundos)[] arquivos = [("fotos.zip", 3), ("musica.mp3", 1), ("manual.pdf", 2)];
+Stopwatch relogio = Stopwatch.StartNew();
+
+List&lt;Task&lt;int&gt;&gt; tarefas = [];
+foreach (var arquivo in arquivos)
+{
+    tarefas.Add(BaixarAsync(arquivo.Nome, arquivo.Segundos));
+}
+int[] tamanhos = await Task.WhenAll(tarefas);
+
+for (int i = 0; i &lt; arquivos.Length; i++)
+{
+    Console.WriteLine($"{arquivos[i].Nome}: {tamanhos[i]} MB");
+}
+Console.WriteLine($"Total: {tamanhos.Sum()} MB em {relogio.Elapsed.TotalSeconds:F1} s");
+
+async Task&lt;int&gt; BaixarAsync(string nome, int segundos)
+{
+    Console.WriteLine($"Baixando {nome}...");
+    await Task.Delay(segundos * 1000);
+    Console.WriteLine($"Pronto: {nome}");
+    return segundos * 25;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run baixar.cs
+Baixando fotos.zip...
+Baixando musica.mp3...
+Baixando manual.pdf...
+Pronto: musica.mp3
+Pronto: manual.pdf
+Pronto: fotos.zip
+fotos.zip: 75 MB
+musica.mp3: 25 MB
+manual.pdf: 50 MB
+Total: 150 MB em 3,0 s</pre>
+
+<dl class="anatomy">
+  <dt>(string Nome, int Segundos)[]</dt><dd>Um array de <a href="tuplas.html">tuplas</a>: cada item tem um nome e quantos segundos o download leva.</dd>
+  <dt>tarefas.Add(BaixarAsync(…))</dt><dd>Chamar o método começa o download e devolve a tarefa, que vai para a lista. Ao fim do <code>foreach</code>, os três downloads já estão andando.</dd>
+  <dt>await Task.WhenAll(tarefas)</dt><dd>"Quando todas": uma tarefa que só termina quando <strong>todas</strong> da lista terminarem. Com <code>Task&lt;int&gt;</code>, o <code>await</code> devolve um <code>int[]</code> com os resultados <strong>na ordem da lista</strong>, e não na ordem em que terminaram: <code>tamanhos[0]</code> é sempre o das fotos, mesmo que elas tenham chegado por último.</dd>
+  <dt>3,0 s</dt><dd>O tempo do download mais longo, e não a soma (6 s).</dd>
+</dl>
+
+<div class="trycs" data-goal="outre:Baixando fotos\.zip\.\.\.\nBaixando musica\.mp3\.\.\.\nBaixando manual\.pdf\.\.\.,out:Total: 150 MB,src:WhenAll">
+<p class="try-task"><strong>Missão:</strong> este programa baixa um arquivo de cada vez: o <code>await</code> dentro do <code>foreach</code> espera cada download antes de começar o próximo. Mude-o para começar os três e esperar todos de uma vez: no laço, guarde cada tarefa na lista <code>tarefas</code> (sem <code>await</code>), e depois do laço faça <code>int[] tamanhos = await Task.WhenAll(tarefas);</code>. As três linhas <code>Baixando…</code> devem aparecer seguidas, e o total continua <code>150 MB</code>.</p>
+<pre class="script" data-file="baixar.cs">(string Nome, int Segundos)[] arquivos = [("fotos.zip", 3), ("musica.mp3", 1), ("manual.pdf", 2)];
+
+List&lt;Task&lt;int&gt;&gt; tarefas = [];
+List&lt;int&gt; tamanhos = [];
+foreach (var arquivo in arquivos)
+{
+    int tamanho = await BaixarAsync(arquivo.Nome, arquivo.Segundos);
+    tamanhos.Add(tamanho);
+}
+Console.WriteLine($"Total: {tamanhos.Sum()} MB");
+
+async Task&lt;int&gt; BaixarAsync(string nome, int segundos)
+{
+    Console.WriteLine($"Baixando {nome}...");
+    await Task.Delay(segundos * 1000);
+    Console.WriteLine($"Pronto: {nome}");
+    return segundos * 25;
+}
+</pre>
+<pre class="solucao" data-file="baixar.cs">(string Nome, int Segundos)[] arquivos = [("fotos.zip", 3), ("musica.mp3", 1), ("manual.pdf", 2)];
+
+List&lt;Task&lt;int&gt;&gt; tarefas = [];
+foreach (var arquivo in arquivos)
+{
+    tarefas.Add(BaixarAsync(arquivo.Nome, arquivo.Segundos));
+}
+int[] tamanhos = await Task.WhenAll(tarefas);
+Console.WriteLine($"Total: {tamanhos.Sum()} MB");
+
+async Task&lt;int&gt; BaixarAsync(string nome, int segundos)
+{
+    Console.WriteLine($"Baixando {nome}...");
+    await Task.Delay(segundos * 1000);
+    Console.WriteLine($"Pronto: {nome}");
+    return segundos * 25;
+}
+</pre>
+</div>
+
+<h3>Uma tarefa por item, com LINQ</h3>
+<p>"Uma tarefa para cada item da lista" é tão comum que costuma ser escrito numa linha, com o <code>Select</code> da aula <a href="linq-filtrar.html">Filtrar e Projetar</a>:</p>
+
+<pre class="file" data-file="linq.cs">(string Nome, int Segundos)[] arquivos = [("fotos.zip", 3), ("musica.mp3", 1), ("manual.pdf", 2)];
+int[] tamanhos = await Task.WhenAll(arquivos.Select(a =&gt; BaixarAsync(a.Nome, a.Segundos)));
+Console.WriteLine(string.Join(" + ", tamanhos) + $" = {tamanhos.Sum()} MB");
+
+async Task&lt;int&gt; BaixarAsync(string nome, int segundos)
+{
+    await Task.Delay(segundos * 1000);
+    return segundos * 25;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run linq.cs
+75 + 25 + 50 = 150 MB</pre>
+
+<p>O <code>Select</code> transforma cada arquivo numa tarefa (começando o download), e o <code>WhenAll</code> recebe a sequência de tarefas.</p>
+
+<hr>
+
+<h2>4. A primeira que terminar: Task.WhenAny</h2>
+<p>A Ana quer saber o preço de um produto e pergunta para três lojas. Basta a <strong>primeira</strong> resposta. E se uma loja demorar demais, ela desiste:</p>
+
+<pre class="file" data-file="lojas.cs">Task&lt;string&gt; lojaA = ConsultarAsync("Loja A", 3000);
+Task&lt;string&gt; lojaB = ConsultarAsync("Loja B", 1000);
+Task&lt;string&gt; lojaC = ConsultarAsync("Loja C", 2000);
+
+Task&lt;string&gt; primeira = await Task.WhenAny(lojaA, lojaB, lojaC);
+Console.WriteLine($"Mais rápida: {await primeira}");
+
+Task&lt;string&gt; lenta = ConsultarAsync("Loja D", 5000);
+Task limite = Task.Delay(1500);
+if (await Task.WhenAny(lenta, limite) == limite)
+{
+    Console.WriteLine("Loja D: demorou demais, desisti");
+}
+
+async Task&lt;string&gt; ConsultarAsync(string loja, int ms)
+{
+    await Task.Delay(ms);
+    return loja;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run lojas.cs
+Mais rápida: Loja B
+Loja D: demorou demais, desisti</pre>
+
+<dl class="anatomy">
+  <dt>await Task.WhenAny(lojaA, lojaB, lojaC)</dt><dd>"Quando qualquer uma": termina assim que a <strong>primeira</strong> das tarefas terminar. O resultado do <code>await</code> não é o texto: é a <strong>própria tarefa</strong> que venceu (um <code>Task&lt;string&gt;</code>).</dd>
+  <dt>await primeira</dt><dd>Um segundo <code>await</code>, agora na tarefa vencedora, para pegar o texto. Ela já terminou, então não há espera.</dd>
+  <dt>Task limite = Task.Delay(1500);</dt><dd>Um "despertador" de 1,5 segundo.</dd>
+  <dt>await Task.WhenAny(lenta, limite) == limite</dt><dd>Uma corrida entre a loja e o despertador. Se o despertador venceu, a loja passou do tempo. É o jeito clássico de pôr um <strong>tempo limite</strong> (<em>timeout</em>) em qualquer tarefa.</dd>
+</dl>
+
+<p>As tarefas que perdem a corrida <strong>não param</strong> sozinhas: a Loja A e a Loja D continuam "consultando" até o programa terminar. Para parar uma tarefa de verdade, ela precisa aceitar um pedido de cancelamento (aula <a href="cancelamento.html">Cancelamento</a>).</p>
+
+<hr>
+
+<h2>5. Quando uma tarefa falha</h2>
+<p>Se a tarefa lança uma exceção, ela fica guardada dentro dela (<code>Status</code> = <code>Faulted</code>) e é lançada de novo no <code>await</code>. Com várias tarefas no <code>WhenAll</code>, mais de uma pode falhar:</p>
+
+<pre class="file" data-file="excecoes.cs">Task todas = Task.WhenAll(
+    EnviarAsync("Ana", 300, true),
+    EnviarAsync("Bruno", 100, false),
+    EnviarAsync("Carla", 200, true));
+try
+{
+    await todas;
+}
+catch (Exception e)
+{
+    Console.WriteLine($"O await lançou: {e.Message}");
+}
+Console.WriteLine($"Erros guardados na tarefa: {todas.Exception!.InnerExceptions.Count}");
+foreach (Exception e in todas.Exception.InnerExceptions)
+{
+    Console.WriteLine($" - {e.Message}");
+}
+
+async Task EnviarAsync(string nome, int ms, bool falha)
+{
+    await Task.Delay(ms);
+    if (falha)
+    {
+        throw new InvalidOperationException($"E-mail de {nome} não foi enviado");
+    }
+    Console.WriteLine($"E-mail de {nome} enviado");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run excecoes.cs
+E-mail de Bruno enviado
+O await lançou: E-mail de Carla não foi enviado
+Erros guardados na tarefa: 2
+ - E-mail de Carla não foi enviado
+ - E-mail de Ana não foi enviado</pre>
+
+<dl class="anatomy">
+  <dt>o WhenAll espera todas</dt><dd>Mesmo com erros, ele só termina quando as três terminaram. O e-mail do Bruno foi enviado normalmente.</dd>
+  <dt>catch (Exception e)</dt><dd>O <code>await</code> lança <strong>uma</strong> das exceções (aqui, a da Carla, a primeira a falhar).</dd>
+  <dt>todas.Exception</dt><dd>A tarefa guarda <strong>todas</strong> as exceções numa <code>AggregateException</code> ("exceção agregada", que junta várias). A lista está em <code>InnerExceptions</code> ("exceções internas"). O <code>!</code> diz ao compilador que ela não é <code>null</code> aqui (sabemos que houve erro).</dd>
+</dl>
+
+<hr>
+
+<h2>Qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Use</th></tr>
+<tr><td>Esperar uma tarefa e pegar o resultado</td><td><code>await tarefa</code></td></tr>
+<tr><td>Fazer uma conta pesada sem travar o programa</td><td><code>await Task.Run(() =&gt; Conta())</code></td></tr>
+<tr><td>Várias esperas ao mesmo tempo, e todos os resultados</td><td><code>await Task.WhenAll(tarefas)</code></td></tr>
+<tr><td>Uma tarefa para cada item de uma lista</td><td><code>await Task.WhenAll(lista.Select(x =&gt; FazerAsync(x)))</code></td></tr>
+<tr><td>Só a primeira resposta</td><td><code>await Task.WhenAny(…)</code>, depois <code>await</code> na vencedora</td></tr>
+<tr><td>Um tempo limite</td><td><code>Task.WhenAny(tarefa, Task.Delay(ms))</code></td></tr>
+<tr><td>Muitas contas iguais sobre uma lista grande</td><td><code>Parallel.For</code> ou PLINQ (aula <a href="paralelismo.html">Parallel e PLINQ</a>)</td></tr>
+<tr><td>Devolver uma tarefa já pronta</td><td><code>Task.FromResult(valor)</code> ou <code>Task.CompletedTask</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>Todas as tarefas mostraram o mesmo número</strong>
+<pre class="file" data-file="laco.cs">List&lt;Task&gt; tarefas = [];
+for (int i = 0; i &lt; 3; i++)
+{
+    tarefas.Add(Task.Run(() =&gt; Console.WriteLine($"Tarefa {i}")));
+}
+await Task.WhenAll(tarefas);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run laco.cs
+Tarefa 0
+Tarefa 3
+Tarefa 3
+$ dotnet run laco.cs
+Tarefa 3
+Tarefa 3
+Tarefa 3</pre>
+<p><strong>O que aconteceu:</strong> a lambda não guarda o <strong>valor</strong> de <code>i</code> no momento em que foi criada: ela guarda a <strong>variável</strong> <code>i</code>, que é uma só para o <code>for</code> inteiro. As tarefas só rodam um pouquinho depois, quando o laço já terminou e <code>i</code> vale 3. Às vezes uma tarefa é rápida o bastante para pegar o 0. O resultado muda a cada execução, o que torna esse erro difícil de encontrar.</p>
+<p><strong>Como resolver:</strong> copie o valor para uma variável <strong>dentro</strong> do laço, que é nova a cada volta: <code>int numero = i;</code> e use <code>numero</code> na lambda. (Com <code>foreach</code>, a variável já é nova a cada volta, desde o C# 5.) A ordem das linhas continua podendo variar, mas cada número aparece uma vez:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run laco2.cs
+Tarefa 0
+Tarefa 2
+Tarefa 1</pre>
+</div>
+
+<div class="cenario">
+<strong><code>CS0029</code>: <code>Task&lt;int&gt;</code> não é <code>int</code></strong>
+<pre class="file" data-file="semawait.cs">int n = ContarAsync();
+Console.WriteLine(n);
+
+async Task&lt;int&gt; ContarAsync()
+{
+    await Task.Delay(100);
+    return 3;
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run semawait.cs
+/home/ana/cs/semawait.cs(1,9): error CS0029: Não é possível converter implicitamente tipo "System.Threading.Tasks.Task&lt;int&gt;" em "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> o método devolve a <strong>senha</strong> (<code>Task&lt;int&gt;</code>), e a variável espera o <strong>lanche</strong> (<code>int</code>).</p>
+<p><strong>Como resolver:</strong> <code>int n = await ContarAsync();</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>.Wait()</code> e <code>.Result</code>: a exceção embrulhada</strong>
+<pre class="file" data-file="wait.cs">Falhar().Wait();
+
+async Task Falhar()
+{
+    await Task.Delay(100);
+    throw new InvalidOperationException("O servidor não respondeu");
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run wait.cs; echo "código: $?"
+Unhandled exception. System.AggregateException: One or more errors occurred. (O servidor não respondeu)
+ ---&gt; System.InvalidOperationException: O servidor não respondeu
+   at Program.&lt;&lt;Main&gt;$&gt;g__Falhar|0_0() in /home/ana/cs/wait.cs:line 6
+   --- End of inner exception stack trace ---
+   at System.Threading.Tasks.Task.Wait(Int32 millisecondsTimeout, CancellationToken cancellationToken)
+   at System.Threading.Tasks.Task.Wait()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/wait.cs:line 1
+código: 134</pre>
+<p><strong>O que aconteceu:</strong> o <code>.Wait()</code> ("esperar") e o <code>.Result</code> ("resultado") esperam a tarefa <strong>travando</strong> a thread, como um <code>Thread.Sleep</code>. E, ao contrário do <code>await</code>, eles embrulham a exceção numa <code>AggregateException</code> ("ocorreram um ou mais erros"), o que complica o <code>catch</code>. Em aplicativos com janelas, travar a thread principal esperando uma tarefa que precisa dela pode congelar o programa para sempre. No editor do guia, que tem uma thread só, esperar assim nem é permitido: o programa para com <code>PlatformNotSupportedException</code>.</p>
+<p><strong>Como resolver:</strong> use <code>await</code>, e o método que o contém vira <code>async</code>. O <code>.Result</code> só é seguro numa tarefa que você <strong>sabe</strong> que já terminou (por exemplo, depois de um <code>await Task.WhenAll</code>).</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>Task</code> / <code>Task&lt;T&gt;</code></td><td>Um trabalho em andamento, sem / com resultado</td></tr>
+<tr><td><code>t.Status</code>, <code>t.IsCompleted</code>, <code>t.IsFaulted</code></td><td>Em que pé está</td></tr>
+<tr><td><code>Task.Run(() =&gt; …)</code></td><td>Roda o trabalho numa thread do pool</td></tr>
+<tr><td><code>Task.Delay(ms)</code></td><td>Uma tarefa que termina depois do tempo</td></tr>
+<tr><td><code>await Task.WhenAll(t1, t2, …)</code> / <code>(lista)</code></td><td>Espera todas; com <code>Task&lt;T&gt;</code>, devolve <code>T[]</code> na ordem da lista</td></tr>
+<tr><td><code>await Task.WhenAny(t1, t2, …)</code></td><td>Espera a primeira; devolve a tarefa vencedora</td></tr>
+<tr><td><code>Task.FromResult(v)</code>, <code>Task.CompletedTask</code></td><td>Tarefas já prontas</td></tr>
+<tr><td><code>t.Exception.InnerExceptions</code></td><td>Todas as exceções guardadas (<code>AggregateException</code>)</td></tr>
+<tr><td><code>Environment.CurrentManagedThreadId</code></td><td>O número da thread atual</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Esperar todas</h3>
+<p>Complete para esperar todas as tarefas da lista e receber os resultados:</p>
+<div class="ex-code">int[] resultados = await Task.<input data-answer="WhenAll" aria-label="método">(tarefas);</div>
+</div>
+
+<div class="exercise">
+<h3>2. Para o pool</h3>
+<p>Complete para rodar a conta numa thread do pool:</p>
+<div class="ex-code">long total = await Task.<input data-answer="Run" aria-label="método">(() =&gt; SomarTudo());</div>
+</div>
+
+<div class="exercise">
+<h3>3. A primeira</h3>
+<p>Complete para esperar só a primeira tarefa que terminar:</p>
+<div class="ex-code">Task&lt;string&gt; vencedora = await Task.<input data-answer="WhenAny" aria-label="método">(a, b, c);</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Três downloads levam 3 s, 1 s e 2 s. Começando os três e usando <code>await Task.WhenAll</code>, quanto tempo leva, mais ou menos?</p>
+<label><input type="radio" name="q4"> 6 s</label>
+<label><input type="radio" name="q4"> 1 s</label>
+<label><input type="radio" name="q4"> 3 s</label>
+<label><input type="radio" name="q4"> 2 s</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. Em <code>int[] r = await Task.WhenAll(tA, tB, tC);</code>, a <code>tC</code> termina primeiro. Onde está o resultado dela?</p>
+<label><input type="radio" name="q5"> Em <code>r[2]</code>: os resultados seguem a ordem das tarefas, não a de término.</label>
+<label><input type="radio" name="q5"> Em <code>r[0]</code>, porque terminou primeiro.</label>
+<label><input type="radio" name="q5"> Depende da execução.</label>
+<label><input type="radio" name="q5"> O <code>WhenAll</code> não devolve resultados.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. O que o <code>await Task.WhenAny(t1, t2)</code> devolve?</p>
+<label><input type="radio" name="q6"> O resultado da primeira tarefa.</label>
+<label><input type="radio" name="q6"> Um array com os dois resultados.</label>
+<label><input type="radio" name="q6"> <code>true</code> se alguma terminou.</label>
+<label><input type="radio" name="q6"> A tarefa que terminou primeiro.</label>
+</div>
+
+<h3>Missão final: a loja mais rápida, com tempo limite</h3>
+<div class="trycs" data-goal="out:Mais rápida: Papelaria Centro (R$ 12\,90),out:Livraria Online: demorou demais,src:WhenAny">
+<p class="try-task"><strong>Missão:</strong> a Ana pergunta o preço de um caderno para três lojas. O programa espera as três, uma por uma. Mude-o:</p>
+<ol class="passo">
+  <li>use <code>await Task.WhenAny(loja1, loja2, loja3)</code> para pegar a primeira que responder e mostre <code>Mais rápida: </code> seguido do resultado dela (lembre do segundo <code>await</code>, na tarefa vencedora);</li>
+  <li>depois, consulte a <code>Livraria Online</code> com um tempo limite de 2 segundos: se o <code>Task.Delay(2000)</code> vencer a corrida, mostre <code>Livraria Online: demorou demais</code>.</li>
+</ol>
+<pre class="script" data-file="lojas.cs">Task&lt;string&gt; loja1 = ConsultarAsync("Loja do Bairro", 13.50m, 2500);
+Task&lt;string&gt; loja2 = ConsultarAsync("Papelaria Centro", 12.90m, 1000);
+Task&lt;string&gt; loja3 = ConsultarAsync("Mercado Bom Preço", 11.75m, 1500);
+
+Console.WriteLine(await loja1);
+Console.WriteLine(await loja2);
+Console.WriteLine(await loja3);
+
+Task&lt;string&gt; livraria = ConsultarAsync("Livraria Online", 10.00m, 4000);
+// tempo limite de 2 segundos para a livraria
+
+async Task&lt;string&gt; ConsultarAsync(string loja, decimal preco, int ms)
+{
+    await Task.Delay(ms);
+    return $"{loja} (R$ {preco:F2})";
+}
+</pre>
+<pre class="solucao" data-file="lojas.cs">Task&lt;string&gt; loja1 = ConsultarAsync("Loja do Bairro", 13.50m, 2500);
+Task&lt;string&gt; loja2 = ConsultarAsync("Papelaria Centro", 12.90m, 1000);
+Task&lt;string&gt; loja3 = ConsultarAsync("Mercado Bom Preço", 11.75m, 1500);
+
+Task&lt;string&gt; primeira = await Task.WhenAny(loja1, loja2, loja3);
+Console.WriteLine($"Mais rápida: {await primeira}");
+
+Task&lt;string&gt; livraria = ConsultarAsync("Livraria Online", 10.00m, 4000);
+Task limite = Task.Delay(2000);
+if (await Task.WhenAny(livraria, limite) == limite)
+{
+    Console.WriteLine("Livraria Online: demorou demais");
+}
+else
+{
+    Console.WriteLine(await livraria);
+}
+
+async Task&lt;string&gt; ConsultarAsync(string loja, decimal preco, int ms)
+{
+    await Task.Delay(ms);
+    return $"{loja} (R$ {preco:F2})";
+}
+</pre>
+</div>
+
+<p>A mais rápida não é a mais barata: o Mercado Bom Preço responderia meio segundo depois com R$ 11,75. Se quiser ir além: em vez da primeira resposta, espere as três com <code>WhenAll</code> e mostre a mais barata (os preços estão no texto; para comparar de verdade, faça o método devolver uma <a href="tuplas.html">tupla</a> com o nome e o <code>decimal</code>).</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma <code>Task</code> é a "senha" de um trabalho em andamento; o <code>Task&lt;T&gt;</code> carrega um resultado, que o <code>await</code> entrega. O <code>Status</code> diz em que pé ela está.</li>
+  <li><code>Task.Run</code> manda uma conta pesada para uma thread do pool; várias contas assim usam vários núcleos (no editor do guia, que tem uma thread só, o tempo não cai).</li>
+  <li><code>Task.WhenAll</code> espera todas e devolve os resultados na ordem das tarefas; o tempo é o da mais longa. Com LINQ: <code>Task.WhenAll(lista.Select(…))</code>.</li>
+  <li><code>Task.WhenAny</code> devolve a primeira tarefa que terminou; com um <code>Task.Delay</code> na corrida, vira um tempo limite.</li>
+  <li>Exceções ficam guardadas na tarefa e voltam no <code>await</code>; o <code>WhenAll</code> guarda todas em <code>Exception.InnerExceptions</code>.</li>
+  <li>Cuidado com a variável do <code>for</code> dentro da lambda, e prefira <code>await</code> a <code>.Wait()</code> e <code>.Result</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
