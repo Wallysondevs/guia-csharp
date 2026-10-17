@@ -256,6 +256,11 @@ Unhandled exception. System.FormatException: The input string '29 anos' was not 
 
 <p>As duas primeiras linhas <code>at</code> são do .NET (<code>System.Number</code>, <code>System.Int32</code>) e <strong>não têm</strong> <code>in arquivo:line</code>: você não tem o código-fonte delas, e não é lá que está o problema. A primeira linha sua é a da <code>idade.cs:line 2</code>, a chamada <code>int.Parse(idade)</code>. A mensagem conta o motivo: <em>The input string '29 anos' was not in a correct format</em>, "o texto de entrada '29 anos' não estava num formato correto". O texto tem letras, então não vira número.</p>
 
+<div class="note">
+<strong>No editor do guia, o rastro pode ser mais comprido</strong>
+<p>Rodando o <code>idade.cs</code> no editor desta página, aparecem seis linhas <code>at System.…</code> em vez de duas (<code>System.Number.ParseBinaryInteger…</code>, <code>System.Int32.Parse(ReadOnlySpan`1 s, …)</code>…). É o mesmo caminho: o <code>dotnet</code> do computador junta alguns métodos pequenos do .NET num só, para ganhar velocidade, e o editor não. A linha do <strong>seu</strong> arquivo e a mensagem são iguais nos dois.</p>
+</div>
+
 <hr>
 
 <h2>Exceções são objetos</h2>
