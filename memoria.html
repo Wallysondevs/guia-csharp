@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Memória e Coletor de Lixo — pilha, heap, GC e vazamentos | Guia C#</title>
+<meta name="description" content="Memória em C# para quem está começando: a pilha e o heap, quando um objeto vira lixo, o coletor de lixo (GC) e as gerações 0, 1 e 2, medir a memória com GC.GetTotalMemory e GC.GetAllocatedBytesForCurrentThread, vazamentos com listas static e eventos, finalizadores × using, e os erros reais Stack overflow e Out of memory do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Memória e Coletor de Lixo</span></h1>
+
+<p class="intro">Todo <code>new</code> que você escreve pede um pedaço da memória do computador: uma lista de compras, um texto, um objeto <code>Conta</code>. Em linguagens como o C, o programador tem de devolver cada pedaço com <code>free</code>, e esquecer disso é um dos erros mais comuns. Em C# quem devolve é o <strong>coletor de lixo</strong> (em inglês, <em>garbage collector</em>, ou <strong>GC</strong>). Nesta aula você vai ver onde as variáveis moram, quando um objeto vira "lixo", como o coletor trabalha e por que, mesmo com ele, um programa C# ainda pode gastar memória demais.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A diferença entre a <strong>pilha</strong> (<em>stack</em>) e o <strong>heap</strong>.</li>
+  <li>Quando um objeto vira lixo: quando nenhuma variável chega mais até ele.</li>
+  <li>Como o coletor trabalha e o que são as <strong>gerações</strong> 0, 1 e 2.</li>
+  <li>Como medir a memória com <code>GC.GetTotalMemory</code> e <code>GC.GetAllocatedBytesForCurrentThread</code>.</li>
+  <li>Os dois "vazamentos" mais comuns em C#: a lista <code>static</code> que só cresce e o evento sem <code>-=</code>.</li>
+  <li>Por que o coletor não fecha arquivos (e o <code>using</code> fecha).</li>
+  <li>Os erros <code>Stack overflow.</code> e <code>Out of memory.</code>, com o conserto.</li>
+</ul>
+</div>
+
+<p>Os programas desta aula rodaram na máquina da Ana com o <strong>.NET 10</strong>, cada um num arquivo solto em <code>~/cs</code>, com <code>dotnet run arquivo.cs</code> (veja <a href="dotnet-run.html">Rodar com dotnet run</a>). Para entender a aula, ajuda ter visto <a href="valor-referencia.html">Valor × Referência</a> e <a href="classes-objetos.html">Classes e Objetos</a>.</p>
+
+<hr>
+
+<h2>A ideia: a mesa, o depósito e o faxineiro</h2>
+<p>Imagine a lojinha da Ana. Ela trabalha numa <strong>mesa</strong> pequena, onde ficam só as coisas da tarefa do momento: a calculadora, um bloquinho. Quando a tarefa acaba, a mesa é limpa de uma vez. As caixas grandes ficam num <strong>depósito</strong> nos fundos, e na mesa ela guarda só um <strong>papelzinho com o endereço</strong> da caixa ("prateleira 7"). De vez em quando passa um <strong>faxineiro</strong> pelo depósito: toda caixa cujo endereço não está anotado em nenhum papel é jogada fora, porque ninguém mais consegue achá-la.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na lojinha</th><th>No programa</th><th>O que fica lá</th></tr>
+<tr><td>A mesa</td><td>A <strong>pilha</strong> (<em>stack</em>)</td><td>As variáveis locais de cada método que está rodando. Quando o método termina, a parte dele some de uma vez.</td></tr>
+<tr><td>O depósito</td><td>O <strong>heap</strong> (em inglês, "monte")</td><td>Os objetos criados com <code>new</code>: listas, arrays, strings, objetos das suas classes.</td></tr>
+<tr><td>O papel com o endereço</td><td>A <strong>referência</strong></td><td>O que uma variável de classe guarda: não o objeto, mas onde ele está.</td></tr>
+<tr><td>O faxineiro</td><td>O <strong>coletor de lixo</strong> (GC)</td><td>Passa de vez em quando e libera os objetos que nenhuma referência alcança.</td></tr>
+</table>
+</div>
+
+<p>Os tipos de valor (<code>int</code>, <code>double</code>, <code>decimal</code>, <code>bool</code>, <a href="structs.html">structs</a>) guardam o próprio valor na variável. Os tipos de referência (<code>string</code>, arrays, <code>List&lt;T&gt;</code>, as suas <a href="classes-objetos.html">classes</a>) guardam um endereço, e o objeto fica no heap.</p>
+
+<div class="note">
+<strong>Detalhe: "o int fica na pilha" é quase sempre verdade</strong>
+<p>Um <code>int</code> que é variável local fica na pilha. Mas um <code>int</code> que é campo de uma classe fica <strong>dentro do objeto</strong>, no heap. A regra certa é: o valor fica onde a variável está. Para quem está começando, "valores na mesa, objetos no depósito" basta.</p>
+</div>
+
+<hr>
+
+<h2>1. Uma cópia × o mesmo objeto</h2>
+<p>Este programa mostra as duas coisas lado a lado. Copiar um <code>int</code> copia o número. Copiar uma lista copia só o <strong>endereço</strong>: as duas variáveis passam a apontar para a mesma lista no heap.</p>
+
+<pre class="file" data-file="ref.cs">int idade = 31;
+int copia = idade;
+copia = 40;
+Console.WriteLine($"idade = {idade}, copia = {copia}");
+
+var compras = new List&lt;string&gt; { "arroz" };
+var mesmaLista = compras;
+mesmaLista.Add("feijão");
+Console.WriteLine($"compras tem {compras.Count} itens: {string.Join(", ", compras)}");
+Console.WriteLine(ReferenceEquals(compras, mesmaLista));
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que acontece na memória</th></tr>
+<tr><td><code>int copia = idade;</code></td><td>Na pilha, a variável <code>copia</code> recebe <strong>uma cópia</strong> do número 31. Mudar <code>copia</code> não mexe em <code>idade</code>.</td></tr>
+<tr><td><code>new List&lt;string&gt; { "arroz" }</code></td><td>O <code>new</code> cria a lista no heap. A variável <code>compras</code>, na pilha, guarda o endereço dela.</td></tr>
+<tr><td><code>var mesmaLista = compras;</code></td><td>Copia o <strong>endereço</strong>. Agora há dois papéis com o mesmo endereço, e uma lista só.</td></tr>
+<tr><td><code>mesmaLista.Add("feijão");</code></td><td>Mexe na lista do heap. Quem olhar por <code>compras</code> vê a mudança.</td></tr>
+<tr><td><code>ReferenceEquals(compras, mesmaLista)</code></td><td>"São o mesmo objeto?" Compara os endereços.</td></tr>
+</table>
+</div>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ref.cs
+idade = 31, copia = 40
+compras tem 2 itens: arroz, feijão
+True</pre>
+
+<hr>
+
+<h2>2. Quando um objeto vira lixo</h2>
+<p>O coletor não olha se o objeto "ainda vai ser usado" (isso ele não tem como saber). Ele olha se o objeto ainda é <strong>alcançável</strong>: se dá para chegar até ele partindo das variáveis locais dos métodos que estão rodando e dos campos <code>static</code>. Esses pontos de partida se chamam <strong>raízes</strong>. O que não é alcançável é lixo.</p>
+
+<p>Para ver isso acontecer, usamos uma <code>WeakReference</code> ("referência fraca"): ela observa um objeto <strong>sem segurá-lo</strong>. Se só ela aponta para o objeto, o coletor pode levá-lo, e a propriedade <code>IsAlive</code> ("está vivo") passa a dar <code>false</code>.</p>
+
+<pre class="file" data-file="lixo.cs">using System.Runtime.CompilerServices;
+
+WeakReference observador = CriarRelatorio();
+Console.WriteLine($"Antes da coleta, vivo? {observador.IsAlive}");
+
+GC.Collect();
+Console.WriteLine($"Depois da coleta, vivo? {observador.IsAlive}");
+
+[MethodImpl(MethodImplOptions.NoInlining)]
+static WeakReference CriarRelatorio()
+{
+    var relatorio = new byte[1_000_000];
+    return new WeakReference(relatorio);
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>static WeakReference CriarRelatorio()</dt><dd>Um <a href="funcoes-locais.html">método local</a> que cria um array de 1 milhão de bytes (1 MB) e devolve só um observador dele. A variável <code>relatorio</code> é local: quando o método termina, ela some da pilha, e nenhuma referência "forte" ao array sobra.</dd>
+  <dt>[MethodImpl(MethodImplOptions.NoInlining)]</dt><dd>Um <a href="atributos.html">atributo</a> que pede ao .NET para não "colar" o método dentro de quem o chama (<em>inlining</em>). Assim temos certeza de que <code>relatorio</code> morre quando o método volta. Num programa normal você não precisa disso; aqui é só para o experimento dar sempre o mesmo resultado.</dd>
+  <dt>GC.Collect()</dt><dd>Manda o coletor passar <strong>agora</strong>. Só usamos para aprender: num programa de verdade, deixe o .NET decidir (veja a dica mais abaixo).</dd>
+  <dt>observador.IsAlive</dt><dd><code>true</code> enquanto o objeto existir.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run lixo.cs
+Antes da coleta, vivo? True
+Depois da coleta, vivo? False</pre>
+
+<p>Antes da coleta o array ainda existia (virou lixo, mas o faxineiro não tinha passado). Depois, o coletor viu que ninguém o alcançava e liberou o 1 MB.</p>
+
+<div class="cenario">
+<strong>"Mas eu coloquei <code>null</code> e ele continua vivo!"</strong>
+<p>A Ana tentou o mesmo experimento sem o método, direto no programa:</p>
+<pre class="file" data-file="fraca.cs">byte[]? relatorio = new byte[1_000_000];
+var observador = new WeakReference(relatorio);
+relatorio = null;
+GC.Collect();
+Console.WriteLine($"Ainda vivo? {observador.IsAlive}");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run fraca.cs
+Ainda vivo? True</pre>
+<p><strong>O que aconteceu:</strong> o <code>dotnet run</code> compila em modo <strong>Debug</strong> (para depurar), e nesse modo o .NET pode guardar cópias escondidas das referências na pilha até o fim do método, para o <a href="depuracao.html">depurador</a> conseguir mostrá-las. O array ainda estava "alcançável" por uma dessas cópias. Não é um erro: o coletor só promete liberar o que não é alcançável <strong>em algum momento</strong>, nunca num momento exato.</p>
+<p><strong>A lição:</strong> nunca escreva um programa que dependa de <em>quando</em> o coletor passa. Para o experimento, criar o objeto dentro de um método (como em <code>lixo.cs</code>) resolve.</p>
+</div>
+
+<hr>
+
+<h2>3. Gerações: o coletor olha primeiro para os novatos</h2>
+<p>Varrer o depósito inteiro toda vez seria lento. O coletor do .NET aposta numa coisa que quase sempre é verdade: <strong>a maioria dos objetos morre jovem</strong> (um texto montado para um <code>WriteLine</code>, uma lista temporária). Por isso ele separa o heap em <strong>gerações</strong>:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Geração</th><th>Quem fica lá</th><th>Quando é varrida</th></tr>
+<tr><td><strong>0</strong></td><td>Os objetos recém-criados.</td><td>Muitas vezes: é pequena e a varredura é rápida.</td></tr>
+<tr><td><strong>1</strong></td><td>Os que sobreviveram a uma coleta.</td><td>Menos vezes. É um "meio-termo".</td></tr>
+<tr><td><strong>2</strong></td><td>Os que sobreviveram a duas ou mais: os objetos de vida longa (configurações, caches). Arrays grandes, de 85 mil bytes ou mais, já nascem num lugar especial ligado à geração 2 (o <em>Large Object Heap</em>).</td><td>Raramente. É a coleta completa, a mais cara.</td></tr>
+</table>
+</div>
+
+<pre class="file" data-file="geracoes.cs">var compras = new List&lt;string&gt; { "arroz", "feijão" };
+Console.WriteLine($"Recém-criada: geração {GC.GetGeneration(compras)}");
+
+GC.Collect();
+Console.WriteLine($"Sobreviveu a 1 coleta: geração {GC.GetGeneration(compras)}");
+
+GC.Collect();
+Console.WriteLine($"Sobreviveu a 2 coletas: geração {GC.GetGeneration(compras)}");
+
+Console.WriteLine($"Maior geração: {GC.MaxGeneration}");
+Console.WriteLine($"Coletas da geração 0 até agora: {GC.CollectionCount(0)}");
+</pre>
+
+<dl class="anatomy">
+  <dt>GC.GetGeneration(compras)</dt><dd>Em que geração o objeto está agora.</dd>
+  <dt>GC.Collect()</dt><dd>Uma coleta completa. A lista ainda é usada (a variável <code>compras</code> a alcança), então sobrevive e é <strong>promovida</strong> para a geração seguinte.</dd>
+  <dt>GC.MaxGeneration</dt><dd>O número da última geração.</dd>
+  <dt>GC.CollectionCount(0)</dt><dd>Quantas vezes a geração 0 foi varrida desde que o programa começou. Toda coleta completa também conta como coleta da geração 0.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run geracoes.cs
+Recém-criada: geração 0
+Sobreviveu a 1 coleta: geração 1
+Sobreviveu a 2 coletas: geração 2
+Maior geração: 2
+Coletas da geração 0 até agora: 2</pre>
+
+<div class="trycs" data-file="geracoes.cs">
+<p class="try-task">Rode e veja as gerações da lista. Depois, coloque um terceiro <code>GC.Collect()</code>: a lista passa da geração 2? E se você criar uma lista nova <strong>depois</strong> das coletas, em que geração ela nasce?</p>
+<pre class="script" data-file="geracoes.cs">var compras = new List&lt;string&gt; { "arroz", "feijão" };
+Console.WriteLine($"Recém-criada: geração {GC.GetGeneration(compras)}");
+
+GC.Collect();
+Console.WriteLine($"Sobreviveu a 1 coleta: geração {GC.GetGeneration(compras)}");
+
+GC.Collect();
+Console.WriteLine($"Sobreviveu a 2 coletas: geração {GC.GetGeneration(compras)}");
+
+Console.WriteLine($"Maior geração: {GC.MaxGeneration}");
+Console.WriteLine($"Coletas da geração 0 até agora: {GC.CollectionCount(0)}");
+</pre>
+</div>
+
+<div class="note">
+<strong>O editor do guia tem outro coletor</strong>
+<p>Os números acima são os do <code>dotnet</code> no Linux. O editor do guia roda o .NET em WebAssembly, dentro do navegador, e o coletor de lá é organizado de outro jeito: as gerações, as contagens e os tamanhos de memória podem sair diferentes. As ideias da aula (alcançável, lixo, promoção) valem nos dois.</p>
+</div>
+
+<hr>
+
+<h2>4. Medir a memória</h2>
+<p>A classe <code>GC</code> tem dois métodos para espiar a memória:</p>
+<ul>
+  <li><code>GC.GetTotalMemory(true)</code>: quantos bytes os objetos vivos ocupam agora no heap. O <code>true</code> pede uma coleta antes de medir, para não contar lixo.</li>
+  <li><code>GC.GetAllocatedBytesForCurrentThread()</code>: quantos bytes este programa <strong>já pediu</strong> desde o começo, contando o que já virou lixo. Serve para comparar duas formas de fazer a mesma coisa.</li>
+</ul>
+
+<p>Um exemplo clássico: montar um texto de 1000 letras com <code>+=</code> e com <a href="stringbuilder.html">StringBuilder</a>.</p>
+
+<pre class="file" data-file="aloc.cs">using System.Text;
+
+long antes = GC.GetAllocatedBytesForCurrentThread();
+string texto = "";
+for (int i = 0; i &lt; 1000; i++)
+{
+    texto += "x";
+}
+long depois = GC.GetAllocatedBytesForCurrentThread();
+Console.WriteLine($"Com +=:           {depois - antes:N0} bytes");
+
+antes = GC.GetAllocatedBytesForCurrentThread();
+var sb = new StringBuilder();
+for (int i = 0; i &lt; 1000; i++)
+{
+    sb.Append('x');
+}
+string pronto = sb.ToString();
+depois = GC.GetAllocatedBytesForCurrentThread();
+Console.WriteLine($"Com StringBuilder: {depois - antes:N0} bytes");
+Console.WriteLine(texto == pronto);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run aloc.cs
+Com +=:           1.025.976 bytes
+Com StringBuilder: 4.576 bytes
+True</pre>
+
+<p>Os dois textos são iguais (<code>True</code>), mas o <code>+=</code> pediu mais de 1 milhão de bytes, e o <code>StringBuilder</code>, menos de 5 mil. Por quê? Uma <code>string</code> nunca muda (ela é <strong>imutável</strong>). Cada <code>texto += "x"</code> cria uma string <strong>nova</strong>, uma letra maior, e a anterior vira lixo: 1000 strings de 1, 2, 3… até 1000 letras, cada letra com 2 bytes. O <code>StringBuilder</code> vai enchendo uma área que cresce aos poucos e só cria a string no fim.</p>
+
+<div class="tip">
+<strong>Lixo não é vazamento</strong>
+<p>O megabyte do <code>+=</code> não "vazou": o coletor recolhe tudo nas próximas passadas. O problema é o <strong>trabalho</strong>: muito lixo faz o coletor passar mais vezes, e cada passada custa tempo. Num laço com milhares de voltas, prefira o <code>StringBuilder</code>. Para juntar três ou quatro pedaços, o <code>+</code> e a <a href="interpolacao.html">interpolação</a> são ótimos.</p>
+</div>
+
+<hr>
+
+<h2>5. "Vazamento" de memória em C#</h2>
+<p>Com o coletor, você nunca esquece de liberar um objeto que ninguém usa. Mas existe o problema contrário: um objeto que você <strong>não usa mais</strong>, mas que continua <strong>alcançável</strong>. O coletor não pode levá-lo. Se isso se repete, a memória só cresce: é o que se chama de vazamento em C#.</p>
+
+<h3>Uma lista <code>static</code> que só cresce</h3>
+<p>Campos <code>static</code> são raízes: vivem enquanto o programa viver. A Ana guardou os relatórios de cada dia num "cache" (uma lista para reaproveitar depois), mas nunca tirou nada de lá:</p>
+
+<pre class="file" data-file="cache.cs">for (int dia = 1; dia &lt;= 5; dia++)
+{
+    Relatorios.Gerar(dia);
+}
+Console.WriteLine($"Relatórios guardados: {Relatorios.Cache.Count}");
+Console.WriteLine($"Memória: {GC.GetTotalMemory(true) / 1_000_000} MB");
+
+static class Relatorios
+{
+    public static List&lt;byte[]&gt; Cache { get; } = new();
+
+    public static void Gerar(int dia)
+    {
+        byte[] relatorio = new byte[10_000_000]; // 10 MB
+        Cache.Add(relatorio);
+        Console.WriteLine($"Dia {dia}: relatório gerado");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run cache.cs
+Dia 1: relatório gerado
+Dia 2: relatório gerado
+Dia 3: relatório gerado
+Dia 4: relatório gerado
+Dia 5: relatório gerado
+Relatórios guardados: 5
+Memória: 50 MB</pre>
+
+<p>A variável <code>relatorio</code> morre no fim de cada <code>Gerar</code>, mas a lista <code>Cache</code> continua segurando cada array. Cinco dias, 50 MB. Num programa que fica ligado o mês inteiro, seria 300 MB, depois 1 GB… O conserto é decidir <strong>quanto guardar</strong>: só os últimos dias, por exemplo.</p>
+
+<div class="trycs" data-goal="out:Relatórios guardados: 3,src:Cache\.(RemoveAt|Remove)\(">
+<p class="try-task"><strong>Missão:</strong> o cache da Ana guarda os 5 relatórios. Faça ele guardar <strong>só os 3 últimos</strong>: em <code>Gerar</code>, depois do <code>Add</code>, se <code>Cache.Count</code> passar de 3, tire o mais antigo com <code>Cache.RemoveAt(0)</code>. (Aqui cada relatório tem 1 MB, para não pesar no navegador.)</p>
+<pre class="script" data-file="cache.cs">for (int dia = 1; dia &lt;= 5; dia++)
+{
+    Relatorios.Gerar(dia);
+}
+Console.WriteLine($"Relatórios guardados: {Relatorios.Cache.Count}");
+
+static class Relatorios
+{
+    public static List&lt;byte[]&gt; Cache { get; } = new();
+
+    public static void Gerar(int dia)
+    {
+        byte[] relatorio = new byte[1_000_000]; // 1 MB
+        Cache.Add(relatorio);
+        // se o cache passou de 3, tire o mais antigo
+        Console.WriteLine($"Dia {dia}: relatório gerado");
+    }
+}
+</pre>
+<pre class="solucao" data-file="cache.cs">for (int dia = 1; dia &lt;= 5; dia++)
+{
+    Relatorios.Gerar(dia);
+}
+Console.WriteLine($"Relatórios guardados: {Relatorios.Cache.Count}");
+
+static class Relatorios
+{
+    public static List&lt;byte[]&gt; Cache { get; } = new();
+
+    public static void Gerar(int dia)
+    {
+        byte[] relatorio = new byte[1_000_000]; // 1 MB
+        Cache.Add(relatorio);
+        if (Cache.Count &gt; 3)
+        {
+            Cache.RemoveAt(0);
+        }
+        Console.WriteLine($"Dia {dia}: relatório gerado");
+    }
+}
+</pre>
+</div>
+
+<h3>Um evento sem <code>-=</code></h3>
+<p>Quando um objeto se inscreve num <a href="eventos.html">evento</a> com <code>+=</code>, o dono do evento passa a guardar uma referência a ele. Se ninguém fizer <code>-=</code>, o inscrito fica vivo enquanto o dono do evento viver, mesmo que mais ninguém o use. No exemplo abaixo, cada <code>Tela</code> é usada uma vez só, mas o <code>Relogio</code> continua chamando todas:</p>
+
+<pre class="file" data-file="evento.cs">var relogio = new Relogio();
+for (int i = 1; i &lt;= 3; i++)
+{
+    var tela = new Tela($"Tela {i}");
+    relogio.Tique += tela.Mostrar;
+    relogio.Bater();
+}
+Console.WriteLine($"Inscritos no fim: {relogio.Inscritos}");
+
+class Relogio
+{
+    public event Action? Tique;
+    public int Inscritos =&gt; Tique?.GetInvocationList().Length ?? 0;
+    public void Bater() =&gt; Tique?.Invoke();
+}
+
+class Tela(string nome)
+{
+    public void Mostrar() =&gt; Console.WriteLine($"{nome}: tique!");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run evento.cs
+Tela 1: tique!
+Tela 1: tique!
+Tela 2: tique!
+Tela 1: tique!
+Tela 2: tique!
+Tela 3: tique!
+Inscritos no fim: 3</pre>
+
+<dl class="anatomy">
+  <dt>relogio.Tique += tela.Mostrar;</dt><dd>Inscreve o método <code>Mostrar</code> daquela tela. O evento guarda o método <strong>e o objeto</strong> <code>tela</code>.</dd>
+  <dt>Tique?.GetInvocationList().Length</dt><dd>Quantos métodos estão inscritos no evento.</dd>
+  <dt>class Tela(string nome)</dt><dd>Uma classe com <a href="construtores.html">construtor primário</a> <span class="versao">C# 12</span>: o <code>nome</code> fica disponível dentro dela.</dd>
+</dl>
+
+<p>A "Tela 1" foi chamada três vezes, embora o laço já tenha passado dela: o relógio ainda a segura. Num programa com janelas, cada janela fechada continuaria na memória.</p>
+
+<hr>
+
+<h2>6. O coletor cuida da memória, não dos arquivos</h2>
+<p>Um objeto que abriu um arquivo ou uma conexão segura algo que <strong>não é memória</strong>: o arquivo fica aberto no sistema. O coletor não sabe disso e só passa quando acha que falta memória, o que pode demorar. Existe um jeito de rodar código quando o coletor leva um objeto, o <strong>finalizador</strong> (<code>~NomeDaClasse()</code>), mas você não controla quando ele roda:</p>
+
+<pre class="file" data-file="final.cs">using System.Runtime.CompilerServices;
+
+UsarArquivo();
+Console.WriteLine("Chamando o coletor...");
+GC.Collect();
+GC.WaitForPendingFinalizers();
+Console.WriteLine("Fim do programa");
+
+[MethodImpl(MethodImplOptions.NoInlining)]
+static void UsarArquivo()
+{
+    var r = new Recurso("notas.txt");
+    Console.WriteLine($"Usando {r.Nome}");
+}
+
+class Recurso
+{
+    public string Nome { get; }
+    public Recurso(string nome) =&gt; Nome = nome;
+    ~Recurso() =&gt; Console.WriteLine($"Finalizador: liberando {Nome}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run final.cs
+Usando notas.txt
+Chamando o coletor...
+Finalizador: liberando notas.txt
+Fim do programa</pre>
+
+<p>O <code>UsarArquivo</code> terminou bem antes, mas o "arquivo" só foi liberado quando chamamos o coletor à força e esperamos os finalizadores (<code>GC.WaitForPendingFinalizers</code>). Sem essas duas linhas, ele poderia ficar aberto até o fim do programa. Por isso a regra do C#:</p>
+
+<div class="tip">
+<strong>Memória: deixe com o coletor. Arquivos e conexões: <code>using</code>.</strong>
+<p>Classes que seguram arquivos, conexões ou outros recursos do sistema implementam <code>IDisposable</code>, e você as usa com <code>using</code>: o recurso é liberado na hora em que o bloco termina, sempre. A aula <a href="using-dispose.html">using e IDisposable</a> mostra como. Escrever finalizadores é raro: as classes do .NET que precisam deles já os têm.</p>
+</div>
+
+<hr>
+
+<h2>Qual usar: quando se preocupar com memória</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>O que fazer</th></tr>
+<tr><td>Quase todo programa</td><td><strong>Nada.</strong> Crie os objetos com <code>new</code> à vontade; o coletor é muito bom no que faz.</td></tr>
+<tr><td>Montar texto num laço grande</td><td><a href="stringbuilder.html">StringBuilder</a> em vez de <code>+=</code>.</td></tr>
+<tr><td>Arquivos, conexões, <code>StreamReader</code></td><td><code>using</code> (veja <a href="using-dispose.html">using e IDisposable</a>).</td></tr>
+<tr><td>Listas e dicionários <code>static</code>, caches</td><td>Decida um limite e tire os itens antigos.</td></tr>
+<tr><td>Eventos de objetos de vida curta</td><td>Faça <code>-=</code> quando o objeto não for mais usado.</td></tr>
+<tr><td>Muitos dados pequenos, como pontos de um gráfico</td><td>Uma <a href="structs.html">struct</a> pode evitar milhões de objetos no heap. Veja também <a href="span.html">Span&lt;T&gt;</a>.</td></tr>
+<tr><td>O programa ficou lento ou pesado</td><td>Meça antes de mudar (<code>GC.GetAllocatedBytesForCurrentThread</code>, ou ferramentas como o <code>dotnet-counters</code>). Não adivinhe.</td></tr>
+</table>
+</div>
+
+<div class="warning">
+<strong>Não espalhe <code>GC.Collect()</code> pelo programa</strong>
+<p>Nesta aula usamos <code>GC.Collect()</code> para ver o coletor trabalhar. Num programa de verdade, ele quase sempre <strong>atrapalha</strong>: força uma coleta completa (a mais cara) e promove para a geração 2 objetos que iam morrer logo, o que deixa as próximas coletas mais caras. O .NET escolhe a hora certa melhor do que nós.</p>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>Stack overflow.</code>: a recursão que nunca para</strong>
+<p>A pilha é pequena (no Linux, 8 MB por padrão). Cada chamada de método ocupa um pedaço dela, e o pedaço só é devolvido quando o método termina. Um método que chama a si mesmo sem parar (<a href="recursao.html">recursão</a> sem caso base) enche a pilha:</p>
+<pre class="file" data-file="pilha.cs">int Contar(int n)
+{
+    return Contar(n + 1);
+}
+
+Console.WriteLine("Contando...");
+Console.WriteLine(Contar(1));
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run pilha.cs
+Contando...
+Stack overflow.
+Repeated 261736 times:                    « o número muda um pouco a cada execução
+--------------------------------
+   at Program.&lt;&lt;Main&gt;$&gt;g__Contar|0_0(Int32)
+--------------------------------
+   at Program.&lt;Main&gt;$(System.String[])
+$ echo $?
+134</pre>
+<p><strong>O que significa:</strong> "estouro da pilha". O método <code>Contar</code> (o nome estranho <code>&lt;&lt;Main&gt;$&gt;g__Contar|0_0</code> é como o compilador batiza uma função local) foi chamado mais de 260 mil vezes, uma dentro da outra, até a pilha acabar. Esse erro <strong>não pode</strong> ser pego com <a href="try-catch.html">try/catch</a>: o .NET encerra o programa na hora, com o código 134.</p>
+<p><strong>Como consertar:</strong> toda recursão precisa de um <strong>caso base</strong>, uma condição em que o método para de se chamar: <code>if (n &gt;= 10) return n;</code>. Se a recursão é muito funda de propósito (milhões de níveis), troque por um laço <a href="while.html">while</a>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>Out of memory.</code>: um pedido grande demais</strong>
+<p>A Ana quis um array com o maior tamanho possível:</p>
+<pre class="file" data-file="oom.cs">Console.WriteLine("Criando um array gigante...");
+int[] numeros = new int[int.MaxValue];
+Console.WriteLine(numeros.Length);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run oom.cs
+Criando um array gigante...
+Out of memory.
+$ echo $?
+134</pre>
+<p><strong>O que significa:</strong> <code>int.MaxValue</code> são 2.147.483.647 posições de 4 bytes: 8 GB num array só, além do tamanho máximo que um array do .NET aceita. O <code>new</code> lançou uma <code>OutOfMemoryException</code> ("sem memória"), ninguém a pegou, e o .NET encerrou o programa com uma mensagem curta e o código 134. Pegando a exceção, dá para ler a mensagem completa:</p>
+<pre class="file" data-file="oom2.cs">try
+{
+    int[] numeros = new int[int.MaxValue];
+    Console.WriteLine(numeros.Length);
+}
+catch (OutOfMemoryException e)
+{
+    Console.WriteLine(e.Message);
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run oom2.cs
+Array dimensions exceeded supported range.</pre>
+<p>"As dimensões do array passaram do limite aceito". <strong>Como consertar:</strong> peça só o que vai usar. Para muitos dados, use uma <a href="list.html">List&lt;T&gt;</a> que cresce aos poucos, ou leia um arquivo linha por linha (veja <a href="streams.html">StreamReader</a>) em vez de carregá-lo inteiro. Se a memória cresce sem parar num programa que fica ligado, procure um dos vazamentos da seção 5.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Membro</th><th>O que faz</th></tr>
+<tr><td><code>GC.Collect()</code></td><td>Força uma coleta completa agora. Para testes e aulas, quase nunca em programas.</td></tr>
+<tr><td><code>GC.WaitForPendingFinalizers()</code></td><td>Espera os finalizadores dos objetos coletados terminarem.</td></tr>
+<tr><td><code>GC.GetGeneration(obj)</code></td><td>A geração em que o objeto está (0, 1 ou 2).</td></tr>
+<tr><td><code>GC.MaxGeneration</code></td><td>O número da última geração.</td></tr>
+<tr><td><code>GC.CollectionCount(n)</code></td><td>Quantas coletas da geração <code>n</code> já aconteceram.</td></tr>
+<tr><td><code>GC.GetTotalMemory(true)</code></td><td>Bytes ocupados pelos objetos vivos (com <code>true</code>, coleta antes de medir).</td></tr>
+<tr><td><code>GC.GetAllocatedBytesForCurrentThread()</code></td><td>Bytes já pedidos por esta thread desde o começo, contando o lixo.</td></tr>
+<tr><td><code>new WeakReference(obj)</code> / <code>.IsAlive</code></td><td>Observa um objeto sem impedir que ele seja coletado.</td></tr>
+<tr><td><code>ReferenceEquals(a, b)</code></td><td><code>true</code> se as duas variáveis apontam para o mesmo objeto.</td></tr>
+<tr><td><code>~Classe() { … }</code></td><td>Finalizador: roda quando o coletor leva o objeto, sem hora marcada.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">1. Quando o coletor de lixo pode liberar um objeto?</p>
+<label><input type="radio" name="q1"> Quando o método que o criou termina.</label>
+<label><input type="radio" name="q1"> Quando o programador chama <code>free</code>.</label>
+<label><input type="radio" name="q1"> Quando nenhuma variável, campo <code>static</code> ou outro objeto vivo chega mais até ele.</label>
+<label><input type="radio" name="q1"> A cada segundo, todos os objetos são liberados.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">2. Onde fica a lista criada por <code>var compras = new List&lt;string&gt;();</code> dentro de um método?</p>
+<label><input type="radio" name="q2"> A lista e a variável ficam na pilha.</label>
+<label><input type="radio" name="q2"> A lista fica no heap; a variável <code>compras</code>, na pilha, guarda o endereço dela.</label>
+<label><input type="radio" name="q2"> A lista fica na pilha; o endereço, no heap.</label>
+<label><input type="radio" name="q2"> Num arquivo temporário.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">3. Um objeto acabou de ser criado com <code>new</code>. Em que geração ele está?</p>
+<label><input type="radio" name="q3"> 2</label>
+<label><input type="radio" name="q3"> 1</label>
+<label><input type="radio" name="q3"> Em nenhuma, até a primeira coleta.</label>
+<label><input type="radio" name="q3"> 0</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">4. Um programa que fica ligado o dia inteiro guarda cada pedido numa <code>static List&lt;Pedido&gt;</code> e nunca remove nada. O que acontece?</p>
+<label><input type="radio" name="q4"> A memória só cresce: a lista <code>static</code> mantém todos os pedidos alcançáveis.</label>
+<label><input type="radio" name="q4"> Nada: o coletor libera os pedidos antigos sozinho.</label>
+<label><input type="radio" name="q4"> O compilador dá o erro CS0103.</label>
+<label><input type="radio" name="q4"> A lista apaga os itens antigos quando fica cheia.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Qual é o jeito certo de garantir que um arquivo seja fechado na hora?</p>
+<label><input type="radio" name="q5"> Chamar <code>GC.Collect()</code> depois de usar o arquivo.</label>
+<label><input type="radio" name="q5"> Escrever um finalizador <code>~Classe()</code>.</label>
+<label><input type="radio" name="q5"> Usar <code>using</code>, que chama <code>Dispose</code> no fim do bloco.</label>
+<label><input type="radio" name="q5"> Colocar <code>null</code> na variável.</label>
+</div>
+
+<div class="exercise">
+<p>6. Complete o nome do método que força uma coleta agora:</p>
+<div class="ex-code">GC.<input data-answer="Collect" aria-label="método" size="10">();</div>
+</div>
+
+<div class="exercise">
+<p>7. Complete o operador que <strong>desinscreve</strong> a tela do evento:</p>
+<div class="ex-code">relogio.Tique <input data-answer="-=" aria-label="operador" size="3"> tela.Mostrar;</div>
+</div>
+
+<div class="trycs" data-file="evento.cs" data-goal="out:Inscritos no fim: 0,src:-=\s*tela\.Mostrar">
+<p class="try-task"><strong>Missão final:</strong> conserte o vazamento do relógio. Dentro do laço, depois do <code>relogio.Bater();</code>, desinscreva a tela com <code>relogio.Tique -= tela.Mostrar;</code>. Cada tela deve dizer "tique!" uma vez só, e no fim não deve sobrar nenhum inscrito.</p>
+<pre class="script" data-file="evento.cs">var relogio = new Relogio();
+for (int i = 1; i &lt;= 3; i++)
+{
+    var tela = new Tela($"Tela {i}");
+    relogio.Tique += tela.Mostrar;
+    relogio.Bater();
+}
+Console.WriteLine($"Inscritos no fim: {relogio.Inscritos}");
+
+class Relogio
+{
+    public event Action? Tique;
+    public int Inscritos =&gt; Tique?.GetInvocationList().Length ?? 0;
+    public void Bater() =&gt; Tique?.Invoke();
+}
+
+class Tela(string nome)
+{
+    public void Mostrar() =&gt; Console.WriteLine($"{nome}: tique!");
+}
+</pre>
+<pre class="solucao" data-file="evento.cs">var relogio = new Relogio();
+for (int i = 1; i &lt;= 3; i++)
+{
+    var tela = new Tela($"Tela {i}");
+    relogio.Tique += tela.Mostrar;
+    relogio.Bater();
+    relogio.Tique -= tela.Mostrar;
+}
+Console.WriteLine($"Inscritos no fim: {relogio.Inscritos}");
+
+class Relogio
+{
+    public event Action? Tique;
+    public int Inscritos =&gt; Tique?.GetInvocationList().Length ?? 0;
+    public void Bater() =&gt; Tique?.Invoke();
+}
+
+class Tela(string nome)
+{
+    public void Mostrar() =&gt; Console.WriteLine($"{nome}: tique!");
+}
+</pre>
+</div>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run evento.cs                     « com o -=
+Tela 1: tique!
+Tela 2: tique!
+Tela 3: tique!
+Inscritos no fim: 0</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Variáveis locais ficam na <strong>pilha</strong> e somem quando o método termina; objetos criados com <code>new</code> ficam no <strong>heap</strong>.</li>
+  <li>Uma variável de tipo de referência guarda o <strong>endereço</strong> do objeto; copiar a variável copia o endereço.</li>
+  <li>O <strong>coletor de lixo</strong> libera os objetos que nenhuma raiz alcança, numa hora que ele escolhe.</li>
+  <li>O heap tem gerações: 0 (novos), 1 e 2 (vida longa). A maioria dos objetos morre na geração 0, onde a coleta é barata.</li>
+  <li><code>+=</code> em <code>string</code> num laço gera muito lixo; <code>StringBuilder</code> resolve.</li>
+  <li>Vazamento em C# é objeto inútil mas alcançável: listas <code>static</code> sem limite e eventos sem <code>-=</code>.</li>
+  <li>O coletor cuida só da memória; arquivos e conexões se fecham com <code>using</code>.</li>
+  <li><code>Stack overflow.</code> é recursão sem fim; <code>Out of memory.</code> é um pedido grande demais. Os dois encerram o programa com o código 134.</li>
+</ul>
+<p>Próxima aula: <a href="boas-praticas.html">Boas Práticas</a>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
