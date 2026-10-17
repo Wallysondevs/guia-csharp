@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Cancelamento — CancellationToken e CancellationTokenSource | Guia C#</title>
+<meta name="description" content="Cancelar tarefas em C# para quem está começando: CancellationTokenSource e CancellationToken, Cancel, ThrowIfCancellationRequested, IsCancellationRequested, Task.Delay com token, CancelAfter (tempo limite), Ctrl+C com Console.CancelKeyPress, Register, tokens ligados, OperationCanceledException e TaskCanceledException, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Cancelamento</span></h1>
+
+<p class="intro">Um download está demorando e a Ana clica em <strong>Cancelar</strong>. Uma busca passou de 5 segundos e o programa deve desistir. A Ana aperta <kbd>Ctrl</kbd>+<kbd>C</kbd> e quer que o programa salve o arquivo antes de fechar. Em todos esses casos, alguém precisa <strong>pedir</strong> para uma tarefa parar, e a tarefa precisa <strong>ouvir</strong> o pedido. No .NET, isso é feito com uma dupla: o <code>CancellationTokenSource</code> ("fonte do sinal de cancelamento") e o <code>CancellationToken</code> ("sinal de cancelamento").</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A ideia do cancelamento <strong>combinado</strong>: quem pede e quem obedece.</li>
+  <li>Criar um <code>CancellationTokenSource</code>, entregar o <code>Token</code> e chamar <code>Cancel()</code>.</li>
+  <li>Obedecer com <code>ThrowIfCancellationRequested()</code> ou com <code>IsCancellationRequested</code>.</li>
+  <li>Passar o token para os métodos do .NET (<code>Task.Delay(100, token)</code>) e tratar a <code>OperationCanceledException</code>.</li>
+  <li>Tempo limite com <code>CancelAfter</code>, o <kbd>Ctrl</kbd>+<kbd>C</kbd> com <code>Console.CancelKeyPress</code>, <code>Register</code> e tokens ligados.</li>
+  <li>Os erros: a tarefa que ignora o token, <code>CS7036</code>, <code>TaskCanceledException</code> não tratada e <code>ObjectDisposedException</code>.</li>
+</ul>
+</div>
+
+<p>Todas as saídas desta aula são reais: foram feitas com o <strong>.NET 10</strong> (<code>10.0.112</code>) na máquina fictícia da Ana, na pasta <code>~/cs/cancelar</code>, com <code>dotnet run arquivo.cs</code>. Os programas usam <code>async</code>, <code>await</code> e <code>Task</code> (veja <a href="async-await.html">async e await</a> e <a href="tasks.html">Task</a>).</p>
+
+<hr>
+
+<h2>A ideia: o juiz e o apito</h2>
+<p>Num jogo de futebol, o juiz não entra em campo e arranca a bola do pé de ninguém. Ele <strong>apita</strong>, e os jogadores, que estão sempre de ouvido atento, param a jogada. Se um jogador estiver no meio de um chute, ele termina o chute e então para. Ninguém é derrubado à força.</p>
+
+<p>O cancelamento no .NET funciona igual: é um <strong>pedido</strong>, não uma ordem à força. O .NET nunca "mata" uma tarefa no meio de uma linha (isso poderia deixar um arquivo pela metade). A própria tarefa confere o sinal de tempos em tempos e para num ponto seguro.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>No futebol</th><th>No C#</th><th>O que é</th></tr>
+<tr><td>O juiz, com o apito na mão</td><td><code>CancellationTokenSource</code></td><td>Quem <strong>pode pedir</strong> o cancelamento. Fica com quem manda (o botão Cancelar, o <kbd>Ctrl</kbd>+<kbd>C</kbd>).</td></tr>
+<tr><td>O som do apito, que todos ouvem</td><td><code>CancellationToken</code></td><td>O sinal que vai junto com o trabalho. Só serve para <strong>ouvir</strong>: com ele, ninguém consegue cancelar.</td></tr>
+<tr><td>Apitar</td><td><code>cts.Cancel()</code></td><td>Pede para parar.</td></tr>
+<tr><td>O jogador para a jogada</td><td><code>token.ThrowIfCancellationRequested()</code></td><td>A tarefa confere e para.</td></tr>
+</table>
+</div>
+
+<p>A separação é de propósito: o método que baixa o arquivo recebe só o <code>CancellationToken</code>. Ele pode saber que pediram para parar, mas não pode cancelar o trabalho dos outros.</p>
+
+<hr>
+
+<h2>1. O primeiro cancelamento</h2>
+<p>A Ana baixa um arquivo em 10 partes, de 100 milissegundos cada. Depois de 350 milissegundos, ela clica em Cancelar:</p>
+
+<pre class="file" data-file="download.cs">using var cts = new CancellationTokenSource();
+
+Task baixar = Baixar(cts.Token);
+
+await Task.Delay(350);
+Console.WriteLine("Ana clicou em Cancelar");
+cts.Cancel();
+
+try
+{
+    await baixar;
+}
+catch (OperationCanceledException)
+{
+    Console.WriteLine("Download cancelado.");
+}
+
+static async Task Baixar(CancellationToken token)
+{
+    for (int parte = 1; parte &lt;= 10; parte++)
+    {
+        token.ThrowIfCancellationRequested();
+        Console.WriteLine($"Baixando parte {parte} de 10...");
+        await Task.Delay(100);
+    }
+    Console.WriteLine("Download completo!");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/cancelar">$ dotnet run download.cs
+Baixando parte 1 de 10...
+Baixando parte 2 de 10...
+Baixando parte 3 de 10...
+Baixando parte 4 de 10...
+Ana clicou em Cancelar
+Download cancelado.</pre>
+
+<p>Linha por linha:</p>
+<dl class="anatomy">
+  <dt>using var cts = new CancellationTokenSource();</dt><dd>Cria o "juiz" (o nome <code>cts</code> é a sigla do tipo, e é o nome que quase todo mundo usa). O <code>using</code> libera os recursos dele no fim do programa (veja <a href="using-dispose.html">using e IDisposable</a>).</dd>
+  <dt>Task baixar = Baixar(cts.Token);</dt><dd>Começa o download e entrega a ele o <strong>sinal</strong>, <code>cts.Token</code>. Repare que não há <code>await</code> aqui: o download segue sozinho enquanto o programa principal continua (veja <a href="tasks.html">Task</a>).</dd>
+  <dt>await Task.Delay(350);</dt><dd>Espera 350 milissegundos: é a Ana olhando a barra de progresso.</dd>
+  <dt>cts.Cancel();</dt><dd>"Cancele": o apito. A partir daqui, <code>cts.Token</code> passa a dizer que o cancelamento foi pedido. Só isso: o <code>Cancel()</code> não para nada sozinho.</dd>
+  <dt>await baixar;</dt><dd>Espera o download terminar (de um jeito ou de outro).</dd>
+  <dt>catch (OperationCanceledException)</dt><dd>Quando uma tarefa para por cancelamento, ela termina com essa exceção ("exceção de operação cancelada"). Aqui, ela é o jeito <strong>normal</strong> de dizer "parei porque pediram", e o programa a trata com uma mensagem amigável.</dd>
+  <dt>CancellationToken token</dt><dd>O método que faz o trabalho recebe o sinal como parâmetro. Por costume, ele é o <strong>último</strong> parâmetro e se chama <code>token</code> ou <code>cancellationToken</code>.</dd>
+  <dt>token.ThrowIfCancellationRequested();</dt><dd>"Lance uma exceção se o cancelamento foi pedido". Se ninguém apitou, não faz nada e o laço segue. Se apitaram, lança a <code>OperationCanceledException</code> e o método para ali. É o jogador olhando para o juiz antes de cada jogada.</dd>
+</dl>
+
+<p>O momento exato em que o cancelamento chega depende do relógio (a Ana viu 4 partes; noutra execução poderiam ser 3). O que não muda é a ordem: a tarefa só para quando chega ao próximo <code>ThrowIfCancellationRequested()</code>.</p>
+
+<div class="trycs" data-goal="outre:Parte 3\nDownload cancelado na parte 4\.">
+<p class="try-task"><strong>Missão:</strong> aqui não há relógio: a própria Ana clica em Cancelar logo depois da parte 3 (o <code>cts.Cancel()</code> dentro do <code>if</code>). Mas o laço não está ouvindo o sinal, e o download vai até o fim. Acrescente <code>token.ThrowIfCancellationRequested();</code> como <strong>primeira linha</strong> dentro do <code>for</code> e rode. A saída tem de terminar em <code>Parte 3</code> e <code>Download cancelado na parte 4.</code></p>
+<pre class="script">using var cts = new CancellationTokenSource();
+CancellationToken token = cts.Token;
+int parte = 0;
+
+try
+{
+    for (parte = 1; parte &lt;= 10; parte++)
+    {
+        Console.WriteLine($"Parte {parte}");
+
+        if (parte == 3)
+        {
+            cts.Cancel(); // a Ana clicou em Cancelar
+        }
+    }
+    Console.WriteLine("Download completo!");
+}
+catch (OperationCanceledException)
+{
+    Console.WriteLine($"Download cancelado na parte {parte}.");
+}
+</pre>
+<pre class="solucao">using var cts = new CancellationTokenSource();
+CancellationToken token = cts.Token;
+int parte = 0;
+
+try
+{
+    for (parte = 1; parte &lt;= 10; parte++)
+    {
+        token.ThrowIfCancellationRequested();
+        Console.WriteLine($"Parte {parte}");
+
+        if (parte == 3)
+        {
+            cts.Cancel(); // a Ana clicou em Cancelar
+        }
+    }
+    Console.WriteLine("Download completo!");
+}
+catch (OperationCanceledException)
+{
+    Console.WriteLine($"Download cancelado na parte {parte}.");
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Passar o token para o .NET</h2>
+<p>Quase todo método do .NET que pode demorar aceita um <code>CancellationToken</code> no fim: <code>Task.Delay(100, token)</code>, <code>File.ReadAllTextAsync(caminho, token)</code>, <code>HttpClient.GetStringAsync(endereço, token)</code>. Passando o token adiante, a espera é interrompida <strong>na hora</strong>, sem precisar chegar ao próximo <code>ThrowIfCancellationRequested()</code>:</p>
+
+<pre class="file" data-file="download2.cs">«… o começo, igual ao download.cs …»
+catch (OperationCanceledException e)
+{
+    Console.WriteLine($"Download cancelado ({e.GetType().Name}).");
+}
+
+static async Task Baixar(CancellationToken token)
+{
+    for (int parte = 1; parte &lt;= 10; parte++)
+    {
+        Console.WriteLine($"Baixando parte {parte} de 10...");
+        await Task.Delay(100, token);
+    }
+    Console.WriteLine("Download completo!");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/cancelar">$ dotnet run download2.cs
+Baixando parte 1 de 10...
+Baixando parte 2 de 10...
+Baixando parte 3 de 10...
+Baixando parte 4 de 10...
+Ana clicou em Cancelar
+Download cancelado (TaskCanceledException).</pre>
+
+<dl class="anatomy">
+  <dt>await Task.Delay(100, token);</dt><dd>"Espere 100 milissegundos, mas pare se o token apitar." A espera da parte 4 foi interrompida no meio.</dd>
+  <dt>TaskCanceledException</dt><dd>O <code>Task.Delay</code> avisa com a <code>TaskCanceledException</code> ("exceção de tarefa cancelada"), que é uma <strong>filha</strong> da <code>OperationCanceledException</code> (veja <a href="heranca.html">Herança</a>). Por isso o mesmo <code>catch (OperationCanceledException)</code> pega as duas. Prefira sempre pegar a mãe.</dd>
+</dl>
+
+<div class="tip">
+<strong>A regra de ouro:</strong> se o seu método recebeu um token, <strong>passe-o adiante</strong> para todo método que aceitar um. É assim que um único <code>Cancel()</code> lá em cima chega até a última espera lá embaixo.
+</div>
+
+<h3>A mensagem e o token da exceção</h3>
+<pre class="file" data-file="excecao.cs">using var cts = new CancellationTokenSource();
+cts.Cancel();
+try
+{
+    cts.Token.ThrowIfCancellationRequested();
+}
+catch (OperationCanceledException e)
+{
+    Console.WriteLine(e.GetType().FullName);
+    Console.WriteLine(e.Message);
+    Console.WriteLine(e.CancellationToken == cts.Token);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/cancelar">$ dotnet run excecao.cs
+System.OperationCanceledException
+The operation was canceled.
+True</pre>
+
+<p>A mensagem vem em inglês ("a operação foi cancelada"), como todas as exceções do .NET no Linux. A propriedade <code>e.CancellationToken</code> diz <strong>qual</strong> token causou o cancelamento: útil quando há mais de um (seção 5).</p>
+
+<hr>
+
+<h2>3. Parar com calma: <code>IsCancellationRequested</code></h2>
+<p>Nem sempre você quer uma exceção. Às vezes o certo é parar o laço e <strong>devolver o que já foi feito</strong>. Para isso, em vez de <code>ThrowIfCancellationRequested()</code>, confira a propriedade <code>IsCancellationRequested</code> ("o cancelamento foi pedido?"), que é um <code>bool</code>:</p>
+
+<pre class="file" data-file="educado.cs">using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+int somadas = await Somar(cts.Token);
+Console.WriteLine($"Parei. Somei {somadas} notas antes do tempo acabar.");
+
+static async Task&lt;int&gt; Somar(CancellationToken token)
+{
+    int quantas = 0;
+    while (!token.IsCancellationRequested)
+    {
+        quantas++;
+        await Task.Delay(100);
+    }
+    return quantas;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/cancelar">$ dotnet run educado.cs
+Parei. Somei 3 notas antes do tempo acabar.</pre>
+
+<dl class="anatomy">
+  <dt>new CancellationTokenSource(TimeSpan.FromMilliseconds(250))</dt><dd>Um juiz com <strong>cronômetro</strong>: ele mesmo apita depois de 250 milissegundos, sem ninguém chamar <code>Cancel()</code>. É o jeito de dar um <strong>tempo limite</strong> (em inglês, <em>timeout</em>) a um trabalho.</dd>
+  <dt>while (!token.IsCancellationRequested)</dt><dd>"Enquanto não pediram para parar." O <code>!</code> é o "não" (veja <a href="operadores-logicos.html">Operadores Lógicos</a>).</dd>
+  <dt>return quantas;</dt><dd>Sem exceção: o método termina normalmente e devolve o resultado parcial.</dd>
+</dl>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>O que acontece</th><th>Quando usar</th></tr>
+<tr><td><code>token.ThrowIfCancellationRequested()</code></td><td>Lança <code>OperationCanceledException</code>.</td><td>O padrão. Quem chamou fica sabendo que o trabalho <strong>não</strong> terminou.</td></tr>
+<tr><td><code>if (token.IsCancellationRequested) break;</code></td><td>Só um <code>bool</code>; você decide o que fazer.</td><td>Quando um resultado parcial faz sentido (as notas somadas até agora).</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>4. Tempo limite e <kbd>Ctrl</kbd>+<kbd>C</kbd></h2>
+<h3>Tempo limite: <code>CancelAfter</code></h3>
+<p>Além do cronômetro no construtor, existe <code>cts.CancelAfter(250)</code> ("cancele depois de 250 milissegundos"), que você pode chamar a qualquer momento. Se ninguém tratar a exceção, o programa termina com erro:</p>
+
+<pre class="file" data-file="semtratar.cs">using var cts = new CancellationTokenSource();
+cts.CancelAfter(250);
+await Task.Delay(1000, cts.Token);
+Console.WriteLine("Fim");
+</pre>
+
+<pre class="term" data-cwd="~/cs/cancelar">$ dotnet run semtratar.cs; echo "código de saída: $?"
+Unhandled exception. System.Threading.Tasks.TaskCanceledException: A task was canceled.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/cancelar/semtratar.cs:line 3
+   at Program.&lt;Main&gt;(String[] args)
+código de saída: 134</pre>
+
+<p>O <code>Fim</code> nunca apareceu: a espera de 1 segundo foi cortada aos 250 milissegundos, e a <code>TaskCanceledException</code> ("uma tarefa foi cancelada") subiu até o topo sem <code>catch</code>. O código de saída 134 é o de toda exceção não tratada no Linux (veja <a href="excecoes.html">Exceções</a>).</p>
+
+<h3>O <kbd>Ctrl</kbd>+<kbd>C</kbd>: <code>Console.CancelKeyPress</code></h3>
+<p>Quando a Ana aperta <kbd>Ctrl</kbd>+<kbd>C</kbd>, o programa normalmente morre na hora. Com o evento <code>Console.CancelKeyPress</code> ("tecla de cancelar apertada"), ele pode transformar esse aperto num cancelamento educado (veja <a href="eventos.html">Eventos</a>):</p>
+
+<pre class="file" data-file="ctrlc.cs">using var cts = new CancellationTokenSource();
+
+Console.CancelKeyPress += (sender, e) =&gt;
+{
+    e.Cancel = true; // não feche o programa na hora
+    Console.WriteLine();
+    Console.WriteLine("Ctrl+C recebido, terminando com calma...");
+    cts.Cancel();
+};
+
+Console.WriteLine("Contando. Aperte Ctrl+C para parar.");
+int segundos = 0;
+try
+{
+    while (true)
+    {
+        await Task.Delay(1000, cts.Token);
+        segundos++;
+        Console.WriteLine($"{segundos} s");
+    }
+}
+catch (OperationCanceledException)
+{
+    Console.WriteLine($"Parei depois de {segundos} s. Arquivo salvo.");
+}
+</pre>
+
+<p>Para a saída ser reprodutível, em vez de apertar as teclas a Ana usou o <code>timeout -s INT 3.5</code>, que manda ao programa, depois de 3,5 segundos, o <strong>mesmo sinal</strong> (<code>SIGINT</code>) que o <kbd>Ctrl</kbd>+<kbd>C</kbd> manda:</p>
+
+<pre class="term" data-cwd="~/cs/cancelar">$ timeout -s INT 3.5 dotnet run ctrlc.cs
+Contando. Aperte Ctrl+C para parar.
+1 s
+2 s
+3 s
+
+Ctrl+C recebido, terminando com calma...
+Parei depois de 3 s. Arquivo salvo.</pre>
+
+<dl class="anatomy">
+  <dt>Console.CancelKeyPress += (sender, e) =&gt; { … };</dt><dd>Registra uma lambda que roda quando o <kbd>Ctrl</kbd>+<kbd>C</kbd> chega.</dd>
+  <dt>e.Cancel = true;</dt><dd>"Cancele o fechamento": sem esta linha, o programa fecharia logo depois da lambda, sem passar pelo <code>catch</code>. Cuidado com a confusão de nomes: aqui, <code>Cancel = true</code> quer dizer "<strong>não</strong> feche".</dd>
+  <dt>cts.Cancel();</dt><dd>Transforma o aperto da tecla num pedido de cancelamento, que chega ao <code>Task.Delay</code>.</dd>
+</dl>
+
+<hr>
+
+<h2>5. <code>Register</code>, <code>CancellationToken.None</code> e tokens ligados</h2>
+<h3>Ser avisado: <code>Register</code></h3>
+<pre class="file" data-file="registrar.cs">using var cts = new CancellationTokenSource();
+CancellationToken token = cts.Token;
+
+token.Register(() =&gt; Console.WriteLine("Aviso: alguém cancelou!"));
+
+Console.WriteLine($"Pode cancelar? {token.CanBeCanceled}");
+Console.WriteLine($"Cancelado? {token.IsCancellationRequested}");
+cts.Cancel();
+Console.WriteLine($"Cancelado? {token.IsCancellationRequested}");
+
+CancellationToken nenhum = CancellationToken.None;
+Console.WriteLine($"None pode cancelar? {nenhum.CanBeCanceled}");
+</pre>
+
+<pre class="term" data-cwd="~/cs/cancelar">$ dotnet run registrar.cs
+Pode cancelar? True
+Cancelado? False
+Aviso: alguém cancelou!
+Cancelado? True
+None pode cancelar? False</pre>
+
+<dl class="anatomy">
+  <dt>token.Register(() =&gt; …)</dt><dd>"Registre": guarda uma lambda que roda <strong>no momento</strong> do <code>Cancel()</code>. Repare que o aviso saiu antes do segundo <code>Cancelado?</code>.</dd>
+  <dt>token.CanBeCanceled</dt><dd>"Pode ser cancelado?": <code>true</code> quando o token veio de um <code>CancellationTokenSource</code>.</dd>
+  <dt>CancellationToken.None</dt><dd>Um token que <strong>nunca</strong> apita. Serve para chamar um método que exige um token quando você não quer cancelar nada.</dd>
+</dl>
+
+<h3>O token opcional: <code>= default</code></h3>
+<p>Nos seus métodos, deixe o token <strong>opcional</strong>, como o .NET faz. Quem não se importa com cancelamento chama sem ele:</p>
+<pre class="file" data-file="padrao.cs">await Baixar();
+Console.WriteLine("Baixou sem token");
+
+using var cts = new CancellationTokenSource();
+await Baixar(cts.Token);
+Console.WriteLine("Baixou com token");
+
+static async Task Baixar(CancellationToken token = default)
+{
+    await Task.Delay(100, token);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/cancelar">$ dotnet run padrao.cs
+Baixou sem token
+Baixou com token</pre>
+
+<p>O <code>default</code> de um <code>CancellationToken</code> é o mesmo que <code>CancellationToken.None</code> (veja <a href="parametros-opcionais.html">Parâmetros Opcionais e Nomeados</a>).</p>
+
+<h3>Dois motivos para parar: <code>CreateLinkedTokenSource</code></h3>
+<p>Um download deve parar se a Ana clicar em Cancelar <strong>ou</strong> se passar do tempo limite. Um token "ligado" apita quando qualquer um dos outros apitar:</p>
+<pre class="file" data-file="ligados.cs">using var usuario = new CancellationTokenSource();
+using var tempo = new CancellationTokenSource();
+using var qualquerUm = CancellationTokenSource.CreateLinkedTokenSource(usuario.Token, tempo.Token);
+
+tempo.Cancel(); // o tempo acabou
+
+Console.WriteLine($"Usuário cancelou? {usuario.IsCancellationRequested}");
+Console.WriteLine($"Tempo acabou?     {tempo.IsCancellationRequested}");
+Console.WriteLine($"Ligado cancelou?  {qualquerUm.IsCancellationRequested}");
+</pre>
+
+<pre class="term" data-cwd="~/cs/cancelar">$ dotnet run ligados.cs
+Usuário cancelou? False
+Tempo acabou?     True
+Ligado cancelou?  True</pre>
+
+<p>O trabalho recebe <code>qualquerUm.Token</code>. No <code>catch</code>, a propriedade <code>e.CancellationToken</code> e o <code>IsCancellationRequested</code> de cada fonte dizem qual foi o motivo.</p>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> rode e depois troque <code>tempo.Cancel()</code> por <code>usuario.Cancel()</code>. Depois, apague essa linha: o token ligado continua sem cancelar.</p>
+<pre class="script">using var usuario = new CancellationTokenSource();
+using var tempo = new CancellationTokenSource();
+using var qualquerUm = CancellationTokenSource.CreateLinkedTokenSource(usuario.Token, tempo.Token);
+
+qualquerUm.Token.Register(() =&gt; Console.WriteLine("O token ligado apitou!"));
+
+tempo.Cancel(); // o tempo acabou
+
+Console.WriteLine($"Usuário cancelou? {usuario.IsCancellationRequested}");
+Console.WriteLine($"Tempo acabou?     {tempo.IsCancellationRequested}");
+Console.WriteLine($"Ligado cancelou?  {qualquerUm.IsCancellationRequested}");
+</pre>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>Cancelou, mas a tarefa foi até o fim</strong>
+<pre class="file" data-file="ignora.cs">«… o começo, igual ao download.cs …»
+static async Task Baixar(CancellationToken token)
+{
+    for (int parte = 1; parte &lt;= 5; parte++)
+    {
+        Console.WriteLine($"Baixando parte {parte} de 5...");
+        await Task.Delay(100);
+    }
+    Console.WriteLine("Download completo!");
+}
+</pre>
+<pre class="term" data-cwd="~/cs/cancelar">$ dotnet run ignora.cs
+Baixando parte 1 de 5...
+Baixando parte 2 de 5...
+Baixando parte 3 de 5...
+Baixando parte 4 de 5...
+Ana clicou em Cancelar
+Baixando parte 5 de 5...
+Download completo!</pre>
+<p><strong>O que aconteceu:</strong> o método <strong>recebe</strong> o token, mas nunca olha para ele: nem <code>ThrowIfCancellationRequested()</code>, nem <code>IsCancellationRequested</code>, nem <code>Task.Delay(100, token)</code>. O <code>Cancel()</code> foi chamado, mas ninguém estava ouvindo. Não aparece erro nenhum. É o erro mais comum com cancelamento.</p>
+<p><strong>Como resolver:</strong> confira o token no laço e passe-o para todo método que aceitar um: <code>await Task.Delay(100, token);</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS7036: Não há nenhum argumento fornecido que corresponda ao parâmetro necessário 'token'</code></strong>
+<pre class="file" data-file="falta.cs">await Baixar();
+
+static async Task Baixar(CancellationToken token)
+{
+    await Task.Delay(100, token);
+}
+</pre>
+<pre class="term" data-cwd="~/cs/cancelar">$ dotnet run falta.cs
+/home/ana/cs/cancelar/falta.cs(1,7): error CS7036: Não há nenhum argumento fornecido que corresponda ao parâmetro necessário 'token' de 'Baixar(CancellationToken)'
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> o método exige um token e a chamada não passou nenhum (em inglês, <code>There is no argument given that corresponds to the required parameter 'token'</code>).</p>
+<p><strong>Como resolver:</strong> passe um token (<code>Baixar(cts.Token)</code>), ou <code>CancellationToken.None</code>, ou deixe o parâmetro opcional: <code>CancellationToken token = default</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>Unhandled exception. System.Threading.Tasks.TaskCanceledException: A task was canceled.</code></strong>
+<p><strong>O que aconteceu:</strong> o cancelamento funcionou, mas ninguém tratou a exceção, e o programa terminou com código 134 (veja o <code>semtratar.cs</code> da seção 4).</p>
+<p><strong>Como resolver:</strong> ponha o <code>await</code> num <code>try</code> com <code>catch (OperationCanceledException)</code> e mostre uma mensagem amigável. Não use <code>catch (Exception)</code> para isso: ele esconderia os erros de verdade junto com o cancelamento.</p>
+</div>
+
+<div class="cenario">
+<strong><code>System.ObjectDisposedException: The CancellationTokenSource has been disposed.</code></strong>
+<pre class="file" data-file="descartado.cs">var cts = new CancellationTokenSource();
+cts.Dispose();
+cts.Cancel();
+</pre>
+<pre class="term" data-cwd="~/cs/cancelar">$ dotnet run descartado.cs; echo "código de saída: $?"
+Unhandled exception. System.ObjectDisposedException: The CancellationTokenSource has been disposed.
+   at System.Threading.CancellationTokenSource.Cancel()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/cancelar/descartado.cs:line 3
+código de saída: 134</pre>
+<p><strong>O que aconteceu:</strong> o <code>CancellationTokenSource</code> já tinha sido liberado ("descartado") quando alguém chamou <code>Cancel()</code>. Na vida real, isso acontece quando o <code>using</code> termina antes de a tarefa acabar, e um botão ou evento tenta cancelar depois.</p>
+<p><strong>Como resolver:</strong> mantenha o <code>CancellationTokenSource</code> vivo enquanto o trabalho e quem pode cancelá-lo existirem; só libere no fim. Um <code>CancellationTokenSource</code> também não "volta": depois de cancelado, crie outro para o próximo trabalho.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>using var cts = new CancellationTokenSource();</code></td><td>Cria quem pode cancelar.</td></tr>
+<tr><td><code>new CancellationTokenSource(TimeSpan.FromSeconds(5))</code></td><td>Cancela sozinho depois de 5 segundos.</td></tr>
+<tr><td><code>cts.Token</code></td><td>O sinal, para entregar ao trabalho.</td></tr>
+<tr><td><code>cts.Cancel()</code></td><td>Pede o cancelamento.</td></tr>
+<tr><td><code>cts.CancelAfter(250)</code></td><td>Pede o cancelamento daqui a 250 ms.</td></tr>
+<tr><td><code>token.ThrowIfCancellationRequested()</code></td><td>Lança <code>OperationCanceledException</code> se pediram.</td></tr>
+<tr><td><code>token.IsCancellationRequested</code></td><td><code>true</code> se pediram.</td></tr>
+<tr><td><code>token.Register(() =&gt; …)</code></td><td>Roda a lambda no momento do cancelamento.</td></tr>
+<tr><td><code>CancellationToken.None</code> / <code>default</code></td><td>Um token que nunca cancela.</td></tr>
+<tr><td><code>CancellationTokenSource.CreateLinkedTokenSource(a, b)</code></td><td>Cancela quando <code>a</code> <strong>ou</strong> <code>b</code> cancelar.</td></tr>
+<tr><td><code>await Task.Delay(ms, token)</code></td><td>Espera, mas para na hora se cancelarem.</td></tr>
+<tr><td><code>catch (OperationCanceledException)</code></td><td>Trata o cancelamento (pega também a <code>TaskCanceledException</code>).</td></tr>
+<tr><td><code>Console.CancelKeyPress += (s, e) =&gt; { e.Cancel = true; cts.Cancel(); };</code></td><td>Transforma o <kbd>Ctrl</kbd>+<kbd>C</kbd> em cancelamento.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Pedir para parar</h3>
+<p>Complete a linha que pede o cancelamento:</p>
+<div class="ex-code">cts.<input data-answer="Cancel()" aria-label="método">;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Obedecer</h3>
+<p>Complete a linha que para o laço com uma exceção se o cancelamento foi pedido:</p>
+<div class="ex-code">token.<input data-answer="ThrowIfCancellationRequested()" aria-label="método">;</div>
+</div>
+
+<div class="exercise">
+<h3>3. Esperar sem surdez</h3>
+<p>Complete a espera de 500 ms para ela parar na hora se cancelarem:</p>
+<div class="ex-code">await Task.Delay(500, <input data-answer="token" aria-label="argumento">);</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Quem pode chamar <code>Cancel()</code>?</p>
+<label><input type="radio" name="q4"> Qualquer método que recebeu o <code>CancellationToken</code>.</label>
+<label><input type="radio" name="q4"> Quem tem o <code>CancellationTokenSource</code>.</label>
+<label><input type="radio" name="q4"> Só o próprio .NET.</label>
+<label><input type="radio" name="q4"> Ninguém: o cancelamento é sempre por tempo.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Qual <code>catch</code> trata tanto a <code>OperationCanceledException</code> quanto a <code>TaskCanceledException</code>, sem esconder outros erros?</p>
+<label><input type="radio" name="q5"> <code>catch (Exception)</code></label>
+<label><input type="radio" name="q5"> <code>catch (TaskCanceledException)</code></label>
+<label><input type="radio" name="q5"> <code>catch (OperationCanceledException)</code></label>
+<label><input type="radio" name="q5"> <code>catch (ObjectDisposedException)</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. O <code>Cancel()</code> foi chamado, mas a tarefa foi até o fim. A causa mais provável é:</p>
+<label><input type="radio" name="q6"> A tarefa recebe o token mas nunca confere nem o passa adiante.</label>
+<label><input type="radio" name="q6"> O <code>Cancel()</code> só funciona no Windows.</label>
+<label><input type="radio" name="q6"> Faltou chamar <code>Dispose()</code> antes do <code>Cancel()</code>.</label>
+<label><input type="radio" name="q6"> O .NET sempre espera a tarefa acabar e ignora o cancelamento.</label>
+</div>
+
+<h3>Missão final: processar os pedidos da lojinha</h3>
+<div class="trycs" data-goal="src:IsCancellationRequested,outre:Pedido 2 pronto\nParei: processados 2 de 5\.\n$">
+<p class="try-task"><strong>Missão:</strong> o método <code>Processar</code> recebe um token, mas o ignora: a loja fecha (o <code>Cancel()</code>) depois do pedido 2, e ele processa os 5 mesmo assim. Dentro do <code>foreach</code>, antes de processar, acrescente <code>if (token.IsCancellationRequested) break;</code>. O método deve devolver quantos processou, sem exceção, e a saída deve terminar em <code>Parei: processados 2 de 5.</code></p>
+<pre class="script">using var cts = new CancellationTokenSource();
+string[] pedidos = ["Caderno", "Lápis", "Borracha", "Régua", "Estojo"];
+
+int feitos = Processar(pedidos, cts, cts.Token);
+Console.WriteLine($"Parei: processados {feitos} de {pedidos.Length}.");
+
+static int Processar(string[] pedidos, CancellationTokenSource loja, CancellationToken token)
+{
+    int feitos = 0;
+    foreach (string pedido in pedidos)
+    {
+        feitos++;
+        Console.WriteLine($"Pedido {feitos} pronto");
+
+        if (feitos == 2)
+        {
+            loja.Cancel(); // a loja fechou
+        }
+    }
+    return feitos;
+}
+</pre>
+<pre class="solucao">using var cts = new CancellationTokenSource();
+string[] pedidos = ["Caderno", "Lápis", "Borracha", "Régua", "Estojo"];
+
+int feitos = Processar(pedidos, cts, cts.Token);
+Console.WriteLine($"Parei: processados {feitos} de {pedidos.Length}.");
+
+static int Processar(string[] pedidos, CancellationTokenSource loja, CancellationToken token)
+{
+    int feitos = 0;
+    foreach (string pedido in pedidos)
+    {
+        if (token.IsCancellationRequested) break;
+
+        feitos++;
+        Console.WriteLine($"Pedido {feitos} pronto");
+
+        if (feitos == 2)
+        {
+            loja.Cancel(); // a loja fechou
+        }
+    }
+    return feitos;
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Cancelar é um <strong>pedido combinado</strong>: o <code>CancellationTokenSource</code> pede (<code>Cancel()</code>) e a tarefa, que recebeu o <code>CancellationToken</code>, obedece num ponto seguro.</li>
+  <li>Obedeça com <code>token.ThrowIfCancellationRequested()</code> (exceção) ou <code>token.IsCancellationRequested</code> (um <code>bool</code>, para devolver o resultado parcial).</li>
+  <li>Passe o token adiante: <code>Task.Delay(ms, token)</code> e os métodos <code>…Async</code> do .NET param na hora.</li>
+  <li>Trate com <code>catch (OperationCanceledException)</code>, que pega também a <code>TaskCanceledException</code>.</li>
+  <li>Tempo limite: <code>new CancellationTokenSource(TimeSpan…)</code> ou <code>CancelAfter</code>. <kbd>Ctrl</kbd>+<kbd>C</kbd>: <code>Console.CancelKeyPress</code> com <code>e.Cancel = true</code>.</li>
+  <li>Nos seus métodos, o token vem por último e é opcional: <code>CancellationToken token = default</code>.</li>
+</ul>
+
+<div class="pager"></div>
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
