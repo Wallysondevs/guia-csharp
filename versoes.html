@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Versões do C# e do .NET — LTS, STS e o que cada versão trouxe | Guia C#</title>
+<meta name="description" content="As versões do C# (1.0 a 14) e do .NET (Core 2.1 a .NET 11): datas oficiais, o que é LTS e STS, até quando cada uma tem suporte, a versão do C# que cada .NET usa, como ler o número 10.0.112 do SDK, #error version, LangVersion e os erros CS9058 e CS9260 de recurso novo numa versão antiga.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Versões do C# e do .NET</span></h1>
+
+<p class="intro">Todo ano, em novembro, sai uma versão nova do .NET e, junto com ela, uma versão nova do C#. Por isso você vai ver tutoriais de ".NET 6", "C# 10", ".NET 8"… Nesta aula você aprende a diferença entre a versão da <strong>linguagem</strong> e a da <strong>plataforma</strong>, o que quer dizer <strong>LTS</strong> e <strong>STS</strong>, o que cada versão trouxe e o que acontece quando você usa um recurso novo numa versão antiga.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A diferença entre a versão do <strong>C#</strong> e a versão do <strong>.NET</strong>, e como as duas andam juntas.</li>
+  <li>O que são as versões <strong>LTS</strong> (suporte longo) e <strong>STS</strong> (suporte padrão), e até quando cada uma recebe correções.</li>
+  <li>A tabela das versões do .NET e do C#, com as datas oficiais.</li>
+  <li>Como ler o número <code>10.0.112</code> do SDK.</li>
+  <li>Como descobrir a versão do C# com <code>#error version</code>.</li>
+  <li>O que acontece quando você usa um recurso novo numa versão antiga: os erros <code>CS9058</code> e <code>CS9260</code>.</li>
+</ul>
+</div>
+
+<p>As datas desta aula foram conferidas em outubro de 2026 nas páginas oficiais da Microsoft (o histórico de versões do C# e a política de suporte do .NET). As saídas de terminal são da máquina da Ana, com o SDK 10.0.112.</p>
+
+<hr>
+
+<h2>A ideia: a língua e o dicionário</h2>
+<p>Pense no português. Existem as <strong>regras da língua</strong> (a gramática, o acordo ortográfico) e existe o <strong>dicionário</strong> que você tem na estante, com as palavras e os exemplos. Quando a regra muda, os dicionários novos já vêm com ela; um dicionário de 1990 não sabe nada do acordo ortográfico de 2009.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Versão do <strong>C#</strong></th><th>Versão do <strong>.NET</strong></th></tr>
+<tr><td>É como</td><td>As regras da língua</td><td>O dicionário (e a cozinha inteira, da aula anterior)</td></tr>
+<tr><td>Diz</td><td>O que você pode <strong>escrever</strong>: palavras-chave, formas de escrever, recursos da linguagem</td><td>O que vem <strong>pronto</strong>: a biblioteca de classes, o Runtime, as ferramentas</td></tr>
+<tr><td>Quem decide</td><td>O compilador (Roslyn)</td><td>O SDK e o Runtime instalados</td></tr>
+<tr><td>Hoje</td><td><strong>C# 14</strong></td><td><strong>.NET 10</strong></td></tr>
+</table>
+</div>
+
+<p>As duas andam juntas: cada .NET traz o compilador com a versão do C# do mesmo ano, e um projeto usa, <strong>por padrão</strong>, a versão do C# que combina com o .NET dele. O .NET 10 usa o C# 14; o .NET 8 usava o C# 12. Por isso tanta gente fala "o C# do .NET 8" em vez de "C# 12".</p>
+
+<hr>
+
+<h2>LTS e STS: quanto tempo cada versão é cuidada</h2>
+<p>Depois que uma versão sai, a Microsoft continua mandando <strong>correções</strong>: consertos de falhas de segurança e de erros, uma vez por mês (na segunda terça-feira, o <em>Patch Tuesday</em>). Mas não para sempre. Cada versão tem uma data de fim de suporte, e depois dela não recebe mais nada. Há dois tipos:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>Quer dizer</th><th>Suporte</th><th>Quais</th></tr>
+<tr><td><strong>LTS</strong></td><td><em>Long Term Support</em>, "suporte de longo prazo"</td><td><strong>3 anos</strong></td><td>As versões de número par: .NET 6, 8, 10… (saem nos anos ímpares: 2021, 2023, 2025)</td></tr>
+<tr><td><strong>STS</strong></td><td><em>Standard Term Support</em>, "suporte padrão"</td><td><strong>2 anos</strong> (a partir do .NET 9; o .NET 5 e o .NET 7 tiveram só 18 meses)</td><td>As versões de número ímpar: .NET 5, 7, 9, 11… (saem nos anos pares)</td></tr>
+</table>
+</div>
+
+<p>As duas são igualmente estáveis e testadas; só o tempo de cuidado muda. Empresas costumam ficar nas LTS, para não precisar atualizar todo ano. Quem gosta de usar as novidades primeiro vai de STS. Este guia usa o <strong>.NET 10, que é LTS</strong>.</p>
+
+<h3>A tabela do .NET</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Versão</th><th>Lançamento</th><th>Tipo</th><th>Fim do suporte</th><th>C# padrão</th></tr>
+<tr><td>.NET Core 2.1</td><td>30/05/2018</td><td>LTS</td><td>21/08/2021</td><td>7.3</td></tr>
+<tr><td>.NET Core 3.0</td><td>23/09/2019</td><td>STS</td><td>03/03/2020</td><td>8.0</td></tr>
+<tr><td>.NET Core 3.1</td><td>03/12/2019</td><td>LTS</td><td>13/12/2022</td><td>8.0</td></tr>
+<tr><td>.NET 5</td><td>10/11/2020</td><td>STS</td><td>10/05/2022</td><td>9.0</td></tr>
+<tr><td>.NET 6</td><td>08/11/2021</td><td>LTS</td><td>12/11/2024</td><td>10</td></tr>
+<tr><td>.NET 7</td><td>08/11/2022</td><td>STS</td><td>14/05/2024</td><td>11</td></tr>
+<tr><td>.NET 8</td><td>14/11/2023</td><td>LTS</td><td><strong>10/11/2026</strong></td><td>12</td></tr>
+<tr><td>.NET 9</td><td>12/11/2024</td><td>STS</td><td><strong>10/11/2026</strong></td><td>13</td></tr>
+<tr><td><strong>.NET 10</strong></td><td>11/11/2025</td><td><strong>LTS</strong></td><td>14/11/2028</td><td><strong>14</strong></td></tr>
+<tr><td>.NET 11</td><td>previsto para 10/11/2026</td><td>STS</td><td>(2 anos depois)</td><td>15</td></tr>
+</table>
+</div>
+
+<p>Três coisas para reparar:</p>
+<ul>
+  <li>O <strong>.NET 8</strong> (LTS de 3 anos) e o <strong>.NET 9</strong> (STS de 2 anos) terminam <strong>no mesmo dia</strong>, 10 de novembro de 2026: daqui a menos de um mês, no momento em que esta aula foi escrita. Quem ainda usa um deles precisa passar para o .NET 10.</li>
+  <li>O <strong>.NET 11</strong> ainda não saiu: em outubro de 2026 ele está na versão de testes <code>11.0.0-rc.2</code> (<em>release candidate</em>, "candidata a lançamento"). Quando sair, o .NET 10 continua sendo a LTS mais nova, com suporte por mais tempo que o 11.</li>
+  <li>Todas as versões até o .NET 7 já estão fora de suporte: elas funcionam, mas não recebem mais correções de segurança. Um tutorial com .NET Core 3.1 ou .NET 6 ainda ensina muita coisa certa, mas não use essas versões em programas novos.</li>
+</ul>
+
+<hr>
+
+<h2>O que cada versão do C# trouxe</h2>
+<p>O C# começou pequeno e ganhou recursos a cada versão. Você não precisa decorar esta tabela: ela serve para você saber, ao ver um código antigo, por que ele está escrito daquele jeito. Os links levam às aulas de cada recurso.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Versão</th><th>Ano</th><th>Principais novidades</th></tr>
+<tr><td>C# 1.0</td><td>2002</td><td>A base: <a href="classes-objetos.html">classes</a>, <a href="structs.html">structs</a>, <a href="interfaces.html">interfaces</a>, <a href="delegates.html">delegates</a>, <a href="eventos.html">eventos</a>.</td></tr>
+<tr><td>C# 2.0</td><td>2005</td><td><a href="generics.html">Generics</a> (<code>List&lt;int&gt;</code>), <a href="null.html">tipos anuláveis</a> (<code>int?</code>), <a href="yield.html">iteradores</a> (<code>yield return</code>), <a href="partial.html">classes parciais</a>.</td></tr>
+<tr><td>C# 3.0</td><td>2007</td><td><a href="linq.html">LINQ</a>, <a href="lambdas.html">lambdas</a> (<code>x =&gt; x * 2</code>), <a href="var.html"><code>var</code></a>, <a href="extensoes.html">métodos de extensão</a>, <a href="inicializadores.html">inicializadores de objetos</a>.</td></tr>
+<tr><td>C# 4.0</td><td>2010</td><td><a href="parametros-opcionais.html">parâmetros opcionais e nomeados</a>, <code>dynamic</code>.</td></tr>
+<tr><td>C# 5.0</td><td>2012</td><td><a href="async-await.html"><code>async</code> e <code>await</code></a>.</td></tr>
+<tr><td>C# 6.0</td><td>2015</td><td><a href="interpolacao.html">interpolação</a> (<code>$"Olá, {nome}"</code>), <a href="operadores-null.html">operador <code>?.</code></a>, <code>nameof</code>.</td></tr>
+<tr><td>C# 7.0 a 7.3</td><td>2017–2018</td><td><a href="tuplas.html">tuplas</a>, os primeiros <a href="pattern-matching.html">padrões</a>, <code>out var</code>, <a href="funcoes-locais.html">funções locais</a>, <code>in</code>. O 7.3 é o último do .NET Framework.</td></tr>
+<tr><td>C# 8.0</td><td>2019</td><td><a href="referencias-anulaveis.html">referências anuláveis</a> (<code>string?</code>), <a href="switch-expressoes.html">expressões switch</a>, <a href="indices-intervalos.html">índices e intervalos</a> (<code>^1</code>, <code>1..3</code>), <code>??=</code>.</td></tr>
+<tr><td>C# 9</td><td>2020</td><td><a href="top-level.html">instruções de nível superior</a> (o programa sem <code>Main</code>), <a href="records.html">records</a>, <a href="readonly.html"><code>init</code></a>, padrões com <code>and</code>, <code>or</code> e <code>not</code>.</td></tr>
+<tr><td>C# 10</td><td>2021</td><td><code>global using</code> e os <code>using</code> automáticos, <a href="namespaces.html">namespace de arquivo</a>, <code>record struct</code>.</td></tr>
+<tr><td>C# 11</td><td>2022</td><td><a href="escapes.html">strings literais brutas</a> (<code>"""…"""</code>), <a href="inicializadores.html"><code>required</code></a>, padrões de lista.</td></tr>
+<tr><td>C# 12</td><td>2023</td><td>expressões de coleção (<code>[8, 9, 10]</code>), construtores primários.</td></tr>
+<tr><td>C# 13</td><td>2024</td><td><a href="params.html"><code>params</code></a> com qualquer coleção, o novo tipo <code>Lock</code> (aula <a href="lock.html">lock</a>), o escape <code>\e</code>.</td></tr>
+<tr><td><strong>C# 14</strong></td><td>2025</td><td>a palavra-chave <code>field</code> nas <a href="propriedades.html">propriedades</a>, membros de extensão (<code>extension</code>), atribuição com <code>?.</code> (<code>cliente?.Nome = "Ana"</code>), construtores e eventos <code>partial</code>.</td></tr>
+</table>
+</div>
+
+<p>Repare na linha do <strong>C# 9</strong>: foi ele que permitiu o programa de uma linha só, <code>Console.WriteLine("Olá, mundo!");</code>. Antes dele, todo programa precisava de <code>class Program</code> e <code>static void Main</code>, e por isso os tutoriais antigos começam assim. A aula <a href="top-level.html">Program.cs e o Main</a> mostra as duas formas lado a lado.</p>
+
+<h3>Um recurso novo na prática: as expressões de coleção</h3>
+<p>Até o C# 11, para criar uma lista fixa de números (um <a href="arrays.html">array</a>), escrevia-se o tipo duas vezes. O <span class="versao">C# 12</span> trouxe uma forma mais curta, com colchetes:</p>
+
+<pre class="file" data-file="trecho">int[] notas = new int[] { 8, 9, 10 };   // até o C# 11
+int[] notas = [8, 9, 10];               // C# 12 em diante</pre>
+
+<p>As duas criam exatamente o mesmo array. É assim que o guia marca um recurso novo: com o selo <span class="versao">C# 12</span>, que quer dizer "funciona do C# 12 em diante". Se você estiver num projeto antigo (por exemplo, .NET 6 ou 8), olhe o selo antes de copiar o exemplo.</p>
+
+<div class="trycs" data-goal="out:A Ana tem 4 notas,src:notas = \[">
+<p class="try-task"><strong>Missão:</strong> reescreva a primeira linha com a forma nova do <span class="versao">C# 12</span>, com colchetes, e acrescente a nota <code>7</code> no fim. A saída deve ser <code>A Ana tem 4 notas</code>.</p>
+<pre class="script" data-file="notas.cs">int[] notas = new int[] { 8, 9, 10 };
+Console.WriteLine($"A Ana tem {notas.Length} notas");
+</pre>
+<pre class="solucao">int[] notas = [8, 9, 10, 7];
+Console.WriteLine($"A Ana tem {notas.Length} notas");
+</pre>
+</div>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run notas.cs                           « a forma antiga
+A Ana tem 3 notas
+$ dotnet run notas12.cs                         « a forma nova, com a nota 7
+A Ana tem 4 notas</pre>
+
+<hr>
+
+<h2>Qual versão do C# eu tenho?</h2>
+<p>O compilador tem uma pergunta escondida: a linha <code>#error version</code>. O <code>#error</code> manda o compilador parar com um erro (é usado para avisar "não compile isto assim"), e a palavra <code>version</code> faz ele contar, nesse erro, a versão dele e a da linguagem:</p>
+
+<pre class="file" data-file="versao.cs">Console.WriteLine("Olá!");
+#error version
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run versao.cs
+/home/ana/cs/versao.cs(2,8): error CS1029: #error: "version"
+/home/ana/cs/versao.cs(2,8): error CS8304: Compiler version: '5.0.0-2.26422.108 (95017c71)'. Language version: 14.0.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<dl class="anatomy">
+  <dt>CS1029</dt><dd>O erro que o próprio <code>#error</code> pediu, com o texto que veio depois dele (<code>"version"</code>).</dd>
+  <dt>CS8304</dt><dd>A resposta, em inglês (esta mensagem não tem tradução): <code>Compiler version</code> é a versão do <strong>Roslyn</strong>, o compilador (5.0.0), e <code>Language version: 14.0</code> é a versão do <strong>C#</strong> que ele está usando.</dd>
+</dl>
+
+<p>Como é um erro, o programa não roda (nem o <code>Olá!</code> aparece). Use o truque e depois apague a linha.</p>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> rode e procure o <code>Language version</code> na mensagem: o editor do guia usa o mesmo compilador do <code>dotnet</code> 10, com o C# 14. Depois apague a linha do <code>#error</code> e rode de novo: agora o <code>Olá!</code> aparece.</p>
+<pre class="script" data-file="versao.cs">Console.WriteLine("Olá!");
+#error version
+</pre>
+</div>
+
+<h3>A versão do SDK e a do .NET</h3>
+<p>Já o comando <code>dotnet --version</code> mostra a versão do <strong>SDK</strong>, que tem um número de três partes:</p>
+
+<pre class="term">$ dotnet --version
+10.0.112</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Parte</th><th>Valor</th><th>Quer dizer</th></tr>
+<tr><td>Principal</td><td><code>10</code></td><td>O .NET 10</td></tr>
+<tr><td>Secundária</td><td><code>0</code></td><td>Sempre 0 no .NET atual</td></tr>
+<tr><td>Faixa de recursos</td><td><code>1</code>xx</td><td>A "geração" do SDK. A Microsoft lança uma faixa nova (<code>1xx</code>, <code>2xx</code>, <code>3xx</code>, <code>4xx</code>) mais ou menos a cada três meses, com melhorias nas ferramentas. O C# e o Runtime continuam os mesmos.</td></tr>
+<tr><td>Correção</td><td>xx<code>12</code></td><td>A 12.ª correção dessa faixa</td></tr>
+</table>
+</div>
+
+<p>O Runtime tem o número mais simples: <code>10.0.12</code> (a 12.ª correção do .NET 10). Para comparar: em outubro de 2026, o site da Microsoft oferecia o SDK <code>10.0.402</code> e o Runtime <code>10.0.13</code>; o Ubuntu 26.04 tinha o SDK <code>10.0.112</code> e o Runtime <code>10.0.12</code>. Os dois são o .NET 10 com o C# 14: o Ubuntu fica na faixa <code>1xx</code> e recebe as correções um pouco depois.</p>
+
+<hr>
+
+<h2>Usando uma versão mais antiga do C#</h2>
+<p>Às vezes você precisa saber se um código funciona numa versão antiga (por exemplo, porque a empresa ainda usa o .NET 8). Num projeto, a versão do C# fica no arquivo <code>.csproj</code>, com a propriedade <code>LangVersion</code> (aula <a href="csproj.html">O Arquivo .csproj</a>). Num arquivo solto do <code>dotnet run</code>, o <span class="versao">.NET 10</span> aceita a mesma propriedade numa linha especial no topo, que começa com <code>#:</code> (aula <a href="dotnet-run.html">Rodar com dotnet run</a>):</p>
+
+<pre class="file" data-file="notas11.cs">#:property LangVersion=11
+int[] notas = [8, 9, 10, 7];
+Console.WriteLine($"A Ana tem {notas.Length} notas");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run notas11.cs
+/home/ana/cs/notas11.cs(2,15): error CS9058: O recurso 'expressões de coleção' não está disponível no C# 11.0. Use a versão do idioma 12.0 ou superior.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O compilador é o mesmo, mas foi mandado "fingir" que é o C# 11, e o C# 11 não conhece os colchetes. A mensagem diz exatamente o que fazer: usar o C# 12 ou mais novo. É essa a mensagem que aparece quando alguém copia um exemplo moderno para um projeto antigo.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Valor de <code>LangVersion</code></th><th>Quer dizer</th></tr>
+<tr><td>(não escrever nada)</td><td>A versão padrão do .NET do projeto: no .NET 10, C# 14. <strong>É o recomendado.</strong></td></tr>
+<tr><td><code>12</code>, <code>13</code>, <code>14</code>…</td><td>Uma versão exata, mais antiga, para conferir compatibilidade</td></tr>
+<tr><td><code>preview</code></td><td>Os recursos em teste da próxima versão</td></tr>
+<tr><td><code>latest</code></td><td>A mais nova que o compilador instalado conhece. A Microsoft recomenda <strong>não</strong> usar: o resultado muda de computador para computador.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Qual versão usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>Aprender C# (você, agora)</td><td><strong>.NET 10</strong> com o C# 14, como o guia</td></tr>
+<tr><td>Programa novo numa empresa</td><td>A LTS mais nova: hoje, o .NET 10</td></tr>
+<tr><td>Quer as novidades assim que saem</td><td>A STS mais nova (a partir de novembro de 2026, o .NET 11), sabendo que vai precisar atualizar em 2 anos</td></tr>
+<tr><td>Manter um programa antigo</td><td>A versão que ele usa, planejando subir para uma LTS com suporte</td></tr>
+<tr><td>Programa antigo do Windows em .NET Framework</td><td>O .NET Framework 4.8.1 (C# 7.3), ou migrar para o .NET 10</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>Recurso novo numa versão antiga: <code>error CS9260</code></strong>
+<pre class="file" data-file="field.cs · erro de propósito">#:property LangVersion=13
+var p = new Produto { Nome = "  café " };
+Console.WriteLine($"[{p.Nome}]");
+class Produto
+{
+    public string Nome { get; set => field = value.Trim(); } = "";
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run field.cs
+/home/ana/cs/field.cs(6,19): error CS9260: O recurso "campo palavra-chave" não está disponível no C# 13.0. Use a versão da linguagem 14.0 ou superior.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> a palavra-chave <code>field</code> dentro de uma propriedade é novidade do <span class="versao">C# 14</span> (a tradução automática da mensagem saiu esquisita: "campo palavra-chave" é a <em>field keyword</em>, "a palavra-chave <code>field</code>"). Você vai ver esse erro com um SDK do .NET 9 ou num projeto que fixou o C# 13. Sem a primeira linha, no .NET 10, o mesmo arquivo roda e mostra <code>[café]</code>.</p>
+<p><strong>Como consertar:</strong> use o .NET 10 (ou mais novo), ou escreva a propriedade do jeito antigo, com um campo separado (aula <a href="propriedades.html">Propriedades</a>). Erros com a frase "não está disponível no C# X" sempre querem dizer isto: recurso novo em versão velha.</p>
+</div>
+
+<div class="cenario">
+<strong>Tutorial antigo: <code>'net8.0' não é um valor válido para '-f'</code></strong>
+<pre class="term" data-cwd="~/projetos">$ dotnet new console -o Antigo -f net8.0
+Erro: Opções inválidas:
+-f net8.0
+   'net8.0' não é um valor válido para '-f'. Os valores possíveis são:
+      net10.0   - Net10.0 de destino
+
+Para obter mais informações, execute:
+   dotnet new console -h
+
+Para obter detalhes sobre o código de saída, consulte https://aka.ms/templating-exit-codes#127
+$ echo $?
+127</pre>
+<p><strong>O que significa:</strong> o tutorial mandou criar um projeto para o .NET 8 (<code>-f</code> de <em>framework</em>), mas o SDK da Ana só sabe criar projetos para o <code>net10.0</code>. O SDK do Ubuntu 26.04 só traz o .NET 10.</p>
+<p><strong>Como consertar:</strong> tire o <code>-f net8.0</code> e use o .NET 10; o código do tutorial quase sempre funciona igual. Se você realmente precisa do .NET 8, instale o SDK dele (no Ubuntu, pelo repositório extra da aula <a href="instalar-linux.html">Instalar no Linux</a>), lembrando que ele sai de suporte em 10/11/2026.</p>
+</div>
+
+<div class="cenario">
+<strong>"Instalei o C# 14 e não achei"</strong>
+<p><strong>O que acontece:</strong> não existe um instalador "do C#". A versão do C# vem dentro do compilador, que vem dentro do SDK do .NET. Quem procura "baixar C# 14" acaba em sites estranhos.</p>
+<p><strong>Como consertar:</strong> instale o <strong>.NET SDK 10</strong> e pronto: o C# 14 vem junto. Confira com <code>#error version</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>.NET</th><th>C#</th><th>Tipo</th><th>Suporte até</th></tr>
+<tr><td>.NET 6</td><td>10</td><td>LTS</td><td>encerrado (12/11/2024)</td></tr>
+<tr><td>.NET 7</td><td>11</td><td>STS</td><td>encerrado (14/05/2024)</td></tr>
+<tr><td>.NET 8</td><td>12</td><td>LTS</td><td>10/11/2026</td></tr>
+<tr><td>.NET 9</td><td>13</td><td>STS</td><td>10/11/2026</td></tr>
+<tr><td>.NET 10</td><td>14</td><td>LTS</td><td>14/11/2028</td></tr>
+<tr><td>.NET Framework 4.x</td><td>7.3</td><td>(vem com o Windows)</td><td>enquanto o Windows o trouxer</td></tr>
+</table>
+</div>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando ou código</th><th>Para quê</th></tr>
+<tr><td><code>dotnet --version</code></td><td>Versão do SDK em uso</td></tr>
+<tr><td><code>dotnet --list-sdks</code> e <code>--list-runtimes</code></td><td>SDKs e Runtimes instalados</td></tr>
+<tr><td><code>#error version</code></td><td>Versão do compilador e do C# (erro <code>CS8304</code>)</td></tr>
+<tr><td><code>#:property LangVersion=12</code></td><td>Fixar a versão do C# num arquivo do <code>dotnet run</code> <span class="versao">.NET 10</span></td></tr>
+<tr><td><code>&lt;LangVersion&gt;12&lt;/LangVersion&gt;</code></td><td>O mesmo, num projeto (<code>.csproj</code>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A sigla do suporte longo</h3>
+<p>Qual é a sigla das versões do .NET com 3 anos de suporte?</p>
+<div class="ex-code"><input data-answer="LTS" aria-label="sigla"></div>
+</div>
+
+<div class="exercise">
+<h3>2. O C# do .NET 10</h3>
+<p>Que versão do C# o .NET 10 usa por padrão? (Só o número.)</p>
+<div class="ex-code">C# <input data-answer="14" aria-label="versão"></div>
+</div>
+
+<div class="exercise">
+<h3>3. A pergunta escondida</h3>
+<p>Complete a linha que faz o compilador contar a versão do C#:</p>
+<div class="ex-code">#error <input data-answer="version" aria-label="palavra"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. O .NET 9 é STS. Isso quer dizer que…</p>
+<label><input type="radio" name="q4"> ele é uma versão de testes, instável.</label>
+<label><input type="radio" name="q4"> ele só roda no Windows.</label>
+<label><input type="radio" name="q4"> ele tem suporte mais curto (2 anos) que as LTS (3 anos).</label>
+<label><input type="radio" name="q4"> ele não tem C#.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Apareceu <code>O recurso 'expressões de coleção' não está disponível no C# 11.0</code>. O que aconteceu?</p>
+<label><input type="radio" name="q5"> Faltou um <code>;</code>.</label>
+<label><input type="radio" name="q5"> O código usa um recurso do C# 12 num projeto configurado para o C# 11.</label>
+<label><input type="radio" name="q5"> O computador está sem internet.</label>
+<label><input type="radio" name="q5"> O array está vazio.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. No <code>10.0.112</code> do SDK, o que quer dizer o <code>1</code> logo depois do <code>10.0.</code>?</p>
+<label><input type="radio" name="q6"> A faixa de recursos do SDK (<code>1xx</code>).</label>
+<label><input type="radio" name="q6"> A versão do C#.</label>
+<label><input type="radio" name="q6"> Que é a primeira versão do .NET.</label>
+<label><input type="radio" name="q6"> Que é uma versão STS.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">7. Qual versão do C# permitiu o programa de uma linha só, sem <code>static void Main</code>?</p>
+<label><input type="radio" name="q7"> C# 1.0</label>
+<label><input type="radio" name="q7"> C# 5.0</label>
+<label><input type="radio" name="q7"> C# 14</label>
+<label><input type="radio" name="q7"> C# 9</label>
+</div>
+
+<h3>Missão final: a linha do tempo das LTS</h3>
+<div class="trycs" data-goal="outre:\.NET 6: LTS de 2021\n\.NET 8: LTS de 2023\n\.NET 10: LTS de 2025\n$">
+<p class="try-task"><strong>Missão:</strong> o programa mostra as LTS do .NET, mas está com um erro: o .NET 7 não é LTS. Troque a linha do .NET 7 pela do <code>.NET 8: LTS de 2023</code> e acrescente, no fim, a do <code>.NET 10: LTS de 2025</code>. A saída deve ter só as três LTS, uma por linha.</p>
+<pre class="script" data-file="lts.cs">Console.WriteLine(".NET 6: LTS de 2021");
+Console.WriteLine(".NET 7: LTS de 2022");
+</pre>
+<pre class="solucao">Console.WriteLine(".NET 6: LTS de 2021");
+Console.WriteLine(".NET 8: LTS de 2023");
+Console.WriteLine(".NET 10: LTS de 2025");
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>A versão do <strong>C#</strong> diz o que você pode escrever; a do <strong>.NET</strong> diz o que vem pronto. Cada .NET usa uma versão do C# por padrão: <strong>.NET 10 → C# 14</strong>, .NET 8 → C# 12.</li>
+  <li>Sai um .NET por ano, em novembro. As <strong>LTS</strong> (números pares) têm 3 anos de suporte; as <strong>STS</strong> (números ímpares), 2 anos.</li>
+  <li>O .NET 8 e o .NET 9 saem de suporte em 10/11/2026. O <strong>.NET 10</strong>, LTS de novembro de 2025, tem suporte até 14/11/2028.</li>
+  <li><code>dotnet --version</code> mostra o SDK (<code>10.0.112</code>: .NET 10, faixa 1xx, correção 12); <code>#error version</code> mostra o C# (<code>Language version: 14.0</code>).</li>
+  <li>Recurso novo em versão velha dá erro com a frase "não está disponível no C# X" (<code>CS9058</code>, <code>CS9260</code>). O selo <span class="versao">C# 12</span> do guia avisa a versão mínima.</li>
+  <li>Próximo passo: instalar o .NET 10, em <a href="instalar-linux.html">Instalar no Linux</a> ou <a href="instalar-windows-mac.html">Instalar no Windows e macOS</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
