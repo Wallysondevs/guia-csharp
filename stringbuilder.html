@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# StringBuilder — montar textos grandes com Append | Guia C#</title>
+<meta name="description" content="StringBuilder em C# para quem nunca programou: por que += num laço é lento (strings são imutáveis), using System.Text, Append, AppendLine, Insert, Replace, Remove, Clear, trocar letras com sb[0], ToString, encadear chamadas, AppendJoin, quando usar e os erros reais CS0246, CS0029, CS0019 e ArgumentOutOfRangeException do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">StringBuilder</span></h1>
+
+<p class="intro">Você aprendeu em <a href="strings.html">Strings</a> que uma string nunca muda: cada <code>+=</code> cria uma string nova. Para juntar meia dúzia de pedaços, isso não faz diferença. Mas, para montar um texto grande, pedaço por pedaço, num laço que roda milhares de vezes (um relatório, uma nota fiscal, um arquivo), o programa passa a maior parte do tempo copiando texto. Para esses casos, o .NET tem o <strong><code>StringBuilder</code></strong> ("construtor de strings"): um texto que <strong>pode</strong> mudar. Nesta aula você vai ver como usá-lo, quanto ele economiza e quando não vale a pena.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Por que <code>+=</code> repetido muitas vezes é lento, e como o <code>StringBuilder</code> resolve.</li>
+  <li>Criar um <code>StringBuilder</code> (com <code>using System.Text;</code>) e acrescentar texto com <code>Append</code> e <code>AppendLine</code>.</li>
+  <li>Mudar o texto no lugar: <code>sb[0] = 'A'</code>, <code>Insert</code>, <code>Replace</code>, <code>Remove</code>, <code>Clear</code>.</li>
+  <li>Transformar em string com <code>ToString()</code> e encadear chamadas.</li>
+  <li>Quando usar o <code>StringBuilder</code>, quando não usar, e os erros reais.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: o quadro branco</h2>
+<p>Imagine que você precisa escrever uma lista de 100 compras e, a cada item novo, tem de <strong>passar tudo a limpo numa folha nova</strong>, porque a folha antiga não pode ser riscada. No item 100, você já copiou 99 itens, depois 98, depois 97… milhares de linhas copiadas para uma lista de 100.</p>
+<p>É isso que o <code>+=</code> faz com uma string: como ela é imutável, cada <code>+=</code> copia o texto inteiro para uma string nova. O <code>StringBuilder</code> é um <strong>quadro branco</strong>: você escreve no fim, apaga, troca uma palavra, e ninguém precisa passar nada a limpo. Quando terminar, tira uma "foto" do quadro (<code>ToString()</code>) e tem a string final.</p>
+
+<hr>
+
+<h2>1. O primeiro <code>StringBuilder</code></h2>
+
+<pre class="file" data-file="sb1.cs">using System.Text;
+
+StringBuilder sb = new StringBuilder();
+sb.Append("Olá");
+sb.Append(", ");
+sb.Append("Ana");
+sb.Append('!');
+Console.WriteLine(sb.ToString());
+Console.WriteLine(sb.Length);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sb1.cs
+Olá, Ana!
+9</pre>
+
+<dl class="anatomy">
+  <dt>using System.Text;</dt><dd>O <code>StringBuilder</code> mora no "pacote" <code>System.Text</code> ("texto"), que não vem incluído sozinho num programa de arquivo único. Esta linha, no topo do arquivo, avisa que vamos usar nomes de lá (aula <a href="namespaces.html">Namespaces e using</a>). Sem ela, o erro é o <code>CS0246</code>.</dd>
+  <dt>new StringBuilder()</dt><dd>Cria um quadro branco vazio. O <code>new</code> ("novo") cria um <strong>objeto</strong>, assunto da aula <a href="classes-objetos.html">Classes e Objetos</a>. Por enquanto, leia como "me dê um StringBuilder novo".</dd>
+  <dt>sb.Append("Olá")</dt><dd><em>Append</em> = "acrescentar no fim". Ao contrário dos métodos de string, ele <strong>muda o próprio <code>sb</code></strong>: não é preciso escrever <code>sb = sb.Append(…)</code>. Aceita strings, <code>char</code> (<code>'!'</code>), números e <code>bool</code>.</dd>
+  <dt>sb.ToString()</dt><dd>Tira a "foto": cria uma <code>string</code> comum com o conteúdo do quadro. A partir dela, você usa tudo o que já conhece de strings.</dd>
+  <dt>sb.Length</dt><dd>Quantos caracteres há no quadro agora, como o <code>Length</code> da string.</dd>
+</dl>
+
+<p>O nome <code>sb</code> é um costume (das iniciais de <strong>S</strong>tring<strong>B</strong>uilder). Num programa de verdade, prefira um nome que diga o que está sendo montado: <code>nota</code>, <code>relatorio</code>, <code>lista</code>. E, como o tipo já aparece no <code>new</code>, muita gente escreve <code>var nota = new StringBuilder();</code> (aula <a href="var.html">var</a>).</p>
+
+<div class="trycs" data-goal="out:arroz\, feijão\, café,src:Append\(">
+<p class="try-task"><strong>Missão:</strong> a lista de compras só tem <code>arroz</code>. Acrescente <code>feijão</code> e <code>café</code> com mais dois <code>Append</code> para aparecer <code>arroz, feijão, café</code> (as vírgulas e os espaços também precisam ser acrescentados).</p>
+<pre class="out">arroz, feijão, café</pre>
+<pre class="script" data-file="lista.cs">using System.Text;
+
+var lista = new StringBuilder();
+lista.Append("arroz");
+Console.WriteLine(lista);
+</pre>
+<pre class="solucao" data-file="lista.cs">using System.Text;
+
+var lista = new StringBuilder();
+lista.Append("arroz");
+lista.Append(", feijão");
+lista.Append(", café");
+Console.WriteLine(lista);
+</pre>
+</div>
+
+<p>Repare que <code>Console.WriteLine(lista)</code> funcionou sem o <code>ToString()</code>: quando recebe algo que não é string, o <code>WriteLine</code> chama o <code>ToString()</code> sozinho. Para <strong>guardar</strong> o texto numa variável <code>string</code>, porém, o <code>ToString()</code> é obrigatório.</p>
+
+<hr>
+
+<h2>2. <code>AppendLine</code> e chamadas encadeadas</h2>
+<p><code>AppendLine</code> acrescenta o texto e uma <strong>quebra de linha</strong> no fim. E, como cada <code>Append</code> devolve o próprio <code>StringBuilder</code>, dá para chamar um atrás do outro:</p>
+
+<pre class="file" data-file="sb2.cs">using System.Text;
+
+var nota = new StringBuilder();
+nota.AppendLine("Lojinha da Ana");
+nota.AppendLine("--------------");
+nota.Append("Arroz: ").Append(5.90m).AppendLine();
+nota.AppendLine($"Feijão: {8.5m:C}");
+nota.Append("Itens: ").Append(2);
+Console.WriteLine(nota.ToString());
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sb2.cs
+Lojinha da Ana
+--------------
+Arroz: 5,90          « o número entrou com a vírgula da cultura pt-BR
+Feijão: R$ 8,50      « interpolação com formato, dentro do AppendLine
+Itens: 2</pre>
+
+<dl class="anatomy">
+  <dt>AppendLine("Lojinha da Ana")</dt><dd>O texto e uma quebra de linha. É o jeito mais comum de montar textos de várias linhas.</dd>
+  <dt>.Append("Arroz: ").Append(5.90m).AppendLine()</dt><dd>Três chamadas encadeadas, da esquerda para a direita. <code>AppendLine()</code> vazio acrescenta só a quebra de linha.</dd>
+  <dt>AppendLine($"Feijão: {8.5m:C}")</dt><dd>A interpolação e os formatos (aulas <a href="interpolacao.html">Interpolação</a> e <a href="formatacao.html">Formatar Números</a>) funcionam normalmente dentro do <code>Append</code>.</dd>
+</dl>
+
+<hr>
+
+<h2>3. Mudar o texto no lugar</h2>
+<p>Diferente da string, o <code>StringBuilder</code> deixa trocar letras, inserir e apagar <strong>sem criar outro texto</strong>:</p>
+
+<pre class="file" data-file="sb3.cs">using System.Text;
+
+var sb = new StringBuilder("ana souza");
+sb[0] = 'A';
+sb[4] = 'S';
+Console.WriteLine(sb);
+sb.Insert(3, " M.");
+Console.WriteLine(sb);
+sb.Replace("Souza", "Lima");
+Console.WriteLine(sb);
+sb.Remove(3, 3);
+Console.WriteLine(sb);
+sb.Clear();
+Console.WriteLine($"[{sb}] {sb.Length}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sb3.cs
+Ana Souza      « sb[0] = 'A' trocou a letra (numa string, isso é o erro CS0200)
+Ana M. Souza   « Insert(3, …): enfiou o texto na posição 3
+Ana M. Lima    « Replace: trocou todas as ocorrências
+Ana Lima       « Remove(3, 3): apagou 3 caracteres a partir da posição 3
+[] 0           « Clear: apagou tudo</pre>
+
+<dl class="anatomy">
+  <dt>new StringBuilder("ana souza")</dt><dd>Já começa com um texto no quadro.</dd>
+  <dt>sb[0] = 'A'</dt><dd>Troca o caractere da posição 0. Numa string, isso não compila (aula <a href="strings.html">Strings</a>); no <code>StringBuilder</code>, é o normal.</dd>
+  <dt>Insert, Replace, Remove</dt><dd>Os mesmos nomes dos métodos de string (aula <a href="metodos-string.html">Métodos de String</a>), mas aqui eles <strong>mudam o próprio quadro</strong>. Atenção ao <code>Remove(3, 3)</code>: o segundo número é a <strong>quantidade</strong> a apagar.</dd>
+  <dt>Clear()</dt><dd>Apaga tudo. O quadro continua existindo, vazio, pronto para ser reusado.</dd>
+</dl>
+
+<hr>
+
+<h2>4. Por que ele é mais rápido</h2>
+<p>A diferença aparece com <strong>muitas</strong> repetições. O programa abaixo junta 100 mil letras <code>x</code>, primeiro com <code>+=</code> e depois com <code>StringBuilder</code>. Ele usa um laço <code>for</code>, que repete o bloco entre chaves (aula <a href="for.html">for</a>), e um <code>Stopwatch</code> ("cronômetro") para medir o tempo:</p>
+
+<pre class="file" data-file="tempo.cs">using System.Diagnostics;
+using System.Text;
+
+var relogio = Stopwatch.StartNew();
+string texto = "";
+for (int i = 0; i &lt; 100_000; i++)
+{
+    texto += "x";
+}
+Console.WriteLine($"string com +=:  {relogio.ElapsedMilliseconds} ms");
+
+relogio.Restart();
+var sb = new StringBuilder();
+for (int i = 0; i &lt; 100_000; i++)
+{
+    sb.Append('x');
+}
+string resultado = sb.ToString();
+Console.WriteLine($"StringBuilder:  {relogio.ElapsedMilliseconds} ms");
+Console.WriteLine(texto == resultado);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tempo.cs
+string com +=:  952 ms     « quase um segundo
+StringBuilder:  0 ms       « menos de um milésimo de segundo
+True                       « o mesmo texto no fim</pre>
+
+<p>Os tempos mudam de computador para computador e de uma execução para outra, mas a proporção, não. Com <code>+=</code>, a volta número 50 mil copia 50 mil letras para uma string nova; somando todas as voltas, são uns <strong>5 bilhões</strong> de letras copiadas. O <code>StringBuilder</code> guarda o texto num espaço que cresce aos poucos (ele dobra de tamanho quando enche), e cada <code>Append</code> só escreve a letra nova no fim.</p>
+
+<div class="note">
+<strong>A capacidade</strong>
+<p>Esse espaço reservado é a <strong>capacidade</strong> (<code>sb.Capacity</code>); um <code>StringBuilder</code> novo começa com 16. Se você já sabe que o texto vai ser grande, pode reservar de uma vez: <code>new StringBuilder(1000)</code>. É um ajuste fino; na maioria dos programas, não precisa.</p>
+</div>
+
+<hr>
+
+<h2>Quando usar (e quando não)</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th><th>Por quê</th></tr>
+<tr><td>Juntar poucos pedaços, uma vez</td><td><code>+</code> ou <code>$"…"</code></td><td>Mais simples de ler. O compilador já otimiza <code>a + b + c</code> numa linha só.</td></tr>
+<tr><td>Juntar os itens de uma lista com um separador</td><td><code>string.Join(", ", itens)</code></td><td>Uma linha, e já é rápido (aula <a href="metodos-string.html">Métodos de String</a>).</td></tr>
+<tr><td>Montar um texto dentro de um laço</td><td><code>StringBuilder</code></td><td>Evita copiar o texto a cada volta.</td></tr>
+<tr><td>Montar um texto grande em várias etapas (relatório, nota fiscal, HTML)</td><td><code>StringBuilder</code></td><td>Dá para acrescentar, inserir e trocar no caminho.</td></tr>
+<tr><td>Texto fixo de várias linhas</td><td><code>"""…"""</code></td><td>Não é preciso montar nada (aula <a href="escapes.html">Escapes</a>).</td></tr>
+</table>
+</div>
+
+<p>O <code>StringBuilder</code> também tem o seu <code>Join</code>: <code>sb.AppendJoin(", ", itens)</code> acrescenta os itens com o separador, sem criar a string intermediária.</p>
+
+<pre class="file" data-file="join.cs">using System.Text;
+
+string[] itens = { "arroz", "feijão", "café" };
+var sb = new StringBuilder();
+sb.AppendJoin(", ", itens);
+Console.WriteLine(sb);
+Console.WriteLine(string.Join(", ", itens));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run join.cs
+arroz, feijão, café
+arroz, feijão, café</pre>
+
+<hr>
+
+<h2 id="erros">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0246: O nome do tipo ou do namespace "StringBuilder" não pode ser encontrado</code></strong>
+<pre class="file" data-file="eb1.cs">var sb = new StringBuilder();
+sb.Append("oi");
+Console.WriteLine(sb);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run eb1.cs
+/home/ana/cs/eb1.cs(1,14): error CS0246: O nome do tipo ou do namespace "StringBuilder" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o compilador não sabe o que é <code>StringBuilder</code>, porque ele está em <code>System.Text</code>, e esse pacote não foi "chamado". A própria mensagem dá a pista: "está faltando uma diretiva <code>using</code>?".</p>
+<p><strong>Como consertar:</strong> ponha <code>using System.Text;</code> na primeira linha do arquivo (ou escreva o nome completo, <code>new System.Text.StringBuilder()</code>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0029: Não é possível converter implicitamente tipo "System.Text.StringBuilder" em "string"</code></strong>
+<pre class="file" data-file="eb2.cs">using System.Text;
+
+var sb = new StringBuilder();
+sb.Append("oi");
+string texto = sb;
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run eb2.cs
+/home/ana/cs/eb2.cs(5,16): error CS0029: Não é possível converter implicitamente tipo "System.Text.StringBuilder" em "string"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o quadro branco não é uma string. Para virar uma, é preciso tirar a "foto".</p>
+<p><strong>Como consertar:</strong> <code>string texto = sb.ToString();</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0019: O operador "==" não pode ser aplicado a operandos dos tipos "StringBuilder" e "string"</code></strong>
+<pre class="file" data-file="eb3.cs">using System.Text;
+
+var sb = new StringBuilder("oi");
+Console.WriteLine(sb == "oi");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run eb3.cs
+/home/ana/cs/eb3.cs(4,19): error CS0019: O operador "==" não pode ser aplicado a operandos dos tipos "StringBuilder" e "string"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>==</code> que compara conteúdo é o da <code>string</code>. Um <code>StringBuilder</code> e uma <code>string</code> são tipos diferentes, e o C# não deixa comparar os dois assim.</p>
+<p><strong>Como consertar:</strong> transforme em string antes: <code>sb.ToString() == "oi"</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>System.ArgumentOutOfRangeException: Index was out of range.</code></strong>
+<pre class="file" data-file="eb4.cs">using System.Text;
+
+var sb = new StringBuilder("oi");
+sb[5] = '!';
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run eb4.cs
+Unhandled exception. System.ArgumentOutOfRangeException: Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')
+   at System.Text.StringBuilder.set_Chars(Int32 index, Char value)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/eb4.cs:line 4</pre>
+<p><strong>O que significa:</strong> "o índice estava fora do intervalo; precisa ser não negativo e menor que o tamanho". O quadro tem 2 caracteres (posições 0 e 1); a posição 5 não existe. O <code>sb[…] =</code> troca letras que já existem, não acrescenta.</p>
+<p><strong>Como consertar:</strong> para acrescentar no fim, <code>sb.Append('!')</code>; para trocar, uma posição menor que <code>sb.Length</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Escrevi <code>sb = sb.Append(…)</code>, ou <code>sb.ToString()</code> numa linha sozinha</strong>
+<p><strong>O que significa:</strong> não é erro, mas mostra uma confusão com a string. <code>Append</code> já muda o <code>sb</code>, e o <code>sb =</code> é desnecessário. Já o <code>ToString()</code> numa linha sozinha cria a string e joga fora.</p>
+<p><strong>Como consertar:</strong> <code>sb.Append(…);</code> sozinho, e <code>string texto = sb.ToString();</code> quando precisar da string.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>using System.Text;</code></td><td>permite escrever só <code>StringBuilder</code></td></tr>
+<tr><td><code>new StringBuilder()</code>, <code>new StringBuilder("texto")</code></td><td>cria vazio ou com um texto inicial</td></tr>
+<tr><td><code>sb.Append(x)</code></td><td>acrescenta <code>x</code> (texto, <code>char</code>, número…) no fim</td></tr>
+<tr><td><code>sb.AppendLine(x)</code>, <code>sb.AppendLine()</code></td><td>acrescenta <code>x</code> e uma quebra de linha / só a quebra</td></tr>
+<tr><td><code>sb.AppendJoin(sep, itens)</code></td><td>acrescenta os itens separados por <code>sep</code></td></tr>
+<tr><td><code>sb.Insert(pos, x)</code></td><td>insere <code>x</code> na posição <code>pos</code></td></tr>
+<tr><td><code>sb.Replace(velho, novo)</code></td><td>troca todas as ocorrências</td></tr>
+<tr><td><code>sb.Remove(pos, quantidade)</code></td><td>apaga <code>quantidade</code> caracteres a partir de <code>pos</code></td></tr>
+<tr><td><code>sb.Clear()</code></td><td>apaga tudo</td></tr>
+<tr><td><code>sb[i]</code>, <code>sb[i] = 'c'</code></td><td>lê / troca o caractere da posição <code>i</code></td></tr>
+<tr><td><code>sb.Length</code></td><td>quantidade de caracteres</td></tr>
+<tr><td><code>sb.ToString()</code></td><td>cria a <code>string</code> final</td></tr>
+</table>
+</div>
+<p><code>Append</code>, <code>AppendLine</code>, <code>Insert</code>, <code>Replace</code>, <code>Remove</code> e <code>Clear</code> devolvem o próprio <code>StringBuilder</code>, e por isso podem ser encadeados. A tabela completa está em <a href="ref-string.html">string e StringBuilder</a>.</p>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O pacote</h3>
+<p>Complete a primeira linha do arquivo:</p>
+<div class="ex-code">using <input data-answer="System.Text" aria-label="namespace">;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Acrescentar com quebra de linha</h3>
+<p>Complete para acrescentar <code>"Total"</code> e pular a linha:</p>
+<div class="ex-code">sb.<input data-answer="AppendLine" aria-label="método">("Total");</div>
+</div>
+
+<div class="exercise">
+<h3>3. A string final</h3>
+<p>Complete para guardar o texto do <code>sb</code> numa string:</p>
+<div class="ex-code">string texto = sb.<input data-answer="ToString()" aria-label="método">;</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Depois de <code>var sb = new StringBuilder("oi"); sb.Append("!");</code>, o que <code>sb.ToString()</code> devolve?</p>
+<label><input type="radio" name="q4"> <code>"oi"</code>, porque o resultado do <code>Append</code> não foi guardado.</label>
+<label><input type="radio" name="q4"> <code>"oi!"</code>, porque o <code>Append</code> muda o próprio <code>sb</code>.</label>
+<label><input type="radio" name="q4"> <code>"!"</code></label>
+<label><input type="radio" name="q4"> Não compila.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Em qual caso o <code>StringBuilder</code> faz mais diferença?</p>
+<label><input type="radio" name="q5"> Para juntar nome e sobrenome.</label>
+<label><input type="radio" name="q5"> Para mostrar uma mensagem fixa.</label>
+<label><input type="radio" name="q5"> Para montar um texto dentro de um laço que roda milhares de vezes.</label>
+<label><input type="radio" name="q5"> Para comparar dois textos.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que <code>string s = sb;</code> não compila?</p>
+<label><input type="radio" name="q6"> Porque <code>StringBuilder</code> não é <code>string</code>; é preciso <code>sb.ToString()</code>.</label>
+<label><input type="radio" name="q6"> Porque falta o <code>using System.Text;</code>.</label>
+<label><input type="radio" name="q6"> Porque o <code>sb</code> está vazio.</label>
+<label><input type="radio" name="q6"> Porque <code>s</code> é um nome reservado.</label>
+</div>
+
+<h3>Missão final: a tabuada</h3>
+
+<div class="trycs" data-goal="outre:^7 x 1 = 7\n7 x 2 = 14\n7 x 3 = 21\n7 x 4 = 28\n7 x 5 = 35\n$,src:AppendLine">
+<p class="try-task"><strong>Missão:</strong> o laço <code>for</code> já repete o bloco 5 vezes, com <code>i</code> valendo 1, 2, 3, 4 e 5 (você vai estudá-lo em <a href="for.html">for</a>). Dentro dele, use <code>AppendLine</code> com interpolação para montar a tabuada do 7, de <code>7 x 1 = 7</code> até <code>7 x 5 = 35</code>. Calcule o resultado com <code>7 * i</code> dentro das chaves.</p>
+<pre class="out">7 x 1 = 7
+7 x 2 = 14
+7 x 3 = 21
+7 x 4 = 28
+7 x 5 = 35</pre>
+<pre class="script" data-file="tabuada.cs">using System.Text;
+
+var tabuada = new StringBuilder();
+for (int i = 1; i &lt;= 5; i++)
+{
+    // acrescente aqui uma linha da tabuada
+}
+Console.Write(tabuada.ToString());
+</pre>
+<pre class="solucao" data-file="tabuada.cs">using System.Text;
+
+var tabuada = new StringBuilder();
+for (int i = 1; i &lt;= 5; i++)
+{
+    tabuada.AppendLine($"7 x {i} = {7 * i}");
+}
+Console.Write(tabuada.ToString());
+</pre>
+</div>
+
+<p>Repare no <code>Console.Write</code> (sem <code>Line</code>): o último <code>AppendLine</code> já pôs a quebra de linha no fim. Depois, troque o 5 por 10 e o 7 por outro número.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Strings são imutáveis: <code>+=</code> num laço copia o texto todo a cada volta. O <code>StringBuilder</code> é um texto que pode mudar.</li>
+  <li>Precisa de <code>using System.Text;</code> (senão, <code>CS0246</code>). Crie com <code>new StringBuilder()</code>.</li>
+  <li><code>Append</code> acrescenta no fim; <code>AppendLine</code> acrescenta e quebra a linha. Eles mudam o próprio <code>StringBuilder</code> e podem ser encadeados.</li>
+  <li><code>sb[i] = 'c'</code>, <code>Insert</code>, <code>Replace</code>, <code>Remove</code> e <code>Clear</code> mudam o texto no lugar.</li>
+  <li><code>ToString()</code> cria a string final. <code>string s = sb;</code> dá <code>CS0029</code>; <code>sb == "oi"</code> dá <code>CS0019</code>.</li>
+  <li>Use em laços e textos grandes. Para poucos pedaços, <code>+</code> ou <code>$"…"</code>; para listas, <code>string.Join</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
