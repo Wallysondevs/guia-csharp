@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Índices (^) e Intervalos (..) — contar do fim e fatiar | Guia C#</title>
+<meta name="description" content="Índices do fim e intervalos em C# para quem nunca programou: v[^1] para o último elemento, v[^2] para o penúltimo, por que ^0 não existe, fatias com v[1..4], v[..3], v[3..] e v[1..^1], o fim que não entra, a fatia que é uma cópia, os mesmos operadores em strings e listas, os tipos Index e Range, e as exceções reais IndexOutOfRangeException e ArgumentOutOfRangeException, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Índices (^) e Intervalos (..)</span></h1>
+
+<p class="intro">Para pegar o último elemento de um array, a aula <a href="arrays.html">Arrays</a> ensinou <code>temperaturas[temperaturas.Length - 1]</code>. Funciona, mas é comprido e fácil de errar. E para pegar "os três primeiros" ou "todos menos o primeiro e o último", seria preciso um laço e um array novo. Desde o <span class="versao">C# 8</span>, há dois atalhos para isso: o <strong><code>^</code></strong>, que conta <strong>a partir do fim</strong> (<code>temperaturas[^1]</code> é o último), e o <strong><code>..</code></strong>, que pega um <strong>pedaço</strong>, uma fatia, de um array ou de um texto (<code>nome[..3]</code> são as 3 primeiras letras).</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como pegar o último, o penúltimo… com <code>^1</code>, <code>^2</code>, e por que <code>^0</code> não é um elemento.</li>
+  <li>Como pegar uma fatia com <code>..</code>: <code>v[1..4]</code>, <code>v[..3]</code>, <code>v[3..]</code>, <code>v[1..^1]</code>.</li>
+  <li>A regra de ouro: o <strong>começo entra</strong>, o <strong>fim não entra</strong>.</li>
+  <li>Que a fatia de um array é uma <strong>cópia</strong>.</li>
+  <li>Como usar os mesmos atalhos em textos (<code>string</code>) e listas.</li>
+  <li>Os tipos <code>Index</code> e <code>Range</code>, para guardar um índice ou uma fatia numa variável.</li>
+  <li>As exceções reais: <code>IndexOutOfRangeException</code> e <code>ArgumentOutOfRangeException</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas foram rodados com o <strong>.NET 10</strong> (<code>dotnet --version</code> = <code>10.0.112</code>, C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Antes desta aula, veja <a href="arrays.html">Arrays</a>.</p>
+
+<hr>
+
+<h2>A ideia: a fila do banco e a régua</h2>
+<p>Numa fila de banco, você pode dizer "a terceira pessoa da fila" (contando da frente) ou "a <strong>última</strong> pessoa", "a <strong>penúltima</strong>" (contando de trás). As duas formas apontam para alguém da mesma fila. O <code>^</code> é o "contando de trás": <code>^1</code> é a última, <code>^2</code> a penúltima.</p>
+<p>Já o <code>..</code> funciona como uma <strong>régua</strong>. Os números não marcam as pessoas, e sim os <strong>espaços entre elas</strong>: a marca 0 fica antes da primeira, a marca 1 entre a primeira e a segunda, e assim por diante. <code>1..4</code> quer dizer "da marca 1 até a marca 4": pega quem está entre elas, as pessoas de índice 1, 2 e 3.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Elemento</th><td>10</td><td>20</td><td>30</td><td>40</td><td>50</td><td>60</td></tr>
+<tr><th>Índice da frente</th><td><code>[0]</code></td><td><code>[1]</code></td><td><code>[2]</code></td><td><code>[3]</code></td><td><code>[4]</code></td><td><code>[5]</code></td></tr>
+<tr><th>Índice do fim</th><td><code>[^6]</code></td><td><code>[^5]</code></td><td><code>[^4]</code></td><td><code>[^3]</code></td><td><code>[^2]</code></td><td><code>[^1]</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. Contar do fim: <code>^</code></h2>
+
+<pre class="file" data-file="fim.cs">int[] temperaturas = [28, 31, 30, 27, 25, 29, 32];
+Console.WriteLine($"Último dia: {temperaturas[^1]}");
+Console.WriteLine($"Penúltimo: {temperaturas[^2]}");
+Console.WriteLine($"O mesmo, do jeito antigo: {temperaturas[temperaturas.Length - 1]}");
+temperaturas[^1] = 33;
+Console.WriteLine($"Corrigido: {temperaturas[^1]}");
+</pre>
+
+<dl class="anatomy">
+  <dt>temperaturas[^1]</dt><dd>O <code>^</code> ("chapéu", <em>hat</em> em inglês) quer dizer "do fim". <code>^1</code> é o primeiro a partir do fim, o último elemento: 32. Por baixo, o C# faz a conta <code>Length - 1</code> por você.</dd>
+  <dt>temperaturas[^2]</dt><dd>O segundo a partir do fim, o penúltimo: 29 (<code>Length - 2</code>).</dd>
+  <dt>temperaturas[^1] = 33;</dt><dd>Funciona para trocar o valor também, como qualquer índice.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fim.cs
+Último dia: 32
+Penúltimo: 29
+O mesmo, do jeito antigo: 32
+Corrigido: 33</pre>
+
+<div class="warning">
+<strong>Do fim, a contagem começa no 1, não no 0</strong>
+<p>Da frente, o primeiro é <code>[0]</code>. Do fim, o último é <code>[^1]</code>. O <code>^0</code> é "o fim", a marca da régua depois do último: <strong>não</strong> é um elemento. Usar <code>v[^0]</code> é o mesmo que <code>v[v.Length]</code>, e dá <code>IndexOutOfRangeException</code> (veja "Quando dá errado"). Ele só faz sentido dentro de um intervalo, como em <code>v[2..^0]</code>.</p>
+</div>
+
+<div class="trycs" data-goal="out:Última venda: 75,out:Penúltima: 140,src:\^1,src:\^2">
+<p class="try-task"><strong>Missão:</strong> mostre a última e a penúltima venda do dia usando o <code>^</code>, sem <code>Length</code>. A saída tem de ser <code>Última venda: 75</code> e <code>Penúltima: 140</code>.</p>
+<pre class="out">Última venda: 75
+Penúltima: 140</pre>
+<pre class="script">int[] vendas = [120, 80, 200, 140, 75];
+Console.WriteLine($"Última venda: {vendas[0]}");   // troque o índice
+Console.WriteLine($"Penúltima: {vendas[0]}");      // e este também
+</pre>
+<pre class="solucao">int[] vendas = [120, 80, 200, 140, 75];
+Console.WriteLine($"Última venda: {vendas[^1]}");
+Console.WriteLine($"Penúltima: {vendas[^2]}");
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Fatiar: <code>..</code></h2>
+<p>Com <code>começo..fim</code> entre colchetes, você pega um pedaço do array. O resultado é um <strong>array novo</strong>, com os elementos daquele pedaço.</p>
+
+<pre class="file" data-file="fatias.cs">int[] v = [10, 20, 30, 40, 50, 60];
+Console.WriteLine(string.Join(" ", v[1..4]));
+Console.WriteLine(string.Join(" ", v[..3]));
+Console.WriteLine(string.Join(" ", v[3..]));
+Console.WriteLine(string.Join(" ", v[^2..]));
+Console.WriteLine(string.Join(" ", v[1..^1]));
+Console.WriteLine(string.Join(" ", v[..]));
+Console.WriteLine(v[2..2].Length);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fatias.cs
+20 30 40
+10 20 30
+40 50 60
+50 60
+20 30 40 50
+10 20 30 40 50 60
+0</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Fatia</th><th>Lê-se</th><th>Resultado</th></tr>
+<tr><td><code>v[1..4]</code></td><td>do índice 1 até antes do 4</td><td><code>20 30 40</code> (índices 1, 2, 3)</td></tr>
+<tr><td><code>v[..3]</code></td><td>do começo até antes do 3: os <strong>3 primeiros</strong></td><td><code>10 20 30</code></td></tr>
+<tr><td><code>v[3..]</code></td><td>do índice 3 até o fim</td><td><code>40 50 60</code></td></tr>
+<tr><td><code>v[^2..]</code></td><td>do penúltimo até o fim: os <strong>2 últimos</strong></td><td><code>50 60</code></td></tr>
+<tr><td><code>v[1..^1]</code></td><td>todos <strong>menos o primeiro e o último</strong></td><td><code>20 30 40 50</code></td></tr>
+<tr><td><code>v[..]</code></td><td>do começo ao fim: uma cópia inteira</td><td><code>10 20 30 40 50 60</code></td></tr>
+<tr><td><code>v[2..2]</code></td><td>da marca 2 até a marca 2: nada</td><td>array vazio (<code>Length</code> 0)</td></tr>
+</table>
+</div>
+
+<dl class="anatomy">
+  <dt>o começo entra, o fim não</dt><dd>Em <code>1..4</code>, o 1 entra e o 4 não. Parece estranho, mas tem duas vantagens: o tamanho da fatia é a conta <code>fim − começo</code> (4 − 1 = 3 elementos), e duas fatias "encostadas" não se repetem nem deixam buraco: <code>v[..3]</code> e <code>v[3..]</code> juntas dão o array inteiro.</dd>
+  <dt>sem começo / sem fim</dt><dd>Sem o número da esquerda, começa do início (<code>..3</code>). Sem o da direita, vai até o fim (<code>3..</code>).</dd>
+  <dt>misturar com ^</dt><dd>Os dois lados podem contar do fim: <code>^2..</code> (os 2 últimos), <code>..^1</code> (todos menos o último), <code>1..^1</code> (tira as pontas).</dd>
+</dl>
+
+<div class="trycs" data-goal="out:Primeiros: arroz feijão café,out:Últimos: leite pão,src:\.\.">
+<p class="try-task"><strong>Missão:</strong> use fatias (<code>..</code>) para mostrar os <strong>3 primeiros</strong> itens da lista e os <strong>2 últimos</strong>. A saída tem de ser <code>Primeiros: arroz feijão café</code> e <code>Últimos: leite pão</code>.</p>
+<pre class="out">Primeiros: arroz feijão café
+Últimos: leite pão</pre>
+<pre class="script">string[] compras = ["arroz", "feijão", "café", "óleo", "leite", "pão"];
+string[] primeiros = compras;   // troque por uma fatia
+string[] ultimos = compras;     // e esta também
+Console.WriteLine($"Primeiros: {string.Join(" ", primeiros)}");
+Console.WriteLine($"Últimos: {string.Join(" ", ultimos)}");
+</pre>
+<pre class="solucao">string[] compras = ["arroz", "feijão", "café", "óleo", "leite", "pão"];
+string[] primeiros = compras[..3];
+string[] ultimos = compras[^2..];
+Console.WriteLine($"Primeiros: {string.Join(" ", primeiros)}");
+Console.WriteLine($"Últimos: {string.Join(" ", ultimos)}");
+</pre>
+</div>
+
+<h3>A fatia de um array é uma cópia</h3>
+
+<pre class="file" data-file="copia.cs">int[] notas = [7, 8, 6, 9, 10];
+int[] comeco = notas[..2];
+comeco[0] = 0;
+Console.WriteLine($"comeco: {string.Join(" ", comeco)}");
+Console.WriteLine($"notas:  {string.Join(" ", notas)}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run copia.cs
+comeco: 0 8
+notas:  7 8 6 9 10       « o original não mudou</pre>
+
+<p>A fatia é um array novo: mudar um elemento dela não mexe no original. Por isso <code>v[..]</code> é um jeito de copiar um array inteiro. Mas copiar custa: cada fatia de um array grande copia todos os elementos dela. Para olhar um pedaço <strong>sem copiar</strong>, o .NET tem o <code>Span&lt;T&gt;</code> (<code>v.AsSpan(1..4)</code>), assunto da aula <a href="span.html">Span&lt;T&gt;</a>.</p>
+
+<div class="note">
+<strong>Os outros <code>..</code> do C#</strong>
+<p>Na aula <a href="arrays.html">Arrays</a>, o <code>..</code> apareceu <strong>dentro</strong> dos colchetes de criação: <code>int[] b = [.. a];</code>. Ali ele é outra coisa, o <strong>espalhamento</strong> (<em>spread</em>, <span class="versao">C# 12</span>): "ponha aqui todos os elementos de <code>a</code>". Repare na diferença: <code>a[1..3]</code> (depois do nome, com números) é uma fatia; <code>[.. a]</code> (criando um array, com um array depois) é o espalhamento. Dá até para combinar: <code>int[] semPontas = [.. a[1..^1]];</code>.</p>
+</div>
+
+<hr>
+
+<h2>3. Em textos e listas</h2>
+<p>Os dois atalhos também funcionam em <code>string</code>: cada letra é uma posição (aula <a href="strings.html">Strings</a>).</p>
+
+<pre class="file" data-file="textos.cs">string nome = "Ana Maria";
+Console.WriteLine(nome[0]);
+Console.WriteLine(nome[^1]);
+Console.WriteLine(nome[..3]);
+Console.WriteLine(nome[4..]);
+string arquivo = "relatorio.pdf";
+Console.WriteLine(arquivo[^3..]);
+string cep = "01310-100";
+Console.WriteLine($"{cep[..5]} / {cep[^3..]}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run textos.cs
+A
+a
+Ana
+Maria
+pdf
+01310 / 100</pre>
+
+<dl class="anatomy">
+  <dt>nome[^1]</dt><dd>Com um índice só, vem <strong>uma letra</strong>: um <code>char</code>, a última letra, <code>'a'</code>.</dd>
+  <dt>nome[..3]</dt><dd>Com uma fatia, vem um <strong>texto</strong>: uma <code>string</code> com as 3 primeiras letras. É o mesmo que <code>nome.Substring(0, 3)</code> (aula <a href="metodos-string.html">Métodos de String</a>), mais curto.</dd>
+  <dt>arquivo[^3..]</dt><dd>As 3 últimas letras: a extensão do arquivo.</dd>
+</dl>
+
+<p>Com uma <a href="list.html">List&lt;T&gt;</a>, o <code>^</code> e o <code>..</code> também funcionam: <code>lista[^1]</code> é o último, e <code>lista[1..3]</code> devolve uma lista nova com os elementos 1 e 2.</p>
+
+<hr>
+
+<h2>4. Os tipos <code>Index</code> e <code>Range</code></h2>
+<p>O <code>^1</code> e o <code>1..^1</code> são valores de verdade, de dois tipos do .NET: <code>Index</code> ("índice") e <code>Range</code> ("intervalo"). Você pode guardá-los em variáveis, e os números podem vir de variáveis também:</p>
+
+<pre class="file" data-file="tipos.cs">int[] v = [10, 20, 30, 40, 50];
+Index ultimo = ^1;
+Range meio = 1..^1;
+Console.WriteLine(v[ultimo]);
+Console.WriteLine(string.Join(" ", v[meio]));
+int n = 2;
+Console.WriteLine(string.Join(" ", v[^n..]));
+Console.WriteLine(string.Join(" ", v[..n]));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tipos.cs
+50
+20 30 40
+40 50
+10 20</pre>
+
+<dl class="anatomy">
+  <dt>Index ultimo = ^1;</dt><dd>Uma variável que guarda "o último". Serve para qualquer array: <code>outroArray[ultimo]</code>.</dd>
+  <dt>Range meio = 1..^1;</dt><dd>Uma variável que guarda "sem as pontas".</dd>
+  <dt>v[^n..] / v[..n]</dt><dd>Os <code>n</code> últimos / os <code>n</code> primeiros. Muito útil para "mostre os 5 mais recentes".</dd>
+</dl>
+
+<hr>
+
+<h2>5. Qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer</th><th>Jeito moderno</th><th>Jeito antigo</th></tr>
+<tr><td>O último</td><td><code>v[^1]</code></td><td><code>v[v.Length - 1]</code></td></tr>
+<tr><td>Os 3 primeiros</td><td><code>v[..3]</code></td><td>um <code>new int[3]</code> + <code>Array.Copy</code></td></tr>
+<tr><td>Do índice 2 em diante</td><td><code>v[2..]</code></td><td>laço ou <code>Array.Copy</code></td></tr>
+<tr><td>As 4 primeiras letras</td><td><code>texto[..4]</code></td><td><code>texto.Substring(0, 4)</code></td></tr>
+<tr><td>Do índice 4 até o fim do texto</td><td><code>texto[4..]</code></td><td><code>texto.Substring(4)</code></td></tr>
+<tr><td>Um pedaço grande, sem copiar</td><td><code>v.AsSpan(1..4)</code></td><td>—</td></tr>
+</table>
+</div>
+<p>O jeito antigo continua valendo e aparece em muito código. O moderno é mais curto e diz a intenção ("os 3 primeiros") direto.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>IndexOutOfRangeException</code> com <code>v[^0]</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat zero.cs
+int[] v = [10, 20, 30];
+Console.WriteLine(v[^0]);
+$ dotnet run zero.cs
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/zero.cs:line 2
+$ echo $?
+134</pre>
+<p><strong>O que significa:</strong> <code>^0</code> é "o fim", depois do último elemento; o último é <code>^1</code>. O mesmo erro aparece com <code>^</code> maior que o tamanho (<code>v[^4]</code> num array de 3) e com <code>v[^1]</code> num array <strong>vazio</strong>, que não tem último.</p>
+<p><strong>Como consertar:</strong> use <code>^1</code> para o último, e confira <code>v.Length &gt; 0</code> antes, se o array pode estar vazio.</p>
+</div>
+
+<div class="cenario">
+<strong><code>ArgumentOutOfRangeException</code> numa fatia</strong>
+<pre class="term" data-cwd="~/cs">$ cat passou.cs
+int[] v = [10, 20, 30, 40];
+Console.WriteLine(string.Join(" ", v[2..10]));
+$ dotnet run passou.cs
+Unhandled exception. System.ArgumentOutOfRangeException: Specified argument was out of the range of valid values. (Parameter 'length')
+   at System.Range.ThrowArgumentOutOfRangeException()
+   at System.Runtime.CompilerServices.RuntimeHelpers.GetSubArray[T](T[] array, Range range)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/passou.cs:line 2</pre>
+<p><strong>O que significa:</strong> "o argumento estava fora do intervalo de valores válidos". A fatia pediu até a marca 10 de um array de 4. Diferente de outras linguagens, o C# <strong>não</strong> corta a fatia sozinho: ele para o programa (código 134). O mesmo acontece com uma fatia "de trás para a frente", como <code>v[3..1]</code>: o começo não pode ficar depois do fim. As linhas do meio da pilha (<code>Range</code>, <code>GetSubArray</code>) são de dentro do .NET; no editor do guia, uma delas aparece escrita um pouco diferente (<code>GetSubArray[Int32]</code>), mas a última linha, com o seu arquivo, é a mesma.</p>
+<p><strong>Como consertar:</strong> limite o fim ao tamanho: <code>v[2..Math.Min(10, v.Length)]</code> (aula <a href="math.html">Matemática</a>), ou confira antes.</p>
+</div>
+
+<div class="cenario">
+<strong><code>ArgumentOutOfRangeException</code> num texto curto</strong>
+<pre class="term" data-cwd="~/cs">$ cat texto-passou.cs
+string nome = "Bia";
+Console.WriteLine(nome[..5]);
+$ dotnet run texto-passou.cs
+Unhandled exception. System.ArgumentOutOfRangeException: Index and length must refer to a location within the string. (Parameter 'length')
+   at System.String.ThrowSubstringArgumentOutOfRange(Int32 startIndex, Int32 length)
+   at System.String.Substring(Int32 startIndex, Int32 length)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/texto-passou.cs:line 2</pre>
+<p><strong>O que significa:</strong> "o índice e o comprimento têm de ficar dentro do texto". O nome tem 3 letras e a fatia pediu 5. Repare na pilha: por baixo, o <code>[..5]</code> virou um <code>Substring</code>. Isso acontece muito com texto digitado pelo usuário, que pode ser mais curto do que você imaginou.</p>
+<p><strong>Como consertar:</strong> <code>nome[..Math.Min(5, nome.Length)]</code>, ou um <code>if (nome.Length &gt;= 5)</code> antes.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que pega</th></tr>
+<tr><td><code>v[^1]</code> / <code>v[^2]</code></td><td>O último / o penúltimo elemento</td></tr>
+<tr><td><code>v[^0]</code></td><td>Nada: é o fim (dá <code>IndexOutOfRangeException</code>)</td></tr>
+<tr><td><code>v[a..b]</code></td><td>Do índice <code>a</code> até antes do <code>b</code> (<code>b − a</code> elementos)</td></tr>
+<tr><td><code>v[..n]</code> / <code>v[^n..]</code></td><td>Os <code>n</code> primeiros / os <code>n</code> últimos</td></tr>
+<tr><td><code>v[n..]</code></td><td>Do índice <code>n</code> até o fim</td></tr>
+<tr><td><code>v[1..^1]</code></td><td>Tudo menos o primeiro e o último</td></tr>
+<tr><td><code>v[..]</code></td><td>Cópia inteira</td></tr>
+<tr><td><code>texto[^1]</code> / <code>texto[..3]</code></td><td>A última letra (<code>char</code>) / as 3 primeiras (<code>string</code>)</td></tr>
+<tr><td><code>Index i = ^1;</code> / <code>Range r = 1..3;</code></td><td>Guardar um índice / um intervalo numa variável</td></tr>
+<tr><td><code>v.AsSpan(1..4)</code></td><td>Olhar um pedaço sem copiar</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O último</h3>
+<p>Complete para pegar o último elemento de <code>notas</code> com o atalho do C# 8:</p>
+<div class="ex-code">int ultima = notas[<input data-answer="^1" aria-label="índice">];</div>
+</div>
+
+<div class="exercise">
+<h3>2. As 4 primeiras letras</h3>
+<p>Complete para pegar as 4 primeiras letras de <code>texto</code>:</p>
+<div class="ex-code">string inicio = texto[<input data-answer="..4|0..4" aria-label="intervalo">];</div>
+</div>
+
+<div class="exercise">
+<h3>3. Quantos elementos?</h3>
+<p>Quantos elementos tem <code>v[2..7]</code> (num array grande o bastante)?</p>
+<div class="ex-code"><input data-answer="5" aria-label="quantidade"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Com <code>int[] v = [10, 20, 30, 40, 50];</code>, o que é <code>v[1..3]</code>?</p>
+<label><input type="radio" name="q4"> <code>10 20 30</code></label>
+<label><input type="radio" name="q4"> <code>20 30 40</code></label>
+<label><input type="radio" name="q4"> <code>20 30</code></label>
+<label><input type="radio" name="q4"> <code>10 20</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. O que acontece com <code>Console.WriteLine(v[^0]);</code>?</p>
+<label><input type="radio" name="q5"> Mostra o primeiro elemento</label>
+<label><input type="radio" name="q5"> Mostra o último elemento</label>
+<label><input type="radio" name="q5"> Não compila</label>
+<label><input type="radio" name="q5"> Compila, mas para com <code>IndexOutOfRangeException</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">6. Depois de <code>int[] parte = v[..2]; parte[0] = 99;</code>, o que acontece com <code>v[0]</code>?</p>
+<label><input type="radio" name="q6"> Passa a valer 99</label>
+<label><input type="radio" name="q6"> Continua com o valor de antes: a fatia é uma cópia</label>
+<label><input type="radio" name="q6"> Vira 0</label>
+<label><input type="radio" name="q6"> O programa para com uma exceção</label>
+</div>
+
+<h3>Missão final: a média sem as pontas</h3>
+
+<div class="trycs" data-goal="out:Média sem a maior e a menor: 7\,5,src:\.\.">
+<p class="try-task"><strong>Missão:</strong> em algumas competições, a maior e a menor nota dos jurados são descartadas. As notas já são ordenadas com <code>Array.Sort</code>. Use uma fatia para tirar a primeira (a menor) e a última (a maior), e calcule a média das outras. A saída tem de ser <code>Média sem a maior e a menor: 7,5</code>.</p>
+<pre class="out">Média sem a maior e a menor: 7,5</pre>
+<pre class="script">int[] notas = [6, 9, 7, 10, 3, 8];
+Array.Sort(notas);
+int[] meio = notas;   // troque por uma fatia sem as pontas
+double media = meio.Average();
+Console.WriteLine($"Média sem a maior e a menor: {media}");
+</pre>
+<pre class="solucao">int[] notas = [6, 9, 7, 10, 3, 8];
+Array.Sort(notas);
+int[] meio = notas[1..^1];
+double media = meio.Average();
+Console.WriteLine($"Média sem a maior e a menor: {media}");
+</pre>
+</div>
+
+<p>Ordenadas, as notas ficam <code>3 6 7 8 9 10</code>. A fatia <code>[1..^1]</code> deixa <code>6 7 8 9</code>, que somam 30; 30 ÷ 4 = 7,5. O <code>Average()</code> ("média") vem do LINQ (aula <a href="linq-agregar.html">Agregar</a>). Com o array inteiro, a média seria 7,1666…, e a missão não passaria.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>^n</code> conta do fim: <code>v[^1]</code> é o último, <code>v[^2]</code> o penúltimo. <code>^0</code> é o fim, não um elemento. <span class="versao">C# 8</span></li>
+  <li><code>a..b</code> é uma fatia: do índice <code>a</code> (entra) até o <code>b</code> (não entra). Os lados podem faltar (<code>..3</code>, <code>3..</code>) ou contar do fim (<code>1..^1</code>).</li>
+  <li>A fatia de um array é um <strong>array novo</strong>, uma cópia. Para não copiar, existe o <code>Span&lt;T&gt;</code>.</li>
+  <li>Em textos, <code>texto[^1]</code> é a última letra (<code>char</code>) e <code>texto[..3]</code> é um texto com as 3 primeiras. Também funciona em listas.</li>
+  <li>Índice fora dá <code>IndexOutOfRangeException</code>; fatia fora dá <code>ArgumentOutOfRangeException</code>. O C# nunca corta a fatia sozinho.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
