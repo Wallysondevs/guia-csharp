@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# break e continue — sair do laço ou pular uma volta | Guia C#</title>
+<meta name="description" content="break e continue em C# para quem nunca programou: parar a busca quando achar (break), pular os itens que não servem (continue), while (true) com break, o continue que pula o i++ e trava o laço, break dentro de switch dentro de um laço, laços aninhados, return, e os erros CS0139 e CS0162, com saídas reais do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">break e continue</span></h1>
+
+<p class="intro">Até aqui, todo laço ia do começo ao fim: dava todas as voltas até a condição ficar falsa ou a lista acabar. Mas às vezes você quer <strong>parar antes</strong> (achou o que procurava, não precisa olhar o resto) ou <strong>pular uma volta</strong> (este item não serve, passe para o próximo). Para isso existem duas palavras: <code>break</code> ("quebrar"), que <strong>sai</strong> do laço na hora, e <code>continue</code> ("continuar"), que <strong>pula</strong> o resto da volta e vai para a próxima.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como usar <code>break</code> para sair de um laço assim que der (uma busca, por exemplo).</li>
+  <li>Como usar <code>continue</code> para pular os itens que não servem.</li>
+  <li>O padrão <code>while (true)</code> + <code>break</code>, com entrada do teclado.</li>
+  <li>A armadilha do <code>continue</code> que pula o <code>i++</code>.</li>
+  <li>O que o <code>break</code> faz dentro de um <code>switch</code> que está dentro de um laço, e em laços aninhados.</li>
+  <li>Os erros <code>CS0139</code> e o aviso <code>CS0162</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana, na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: procurar a chave e separar as frutas</h2>
+<p>A Ana procura a chave de casa numa gaveta cheia de coisas. Ela tira um objeto de cada vez. Quando <strong>acha</strong> a chave, ela para: não faz sentido olhar o resto da gaveta. Isso é o <code>break</code>.</p>
+<p>Depois, na feira, ela escolhe laranjas uma por uma. Se uma está machucada, ela <strong>deixa de lado</strong> e pega a próxima, sem parar de escolher. Isso é o <code>continue</code>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th><code>break</code></th><th><code>continue</code></th></tr>
+<tr><td>O que faz</td><td><strong>Sai</strong> do laço inteiro</td><td><strong>Pula</strong> o resto desta volta</td></tr>
+<tr><td>Depois dele</td><td>O programa segue na linha depois do laço</td><td>O laço vai para a próxima volta (no <code>for</code>, roda o passo antes)</td></tr>
+<tr><td>Comparação</td><td>Achou a chave: para de procurar</td><td>Laranja machucada: pega a próxima</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. <code>break</code>: parar quando achar</h2>
+<p>A lojinha da Ana tem os produtos num array, e ela quer saber em que posição está a borracha:</p>
+
+<pre class="file" data-file="procura.cs">string[] estoque = ["caneta", "caderno", "borracha", "lápis", "régua"];
+string procurado = "borracha";
+int posicao = -1;
+for (int i = 0; i &lt; estoque.Length; i++)
+{
+    Console.WriteLine($"Olhando a posição {i}: {estoque[i]}");
+    if (estoque[i] == procurado)
+    {
+        posicao = i;
+        break;
+    }
+}
+if (posicao &gt;= 0)
+{
+    Console.WriteLine($"Achei \"{procurado}\" na posição {posicao}.");
+}
+else
+{
+    Console.WriteLine($"Não temos \"{procurado}\".");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run procura.cs
+Olhando a posição 0: caneta
+Olhando a posição 1: caderno
+Olhando a posição 2: borracha      « achou: o break sai do for
+Achei "borracha" na posição 2.     « "lápis" e "régua" nem foram olhados</pre>
+
+<dl class="anatomy">
+  <dt>int posicao = -1;</dt><dd>Um valor que "não é posição nenhuma", para saber, depois do laço, se achou ou não. É um truque muito comum.</dd>
+  <dt>if (estoque[i] == procurado)</dt><dd>O <code>break</code> quase sempre fica dentro de um <code>if</code>: "<strong>se</strong> achou, pare".</dd>
+  <dt>break;</dt><dd>Sai do <code>for</code> <strong>na hora</strong>. O passo (<code>i++</code>) não roda mais, nem a condição é testada de novo. O programa pula para a primeira linha depois do laço, o <code>if (posicao &gt;= 0)</code>.</dd>
+</dl>
+
+<p>Troque <code>"borracha"</code> por <code>"tesoura"</code>: o laço olha as 5 posições, não acha, termina normalmente, e o programa mostra <code>Não temos "tesoura".</code>. O <code>break</code> não muda o resultado da busca; ele só evita trabalho inútil. Num array de 5 itens isso não faz diferença, mas num de 1 milhão faz.</p>
+
+<div class="trycs" data-goal="outre:^Primeiro preço acima de R\$ 100: R\$ 129\,90\n$,src:\bbreak\s*;">
+<p class="try-task"><strong>Missão:</strong> o programa deveria mostrar só o <strong>primeiro</strong> preço acima de R$ 100, mas mostra todos. Acrescente um <code>break</code> no lugar certo.</p>
+<pre class="out">Primeiro preço acima de R$ 100: R$ 129,90</pre>
+<pre class="script">decimal[] precos = [45.00m, 89.90m, 129.90m, 15.50m, 210.00m];
+foreach (decimal preco in precos)
+{
+    if (preco &gt; 100m)
+    {
+        Console.WriteLine($"Primeiro preço acima de R$ 100: R$ {preco:N2}");
+    }
+}
+</pre>
+<pre class="solucao">decimal[] precos = [45.00m, 89.90m, 129.90m, 15.50m, 210.00m];
+foreach (decimal preco in precos)
+{
+    if (preco &gt; 100m)
+    {
+        Console.WriteLine($"Primeiro preço acima de R$ 100: R$ {preco:N2}");
+        break;
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. <code>while (true)</code> + <code>break</code></h2>
+<p>Na aula do <a href="while.html">while</a>, você viu o <code>while (true)</code>, um laço que nunca para sozinho. Com <code>break</code>, ele vira um jeito muito claro de escrever "repita até…", quando a decisão de sair fica no <strong>meio</strong> do corpo. A Ana soma números digitados até digitar 0 (o <code>Console.ReadLine()</code> lê o que a pessoa digita; aula <a href="readline.html">Ler do Teclado</a>):</p>
+
+<pre class="file" data-file="somar.cs">int soma = 0;
+while (true)
+{
+    Console.Write("Número (0 para terminar): ");
+    if (!int.TryParse(Console.ReadLine(), out int n))
+    {
+        Console.WriteLine("Isso não é um número.");
+        continue;
+    }
+    if (n == 0)
+    {
+        break;
+    }
+    soma += n;
+}
+Console.WriteLine($"Soma: {soma}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run somar.cs
+Número (0 para terminar): 10
+Número (0 para terminar): 25
+Número (0 para terminar): abc
+Isso não é um número.               « o continue voltou para a pergunta
+Número (0 para terminar): 7
+Número (0 para terminar): 0         « o break saiu do laço
+Soma: 42</pre>
+
+<ol class="passo">
+  <li><strong>Pergunta e lê.</strong> Sempre, pelo menos uma vez (como no <a href="do-while.html">do while</a>).</li>
+  <li><strong>Não é número?</strong> Avisa e <code>continue</code>: pula o resto da volta e pergunta de novo. O <code>"abc"</code> não entrou na soma.</li>
+  <li><strong>É zero?</strong> <code>break</code>: sai do laço, e o programa mostra a soma.</li>
+  <li><strong>Senão,</strong> soma e volta ao passo 1.</li>
+</ol>
+
+<p>Os dois aparecem no mesmo programa, cada um com o seu papel. Sem o <code>break</code>, esse laço seria infinito; por isso, todo <code>while (true)</code> precisa de pelo menos um caminho que chegue a um <code>break</code>.</p>
+
+<hr>
+
+<h2>3. <code>continue</code>: pular o que não serve</h2>
+<p>O <code>continue</code> pula o resto do corpo e vai direto para a próxima volta. Aqui, ele pula os números ímpares:</p>
+
+<pre class="file" data-file="pares.cs">for (int n = 1; n &lt;= 10; n++)
+{
+    if (n % 2 != 0)
+    {
+        continue;
+    }
+    Console.Write($"{n} ");
+}
+Console.WriteLine();
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pares.cs
+2 4 6 8 10 </pre>
+
+<p>Num <code>for</code>, o <code>continue</code> vai para o <strong>passo</strong> (<code>n++</code>) e depois para a condição, como no fim de qualquer volta. (Para só os pares, <code>n += 2</code> seria mais simples; o exemplo é para mostrar o <code>continue</code>.)</p>
+
+<p>Um uso mais realista: ignorar dados ruins. A professora digitou algumas notas erradas, e elas não podem entrar na média:</p>
+
+<pre class="file" data-file="notas.cs">double[] notas = [8.0, -1.0, 6.5, 11.0, 9.5];
+double soma = 0;
+int validas = 0;
+foreach (double nota in notas)
+{
+    if (nota &lt; 0 || nota &gt; 10)
+    {
+        Console.WriteLine($"Ignorando a nota inválida {nota}");
+        continue;
+    }
+    soma += nota;
+    validas++;
+}
+Console.WriteLine($"Média de {validas} notas: {soma / validas:N2}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run notas.cs
+Ignorando a nota inválida -1
+Ignorando a nota inválida 11
+Média de 3 notas: 8,00</pre>
+
+<p>Esse estilo se chama <strong>cláusula de guarda</strong>: os casos que não servem são descartados logo no começo do corpo, com <code>continue</code>, e o resto do corpo cuida só dos casos bons, sem um <code>if</code> enorme em volta. Dava para escrever o mesmo com <code>if (nota &gt;= 0 &amp;&amp; nota &lt;= 10) { … }</code>; quando há várias regras de descarte, o <code>continue</code> deixa o código mais "reto".</p>
+
+<hr>
+
+<h2>4. A armadilha: <code>continue</code> no <code>while</code></h2>
+<p>No <code>for</code>, o <code>continue</code> sempre passa pelo passo. No <code>while</code>, o passo é uma linha <strong>comum</strong> do corpo, e o <code>continue</code> pode pulá-la. A Ana quis mostrar de 0 a 9, pulando o 5:</p>
+
+<pre class="file" data-file="continfinito.cs">int i = 0;
+while (i &lt; 10)
+{
+    if (i == 5)
+    {
+        continue;
+    }
+    Console.Write($"{i} ");
+    i++;
+}
+Console.WriteLine("Fim!");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ timeout 15 dotnet run continfinito.cs
+0 1 2 3 4 $ echo $?
+124</pre>
+
+<ol class="passo">
+  <li>De 0 a 4, tudo certo: mostra o número e faz <code>i++</code>.</li>
+  <li>Com <code>i = 5</code>, o <code>continue</code> pula o <code>Console.Write</code> <strong>e o <code>i++</code></strong>.</li>
+  <li>Na próxima volta, <code>i</code> ainda vale 5, e o <code>continue</code> pula de novo. E de novo. Para sempre: o <code>timeout</code> encerrou o programa depois de 15 segundos (código 124, aula <a href="while.html#infinito">while</a>).</li>
+</ol>
+<p>O <code>$ echo $?</code> apareceu na mesma linha dos números porque o programa nunca chegou a pular linha: o <code>Fim!</code> não foi mostrado. Dois consertos: fazer o <code>i++</code> <strong>antes</strong> do <code>continue</code> (<code>if (i == 5) { i++; continue; }</code>), ou, melhor ainda, usar um <code>for</code>, em que o passo nunca é pulado:</p>
+
+<pre class="file">for (int i = 0; i &lt; 10; i++)
+{
+    if (i == 5)
+    {
+        continue;
+    }
+    Console.Write($"{i} ");
+}
+</pre>
+
+<hr>
+
+<h2>5. Qual laço o <code>break</code> quebra?</h2>
+
+<h3>Dentro de um <code>switch</code></h3>
+<p>Lembra que cada <code>case</code> do <a href="switch.html">switch</a> termina com <code>break</code>? Esse <code>break</code> sai do <strong><code>switch</code></strong>, não do laço em volta. Este programa simula um menu com as escolhas já guardadas num array:</p>
+
+<pre class="file" data-file="menu.cs">int[] escolhas = [1, 2, 0, 1];
+foreach (int opcao in escolhas)
+{
+    switch (opcao)
+    {
+        case 1:
+            Console.WriteLine("Ver saldo");
+            break;
+        case 2:
+            Console.WriteLine("Fazer um Pix");
+            break;
+        case 0:
+            Console.WriteLine("Sair");
+            break;
+    }
+}
+Console.WriteLine("Fim do programa.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run menu.cs
+Ver saldo
+Fazer um Pix
+Sair
+Ver saldo          « escolheu "Sair", mas o laço continuou!
+Fim do programa.</pre>
+
+<p>O <code>break</code> do <code>case 0</code> só saiu do <code>switch</code>. Para sair do laço também, uma saída simples é uma variável <code>bool</code> que o <code>case</code> liga e que o laço confere depois do <code>switch</code>:</p>
+
+<pre class="file" data-file="menu2.cs">int[] escolhas = [1, 2, 0, 1];
+bool sair = false;
+foreach (int opcao in escolhas)
+{
+    switch (opcao)
+    {
+        case 1:
+            Console.WriteLine("Ver saldo");
+            break;
+        case 2:
+            Console.WriteLine("Fazer um Pix");
+            break;
+        case 0:
+            Console.WriteLine("Sair");
+            sair = true;
+            break;
+    }
+    if (sair)
+    {
+        break;
+    }
+}
+Console.WriteLine("Fim do programa.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run menu2.cs
+Ver saldo
+Fazer um Pix
+Sair
+Fim do programa.</pre>
+
+<p>Num menu de verdade, com <code>do while (opcao != 0)</code> como na aula <a href="do-while.html">do while</a>, nem precisa disso: a condição do laço já cuida da saída.</p>
+
+<h3>Laços um dentro do outro</h3>
+<p>Com um laço dentro de outro (assunto da próxima aula, <a href="lacos-aninhados.html">Laços Aninhados</a>), o <code>break</code> sai só do laço <strong>mais de dentro</strong>, aquele em que ele está:</p>
+
+<pre class="file" data-file="aninhado.cs">for (int linha = 1; linha &lt;= 3; linha++)
+{
+    for (int coluna = 1; coluna &lt;= 3; coluna++)
+    {
+        if (coluna == 2)
+        {
+            break;
+        }
+        Console.Write($"({linha},{coluna}) ");
+    }
+    Console.WriteLine($"fim da linha {linha}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run aninhado.cs
+(1,1) fim da linha 1
+(2,1) fim da linha 2
+(3,1) fim da linha 3</pre>
+
+<p>O <code>break</code> interrompeu o laço das colunas (que parou na coluna 2), mas o laço das linhas continuou normalmente. O mesmo vale para o <code>continue</code>: ele vai para a próxima volta do laço mais de dentro.</p>
+
+<h3>Sair de tudo: <code>return</code></h3>
+<p>Nos programas de arquivo único do guia, <code>return;</code> encerra o programa inteiro, de dentro de quantos laços forem (dentro de um método, ele sai do método; aula <a href="retorno.html">Valor de Retorno</a>):</p>
+
+<pre class="file" data-file="retorno.cs">int[] escolhas = [1, 0, 2];
+foreach (int opcao in escolhas)
+{
+    if (opcao == 0)
+    {
+        Console.WriteLine("Saindo do programa.");
+        return;
+    }
+    Console.WriteLine($"Opção {opcao}");
+}
+Console.WriteLine("Esta linha não aparece.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run retorno.cs
+Opção 1
+Saindo do programa.</pre>
+
+<hr>
+
+<h2>Usar ou não usar?</h2>
+<p>Alguns professores dizem para evitar <code>break</code> e <code>continue</code>, porque um laço com muitas saídas fica difícil de seguir. A regra prática:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Bom uso?</th></tr>
+<tr><td>Busca: parar quando achar</td><td>Sim, é o uso clássico do <code>break</code>.</td></tr>
+<tr><td><code>while (true)</code> com a saída no meio (ler até digitar 0)</td><td>Sim, quando a condição de saída só pode ser testada no meio do corpo.</td></tr>
+<tr><td>Descartar itens ruins no começo do corpo</td><td>Sim, o <code>continue</code> como cláusula de guarda.</td></tr>
+<tr><td>Vários <code>break</code> e <code>continue</code> espalhados pelo corpo</td><td>Não: reescreva a condição do laço ou divida em partes (mais tarde, em <a href="metodos.html">métodos</a>).</td></tr>
+<tr><td>Um <code>break</code> que poderia ser a condição do laço</td><td>Prefira a condição: <code>while (i &lt; 10)</code> em vez de <code>while (true) { if (i &gt;= 10) break; … }</code>.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0139: Nenhum loop delimitador a partir do qual quebrar ou continuar</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat fora.cs
+int idade = 15;
+if (idade &lt; 18)
+{
+    Console.WriteLine("Menor de idade.");
+    break;
+}
+$ dotnet run fora.cs
+/home/ana/cs/fora.cs(5,5): error CS0139: Nenhum loop delimitador a partir do qual quebrar ou continuar
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> "não há nenhum laço em volta para sair dele ou continuar" (<code>No enclosing loop out of which to break or continue</code>). O <code>break</code> e o <code>continue</code> só existem dentro de laços (o <code>break</code> também dentro de um <code>switch</code>). Um <code>if</code> não é laço: não se "sai" de um <code>if</code>.</p>
+<p><strong>Como consertar:</strong> se a ideia era pular o resto do <code>if</code>, use <code>else</code>. Se era encerrar o programa, use <code>return;</code>. Um <code>continue</code> num <code>switch</code> sem laço em volta dá o mesmo <code>CS0139</code> (e mais um <code>CS8070</code>, porque o caso ficou sem <code>break</code>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS0162: Código inacessível detectado</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat depois.cs
+for (int i = 1; i &lt;= 3; i++)
+{
+    break;
+    Console.WriteLine(i);
+}
+$ dotnet run depois.cs
+/home/ana/cs/depois.cs(4,5): warning CS0162: Código inacessível detectado</pre>
+<p><strong>O que significa:</strong> há uma linha logo depois de um <code>break</code> (ou <code>continue</code>, ou <code>return</code>) no mesmo bloco. Ela nunca vai rodar. O programa rodou e não mostrou nada: o <code>break</code> saiu na primeira volta.</p>
+<p><strong>Como consertar:</strong> o <code>break</code> quase sempre deve estar dentro de um <code>if</code>. Coloque a condição que faltou, ou mova a linha para antes do <code>break</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>O laço trava depois de um <code>continue</code></strong>
+<p><strong>O que significa:</strong> num <code>while</code> ou <code>do while</code>, o <code>continue</code> pulou a linha que muda a variável da condição (seção 4).</p>
+<p><strong>Como consertar:</strong> faça o passo antes do <code>continue</code>, ou use um <code>for</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>O <code>break</code> não saiu do laço</strong>
+<p><strong>O que significa:</strong> ele estava dentro de um <code>switch</code> (e saiu só do <code>switch</code>) ou de um laço interno (e saiu só dele).</p>
+<p><strong>Como consertar:</strong> uma variável <code>bool</code> conferida depois (seção 5), a condição do próprio laço, ou <code>return</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Instrução</th><th>O que faz</th></tr>
+<tr><td><code>break;</code></td><td>Sai do laço (ou <code>switch</code>) mais de dentro, na hora.</td></tr>
+<tr><td><code>continue;</code></td><td>Pula o resto da volta e vai para a próxima (no <code>for</code>, passando pelo passo).</td></tr>
+<tr><td><code>if (achou) { break; }</code></td><td>Para uma busca.</td></tr>
+<tr><td><code>if (ruim) { continue; }</code></td><td>Descarta um item (cláusula de guarda).</td></tr>
+<tr><td><code>while (true) { … if (fim) { break; } … }</code></td><td>Repetir até uma condição testada no meio.</td></tr>
+<tr><td><code>return;</code></td><td>Sai de tudo (do programa, ou do método).</td></tr>
+<tr><td>Fora de laço</td><td><strong>Erro</strong> <code>CS0139</code>.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Sair do laço</h3>
+<p>Complete com a palavra que sai do laço quando acha o número 7:</p>
+<div class="ex-code">foreach (int n in numeros) { if (n == 7) { <input data-answer="break" aria-label="palavra">; } }</div>
+</div>
+
+<div class="exercise">
+<h3>2. Pular a volta</h3>
+<p>Complete com a palavra que pula os números negativos:</p>
+<div class="ex-code">foreach (int n in numeros) { if (n &lt; 0) { <input data-answer="continue" aria-label="palavra">; } Console.WriteLine(n); }</div>
+</div>
+
+<div class="exercise">
+<h3>3. O que aparece?</h3>
+<p>O que este laço mostra? <code>for (int i = 1; i &lt;= 5; i++) { if (i == 3) { break; } Console.Write(i); }</code></p>
+<div class="ex-code">Saída: <input data-answer="12" aria-label="saída"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. E com <code>continue</code> no lugar do <code>break</code>? <code>for (int i = 1; i &lt;= 5; i++) { if (i == 3) { continue; } Console.Write(i); }</code></p>
+<label><input type="radio" name="q4"> <code>12</code></label>
+<label><input type="radio" name="q4"> <code>12345</code></label>
+<label><input type="radio" name="q4"> <code>1245</code></label>
+<label><input type="radio" name="q4"> Laço infinito</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Um <code>break</code> dentro de um <code>case</code> de um <code>switch</code>, que está dentro de um <code>foreach</code>, sai de quê?</p>
+<label><input type="radio" name="q5"> Do <code>foreach</code></label>
+<label><input type="radio" name="q5"> Só do <code>switch</code>; o <code>foreach</code> continua</label>
+<label><input type="radio" name="q5"> Do programa inteiro</label>
+<label><input type="radio" name="q5"> Dos dois</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. O que acontece com <code>if (x &gt; 0) { break; }</code> fora de qualquer laço?</p>
+<label><input type="radio" name="q6"> Sai do <code>if</code></label>
+<label><input type="radio" name="q6"> Encerra o programa</label>
+<label><input type="radio" name="q6"> Nada</label>
+<label><input type="radio" name="q6"> Não compila: <code>CS0139</code></label>
+</div>
+
+<h3>Missão final: as leituras do sensor</h3>
+
+<div class="trycs" data-goal="out:Leituras válidas: 4\, soma: 74,src:\bbreak\s*;,src:\bcontinue\s*;,semaviso">
+<p class="try-task"><strong>Missão:</strong> o termômetro da estufa da Ana manda uma lista de leituras. Duas regras: uma leitura <strong>negativa</strong> é erro do sensor e deve ser <strong>pulada</strong> (<code>continue</code>); a leitura <strong><code>999</code></strong> quer dizer "fim da transmissão", e tudo depois dela deve ser <strong>ignorado</strong> (<code>break</code>). Acrescente as duas regras no começo do corpo do <code>foreach</code>. A saída deve ser:</p>
+<pre class="out">Leituras válidas: 4, soma: 74</pre>
+<pre class="script">int[] leituras = [12, -1, 30, 7, -5, 25, 999, 40, 3];
+int validas = 0;
+int soma = 0;
+foreach (int leitura in leituras)
+{
+    // as duas regras aqui
+
+    validas++;
+    soma += leitura;
+}
+Console.WriteLine($"Leituras válidas: {validas}, soma: {soma}");
+</pre>
+<pre class="solucao">int[] leituras = [12, -1, 30, 7, -5, 25, 999, 40, 3];
+int validas = 0;
+int soma = 0;
+foreach (int leitura in leituras)
+{
+    if (leitura == 999)
+    {
+        break;
+    }
+    if (leitura &lt; 0)
+    {
+        continue;
+    }
+    validas++;
+    soma += leitura;
+}
+Console.WriteLine($"Leituras válidas: {validas}, soma: {soma}");
+</pre>
+</div>
+
+<p>As leituras válidas são 12, 30, 7 e 25. O 40 e o 3 vêm depois do 999 e ficam de fora. Experimente tirar o <code>break</code> e ver a soma mudar (o 999 entra na conta!).</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>break</code> sai do laço na hora; o programa segue depois dele. Uso clássico: parar uma busca quando achar.</li>
+  <li><code>continue</code> pula o resto da volta e vai para a próxima. Uso clássico: descartar itens que não servem, no começo do corpo.</li>
+  <li><code>while (true)</code> + <code>break</code> é o jeito de repetir até uma condição que só dá para testar no meio do corpo.</li>
+  <li>No <code>while</code>, cuidado: o <code>continue</code> pode pular o passo e travar o laço. No <code>for</code>, o passo sempre roda.</li>
+  <li>O <code>break</code> sai só do laço (ou <code>switch</code>) mais de dentro. Para sair de tudo, <code>return</code>.</li>
+  <li>Fora de um laço, <code>break</code> e <code>continue</code> dão <code>CS0139</code>; uma linha logo depois deles dá o aviso <code>CS0162</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
