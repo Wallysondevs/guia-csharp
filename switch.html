@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# switch — escolher pelo valor de uma variável | Guia C#</title>
+<meta name="description" content="A instrução switch do C# para quem nunca programou: case, break e default, por que o C# não deixa um case cair no seguinte (CS0163 e CS8070), vários case juntos, switch com string, case or e case &gt;= (C# 9), goto case, chaves num case (CS0128), case repetido (CS0152) e case com variável (CS9135), com saídas reais do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">switch</span></h1>
+
+<p class="intro">Quando um programa precisa escolher entre muitas opções olhando para <strong>uma mesma variável</strong> (a opção de um menu, o dia da semana, a forma de pagamento), uma cadeia de <a href="else-if.html">else if</a> repete <code>opcao == …</code> em toda linha. O <code>switch</code> ("chave", como a chave seletora de um aparelho) faz isso de forma mais organizada: você diz <strong>qual variável</strong> olhar e lista os <strong>valores possíveis</strong>, cada um com o seu bloco. E o C# tem uma regra própria, diferente do C e do Java, que evita um dos erros mais comuns dessas linguagens.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>As partes do <code>switch</code>: <code>case</code>, <code>break</code> e <code>default</code>.</li>
+  <li>Por que o C# <strong>não deixa</strong> um <code>case</code> cair no seguinte (erros <code>CS0163</code> e <code>CS8070</code>).</li>
+  <li>Como juntar vários valores no mesmo bloco, e o <code>case 1 or 7:</code> <span class="versao">C# 9</span>.</li>
+  <li><code>switch</code> com texto (<code>string</code>), e por que <code>"PIX"</code> não é <code>"pix"</code>.</li>
+  <li>Variáveis dentro de um <code>case</code> (<code>CS0128</code>), <code>case</code> repetido (<code>CS0152</code>) e <code>case</code> com variável (<code>CS9135</code>).</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana, na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: o menu do caixa eletrônico</h2>
+<p>No caixa eletrônico, a tela mostra: "1 - Ver saldo, 2 - Fazer um Pix, 3 - Sair". Você aperta uma tecla, e a máquina vai <strong>direto</strong> para a tela daquela opção. Ela não pergunta "é 1? não. é 2? não. é 3?" como quem lê uma lista: ela olha o número e pula para o lugar certo. Se você apertar 9, ela mostra "opção inválida".</p>
+<p>O <code>switch</code> é esse menu. Cada opção é um <code>case</code> ("caso"), e o "opção inválida" é o <code>default</code> ("padrão").</p>
+
+<hr>
+
+<h2>1. O primeiro <code>switch</code></h2>
+
+<pre class="file" data-file="menu.cs">int opcao = 2;
+switch (opcao)
+{
+    case 1:
+        Console.WriteLine("Ver saldo");
+        break;
+    case 2:
+        Console.WriteLine("Fazer um Pix");
+        break;
+    case 3:
+        Console.WriteLine("Sair");
+        break;
+    default:
+        Console.WriteLine("Opção inválida");
+        break;
+}
+Console.WriteLine("Obrigado por usar o banco da Ana.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run menu.cs
+Fazer um Pix                          « opcao vale 2: pulou para o case 2
+Obrigado por usar o banco da Ana.</pre>
+
+<p>Troque o <code>2</code> por <code>9</code> e rode de novo:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run menu.cs
+Opção inválida                        « nenhum case é 9: foi para o default
+Obrigado por usar o banco da Ana.</pre>
+
+<dl class="anatomy">
+  <dt>switch (opcao)</dt><dd>A variável (ou expressão) que vai ser olhada, entre parênteses. Ela é calculada <strong>uma vez só</strong>.</dd>
+  <dt>{ … }</dt><dd>As chaves envolvem todos os casos. Elas são obrigatórias no <code>switch</code>.</dd>
+  <dt>case 1:</dt><dd>"No caso de valer 1": um <strong>rótulo</strong>. Termina com <strong>dois-pontos</strong>, não com ponto e vírgula. O valor tem de ser uma constante (um número, um texto entre aspas, uma <code>const</code>).</dd>
+  <dt>Console.WriteLine(…);</dt><dd>As instruções daquele caso. Pode haver quantas você quiser, sem chaves.</dd>
+  <dt>break;</dt><dd>"Quebre": sai do <code>switch</code> e continua depois da chave de fechamento. Em C#, todo caso precisa terminar com um <code>break</code> (ou outra instrução que saia dali; veja a seção 2).</dd>
+  <dt>default:</dt><dd>O caso "nenhum dos anteriores". É opcional e também termina com <code>break</code>. Costuma ficar no fim.</dd>
+</dl>
+
+<p>Sem <code>default</code>, se nenhum <code>case</code> combinar, o <code>switch</code> simplesmente não faz nada e o programa continua.</p>
+
+<hr>
+
+<h2>2. O C# não deixa um <code>case</code> "cair" no próximo</h2>
+<p>Em C, C++, Java e JavaScript, esquecer o <code>break</code> faz o programa <strong>continuar</strong> no <code>case</code> de baixo (em inglês, <em>fall-through</em>, "cair através"). É um erro tão comum, e tão difícil de enxergar, que o C# resolveu proibir. A Ana esqueceu o <code>break</code> do <code>case 1</code>:</p>
+
+<pre class="file" data-file="cair.cs">int opcao = 1;
+switch (opcao)
+{
+    case 1:
+        Console.WriteLine("Ver saldo");
+    case 2:
+        Console.WriteLine("Fazer um Pix");
+        break;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run cair.cs
+/home/ana/cs/cair.cs(4,5): error CS0163: Controle não pode passar através de um rótulo case ("case 1:") para outro
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"O controle não pode passar de um rótulo <code>case</code> (o <code>case 1:</code>) para outro" (em inglês, <code>Control cannot fall through from one case label ('case 1:') to another</code>). O <code>(4,5)</code> aponta a linha do <code>case 1:</code>. Em C ou Java, esse programa compilaria e, com a opção 1, mostraria "Ver saldo" <strong>e</strong> "Fazer um Pix": um Pix que ninguém pediu. Em C#, ele nem compila.</p>
+
+<p>O último caso também precisa do <code>break</code>, mesmo sem ninguém embaixo para "cair":</p>
+
+<pre class="file" data-file="ultimo.cs">int opcao = 1;
+switch (opcao)
+{
+    case 1:
+        Console.WriteLine("Ver saldo");
+        break;
+    default:
+        Console.WriteLine("Opção inválida");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ultimo.cs
+/home/ana/cs/ultimo.cs(7,5): error CS8070: O controle não pode ficar fora do switch do rótulo de caso final ('default:')
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"O controle não pode sair do <code>switch</code> pelo fim do último caso" (<code>Control cannot fall out of switch from final case label ('default:')</code>). A regra é a mesma para todos: <strong>todo caso termina com um comando que sai dele</strong>. Os comandos que servem são:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>O que faz</th><th>Onde aprender</th></tr>
+<tr><td><code>break;</code></td><td>Sai do <code>switch</code>. É o comum.</td><td>Esta aula</td></tr>
+<tr><td><code>goto case X;</code></td><td>Pula para outro caso, de propósito (seção 6).</td><td>Esta aula</td></tr>
+<tr><td><code>return;</code></td><td>Sai do método inteiro.</td><td><a href="retorno.html">Valor de Retorno</a></td></tr>
+<tr><td><code>throw …;</code></td><td>Lança uma exceção.</td><td><a href="throw.html">throw</a></td></tr>
+<tr><td><code>continue;</code></td><td>Dentro de um laço, vai para a próxima volta.</td><td><a href="break-continue.html">break e continue</a></td></tr>
+</table>
+</div>
+
+<div class="trycs" data-goal="outre:^Ver saldo\nObrigado!\n$,compila">
+<p class="try-task"><strong>Missão:</strong> este programa não compila (rode e veja o <code>CS0163</code>). Conserte-o para que, com a opção 1, ele mostre só o saldo e o agradecimento:</p>
+<pre class="out">Ver saldo
+Obrigado!</pre>
+<pre class="script">int opcao = 1;
+switch (opcao)
+{
+    case 1:
+        Console.WriteLine("Ver saldo");
+    case 2:
+        Console.WriteLine("Fazer um Pix");
+        break;
+    case 3:
+        Console.WriteLine("Sair");
+        break;
+}
+Console.WriteLine("Obrigado!");
+</pre>
+<pre class="solucao">int opcao = 1;
+switch (opcao)
+{
+    case 1:
+        Console.WriteLine("Ver saldo");
+        break;
+    case 2:
+        Console.WriteLine("Fazer um Pix");
+        break;
+    case 3:
+        Console.WriteLine("Sair");
+        break;
+}
+Console.WriteLine("Obrigado!");
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Vários valores, o mesmo bloco</h2>
+<p>A regra do <code>break</code> vale para casos que <strong>têm instruções</strong>. Vários rótulos <strong>colados</strong>, sem nada entre eles, são permitidos: é o jeito de dizer "para 1 ou 7, faça isto". A lojinha da Ana abre mais tarde no fim de semana (1 = domingo, 7 = sábado):</p>
+
+<pre class="file" data-file="dias.cs">int dia = 7;
+switch (dia)
+{
+    case 1:
+    case 7:
+        Console.WriteLine("Fim de semana: a loja abre às 10h.");
+        break;
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+    case 6:
+        Console.WriteLine("Dia útil: a loja abre às 8h.");
+        break;
+    default:
+        Console.WriteLine("Dia inválido.");
+        break;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run dias.cs
+Fim de semana: a loja abre às 10h.</pre>
+
+<p>O <code>case 1:</code> não tem nenhuma instrução, então não há nada para "cair": os dois rótulos apontam para o mesmo bloco.</p>
+
+<h3>O jeito moderno: <code>or</code> e comparações no <code>case</code> <span class="versao">C# 9</span></h3>
+<p>Desde o C# 9, o <code>case</code> aceita <strong>padrões</strong>: <code>or</code> ("ou") junta valores, <code>and</code> ("e") junta condições, e <code>&gt;=</code>, <code>&lt;</code> etc. comparam. O mesmo programa fica mais curto:</p>
+
+<pre class="file" data-file="dias2.cs">int dia = 1;
+switch (dia)
+{
+    case 1 or 7:
+        Console.WriteLine("Fim de semana: a loja abre às 10h.");
+        break;
+    case &gt;= 2 and &lt;= 6:
+        Console.WriteLine("Dia útil: a loja abre às 8h.");
+        break;
+    default:
+        Console.WriteLine("Dia inválido.");
+        break;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run dias2.cs
+Fim de semana: a loja abre às 10h.</pre>
+
+<p>Com comparações, o <code>switch</code> também resolve faixas, como uma cadeia de <code>else if</code>. Os casos são testados <strong>de cima para baixo</strong>, então a ordem importa do mesmo jeito:</p>
+
+<pre class="file" data-file="relacional.cs">int nota = 85;
+switch (nota)
+{
+    case &gt;= 90:
+        Console.WriteLine("Excelente");
+        break;
+    case &gt;= 60:
+        Console.WriteLine("Aprovada");
+        break;
+    default:
+        Console.WriteLine("Reprovada");
+        break;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run relacional.cs
+Aprovada</pre>
+
+<p>Esses padrões aparecem muito mais na <a href="switch-expressoes.html">expressão switch</a>, a próxima aula, e são aprofundados em <a href="pattern-matching.html">Pattern Matching</a>.</p>
+
+<hr>
+
+<h2>4. <code>switch</code> com texto</h2>
+<p>Em C#, o <code>switch</code> funciona com <code>string</code> também (em C, não dá). A Ana fez o caixa da lojinha escolher pela forma de pagamento:</p>
+
+<pre class="file" data-file="pagamento.cs">string forma = "pix";
+switch (forma)
+{
+    case "pix":
+        Console.WriteLine("Mostrando o QR Code...");
+        break;
+    case "cartão":
+        Console.WriteLine("Aproxime o cartão.");
+        break;
+    case "dinheiro":
+        Console.WriteLine("Abra o caixa.");
+        break;
+    default:
+        Console.WriteLine($"Forma de pagamento desconhecida: {forma}");
+        break;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pagamento.cs
+Mostrando o QR Code...</pre>
+
+<p>Agora troque <code>"pix"</code> por <code>"PIX"</code> na primeira linha:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pagamento.cs
+Forma de pagamento desconhecida: PIX</pre>
+
+<p>A comparação é <strong>exata</strong>: maiúsculas e minúsculas contam, acentos contam (<code>"cartao"</code> não é <code>"cartão"</code>), espaços contam. Quando o texto vem de uma pessoa digitando, é comum padronizar antes: <code>switch (forma.ToLower())</code> transforma tudo em minúsculas (aula <a href="metodos-string.html">Métodos de String</a>). O <code>default</code> mostrando o valor recebido, como aqui, ajuda muito a descobrir esse tipo de problema.</p>
+
+<hr>
+
+<h2>5. Variáveis dentro de um <code>case</code></h2>
+<p>Todos os casos de um <code>switch</code> ficam dentro do <strong>mesmo</strong> par de chaves. Por isso, duas variáveis com o mesmo nome em casos diferentes brigam:</p>
+
+<pre class="file" data-file="escopocase.cs">int opcao = 2;
+switch (opcao)
+{
+    case 1:
+        string msg = "Ver saldo";
+        Console.WriteLine(msg);
+        break;
+    case 2:
+        string msg = "Fazer um Pix";
+        Console.WriteLine(msg);
+        break;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run escopocase.cs
+/home/ana/cs/escopocase.cs(9,16): error CS0128: Uma variável de local ou função denominada 'msg' já está definida neste escopo
+/home/ana/cs/escopocase.cs(10,27): error CS0165: Uso de variável local não atribuída "msg"
+/home/ana/cs/escopocase.cs(9,16): warning CS0219: A variável "msg" é atribuída, mas seu valor nunca é usado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O primeiro erro é o que importa: "já existe uma variável chamada <code>msg</code> neste escopo" (linha 9). Os outros dois são o compilador confuso com as duas <code>msg</code>. O conserto é dar a cada caso as <strong>suas próprias chaves</strong>, que criam um bloco separado:</p>
+
+<pre class="file" data-file="escopocase2.cs">int opcao = 2;
+switch (opcao)
+{
+    case 1:
+    {
+        string msg = "Ver saldo";
+        Console.WriteLine(msg);
+        break;
+    }
+    case 2:
+    {
+        string msg = "Fazer um Pix";
+        Console.WriteLine(msg);
+        break;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run escopocase2.cs
+Fazer um Pix</pre>
+
+<p>(Outra saída: usar nomes diferentes, ou declarar a variável uma vez só, antes do <code>switch</code>.)</p>
+
+<hr>
+
+<h2>6. Passar para outro caso de propósito: <code>goto case</code></h2>
+<p>E se você <strong>quiser</strong> que um caso continue no outro? O C# exige que você diga isso com todas as letras, com <code>goto case</code> ("vá para o caso"). Na pizzaria da Ana, a pizza P custa R$ 20, a M custa R$ 3 a mais que a P, e a G, R$ 5 a mais que a M:</p>
+
+<pre class="file" data-file="gotocase.cs">string tamanho = "G";
+decimal preco = 0m;
+switch (tamanho)
+{
+    case "G":
+        preco += 5m;
+        goto case "M";
+    case "M":
+        preco += 3m;
+        goto case "P";
+    case "P":
+        preco += 20m;
+        break;
+}
+Console.WriteLine($"Pizza {tamanho}: R$ {preco:N2}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run gotocase.cs
+Pizza G: R$ 28,00            « 5 (G) + 3 (M) + 20 (P)</pre>
+
+<p>Funciona, mas é raro em código de verdade: quase sempre existe um jeito mais simples (aqui, uma conta direta em cada caso). O importante é saber que, em C#, nenhum caso continua no outro <strong>por acidente</strong>.</p>
+
+<hr>
+
+<h2><code>switch</code> ou <code>else if</code>?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>Uma variável comparada com <strong>vários valores exatos</strong> (opção 1, 2, 3; "pix", "cartão")</td><td><code>switch</code></td></tr>
+<tr><td>Condições <strong>diferentes</strong> em cada caminho (<code>idade &lt; 12</code>, depois <code>temChuva &amp;&amp; temFrio</code>…)</td><td><code>if</code> / <code>else if</code></td></tr>
+<tr><td>Faixas de uma mesma variável</td><td>Os dois servem; o <code>switch</code> com <code>case &gt;= 90:</code> fica mais limpo quando são muitas</td></tr>
+<tr><td>Escolher um <strong>valor</strong> (não uma ação) para cada caso</td><td><a href="switch-expressoes.html">Expressão switch</a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0163: Controle não pode passar através de um rótulo case ("case 1:") para outro</code></strong>
+<p><strong>O que significa:</strong> um caso com instruções terminou sem <code>break</code>, e ia continuar no caso seguinte. O C# proíbe isso.</p>
+<p><strong>Como consertar:</strong> ponha <code>break;</code> no fim do caso apontado. Se você queria mesmo continuar no outro, use <code>goto case X;</code>; se queria que os dois valores fizessem a mesma coisa, cole os rótulos (<code>case 1: case 2:</code>) ou use <code>case 1 or 2:</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8070: O controle não pode ficar fora do switch do rótulo de caso final ('default:')</code></strong>
+<p><strong>O que significa:</strong> o <strong>último</strong> caso (aqui, o <code>default</code>) ficou sem <code>break</code>.</p>
+<p><strong>Como consertar:</strong> <code>break;</code> no fim dele também.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0152: A instrução switch contém vários casos com o valor de rótulo "1"</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run duplicado.cs
+/home/ana/cs/duplicado.cs(7,5): error CS0152: A instrução switch contém vários casos com o valor de rótulo "1"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> há dois <code>case 1:</code> no mesmo <code>switch</code> (normalmente, você copiou um caso e esqueceu de trocar o valor).</p>
+<p><strong>Como consertar:</strong> troque o valor do segundo (linha 7), ou junte os dois.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS9135: Um valor constante do tipo 'int' é esperado</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat casevar.cs
+int opcao = 1;
+int sair = 3;
+switch (opcao)
+{
+    case sair:
+        Console.WriteLine("Sair");
+        break;
+}
+$ dotnet run casevar.cs
+/home/ana/cs/casevar.cs(5,10): error CS9135: Um valor constante do tipo 'int' é esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o valor de um <code>case</code> tem de ser conhecido <strong>antes</strong> de o programa rodar. Uma variável comum pode mudar, então não serve.</p>
+<p><strong>Como consertar:</strong> use uma constante (aula <a href="constantes.html">Constantes</a>): <code>const int Sair = 3;</code> e <code>case Sair:</code> funcionam. Se o valor muda mesmo, use <code>if</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0029: Não é possível converter implicitamente tipo "string" em "int"</code> num <code>case</code></strong>
+<p><strong>O que significa:</strong> o valor do <code>case</code> é de outro tipo que a variável do <code>switch</code>, como <code>case "1":</code> (texto) com <code>int opcao</code> (número).</p>
+<p><strong>Como consertar:</strong> <code>case 1:</code>, sem aspas. Se a variável é texto, aí sim: <code>case "1":</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1003: Erro de sintaxe, ":" esperado</code> e <code>error CS8515</code></strong>
+<p><strong>O que significa:</strong> <code>case 1;</code> com ponto e vírgula no lugar dos dois-pontos dá <code>CS1003: Erro de sintaxe, ":" esperado</code>. E <code>switch opcao</code> sem parênteses dá <code>CS8515: É necessário colocar a expressão que rege a switch entre parênteses.</code></p>
+<p><strong>Como consertar:</strong> <code>switch (opcao)</code> e <code>case 1:</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>O que faz</th></tr>
+<tr><td><code>switch (x) { … }</code></td><td>Escolhe o caso pelo valor de <code>x</code> (número, <code>char</code>, <code>string</code>, <code>bool</code>, enum…).</td></tr>
+<tr><td><code>case 1: … break;</code></td><td>Roda quando <code>x</code> vale 1 e sai do <code>switch</code>.</td></tr>
+<tr><td><code>case 1: case 7: … break;</code></td><td>Dois rótulos colados: o mesmo bloco para 1 e 7.</td></tr>
+<tr><td><code>case 1 or 7:</code> <span class="versao">C# 9</span></td><td>O mesmo, com padrão <code>or</code>.</td></tr>
+<tr><td><code>case &gt;= 90:</code> <span class="versao">C# 9</span></td><td>Caso por comparação (os casos são testados em ordem).</td></tr>
+<tr><td><code>default: … break;</code></td><td>Nenhum caso combinou.</td></tr>
+<tr><td><code>goto case X;</code></td><td>Continua no caso X, de propósito.</td></tr>
+<tr><td><code>case 1: { … break; }</code></td><td>Chaves no caso: variáveis só daquele caso.</td></tr>
+<tr><td>Sem <code>break</code></td><td><strong>Erro</strong> <code>CS0163</code> (ou <code>CS8070</code> no último caso).</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Sair do caso</h3>
+<p>Complete com a palavra que termina um caso e sai do <code>switch</code>:</p>
+<div class="ex-code">case 1: Console.WriteLine("Ver saldo"); <input data-answer="break" aria-label="palavra">;</div>
+</div>
+
+<div class="exercise">
+<h3>2. O caso padrão</h3>
+<p>Complete com a palavra do caso que roda quando nenhum outro combina:</p>
+<div class="ex-code"><input data-answer="default" aria-label="palavra">: Console.WriteLine("Opção inválida"); break;</div>
+</div>
+
+<div class="exercise">
+<h3>3. O código do erro</h3>
+<p>Qual é o código do erro (CS…) que o C# dá quando um caso com instruções fica sem <code>break</code> antes de outro <code>case</code>?</p>
+<div class="ex-code"><input data-answer="CS0163|cs0163" aria-label="código"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. O que acontece com <code>case 1: Console.WriteLine("A"); case 2: Console.WriteLine("B"); break;</code> em C#?</p>
+<label><input type="radio" name="q4"> Com a opção 1, mostra <code>A</code> e <code>B</code></label>
+<label><input type="radio" name="q4"> Com a opção 1, mostra só <code>A</code></label>
+<label><input type="radio" name="q4"> Não compila: erro <code>CS0163</code></label>
+<label><input type="radio" name="q4"> Compila com um aviso</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Com <code>string forma = "Pix";</code>, qual caso roda em <code>switch (forma) { case "pix": … break; default: … break; }</code>?</p>
+<label><input type="radio" name="q5"> <code>case "pix"</code>, porque as letras são as mesmas</label>
+<label><input type="radio" name="q5"> <code>default</code>, porque <code>"Pix"</code> e <code>"pix"</code> são textos diferentes</label>
+<label><input type="radio" name="q5"> Nenhum: dá erro de compilação</label>
+<label><input type="radio" name="q5"> Os dois</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Qual destes é um <code>case</code> válido para <code>switch (dia)</code> com <code>int dia</code>?</p>
+<label><input type="radio" name="q6"> <code>case 1 or 7:</code></label>
+<label><input type="radio" name="q6"> <code>case 1, 7:</code></label>
+<label><input type="radio" name="q6"> <code>case 1 || 7:</code></label>
+<label><input type="radio" name="q6"> <code>case outroDia:</code> (com <code>int outroDia = 7;</code>)</label>
+</div>
+
+<h3>Missão final: o caixa da lojinha</h3>
+
+<div class="trycs" data-goal="out:Desconto de 5%: R$ 190\,00,src:case\s+&quot;pix&quot;\s*:\s*case\s+&quot;dinheiro&quot;|case\s+&quot;dinheiro&quot;\s*:\s*case\s+&quot;pix&quot;|case\s+&quot;pix&quot;\s+or\s+&quot;dinheiro&quot;|case\s+&quot;dinheiro&quot;\s+or\s+&quot;pix&quot;,semaviso">
+<p class="try-task"><strong>Missão:</strong> a lojinha da Ana dá <strong>5% de desconto</strong> no Pix. Agora ela quer dar o mesmo desconto para pagamento em <strong>dinheiro</strong>. Faça o <code>"dinheiro"</code> usar o mesmo bloco do <code>"pix"</code>, <strong>sem copiar</strong> as linhas do desconto: cole um <code>case "dinheiro":</code> junto do <code>case "pix":</code> (ou use <code>or</code>). Com R$ 200 em dinheiro, a saída deve ser:</p>
+<pre class="out">Desconto de 5%: R$ 190,00</pre>
+<pre class="script">string forma = "dinheiro";
+decimal total = 200m;
+switch (forma)
+{
+    case "pix":
+        total = total * 0.95m;
+        Console.WriteLine($"Desconto de 5%: R$ {total:N2}");
+        break;
+    case "cartão":
+        Console.WriteLine($"Sem desconto: R$ {total:N2}");
+        break;
+    default:
+        Console.WriteLine($"Forma desconhecida: {forma}");
+        break;
+}
+</pre>
+<pre class="solucao">string forma = "dinheiro";
+decimal total = 200m;
+switch (forma)
+{
+    case "pix":
+    case "dinheiro":
+        total = total * 0.95m;
+        Console.WriteLine($"Desconto de 5%: R$ {total:N2}");
+        break;
+    case "cartão":
+        Console.WriteLine($"Sem desconto: R$ {total:N2}");
+        break;
+    default:
+        Console.WriteLine($"Forma desconhecida: {forma}");
+        break;
+}
+</pre>
+</div>
+
+<p>Depois, teste <code>"cartão"</code> (sem desconto: R$ 200,00) e <code>"boleto"</code> (forma desconhecida). Experimente também tirar o <code>break</code> do <code>"cartão"</code> e ler o erro.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>switch (x)</code> escolhe um caso pelo valor de <code>x</code>. Cada <code>case valor:</code> tem as suas instruções, e <code>default:</code> pega o resto.</li>
+  <li>Em C#, <strong>nenhum caso cai no seguinte</strong>: todo caso com instruções termina com <code>break</code> (ou <code>goto case</code>, <code>return</code>, <code>throw</code>). Sem isso: <code>CS0163</code>, ou <code>CS8070</code> no último.</li>
+  <li>Rótulos colados (<code>case 1: case 7:</code>) ou <code>case 1 or 7:</code> <span class="versao">C# 9</span> dão o mesmo bloco a vários valores. <code>case &gt;= 90:</code> compara.</li>
+  <li><code>switch</code> funciona com <code>string</code>, e a comparação é exata (maiúsculas e acentos contam).</li>
+  <li>Os valores dos casos são constantes (<code>CS9135</code>) e não se repetem (<code>CS0152</code>). Para variáveis com o mesmo nome em casos diferentes, use chaves no caso (<code>CS0128</code>).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
