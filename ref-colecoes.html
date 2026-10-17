@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Coleções — qual usar e os métodos de List, Dictionary, HashSet, Queue e Stack | Guia C#</title>
+<meta name="description" content="Referência das coleções do C#: qual escolher (array, List, Dictionary, HashSet, Queue, Stack, PriorityQueue, SortedDictionary, SortedSet, LinkedList), o custo de cada operação, a tabela de métodos de cada uma com a saída real do dotnet 10, as expressões de coleção do C# 12 e as exceções reais (KeyNotFoundException, Queue empty, Index was out of range).">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Coleções</span></h1>
+
+<p class="intro">Uma coleção guarda vários valores juntos: a lista de compras, os preços da lojinha, a fila do banco. O .NET tem uma coleção para cada jeito de guardar. Esta página ajuda a <strong>escolher</strong> e depois lista os métodos de cada uma, com exemplo e resultado. Para aprender com calma, comece por <a href="colecoes.html">Coleções</a> e <a href="list.html">List&lt;T&gt;</a>.</p>
+
+<p>Os resultados vêm dos programas desta página (pasta <code>~/cs/col</code> da Ana), rodados no <code>dotnet</code> 10.0.112 e no editor do guia, com a mesma saída. Todas estas coleções estão em <code>System.Collections.Generic</code>, que o C# já traz sem <code>using</code>.</p>
+
+<p>Atalhos: <a href="#escolher">Qual usar</a> · <a href="#custo">Custo das operações</a> · <a href="#criar">Criar e preencher</a> · <a href="#list">List</a> · <a href="#dictionary">Dictionary</a> · <a href="#hashset">HashSet</a> · <a href="#queue">Queue</a> · <a href="#stack">Stack</a> · <a href="#outras">Outras</a> · <a href="#interfaces">Interfaces</a> · <a href="#erros">Quando dá errado</a> · <a href="#experimente">Experimente</a></p>
+
+<hr>
+
+<h2 id="escolher">Qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Coleção</th><th>Pense em…</th><th>Ordem</th><th>Repetidos?</th><th>Acesso por</th><th>Use quando…</th><th>Aula</th></tr>
+<tr><td><code>T[]</code> (array)</td><td>uma fileira de gavetas numeradas, de tamanho fixo</td><td>a que você pôs</td><td>sim</td><td>posição</td><td>o tamanho não muda (os 12 meses, as notas de 4 provas)</td><td><a href="arrays.html">Arrays</a></td></tr>
+<tr><td><code>List&lt;T&gt;</code></td><td>uma lista de compras que cresce</td><td>a que você pôs</td><td>sim</td><td>posição</td><td><strong>quase sempre</strong>: é a escolha padrão</td><td><a href="list.html">List&lt;T&gt;</a></td></tr>
+<tr><td><code>Dictionary&lt;K, V&gt;</code></td><td>um dicionário: palavra → definição</td><td>não garantida</td><td>chaves não; valores sim</td><td>chave</td><td>você procura pela chave: código → produto, nome → telefone</td><td><a href="dictionary.html">Dictionary</a></td></tr>
+<tr><td><code>HashSet&lt;T&gt;</code></td><td>a lista de convidados: cada nome uma vez</td><td>não garantida</td><td>não</td><td>"está aí?"</td><td>tirar repetidos, perguntar se existe, união e interseção</td><td><a href="hashset.html">HashSet</a></td></tr>
+<tr><td><code>Queue&lt;T&gt;</code></td><td>a fila do banco: o primeiro que chega é o primeiro atendido</td><td>de chegada</td><td>sim</td><td>só o da frente</td><td>atender em ordem de chegada (pedidos, tarefas)</td><td><a href="queue.html">Queue (Fila)</a></td></tr>
+<tr><td><code>Stack&lt;T&gt;</code></td><td>uma pilha de pratos: o último posto é o primeiro tirado</td><td>inversa</td><td>sim</td><td>só o de cima</td><td>desfazer, voltar, histórico</td><td><a href="stack.html">Stack (Pilha)</a></td></tr>
+<tr><td><code>PriorityQueue&lt;T, P&gt;</code></td><td>o pronto-socorro: o caso mais grave primeiro</td><td>pela prioridade</td><td>sim</td><td>só o de menor prioridade</td><td>atender pela urgência <span class="versao">.NET 6</span></td><td><a href="queue.html">Queue (Fila)</a></td></tr>
+<tr><td><code>SortedDictionary&lt;K, V&gt;</code></td><td>um dicionário sempre em ordem alfabética</td><td>pela chave</td><td>chaves não</td><td>chave</td><td>precisa percorrer em ordem de chave</td><td><a href="dictionary.html">Dictionary</a></td></tr>
+<tr><td><code>SortedSet&lt;T&gt;</code></td><td>um <code>HashSet</code> sempre em ordem</td><td>crescente</td><td>não</td><td>"está aí?", mínimo, máximo</td><td>valores únicos e ordenados</td><td><a href="hashset.html">HashSet</a></td></tr>
+<tr><td><code>LinkedList&lt;T&gt;</code></td><td>uma corrente de elos</td><td>a que você pôs</td><td>sim</td><td>começo, fim, vizinhos</td><td>muitas inserções no meio, com o elo na mão (raro)</td><td><a href="linkedlist.html">LinkedList</a></td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>Na dúvida, <code>List</code></strong>
+<p>Comece com <code>List&lt;T&gt;</code>. Troque por <code>Dictionary</code> quando se pegar procurando itens por um código ou nome (<code>lista.Find(p =&gt; p.Codigo == c)</code> o tempo todo), e por <code>HashSet</code> quando só quer saber "já tem?".</p>
+</div>
+
+<h2 id="custo">Custo das operações</h2>
+<p>"Rápido" quer dizer que leva o mesmo tempo com 10 ou com 1 milhão de itens. "Proporcional" quer dizer que, com o dobro de itens, leva o dobro do tempo, porque a coleção olha item por item.</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operação</th><th><code>List</code></th><th><code>Dictionary</code> / <code>HashSet</code></th><th><code>Queue</code> / <code>Stack</code></th><th><code>SortedDictionary</code> / <code>SortedSet</code></th></tr>
+<tr><td>Acrescentar</td><td>rápido (no fim)</td><td>rápido</td><td>rápido</td><td>quase rápido (cresce devagar com o tamanho)</td></tr>
+<tr><td>Ler pela posição</td><td>rápido</td><td>—</td><td>só a ponta</td><td>—</td></tr>
+<tr><td>Procurar um valor</td><td>proporcional</td><td><strong>rápido</strong> (pela chave)</td><td>proporcional</td><td>quase rápido</td></tr>
+<tr><td>Tirar</td><td>proporcional (os de trás andam)</td><td>rápido</td><td>rápido (a ponta)</td><td>quase rápido</td></tr>
+<tr><td>Inserir no começo ou no meio</td><td>proporcional</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+</div>
+
+<h2 id="criar">Criar e preencher</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Exemplo</th><th>Desde</th></tr>
+<tr><td>Expressão de coleção</td><td><code>List&lt;string&gt; compras = ["arroz", "feijão"];</code> · <code>int[] v = [5, 3, 8];</code> · <code>HashSet&lt;int&gt; s = [1, 2];</code></td><td><span class="versao">C# 12</span></td></tr>
+<tr><td>Coleção vazia</td><td><code>List&lt;int&gt; vazia = [];</code> · <code>Dictionary&lt;string, int&gt; d = [];</code></td><td><span class="versao">C# 12</span></td></tr>
+<tr><td>Espalhar (<code>..</code>)</td><td><code>List&lt;int&gt; mais = [.. numeros, 10, 20];</code> → <code>5 3 8 1 10 20</code></td><td><span class="versao">C# 12</span></td></tr>
+<tr><td><code>new()</code> com inicializador</td><td><code>List&lt;string&gt; c = new() { "arroz", "feijão" };</code></td><td>C# 9 (o <code>new()</code>); C# 3 (o inicializador)</td></tr>
+<tr><td>Dicionário com índices</td><td><code>Dictionary&lt;string, decimal&gt; p = new() { ["caneta"] = 2.50m };</code></td><td>C# 6</td></tr>
+<tr><td>A forma antiga</td><td><code>var c = new List&lt;string&gt;(); c.Add("arroz");</code></td><td>C# 2</td></tr>
+<tr><td>De uma consulta LINQ</td><td><code>List&lt;string&gt; nomes = produtos.Select(p =&gt; p.Nome).ToList();</code></td><td>C# 3 (veja <a href="ref-linq.html">LINQ</a>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="list"><code>List&lt;T&gt;</code></h2>
+<pre class="file" data-file="list.cs">// list.cs — List&lt;T&gt;
+List&lt;string&gt; compras = ["arroz", "feijão"];
+compras.Add("café");
+compras.AddRange(["leite", "ovos"]);
+compras.Insert(0, "pão");
+Console.WriteLine($"1  {string.Join(", ", compras)} ({compras.Count})");
+Console.WriteLine($"2  {compras[0]} {compras[^1]} {compras.IndexOf("café")} {compras.IndexOf("sal")} {compras.Contains("leite")}");
+compras.Remove("feijão");
+compras.RemoveAt(0);
+Console.WriteLine($"3  {string.Join(", ", compras)}");
+Console.WriteLine($"4  {compras.Find(c =&gt; c.StartsWith('l'))} {compras.FindIndex(c =&gt; c.Length == 4)} {compras.Exists(c =&gt; c == "sal")}");
+compras.Sort();
+Console.WriteLine($"5  {string.Join(", ", compras)}");
+compras.Reverse();
+Console.WriteLine($"6  {string.Join(", ", compras)}");
+int tirados = compras.RemoveAll(c =&gt; c.Contains('o'));
+Console.WriteLine($"7  tirei {tirados}: {string.Join(", ", compras)}");
+compras[0] = "chá";
+string[] array = compras.ToArray();
+compras.Clear();
+Console.WriteLine($"8  {array.Length} {array[0]} {compras.Count}");
+List&lt;int&gt; numeros = [5, 3, 8, 1];
+List&lt;int&gt; mais = [.. numeros, 10, 20];
+Console.WriteLine($"9  {string.Join(" ", mais)} | {numeros.Sum()} {numeros.Max()} {numeros.Min()}");
+</pre>
+<pre class="term" data-cwd="~/cs/col">$ dotnet run list.cs
+1  pão, arroz, feijão, café, leite, ovos (6)
+2  pão ovos 3 -1 True
+3  arroz, café, leite, ovos
+4  leite 1 False
+5  arroz, café, leite, ovos
+6  ovos, leite, café, arroz
+7  tirei 2: leite, café
+8  2 chá 0
+9  5 3 8 1 10 20 | 17 8 1</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Membro</th><th>O que faz</th><th>Devolve</th><th>Linha da saída</th></tr>
+<tr><td><code>Add(x)</code></td><td>acrescenta no fim</td><td>nada</td><td>1</td></tr>
+<tr><td><code>AddRange(itens)</code></td><td>acrescenta vários no fim</td><td>nada</td><td>1</td></tr>
+<tr><td><code>Insert(i, x)</code></td><td>põe na posição <code>i</code>; os de trás andam</td><td>nada</td><td>1</td></tr>
+<tr><td><code>Count</code></td><td>quantos itens (propriedade)</td><td><code>int</code></td><td>1</td></tr>
+<tr><td><code>[i]</code>, <code>[^1]</code></td><td>lê ou troca o item da posição</td><td>o item</td><td>2, 8</td></tr>
+<tr><td><code>IndexOf(x)</code></td><td>a posição de <code>x</code>, ou <code>-1</code></td><td><code>int</code></td><td>2</td></tr>
+<tr><td><code>Contains(x)</code></td><td>tem <code>x</code>?</td><td><code>bool</code></td><td>2</td></tr>
+<tr><td><code>Remove(x)</code></td><td>tira a primeira ocorrência de <code>x</code></td><td><code>bool</code> (achou?)</td><td>3</td></tr>
+<tr><td><code>RemoveAt(i)</code></td><td>tira o da posição <code>i</code></td><td>nada</td><td>3</td></tr>
+<tr><td><code>Find(condição)</code></td><td>o primeiro que cumpre, ou o padrão (<code>null</code>, 0)</td><td>o item</td><td>4</td></tr>
+<tr><td><code>FindIndex(condição)</code></td><td>a posição do primeiro que cumpre, ou <code>-1</code></td><td><code>int</code></td><td>4</td></tr>
+<tr><td><code>Exists(condição)</code></td><td>algum cumpre?</td><td><code>bool</code></td><td>4</td></tr>
+<tr><td><code>Sort()</code></td><td>ordena a própria lista (texto em ordem de dicionário)</td><td>nada</td><td>5</td></tr>
+<tr><td><code>Reverse()</code></td><td>inverte a própria lista</td><td>nada</td><td>6</td></tr>
+<tr><td><code>RemoveAll(condição)</code></td><td>tira todos os que cumprem</td><td><code>int</code> (quantos)</td><td>7</td></tr>
+<tr><td><code>ToArray()</code></td><td>copia para um array</td><td><code>T[]</code></td><td>8</td></tr>
+<tr><td><code>Clear()</code></td><td>esvazia</td><td>nada</td><td>8</td></tr>
+<tr><td><code>Sum()</code>, <code>Max()</code>, <code>Min()</code></td><td>do LINQ, funcionam em qualquer coleção (veja <a href="ref-linq.html">LINQ</a>)</td><td>o valor</td><td>9</td></tr>
+</table>
+</div>
+<p>Aula: <a href="list.html">List&lt;T&gt;</a>. Para ordenar por um campo (<code>Sort((a, b) =&gt; a.Preco.CompareTo(b.Preco))</code>), veja <a href="comparacao.html">IComparable e IComparer</a>.</p>
+
+<h2 id="dictionary"><code>Dictionary&lt;TKey, TValue&gt;</code></h2>
+<pre class="file" data-file="dict.cs">// dict.cs — Dictionary&lt;TKey, TValue&gt;
+Dictionary&lt;string, decimal&gt; precos = new()
+{
+    ["caderno"] = 15.90m,
+    ["caneta"] = 2.50m,
+};
+precos.Add("borracha", 1.75m);
+precos["lápis"] = 1.20m;          // acrescenta
+precos["caneta"] = 2.80m;         // troca o valor
+Console.WriteLine($"1  {precos.Count} {precos["caneta"]:C} {precos.ContainsKey("régua")} {precos.ContainsValue(1.75m)}");
+if (precos.TryGetValue("caderno", out decimal p))
+{
+    Console.WriteLine($"2  caderno: {p:C}");
+}
+Console.WriteLine($"3  {precos.GetValueOrDefault("régua")} {precos.GetValueOrDefault("régua", -1m)} {precos.TryAdd("caneta", 9m)} {precos.TryAdd("cola", 3.50m)}");
+precos.Remove("borracha");
+foreach (KeyValuePair&lt;string, decimal&gt; par in precos)
+{
+    Console.WriteLine($"4  {par.Key} = {par.Value:C}");
+}
+foreach (var (item, valor) in precos)
+{
+    Console.Write($"{item}:{valor} ");
+}
+Console.WriteLine();
+Console.WriteLine($"5  {string.Join(", ", precos.Keys)} | {precos.Values.Sum():C}");
+Dictionary&lt;string, int&gt; contagem = [];
+foreach (string palavra in "a casa a rua a casa".Split(' '))
+{
+    contagem[palavra] = contagem.GetValueOrDefault(palavra) + 1;
+}
+Console.WriteLine($"6  {string.Join(" ", contagem.Select(kv =&gt; $"{kv.Key}={kv.Value}"))}");
+</pre>
+<pre class="term" data-cwd="~/cs/col">$ dotnet run dict.cs
+1  4 R$ 2,80 False True
+2  caderno: R$ 15,90
+3  0 -1 False True
+4  caderno = R$ 15,90
+4  caneta = R$ 2,80
+4  lápis = R$ 1,20
+4  cola = R$ 3,50
+caderno:15,90 caneta:2,80 lápis:1,20 cola:3,50
+5  caderno, caneta, lápis, cola | R$ 23,40
+6  a=3 casa=2 rua=1</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Membro</th><th>O que faz</th><th>Se a chave não existe</th><th>Se a chave já existe</th></tr>
+<tr><td><code>d[chave]</code> (ler)</td><td>o valor da chave</td><td><strong>lança</strong> <code>KeyNotFoundException</code></td><td>devolve o valor</td></tr>
+<tr><td><code>d[chave] = valor</code></td><td>guarda</td><td>acrescenta</td><td>troca o valor</td></tr>
+<tr><td><code>Add(chave, valor)</code></td><td>acrescenta</td><td>acrescenta</td><td><strong>lança</strong> <code>ArgumentException</code></td></tr>
+<tr><td><code>TryAdd(chave, valor)</code></td><td>acrescenta se puder</td><td>acrescenta e devolve <code>True</code></td><td>não mexe e devolve <code>False</code></td></tr>
+<tr><td><code>TryGetValue(chave, out v)</code></td><td>o jeito seguro de ler</td><td>devolve <code>False</code></td><td>devolve <code>True</code> e o valor em <code>v</code></td></tr>
+<tr><td><code>GetValueOrDefault(chave)</code></td><td>lê, com um valor de reserva</td><td>devolve o padrão (<code>0</code>) ou o que você passou (<code>-1</code>)</td><td>devolve o valor</td></tr>
+<tr><td><code>ContainsKey(chave)</code></td><td>a chave existe?</td><td><code>False</code></td><td><code>True</code></td></tr>
+<tr><td><code>ContainsValue(valor)</code></td><td>algum valor é igual? (olha um por um: proporcional)</td><td colspan="2"><code>True</code> ou <code>False</code></td></tr>
+<tr><td><code>Remove(chave)</code></td><td>tira o par</td><td>devolve <code>False</code></td><td>tira e devolve <code>True</code></td></tr>
+<tr><td><code>Count</code>, <code>Keys</code>, <code>Values</code></td><td>quantos pares, só as chaves, só os valores</td><td colspan="2">—</td></tr>
+<tr><td><code>foreach (var (k, v) in d)</code></td><td>percorre os pares (<code>KeyValuePair</code>), desmontando em chave e valor</td><td colspan="2">—</td></tr>
+</table>
+</div>
+<p>A linha 6 é o "contador" clássico: <code>contagem[palavra] = contagem.GetValueOrDefault(palavra) + 1;</code> soma 1, começando do 0 quando a palavra é nova.</p>
+<div class="warning">
+<strong>Não conte com a ordem do <code>Dictionary</code></strong>
+<p>Na saída acima, os pares saíram na ordem em que entraram, mas isso <strong>não é garantido</strong>: depois de remoções, um item novo pode ocupar o lugar de um que saiu. Para mostrar em ordem, use <code>OrderBy</code> (<code>d.OrderBy(kv =&gt; kv.Key)</code>) ou um <code>SortedDictionary</code>. Aula: <a href="dictionary.html">Dictionary</a>.</p>
+</div>
+
+<h2 id="hashset"><code>HashSet&lt;T&gt;</code>, <code>Queue&lt;T&gt;</code>, <code>Stack&lt;T&gt;</code> e as outras</h2>
+<pre class="file" data-file="outros.cs">// outros.cs — HashSet, Queue, Stack, PriorityQueue, SortedDictionary
+HashSet&lt;string&gt; visitantes = ["Ana", "Bruno"];
+Console.WriteLine($"1  {visitantes.Add("Carla")} {visitantes.Add("Ana")} {visitantes.Count} {visitantes.Contains("Bruno")}");
+HashSet&lt;int&gt; a = [1, 2, 3, 4], b = [3, 4, 5];
+HashSet&lt;int&gt; uniao = [.. a]; uniao.UnionWith(b);
+HashSet&lt;int&gt; inter = [.. a]; inter.IntersectWith(b);
+HashSet&lt;int&gt; dif = [.. a]; dif.ExceptWith(b);
+Console.WriteLine($"2  {string.Join(",", uniao.Order())} | {string.Join(",", inter.Order())} | {string.Join(",", dif.Order())} | {a.IsSupersetOf([1, 2])}");
+
+Queue&lt;string&gt; fila = new();
+fila.Enqueue("Ana"); fila.Enqueue("Bruno"); fila.Enqueue("Carla");
+Console.WriteLine($"3  {fila.Peek()} {fila.Dequeue()} {fila.Dequeue()} {fila.Count} {fila.TryDequeue(out string? prox)} {prox} {fila.TryDequeue(out _)}");
+
+Stack&lt;string&gt; pilha = new();
+pilha.Push("prato 1"); pilha.Push("prato 2"); pilha.Push("prato 3");
+Console.WriteLine($"4  {pilha.Peek()} {pilha.Pop()} {pilha.Pop()} {pilha.Count} {string.Join("|", pilha)}");
+
+PriorityQueue&lt;string, int&gt; atendimento = new();
+atendimento.Enqueue("resfriado", 3);
+atendimento.Enqueue("fratura", 1);
+atendimento.Enqueue("dor de cabeça", 2);
+Console.Write("5 ");
+while (atendimento.TryDequeue(out string? caso, out int prioridade))
+{
+    Console.Write($" {caso}({prioridade})");
+}
+Console.WriteLine();
+
+SortedDictionary&lt;string, int&gt; notas = new() { ["Carla"] = 9, ["Ana"] = 8, ["Bruno"] = 7 };
+SortedSet&lt;int&gt; ordenados = [5, 1, 4, 1, 3];
+Console.WriteLine($"6  {string.Join(" ", notas.Keys)} | {string.Join(" ", ordenados)} | {ordenados.Min} {ordenados.Max}");
+
+int[] v = [5, 3, 8, 1];
+Array.Sort(v);
+Console.WriteLine($"7  {string.Join(" ", v)} {v.Length} {Array.IndexOf(v, 8)} {Array.BinarySearch(v, 5)} {v.Contains(3)}");
+IReadOnlyList&lt;int&gt; soLeitura = v;
+Console.WriteLine($"8  {soLeitura.Count} {soLeitura[0]}");
+LinkedList&lt;string&gt; ll = new(["b", "c"]);
+ll.AddFirst("a"); ll.AddLast("d");
+Console.WriteLine($"9  {string.Join("", ll)} {ll.First!.Value} {ll.Last!.Value}");
+</pre>
+<pre class="term" data-cwd="~/cs/col">$ dotnet run outros.cs
+1  True False 3 True
+2  1,2,3,4,5 | 3,4 | 1,2 | True
+3  Ana Ana Bruno 1 True Carla False
+4  prato 3 prato 3 prato 2 1 prato 1
+5  fratura(1) dor de cabeça(2) resfriado(3)
+6  Ana Bruno Carla | 1 3 4 5 | 1 5
+7  1 3 5 8 4 3 2 True
+8  4 1
+9  abcd a d</pre>
+
+<h3><code>HashSet&lt;T&gt;</code> (linhas 1 e 2)</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Membro</th><th>O que faz</th><th>Exemplo → resultado</th></tr>
+<tr><td><code>Add(x)</code></td><td>acrescenta, se ainda não tem; devolve se acrescentou</td><td><code>Add("Carla")</code> → <code>True</code>; <code>Add("Ana")</code> de novo → <code>False</code></td></tr>
+<tr><td><code>Contains(x)</code></td><td>tem? (rápido, mesmo com milhões)</td><td><code>Contains("Bruno")</code> → <code>True</code></td></tr>
+<tr><td><code>Remove(x)</code></td><td>tira</td><td>devolve se tirou</td></tr>
+<tr><td><code>UnionWith(b)</code></td><td>fica com tudo dos dois (união)</td><td><code>{1,2,3,4} ∪ {3,4,5}</code> → <code>1,2,3,4,5</code></td></tr>
+<tr><td><code>IntersectWith(b)</code></td><td>fica só com o que está nos dois</td><td>→ <code>3,4</code></td></tr>
+<tr><td><code>ExceptWith(b)</code></td><td>tira o que está em <code>b</code></td><td>→ <code>1,2</code></td></tr>
+<tr><td><code>IsSubsetOf(b)</code>, <code>IsSupersetOf(b)</code>, <code>SetEquals(b)</code></td><td>está contido? contém? são iguais?</td><td><code>a.IsSupersetOf([1, 2])</code> → <code>True</code></td></tr>
+</table>
+</div>
+<p>Os métodos <code>…With</code> mudam o próprio conjunto; por isso o programa copia antes (<code>[.. a]</code>). Para tirar repetidos de uma lista, basta <code>new HashSet&lt;T&gt;(lista)</code> ou <code>lista.Distinct()</code>. Aula: <a href="hashset.html">HashSet</a>.</p>
+
+<h3 id="queue"><code>Queue&lt;T&gt;</code>, a fila (linha 3)</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Membro</th><th>O que faz</th><th>Fila vazia</th></tr>
+<tr><td><code>Enqueue(x)</code></td><td>entra no fim da fila</td><td>—</td></tr>
+<tr><td><code>Dequeue()</code></td><td>tira e devolve o da frente</td><td>lança <code>InvalidOperationException: Queue empty.</code></td></tr>
+<tr><td><code>Peek()</code></td><td>olha o da frente sem tirar</td><td>lança a mesma exceção</td></tr>
+<tr><td><code>TryDequeue(out x)</code>, <code>TryPeek(out x)</code></td><td>o jeito seguro</td><td>devolve <code>False</code></td></tr>
+<tr><td><code>Count</code></td><td>quantos esperam</td><td><code>0</code></td></tr>
+</table>
+</div>
+<p>Aula: <a href="queue.html">Queue (Fila)</a>.</p>
+
+<h3 id="stack"><code>Stack&lt;T&gt;</code>, a pilha (linha 4)</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Membro</th><th>O que faz</th><th>Pilha vazia</th></tr>
+<tr><td><code>Push(x)</code></td><td>põe em cima</td><td>—</td></tr>
+<tr><td><code>Pop()</code></td><td>tira e devolve o de cima</td><td>lança <code>InvalidOperationException: Stack empty.</code></td></tr>
+<tr><td><code>Peek()</code></td><td>olha o de cima sem tirar</td><td>lança a mesma exceção</td></tr>
+<tr><td><code>TryPop(out x)</code>, <code>TryPeek(out x)</code></td><td>o jeito seguro</td><td>devolve <code>False</code></td></tr>
+<tr><td><code>foreach</code></td><td>percorre de cima para baixo</td><td>—</td></tr>
+</table>
+</div>
+<p>Aula: <a href="stack.html">Stack (Pilha)</a>.</p>
+
+<h3 id="outras">As outras (linhas 5 a 9)</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Coleção</th><th>Membros principais</th><th>Linha</th><th>Aula</th></tr>
+<tr><td><code>PriorityQueue&lt;T, P&gt;</code></td><td><code>Enqueue(item, prioridade)</code>, <code>Dequeue()</code>, <code>TryDequeue(out item, out prioridade)</code>, <code>Peek()</code>. Sai primeiro a <strong>menor</strong> prioridade.</td><td>5</td><td><a href="queue.html">Queue (Fila)</a></td></tr>
+<tr><td><code>SortedDictionary&lt;K, V&gt;</code></td><td>os mesmos do <code>Dictionary</code>; o <code>foreach</code> e o <code>Keys</code> vêm em ordem de chave</td><td>6</td><td><a href="dictionary.html">Dictionary</a></td></tr>
+<tr><td><code>SortedSet&lt;T&gt;</code></td><td>os mesmos do <code>HashSet</code>, mais <code>Min</code> e <code>Max</code>; repetidos somem (<code>[5, 1, 4, 1, 3]</code> → <code>1 3 4 5</code>)</td><td>6</td><td><a href="hashset.html">HashSet</a></td></tr>
+<tr><td><code>T[]</code> e a classe <code>Array</code></td><td><code>Length</code>, <code>Array.Sort(v)</code>, <code>Array.IndexOf(v, x)</code>, <code>Array.BinarySearch(v, x)</code> (só em array ordenado), <code>Array.Reverse(v)</code>, <code>Array.Resize(ref v, n)</code></td><td>7</td><td><a href="classe-array.html">A Classe Array</a></td></tr>
+<tr><td><code>IReadOnlyList&lt;T&gt;</code></td><td>só <code>Count</code> e <code>[i]</code>: uma "janela" que não deixa mudar</td><td>8</td><td><a href="encapsulamento.html">Encapsulamento</a></td></tr>
+<tr><td><code>LinkedList&lt;T&gt;</code></td><td><code>AddFirst</code>, <code>AddLast</code>, <code>AddBefore</code>, <code>AddAfter</code>, <code>First</code>, <code>Last</code>, <code>Remove</code></td><td>9</td><td><a href="linkedlist.html">LinkedList</a></td></tr>
+</table>
+</div>
+
+<h2 id="interfaces">As interfaces: o que cada coleção sabe fazer</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Interface</th><th>Promete</th><th>Quem tem</th><th>Use como parâmetro quando…</th></tr>
+<tr><td><code>IEnumerable&lt;T&gt;</code></td><td>dá para percorrer com <code>foreach</code> (e usar LINQ)</td><td>todas, e as consultas LINQ</td><td>o método só vai ler, item por item</td></tr>
+<tr><td><code>IReadOnlyCollection&lt;T&gt;</code></td><td>+ <code>Count</code></td><td>todas</td><td>precisa saber quantos</td></tr>
+<tr><td><code>IReadOnlyList&lt;T&gt;</code></td><td>+ <code>[i]</code> para ler</td><td>array, <code>List</code></td><td>precisa ler por posição, sem mudar</td></tr>
+<tr><td><code>ICollection&lt;T&gt;</code></td><td><code>Add</code>, <code>Remove</code>, <code>Contains</code>, <code>Count</code></td><td><code>List</code>, <code>HashSet</code>, <code>LinkedList</code>…</td><td>vai acrescentar ou tirar</td></tr>
+<tr><td><code>IList&lt;T&gt;</code></td><td>+ <code>[i]</code>, <code>Insert</code>, <code>RemoveAt</code></td><td>array, <code>List</code></td><td>vai mudar por posição</td></tr>
+<tr><td><code>IDictionary&lt;K, V&gt;</code> / <code>IReadOnlyDictionary&lt;K, V&gt;</code></td><td>acesso por chave</td><td><code>Dictionary</code>, <code>SortedDictionary</code></td><td>trabalha com pares</td></tr>
+</table>
+</div>
+<p>Pedir a interface mais simples que serve deixa o método aceitar mais tipos: um <code>Listar(IEnumerable&lt;Produto&gt; produtos)</code> aceita uma <code>List</code>, um array e o resultado de um <code>Where</code> (o <a href="projeto-estoque.html#versao4">projeto Estoque</a> faz isso). Aula: <a href="ienumerable.html">IEnumerable e foreach</a>.</p>
+
+<hr>
+
+<h2 id="erros">Quando dá errado</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Mensagem real (lab)</th><th>O que significa e como consertar</th><th>Aula</th></tr>
+<tr><td><code>precos["régua"]</code> (chave que não existe)</td><td><code>System.Collections.Generic.KeyNotFoundException: The given key 'régua' was not present in the dictionary.</code></td><td>"A chave não está no dicionário". Use <code>TryGetValue</code> ou <code>GetValueOrDefault</code>, ou confira com <code>ContainsKey</code>.</td><td><a href="dictionary.html">Dictionary</a></td></tr>
+<tr><td><code>precos.Add("caneta", 2.80m)</code> (chave repetida)</td><td><code>System.ArgumentException: An item with the same key has already been added. Key: caneta</code></td><td>"Já existe um item com essa chave". Para trocar o valor, <code>precos["caneta"] = 2.80m</code>; para só acrescentar se não houver, <code>TryAdd</code>.</td><td><a href="dictionary.html">Dictionary</a></td></tr>
+<tr><td><code>compras[2]</code> numa lista de 2 itens</td><td><code>System.ArgumentOutOfRangeException: Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')</code></td><td>As posições vão de 0 a <code>Count - 1</code>. (Num array, a exceção é outra: <code>IndexOutOfRangeException</code>.)</td><td><a href="list.html">List&lt;T&gt;</a></td></tr>
+<tr><td><code>fila.Dequeue()</code> com a fila vazia</td><td><code>System.InvalidOperationException: Queue empty.</code></td><td>Confira <code>Count &gt; 0</code> ou use <code>TryDequeue</code>.</td><td><a href="queue.html">Queue</a></td></tr>
+<tr><td><code>pilha.Pop()</code> com a pilha vazia</td><td><code>System.InvalidOperationException: Stack empty.</code></td><td>Confira <code>Count &gt; 0</code> ou use <code>TryPop</code>.</td><td><a href="stack.html">Stack</a></td></tr>
+<tr><td><code>vazia.First()</code></td><td><code>System.InvalidOperationException: Sequence contains no elements</code></td><td>O <code>First</code> do LINQ numa coleção vazia. Use <code>FirstOrDefault</code>.</td><td><a href="ref-linq.html">LINQ</a></td></tr>
+<tr><td><code>Remove</code>/<code>Add</code> dentro do <code>foreach</code> da mesma lista</td><td><code>System.InvalidOperationException: Collection was modified; enumeration operation may not execute.</code></td><td>Use <code>RemoveAll(condição)</code>, ou percorra uma cópia (<code>foreach (var x in lista.ToList())</code>). Exemplo completo no <a href="projeto-estoque.html#versao4">projeto Estoque</a>.</td><td><a href="foreach.html">foreach</a></td></tr>
+<tr><td><code>numeros.Add("4")</code> numa <code>List&lt;int&gt;</code></td><td><code>error CS1503: Argumento 1: não é possível converter de "string" para "int"</code></td><td>A lista só aceita o tipo dela. Converta (<code>int.Parse("4")</code>) ou ponha <code>4</code>.</td><td><a href="generics.html">Generics</a></td></tr>
+<tr><td><code>var vazia = [];</code></td><td><code>error CS9176: Não há um tipo de destino para a expressão de coleção.</code></td><td>Os colchetes não dizem o tipo. Escreva o tipo à esquerda: <code>List&lt;int&gt; vazia = [];</code></td><td><a href="list.html">List&lt;T&gt;</a></td></tr>
+<tr><td><code>numeros.Length</code> numa <code>List</code></td><td><code>error CS1061: ‘List&lt;int&gt;’ não contém uma definição para "Length" …</code></td><td>Na <code>List</code>, é <code>Count</code>. <code>Length</code> é do array e da string.</td><td><a href="list.html">List&lt;T&gt;</a></td></tr>
+<tr><td><code>Console.WriteLine(v.Count)</code> num array</td><td><code>error CS1503: Argumento 1: não é possível converter de "grupo de métodos" para "bool"</code></td><td>O array não tem a propriedade <code>Count</code>; o compilador achou o <strong>método</strong> <code>Count()</code> do LINQ, sem os parênteses, e se confundiu. Use <code>v.Length</code> (ou <code>v.Count()</code>).</td><td><a href="arrays.html">Arrays</a></td></tr>
+</table>
+</div>
+<p>No editor do guia, o rastro de algumas destas exceções mostra os tipos de verdade no lugar dos genéricos (<code>Dictionary`2.get_Item(String key)</code> em vez de <code>get_Item(TKey key)</code>); a mensagem é a mesma.</p>
+
+<h2 id="experimente">Experimente</h2>
+<div class="trycs" data-goal="out:banana=3,out:maçã=2,out:uva=1">
+<p class="try-task"><strong>Missão:</strong> a Ana quer contar quantas vezes cada fruta foi vendida, mas o programa cai com <code>KeyNotFoundException</code> na primeira fruta. Conserte a linha do <code>contagem[fruta]++</code> para começar do zero quando a fruta é nova. A saída deve ter <code>banana=3</code>, <code>maçã=2</code> e <code>uva=1</code>.</p>
+<pre class="script">string[] vendas = ["banana", "maçã", "banana", "uva", "banana", "maçã"];
+Dictionary&lt;string, int&gt; contagem = [];
+foreach (string fruta in vendas)
+{
+    contagem[fruta]++;
+}
+foreach (var (fruta, vezes) in contagem)
+{
+    Console.WriteLine($"{fruta}={vezes}");
+}
+</pre>
+<pre class="solucao">string[] vendas = ["banana", "maçã", "banana", "uva", "banana", "maçã"];
+Dictionary&lt;string, int&gt; contagem = [];
+foreach (string fruta in vendas)
+{
+    contagem[fruta] = contagem.GetValueOrDefault(fruta) + 1;
+}
+foreach (var (fruta, vezes) in contagem)
+{
+    Console.WriteLine($"{fruta}={vezes}");
+}
+</pre>
+</div>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Padrão: <code>List&lt;T&gt;</code>. Por chave: <code>Dictionary&lt;K, V&gt;</code>. Sem repetidos: <code>HashSet&lt;T&gt;</code>. Ordem de chegada: <code>Queue&lt;T&gt;</code>. Último primeiro: <code>Stack&lt;T&gt;</code>. Tamanho fixo: array.</li>
+  <li><code>List</code> tem <code>Count</code>; array e string têm <code>Length</code>.</li>
+  <li>No <code>Dictionary</code>, ler uma chave que não existe lança exceção: use <code>TryGetValue</code> ou <code>GetValueOrDefault</code>. <code>Add</code> com chave repetida também lança; <code>d[k] = v</code> troca.</li>
+  <li><code>Dequeue</code>, <code>Pop</code> e <code>Peek</code> numa coleção vazia lançam <code>InvalidOperationException</code>: use as versões <code>Try…</code>.</li>
+  <li>Não conte com a ordem de <code>Dictionary</code> e <code>HashSet</code>; para ordem, <code>Sorted…</code> ou <code>OrderBy</code>.</li>
+  <li>C# 12: <code>[1, 2, 3]</code>, <code>[]</code> e <code>[.. outra, 4]</code> criam qualquer coleção.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
