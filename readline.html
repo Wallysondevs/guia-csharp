@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Ler do Teclado — Console.ReadLine | Guia C#</title>
+<meta name="description" content="Console.ReadLine em C# para quem nunca programou: ler uma linha do teclado, por que ele devolve string? (e o null no fim da entrada), os avisos reais CS8600, CS8602 e CS8604, os jeitos de tratar o null (is null, ?? e Trim), ler números com TryParse em vez de Parse, a pegadinha do ponto e da vírgula no pt-BR, ler várias linhas num laço e mandar a entrada por um arquivo, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Ler do Teclado (Console.ReadLine)</span></h1>
+
+<p class="intro">Até aqui, todo programa da Ana fazia sempre a mesma coisa: os valores estavam escritos no código. Para fazer uma calculadora, um jogo ou um cadastro, o programa precisa <strong>perguntar</strong> e <strong>esperar a resposta</strong> de quem está usando. Em C#, quem faz isso é o <code>Console.ReadLine()</code> ("ler linha do console"): ele para o programa, espera a pessoa digitar e apertar Enter, e entrega o que foi digitado como <strong>texto</strong>. Nesta aula você vai ver como usá-lo, por que o compilador avisa que a resposta "pode ser nula", e como transformar o texto em número sem o programa quebrar.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como ler uma linha com <code>Console.ReadLine()</code> e mostrar uma pergunta antes com <code>Console.Write</code>.</li>
+  <li>Por que o resultado é <code>string?</code> e quando ele vale <code>null</code>.</li>
+  <li>Os avisos reais <code>CS8600</code>, <code>CS8602</code> e <code>CS8604</code>, e o que acontece quando você os ignora.</li>
+  <li>Três jeitos de tratar o <code>null</code>: <code>is null</code>, <code>??</code> e <code>Trim</code> para respostas vazias.</li>
+  <li>Como ler números com <code>int.TryParse</code> e <code>decimal.TryParse</code>, e por que o <code>Parse</code> derruba o programa.</li>
+  <li>A pegadinha do <strong>ponto e da vírgula</strong>: por que <code>3.50</code> virou <code>315,00</code>.</li>
+  <li>Como ler várias linhas num laço e mandar a entrada de um arquivo, com <code>&lt;</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas foram rodados com o <strong>.NET 10</strong> (<code>dotnet --version</code> = <code>10.0.112</code>, C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Nos terminais, o que vem depois de uma pergunta (como <code>Ana</code> em <code>Qual é o seu nome? Ana</code>) foi <strong>digitado</strong> pela Ana. Antes desta aula, é bom ter visto <a href="parse.html">Texto → Número (Parse e TryParse)</a>.</p>
+
+<hr>
+
+<h2>A ideia: o atendente do balcão</h2>
+<p>Pense num atendente de padaria. Ele pergunta "o que vai ser?" e <strong>espera</strong>. Não adianta ele adivinhar: só continua quando você responde. E ele anota a resposta do jeito que ouviu, como <strong>palavras</strong>: se você disser "dois pães", ele anota as palavras "dois pães", e ainda precisa entender que "dois" é o número 2.</p>
+<ul>
+  <li>O <code>Console.Write("O que vai ser? ")</code> é a pergunta.</li>
+  <li>O <code>Console.ReadLine()</code> é a espera: o programa fica parado até a pessoa apertar <strong>Enter</strong>.</li>
+  <li>O que ele devolve é sempre <strong>texto</strong> (<code>string</code>), mesmo que a pessoa tenha digitado <code>29</code>. Transformar em número é outro passo.</li>
+  <li>E às vezes o cliente vai embora sem responder. No programa, isso é o <code>null</code>: "não veio resposta nenhuma".</li>
+</ul>
+
+<hr>
+
+<h2>1. A primeira leitura</h2>
+
+<pre class="file" data-file="le.cs">Console.Write("Qual é o seu nome? ");
+string? nome = Console.ReadLine();
+Console.WriteLine($"Olá, {nome}!");
+</pre>
+
+<dl class="anatomy">
+  <dt>Console.Write("Qual é o seu nome? ");</dt><dd>A pergunta. Com <code>Write</code> (e não <code>WriteLine</code>), o cursor fica <strong>na mesma linha</strong>, logo depois do espaço, e a resposta aparece ao lado da pergunta. É o jeito mais comum. O espaço no fim do texto separa a pergunta da resposta.</dd>
+  <dt>Console.ReadLine()</dt><dd>Para o programa e espera. Quando a pessoa aperta Enter, ele devolve tudo o que ela digitou naquela linha, <strong>sem</strong> o Enter.</dd>
+  <dt>string? nome</dt><dd>A variável que guarda a resposta. O tipo é <code>string?</code>, "texto ou <code>null</code>". O <code>?</code> é o assunto da seção 2.</dd>
+  <dt>$"Olá, {nome}!"</dt><dd>Usa a resposta, como qualquer outra variável.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run le.cs
+Qual é o seu nome? Ana          « a Ana digita Ana e aperta Enter
+Olá, Ana!</pre>
+
+<p>Enquanto a Ana não aperta Enter, o programa fica esperando, para sempre se for preciso. Ela pode apagar e corrigir à vontade: o <code>ReadLine</code> só recebe a linha quando o Enter é apertado.</p>
+
+<div class="tip">
+<strong>No editor do guia</strong>
+<p>Nas caixas "Experimente", o programa pode pedir a entrada e você digita no terminal da caixa (veja <a href="simulador.html">O Editor do Guia</a>). Nas missões desta aula, a entrada já vem pronta, escrita na caixa, para o resultado ser sempre o mesmo: é como se alguém tivesse digitado por você.</p>
+</div>
+
+<div class="trycs" data-stdin="Bia" data-goal="out:Olá, Bia! Bem-vinda à lojinha.">
+<p class="try-task"><strong>Missão:</strong> o programa lê o nome, mas não o usa. A entrada desta caixa é <code>Bia</code>. Troque a mensagem para <code>Olá, Bia! Bem-vinda à lojinha.</code>, usando a variável <code>nome</code> (não escreva "Bia" no código: o programa tem de funcionar para qualquer nome).</p>
+<pre class="out">Qual é o seu nome? Olá, Bia! Bem-vinda à lojinha.</pre>
+<pre class="script">Console.Write("Qual é o seu nome? ");
+string? nome = Console.ReadLine();
+Console.WriteLine("Olá! Bem-vinda à lojinha.");
+</pre>
+<pre class="solucao">Console.Write("Qual é o seu nome? ");
+string? nome = Console.ReadLine();
+Console.WriteLine($"Olá, {nome}! Bem-vinda à lojinha.");
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Por que <code>string?</code>: quando a entrada acaba</h2>
+<p>O <code>ReadLine</code> pode devolver uma coisa que não é texto nenhum: <code>null</code>, que quer dizer "nada" (aula <a href="null.html">null e Tipos Anuláveis</a>). Isso acontece quando <strong>a entrada acabou</strong> e não há mais linha para ler. Não é o mesmo que uma resposta vazia: se a pessoa só aperta Enter, chega <code>""</code>, um texto com zero letras. O <code>null</code> é "não veio linha".</p>
+
+<p>Quando a entrada acaba?</p>
+<ul>
+  <li>No terminal, quando a pessoa aperta <strong>Ctrl+D</strong> (no Linux e no macOS; no Windows é <strong>Ctrl+Z</strong> e Enter). É o sinal de "fim da entrada".</li>
+  <li>Quando a entrada vem de um arquivo (seção 6) e as linhas do arquivo terminaram.</li>
+  <li>Quando o programa roda sem ninguém para digitar, como num servidor.</li>
+</ul>
+
+<p>Por isso o C# diz que o <code>ReadLine</code> devolve <code>string?</code> e não <code>string</code>. Como o guia usa as <strong>referências anuláveis</strong> (ligadas por padrão no .NET 10, aula <a href="referencias-anulaveis.html">Referências Anuláveis</a>), o compilador confere se você está preparado para esse <code>null</code>. Veja o que acontece se a Ana escrever só <code>string</code>, sem o <code>?</code>:</p>
+
+<pre class="file" data-file="aviso.cs">Console.Write("Qual é o seu nome? ");
+string nome = Console.ReadLine();
+Console.WriteLine($"Olá, {nome}! Seu nome tem {nome.Length} letras.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run aviso.cs
+/home/ana/cs/aviso.cs(2,15): warning CS8600: Conversão de literal nula ou possível valor nulo em tipo não anulável.
+/home/ana/cs/aviso.cs(3,48): warning CS8602: Desreferência de uma referência possivelmente nula.
+Qual é o seu nome? Ana
+Olá, Ana! Seu nome tem 3 letras.</pre>
+
+<dl class="anatomy">
+  <dt>warning</dt><dd>São <strong>avisos</strong>, não erros: o programa compilou e rodou (aula <a href="avisos.html">Avisos do Compilador</a>). Eles aparecem só quando o arquivo é compilado; se você rodar de novo sem mudar nada, o <code>dotnet</code> reaproveita a compilação e não os mostra outra vez. Não é porque sumiram.</dd>
+  <dt>CS8600 (linha 2, coluna 15)</dt><dd>"Conversão de um possível valor nulo em tipo não anulável": o <code>ReadLine()</code> pode dar <code>null</code>, e você está guardando numa <code>string</code>, que promete nunca ser <code>null</code>. Em inglês: <em>Converting null literal or possible null value to non-nullable type</em>.</dd>
+  <dt>CS8602 (linha 3, coluna 48)</dt><dd>"Desreferência de uma referência possivelmente nula": o <code>nome.Length</code> pede o tamanho de algo que pode ser <code>null</code>. "Desreferenciar" é usar o ponto (<code>.</code>) para pegar alguma coisa de dentro de um objeto. Em inglês: <em>Dereference of a possibly null reference</em>.</dd>
+</dl>
+
+<p>Com a Ana digitando, tudo funcionou. Mas o aviso não é exagero. Veja o mesmo programa quando a entrada acaba: o <code>&lt; /dev/null</code> manda para o programa uma entrada vazia, que acaba logo de cara, como se a Ana apertasse Ctrl+D antes de digitar qualquer coisa:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run aviso.cs &lt; /dev/null
+Qual é o seu nome? Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/aviso.cs:line 3
+$ echo $?
+134</pre>
+
+<p><em>Unhandled exception</em> = "exceção não tratada": o programa quebrou. <code>NullReferenceException</code> é a exceção de "usar um <code>null</code> como se fosse um objeto": <em>Object reference not set to an instance of an object</em>, "a referência não aponta para nenhum objeto". A linha culpada é a 3, o <code>nome.Length</code>, exatamente onde o <code>CS8602</code> avisou. O código de saída 134 é o de um programa que terminou com exceção (aula <a href="excecoes.html">Exceções</a>).</p>
+
+<div class="warning">
+<strong>Regra do guia: leia com <code>string?</code> e trate o <code>null</code></strong>
+<p>Guarde a resposta do <code>ReadLine()</code> numa <code>string?</code> e decida o que fazer quando ela for <code>null</code>, com um dos jeitos da próxima seção. Nunca "cale" o aviso sem pensar: ele está apontando um jeito real de o programa quebrar.</p>
+</div>
+
+<hr>
+
+<h2>3. Três jeitos de tratar o <code>null</code></h2>
+
+<h3>Jeito 1: perguntar com <code>is null</code></h3>
+
+<pre class="file" data-file="nulo.cs">Console.Write("Qual é o seu nome? ");
+string? nome = Console.ReadLine();
+if (nome is null)
+{
+    Console.WriteLine();
+    Console.WriteLine("A entrada acabou: ninguém digitou nada.");
+}
+else
+{
+    Console.WriteLine($"Olá, {nome}!");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run nulo.cs
+Qual é o seu nome?              « a Ana aperta Ctrl+D (nada aparece na tela)
+A entrada acabou: ninguém digitou nada.</pre>
+
+<dl class="anatomy">
+  <dt>nome is null</dt><dd>"<code>nome</code> é nulo?". Dentro do <code>else</code>, o compilador <strong>sabe</strong> que <code>nome</code> não é <code>null</code>, e não avisa mais nada se você usar <code>nome.Length</code> ali. (Também dá para escrever <code>nome == null</code>; o <code>is null</code> é o jeito preferido no C# moderno.)</dd>
+  <dt>Console.WriteLine();</dt><dd>Como a Ana não apertou Enter, o cursor ficou ao lado da pergunta. Esta linha vazia pula para a linha de baixo antes da mensagem.</dd>
+</dl>
+
+<h3>Jeito 2: um valor no lugar, com <code>??</code></h3>
+<p>Muitas vezes, "a entrada acabou" e "a pessoa não digitou nada" podem ter o mesmo tratamento. O operador <code>??</code> ("se for nulo, use isto", aula <a href="operadores-null.html">Operadores ??, ?. e ??=</a>) troca o <code>null</code> por um texto vazio já na leitura. Aí a variável pode ser uma <code>string</code> comum, sem <code>?</code> e sem aviso:</p>
+
+<pre class="file" data-file="vazio.cs">Console.Write("Qual é o seu nome? ");
+string nome = Console.ReadLine() ?? "";
+nome = nome.Trim();
+if (nome == "")
+{
+    nome = "visitante";
+}
+Console.WriteLine($"Olá, {nome}! Seu nome tem {nome.Length} letras.");
+</pre>
+
+<dl class="anatomy">
+  <dt>Console.ReadLine() ?? ""</dt><dd>Se o <code>ReadLine</code> devolver um texto, fica o texto. Se devolver <code>null</code>, fica <code>""</code>. O resultado nunca é <code>null</code>, por isso cabe numa <code>string</code>.</dd>
+  <dt>nome.Trim()</dt><dd>"Aparar": tira os espaços do começo e do fim (aula <a href="metodos-string.html">Métodos de String</a>). Quem digita muitas vezes deixa um espaço sobrando sem perceber.</dd>
+  <dt>if (nome == "")</dt><dd>Depois do <code>Trim</code>, uma resposta só com espaços também vira <code>""</code>. Aqui o programa escolhe um nome padrão.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run vazio.cs
+Qual é o seu nome?    Ana       « a Ana digitou espaços antes e depois
+Olá, Ana! Seu nome tem 3 letras.
+$ dotnet run vazio.cs
+Qual é o seu nome?              « a Ana só apertou Enter
+Olá, visitante! Seu nome tem 9 letras.</pre>
+
+<h3>Jeito 3: <code>string.IsNullOrWhiteSpace</code></h3>
+<p>Para perguntar tudo de uma vez ("é <code>null</code>, vazio ou só espaços?"), existe <code>string.IsNullOrWhiteSpace(nome)</code> ("é nulo ou espaço em branco"). Ele aparece no laço da seção 6.</p>
+
+<div class="note">
+<strong>E o <code>Console.ReadLine()!</code>?</strong>
+<p>Você vai ver em muitos exemplos na internet <code>string nome = Console.ReadLine()!;</code>. O <code>!</code> no fim é o operador "eu garanto que não é nulo" (<em>null-forgiving</em>). Ele <strong>só cala o aviso</strong>: se a entrada acabar, o <code>NullReferenceException</code> acontece do mesmo jeito. Use <code>??</code> ou <code>is null</code>, que resolvem de verdade.</p>
+</div>
+
+<hr>
+
+<h2>4. Ler números: <code>TryParse</code>, e não <code>Parse</code></h2>
+<p>O <code>ReadLine</code> sempre devolve texto. Tentar guardar direto num <code>int</code> nem compila:</p>
+
+<pre class="term" data-cwd="~/cs">$ cat cs0029.cs
+Console.Write("Quantos anos você tem? ");
+int idade = Console.ReadLine();
+Console.WriteLine(idade + 10);
+$ dotnet run cs0029.cs
+/home/ana/cs/cs0029.cs(2,13): error CS0029: Não é possível converter implicitamente tipo "string" em "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O texto <code>"29"</code> não é o número 29: é um <code>'2'</code> seguido de um <code>'9'</code>. Para virar número, ele precisa ser <strong>convertido</strong>. A primeira ideia costuma ser o <code>int.Parse</code> (aula <a href="parse.html">Parse e TryParse</a>):</p>
+
+<pre class="file" data-file="idade-parse.cs">Console.Write("Quantos anos você tem? ");
+int idade = int.Parse(Console.ReadLine());
+Console.WriteLine($"Daqui a 10 anos você terá {idade + 10}.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run idade-parse.cs
+/home/ana/cs/idade-parse.cs(2,23): warning CS8604: Possível argumento de referência nula para o parâmetro 's' em 'int int.Parse(string s)'.
+Quantos anos você tem? 29
+Daqui a 10 anos você terá 39.
+$ dotnet run idade-parse.cs
+Quantos anos você tem? vinte
+Unhandled exception. System.FormatException: The input string 'vinte' was not in a correct format.
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+   at System.Int32.Parse(String s)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/idade-parse.cs:line 2
+$ echo $?
+134</pre>
+
+<p>Dois problemas de uma vez:</p>
+<ul>
+  <li><strong>O aviso <code>CS8604</code></strong>: "possível argumento nulo para o parâmetro <code>s</code> de <code>int.Parse(string s)</code>". O <code>Parse</code> quer uma <code>string</code> de verdade, e o <code>ReadLine()</code> pode dar <code>null</code>. Em inglês: <em>Possible null reference argument for parameter 's'</em>.</li>
+  <li><strong>A exceção <code>FormatException</code></strong>: <em>The input string 'vinte' was not in a correct format</em>, "o texto 'vinte' não está num formato correto". Basta a pessoa digitar uma letra para o programa inteiro cair.</li>
+</ul>
+
+<p>O <code>TryParse</code> ("tentar converter") resolve os dois. Ele aceita <code>null</code>, não lança exceção e diz se deu certo:</p>
+
+<pre class="file" data-file="idade.cs">Console.Write("Quantos anos você tem? ");
+string? texto = Console.ReadLine();
+if (int.TryParse(texto, out int idade))
+{
+    Console.WriteLine($"Daqui a 10 anos você terá {idade + 10}.");
+}
+else
+{
+    Console.WriteLine($"\"{texto}\" não é um número inteiro.");
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>string? texto = Console.ReadLine();</dt><dd>Primeiro, guarda o texto do jeito que veio, com <code>?</code>.</dd>
+  <dt>int.TryParse(texto, out int idade)</dt><dd>Tenta converter. Se conseguir, devolve <code>true</code> e põe o número em <code>idade</code>. Se não conseguir (letras, vazio ou <code>null</code>), devolve <code>false</code> e <code>idade</code> fica 0. O <code>out int idade</code> cria a variável ali mesmo (aula <a href="ref-out-in.html">ref, out e in</a>).</dd>
+  <dt>if (…) { … } else { … }</dt><dd>O programa decide o que fazer nos dois casos, em vez de quebrar.</dd>
+  <dt>\"{texto}\"</dt><dd>O <code>\"</code> põe aspas dentro do texto (aula <a href="escapes.html">Escapes</a>), para mostrar exatamente o que a pessoa digitou.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run idade.cs                  « compilou sem nenhum aviso
+Quantos anos você tem? vinte
+"vinte" não é um número inteiro.
+$ dotnet run idade.cs
+Quantos anos você tem? 29
+Daqui a 10 anos você terá 39.</pre>
+
+<div class="trycs" data-stdin="vinte" data-goal="out:não é um número,exit:0,src:TryParse">
+<p class="try-task"><strong>Missão:</strong> a entrada desta caixa é <code>vinte</code>. Rode: o <code>int.Parse</code> derruba o programa com <code>FormatException</code> e código de saída 134. Troque-o por <code>int.TryParse</code> para que o programa mostre <code>"vinte" não é um número inteiro.</code> e termine normalmente (código 0).</p>
+<pre class="out">Quantos anos você tem? "vinte" não é um número inteiro.</pre>
+<pre class="script">Console.Write("Quantos anos você tem? ");
+string? texto = Console.ReadLine();
+int idade = int.Parse(texto);
+Console.WriteLine($"Daqui a 10 anos você terá {idade + 10}.");
+</pre>
+<pre class="solucao">Console.Write("Quantos anos você tem? ");
+string? texto = Console.ReadLine();
+if (int.TryParse(texto, out int idade))
+{
+    Console.WriteLine($"Daqui a 10 anos você terá {idade + 10}.");
+}
+else
+{
+    Console.WriteLine($"\"{texto}\" não é um número inteiro.");
+}
+</pre>
+</div>
+
+<h3>Perguntar de novo até vir um número</h3>
+<p>Em vez de desistir na primeira resposta errada, o programa pode repetir a pergunta com um laço (aula <a href="do-while.html">do while</a>):</p>
+
+<pre class="file" data-file="insiste.cs">int idade;
+string? texto;
+do
+{
+    Console.Write("Quantos anos você tem? ");
+    texto = Console.ReadLine();
+    if (texto is null)
+    {
+        return;
+    }
+} while (!int.TryParse(texto, out idade));
+Console.WriteLine($"Daqui a 10 anos você terá {idade + 10}.");
+</pre>
+
+<dl class="anatomy">
+  <dt>while (!int.TryParse(texto, out idade))</dt><dd>Repete <strong>enquanto não</strong> conseguir converter. Quando conseguir, sai do laço com o número em <code>idade</code>.</dd>
+  <dt>if (texto is null) { return; }</dt><dd>Se a entrada acabar, não adianta perguntar de novo: nenhuma resposta vai chegar, e o laço ficaria infinito. O <code>return</code>, no programa de nível superior, termina o programa.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run insiste.cs
+Quantos anos você tem? vinte
+Quantos anos você tem?          « a Ana só apertou Enter
+Quantos anos você tem? 29
+Daqui a 10 anos você terá 39.</pre>
+
+<hr>
+
+<h2>5. Vírgula ou ponto? A pegadinha do pt-BR</h2>
+<p>Para preços e notas com casas decimais, use <code>decimal.TryParse</code> (ou <code>double.TryParse</code>). Ele converte do jeito do <strong>idioma do computador</strong>. No notebook da Ana, em português do Brasil, a vírgula separa os centavos e o ponto separa os milhares, como em <code>R$ 1.234,50</code> (aula <a href="cultura.html">Cultura</a>). Veja o que acontece com cada resposta:</p>
+
+<pre class="file" data-file="preco.cs">Console.Write("Preço: ");
+string? texto = Console.ReadLine();
+if (decimal.TryParse(texto, out decimal preco))
+{
+    Console.WriteLine($"Com 10% de desconto: {preco * 0.9m:C}");
+}
+else
+{
+    Console.WriteLine("Preço inválido.");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run preco.cs
+Preço: 3,50
+Com 10% de desconto: R$ 3,15
+$ dotnet run preco.cs
+Preço: 3.50
+Com 10% de desconto: R$ 315,00      « !!! o ponto foi lido como separador de milhar
+$ dotnet run preco.cs
+Preço: 1.234,50
+Com 10% de desconto: R$ 1.111,05
+$ dotnet run preco.cs
+Preço: abc
+Preço inválido.</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>A Ana digitou</th><th>O <code>decimal.TryParse</code> entendeu (pt-BR)</th><th>Por quê</th></tr>
+<tr><td><code>3,50</code></td><td>3,50</td><td>A vírgula é a casa decimal.</td></tr>
+<tr><td><code>3.50</code></td><td><strong>350</strong></td><td>O ponto é separador de milhar, e o <code>TryParse</code> o ignora. Deu <code>true</code>, sem erro nenhum.</td></tr>
+<tr><td><code>1.234,50</code></td><td>1234,50</td><td>Milhar com ponto e centavos com vírgula: o jeito brasileiro completo.</td></tr>
+<tr><td><code>abc</code></td><td>(falhou)</td><td>Não é número: devolve <code>false</code>.</td></tr>
+</table>
+</div>
+
+<p>O <code>3.50</code> é o caso perigoso: o programa não quebra nem reclama, só calcula errado. Num computador em inglês, seria o contrário: <code>3.50</code> daria 3,50 e <code>3,50</code> daria 350. Por isso:</p>
+<ul>
+  <li>diga na pergunta o formato que você espera: <code>Console.Write("Preço (ex.: 12,90): ");</code>;</li>
+  <li>quando o número vem de um arquivo ou de outro programa, e não de uma pessoa, leia com uma cultura fixa (<code>CultureInfo.InvariantCulture</code>), assunto da aula <a href="cultura.html">Cultura</a>.</li>
+</ul>
+
+<hr>
+
+<h2>6. Várias linhas: ler num laço</h2>
+<p>A Ana quer somar os preços de uma compra, sem saber quantos itens são. O programa lê uma linha por volta e para quando ela aperta Enter numa linha vazia, ou quando a entrada acaba:</p>
+
+<pre class="file" data-file="soma.cs">decimal total = 0m;
+int itens = 0;
+Console.WriteLine("Digite os preços (Enter numa linha vazia termina):");
+while (true)
+{
+    string? linha = Console.ReadLine();
+    if (string.IsNullOrWhiteSpace(linha))
+    {
+        break;
+    }
+    if (decimal.TryParse(linha, out decimal preco))
+    {
+        total += preco;
+        itens++;
+    }
+    else
+    {
+        Console.WriteLine($"Ignorado: \"{linha}\" não é um preço.");
+    }
+}
+Console.WriteLine($"{itens} itens, total {total:C}");
+</pre>
+
+<dl class="anatomy">
+  <dt>while (true)</dt><dd>Um laço "para sempre", que só termina pelo <code>break</code> (aula <a href="break-continue.html">break e continue</a>).</dd>
+  <dt>string? linha = Console.ReadLine();</dt><dd>Uma leitura por volta. Cada volta espera uma linha nova.</dd>
+  <dt>string.IsNullOrWhiteSpace(linha)</dt><dd>Verdade se a linha for <code>null</code> (a entrada acabou), vazia ou só espaços. Nos três casos, o laço termina.</dd>
+  <dt>decimal.TryParse(…)</dt><dd>Se for um preço, soma. Se não for, avisa e continua: um erro de digitação não perde a compra inteira.</dd>
+  <dt>{total:C}</dt><dd>O formato de moeda: <code>R$ 24,40</code> no pt-BR (aula <a href="formatacao.html">Formatar Números</a>).</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run soma.cs
+Digite os preços (Enter numa linha vazia termina):
+12,90
+4,50
+dez
+Ignorado: "dez" não é um preço.
+7
+                    « linha vazia: a Ana só apertou Enter
+3 itens, total R$ 24,40</pre>
+
+<h3>A entrada vinda de um arquivo</h3>
+<p>O <code>ReadLine</code> lê da <strong>entrada padrão</strong>, que normalmente é o teclado. No terminal, o <code>&lt;</code> troca o teclado por um arquivo (é o mesmo <code>&lt;</code> do Guia Bash). Cada linha do arquivo vira uma resposta, e quando o arquivo acaba, o <code>ReadLine</code> devolve <code>null</code>:</p>
+
+<pre class="term" data-cwd="~/cs">$ cat precos.txt
+12,90
+4,50
+dez
+7
+$ dotnet run soma.cs &lt; precos.txt
+Digite os preços (Enter numa linha vazia termina):
+Ignorado: "dez" não é um preço.
+3 itens, total R$ 24,40</pre>
+
+<p>Repare que os preços não aparecem na tela: eles não foram digitados, então o terminal não os mostrou. Só aparece o que o programa escreveu. O arquivo não tem linha vazia no fim: quem parou o laço foi o <code>null</code> do fim da entrada. É por isso que tratar o <code>null</code> importa: sem ele, este laço quebraria (ou nunca terminaria) com um arquivo.</p>
+
+<hr>
+
+<h2>7. Outras formas de ler, e qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>O que faz</th><th>Quando usar</th></tr>
+<tr><td><code>Console.ReadLine()</code></td><td>Espera o Enter e devolve a linha inteira (<code>string?</code>).</td><td>Quase sempre: nomes, números, opções de menu.</td></tr>
+<tr><td><code>Console.ReadKey()</code></td><td>Devolve <strong>uma tecla</strong> assim que ela é apertada, sem esperar o Enter.</td><td>Jogos e menus de uma tecla, como "aperte qualquer tecla para continuar". Só funciona com um teclado de verdade: com a entrada vindo de um arquivo, ele lança <code>InvalidOperationException</code>.</td></tr>
+<tr><td><code>Console.Read()</code></td><td>Lê <strong>um caractere</strong> e devolve o código dele como <code>int</code> (−1 no fim da entrada).</td><td>Raramente. Ele também espera o Enter, e o próprio Enter vira um caractere lido depois.</td></tr>
+<tr><td><code>Console.In.ReadToEnd()</code></td><td>Lê tudo, até o fim da entrada, de uma vez.</td><td>Programas que recebem um arquivo pelo <code>&lt;</code> e processam tudo junto.</td></tr>
+</table>
+</div>
+
+<p>E para converter o que foi lido:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Com texto inválido</th><th>Com <code>null</code></th><th>Use?</th></tr>
+<tr><td><code>int.TryParse(texto, out int n)</code></td><td>devolve <code>false</code></td><td>devolve <code>false</code></td><td><strong>Sim</strong>: é o certo para entrada de pessoas.</td></tr>
+<tr><td><code>int.Parse(texto)</code></td><td><code>FormatException</code></td><td><code>ArgumentNullException</code> e o aviso <code>CS8604</code></td><td>Só quando o texto com certeza é um número (que o próprio programa gerou).</td></tr>
+<tr><td><code>Convert.ToInt32(texto)</code></td><td><code>FormatException</code></td><td>devolve <strong>0</strong>, calado</td><td>Evite com entrada do usuário: um <code>null</code> vira 0 sem você perceber.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>warning CS8600: Conversão de literal nula ou possível valor nulo em tipo não anulável.</code></strong>
+<p><strong>O que significa:</strong> você guardou <code>Console.ReadLine()</code> numa <code>string</code> sem <code>?</code>. Se a entrada acabar, ela vai receber <code>null</code>, que uma <code>string</code> promete não ter.</p>
+<p><strong>Como consertar:</strong> use <code>string? nome = Console.ReadLine();</code> e trate o <code>null</code> com <code>is null</code>, ou troque por um valor: <code>string nome = Console.ReadLine() ?? "";</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS8602: Desreferência de uma referência possivelmente nula.</code></strong>
+<p><strong>O que significa:</strong> você usou um ponto (<code>nome.Length</code>, <code>nome.Trim()</code>) numa variável que pode ser <code>null</code>. Se ela for, o programa quebra com <code>NullReferenceException</code> nessa linha.</p>
+<p><strong>Como consertar:</strong> confira antes (<code>if (nome is not null)</code>), ou garanta um valor na leitura com <code>?? ""</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS8604: Possível argumento de referência nula para o parâmetro 's' em 'int int.Parse(string s)'.</code></strong>
+<p><strong>O que significa:</strong> o <code>int.Parse(Console.ReadLine())</code> passa um possível <code>null</code> para um método que não aceita <code>null</code>.</p>
+<p><strong>Como consertar:</strong> use <code>int.TryParse(texto, out int n)</code>, que aceita <code>null</code> (e devolve <code>false</code>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0029: Não é possível converter implicitamente tipo "string" em "int"</code></strong>
+<p><strong>O que significa:</strong> você escreveu <code>int idade = Console.ReadLine();</code>. O <code>ReadLine</code> devolve texto, e texto não vira número sozinho.</p>
+<p><strong>Como consertar:</strong> leia numa <code>string?</code> e converta com <code>int.TryParse</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>Unhandled exception. System.FormatException: The input string 'vinte' was not in a correct format.</code></strong>
+<p><strong>O que significa:</strong> o <code>int.Parse</code> (ou <code>decimal.Parse</code>) recebeu um texto que não é número, e o programa terminou com o código 134.</p>
+<p><strong>Como consertar:</strong> troque por <code>TryParse</code> num <code>if</code>, e diga ao usuário o que deu errado (ou pergunte de novo).</p>
+</div>
+
+<div class="cenario">
+<strong><code>Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.</code></strong>
+<p><strong>O que significa:</strong> a entrada acabou (Ctrl+D, ou o fim do arquivo do <code>&lt;</code>), o <code>ReadLine</code> devolveu <code>null</code>, e o programa usou esse <code>null</code> com um ponto. Era o que os avisos <code>CS8600</code> e <code>CS8602</code> diziam.</p>
+<p><strong>Como consertar:</strong> não ignore os avisos de nulo: siga a seção 3.</p>
+</div>
+
+<div class="cenario">
+<strong>A conta deu 100 vezes mais (<code>3.50</code> virou 350)</strong>
+<p><strong>O que significa:</strong> no pt-BR, o ponto é separador de milhar, e o <code>decimal.TryParse</code> o ignora sem reclamar.</p>
+<p><strong>Como consertar:</strong> peça o formato na pergunta (<code>"Preço (ex.: 12,90): "</code>). Para dados de arquivos, use <code>CultureInfo.InvariantCulture</code> (aula <a href="cultura.html">Cultura</a>).</p>
+</div>
+
+<div class="cenario">
+<strong>O programa "travou" e não mostra nada</strong>
+<p><strong>O que significa:</strong> provavelmente ele está parado num <code>ReadLine</code>, esperando você digitar, e faltou um <code>Console.Write</code> com a pergunta antes.</p>
+<p><strong>Como consertar:</strong> sempre escreva a pergunta antes de ler. Para sair de um programa que espera entrada, aperte Ctrl+D (fim da entrada) ou Ctrl+C (interromper).</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>Console.Write("Nome: ");</code></td><td>Mostra a pergunta e deixa o cursor na mesma linha</td></tr>
+<tr><td><code>string? s = Console.ReadLine();</code></td><td>Lê uma linha (sem o Enter); <code>null</code> se a entrada acabou</td></tr>
+<tr><td><code>string s = Console.ReadLine() ?? "";</code></td><td>Lê, trocando o <code>null</code> por texto vazio</td></tr>
+<tr><td><code>if (s is null)</code></td><td>Confere se a entrada acabou</td></tr>
+<tr><td><code>s.Trim()</code></td><td>Tira os espaços do começo e do fim</td></tr>
+<tr><td><code>string.IsNullOrWhiteSpace(s)</code></td><td>Nulo, vazio ou só espaços?</td></tr>
+<tr><td><code>int.TryParse(s, out int n)</code></td><td>Converte para inteiro; <code>true</code> se deu certo</td></tr>
+<tr><td><code>decimal.TryParse(s, out decimal d)</code></td><td>Converte para decimal, com a vírgula do pt-BR</td></tr>
+<tr><td><code>while (true) { … ReadLine … break; }</code></td><td>Lê várias linhas até uma condição</td></tr>
+<tr><td><code>dotnet run prog.cs &lt; arquivo.txt</code></td><td>Manda as linhas do arquivo como entrada</td></tr>
+<tr><td>Ctrl+D (Linux, macOS) / Ctrl+Z e Enter (Windows)</td><td>Fim da entrada: o <code>ReadLine</code> devolve <code>null</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O tipo certo</h3>
+<p>Complete o tipo da variável para não ter nenhum aviso:</p>
+<div class="ex-code"><input data-answer="string?" aria-label="tipo"> cidade = Console.ReadLine();</div>
+</div>
+
+<div class="exercise">
+<h3>2. Sem null</h3>
+<p>Complete para trocar o <code>null</code> por um texto vazio:</p>
+<div class="ex-code">string cidade = Console.ReadLine() <input data-answer="?? &quot;&quot;|??&quot;&quot;|?? string.Empty" aria-label="operador e valor">;</div>
+</div>
+
+<div class="exercise">
+<h3>3. Converter sem quebrar</h3>
+<p>Complete o método que converte <code>texto</code> em <code>int</code> sem lançar exceção:</p>
+<div class="ex-code">if (int.<input data-answer="TryParse" aria-label="método">(texto, out int quantidade))</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Quando o <code>Console.ReadLine()</code> devolve <code>null</code>?</p>
+<label><input type="radio" name="q4"> Quando a pessoa aperta Enter sem digitar nada</label>
+<label><input type="radio" name="q4"> Quando a pessoa digita só espaços</label>
+<label><input type="radio" name="q4"> Quando a entrada acaba (Ctrl+D, ou o fim do arquivo do <code>&lt;</code>)</label>
+<label><input type="radio" name="q4"> Quando a pessoa digita letras em vez de números</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. No notebook da Ana (pt-BR), <code>decimal.TryParse("3.50", out decimal d)</code> deixa <code>d</code> valendo…</p>
+<label><input type="radio" name="q5"> 3,5</label>
+<label><input type="radio" name="q5"> 350</label>
+<label><input type="radio" name="q5"> 0, e devolve <code>false</code></label>
+<label><input type="radio" name="q5"> Lança <code>FormatException</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. A pessoa digitou <code>dez</code> e o programa usa <code>int.Parse(texto)</code>. O que acontece?</p>
+<label><input type="radio" name="q6"> O número vira 10</label>
+<label><input type="radio" name="q6"> O número vira 0</label>
+<label><input type="radio" name="q6"> Não compila: erro CS0029</label>
+<label><input type="radio" name="q6"> O programa quebra com <code>FormatException</code> (código de saída 134)</label>
+</div>
+
+<h3>Missão final: a média sem avisos</h3>
+
+<div class="trycs" data-stdin="7,5&#10;9" data-goal="out:Média: 8\,25,semaviso,src:TryParse">
+<p class="try-task"><strong>Missão:</strong> o programa lê duas notas e mostra a média. Ele funciona com a entrada desta caixa (<code>7,5</code> e <code>9</code>), mas compila com dois avisos <code>CS8604</code> e quebraria com uma nota digitada errado. Reescreva a leitura com <code>decimal.TryParse</code>: se as duas notas forem válidas, mostre <code>Média: 8,25</code>; se não, mostre <code>Nota inválida.</code>. A missão exige <strong>zero avisos</strong>.</p>
+<pre class="out">Primeira nota: Segunda nota: Média: 8,25</pre>
+<pre class="script">Console.Write("Primeira nota: ");
+decimal nota1 = decimal.Parse(Console.ReadLine());
+Console.Write("Segunda nota: ");
+decimal nota2 = decimal.Parse(Console.ReadLine());
+Console.WriteLine($"Média: {(nota1 + nota2) / 2}");
+</pre>
+<pre class="solucao">Console.Write("Primeira nota: ");
+string? texto1 = Console.ReadLine();
+Console.Write("Segunda nota: ");
+string? texto2 = Console.ReadLine();
+if (decimal.TryParse(texto1, out decimal nota1) &amp;&amp; decimal.TryParse(texto2, out decimal nota2))
+{
+    Console.WriteLine($"Média: {(nota1 + nota2) / 2}");
+}
+else
+{
+    Console.WriteLine("Nota inválida.");
+}
+</pre>
+</div>
+
+<p>Na solução, as duas leituras vêm primeiro e as duas conversões ficam juntas no <code>if</code>, ligadas por <code>&amp;&amp;</code> ("e"): a média só é calculada se <strong>as duas</strong> derem certo. Experimente mudar a entrada da caixa para <code>7.5</code> e <code>9</code>: com o ponto, a primeira nota vira 75, e a média, 42. É a pegadinha da seção 5.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>Console.ReadLine()</code> para o programa, espera o Enter e devolve a linha digitada como <strong>texto</strong>. Escreva a pergunta antes com <code>Console.Write</code>.</li>
+  <li>Ele devolve <code>string?</code>: vale <code>null</code> quando a <strong>entrada acaba</strong> (Ctrl+D, ou o fim de um arquivo mandado com <code>&lt;</code>). Uma linha vazia é <code>""</code>, não <code>null</code>.</li>
+  <li>Os avisos <code>CS8600</code>, <code>CS8602</code> e <code>CS8604</code> avisam de um <code>NullReferenceException</code> real. Trate o <code>null</code> com <code>is null</code>, <code>?? ""</code> ou <code>string.IsNullOrWhiteSpace</code>; não os cale com <code>!</code>.</li>
+  <li>Para números, use <code>int.TryParse</code> e <code>decimal.TryParse</code> num <code>if</code>. O <code>Parse</code> quebra o programa com <code>FormatException</code> quando a pessoa digita errado.</li>
+  <li>No pt-BR, a vírgula é a casa decimal e o ponto é o milhar: <code>3.50</code> vira 350 sem erro nenhum. Diga o formato na pergunta.</li>
+  <li>Para várias respostas, leia num laço até uma linha vazia ou até o <code>null</code> do fim da entrada.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
