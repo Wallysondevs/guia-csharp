@@ -1,0 +1,988 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Projeto Conta Bancária — classes, encapsulamento e herança | Guia C#</title>
+<meta name="description" content="Projeto passo a passo: as contas bancárias da Ana em C#, num projeto com vários arquivos. Uma classe Conta com campos públicos e o saldo negativo, encapsulamento com propriedade private set, construtor e exceções no saque, extrato com um record Movimentacao e transferência entre contas, e uma ContaPoupanca que herda de Conta e sobrescreve uma propriedade virtual. Quatro versões com saídas reais do .NET 10, decimal para dinheiro e os erros CS0272, CS7036, CS0506 e InvalidOperationException.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Projeto <span class="hl">Conta Bancária (classes)</span></h1>
+
+<p class="intro">Uma conta bancária é o exemplo clássico de <strong>orientação a objetos</strong>, e por um bom motivo: ela tem dados (o titular, o saldo) e <strong>regras</strong> (não dá para sacar mais do que tem, não dá para depositar um valor negativo). Neste projeto, a Ana constrói as contas da lojinha em quatro passos: primeiro uma classe ingênua, que deixa o saldo ficar negativo; depois uma classe que <strong>protege</strong> as próprias regras; depois o extrato e a transferência; e, no fim, uma conta poupança que <strong>herda</strong> tudo da conta comum.</p>
+
+<div class="note">
+<strong>Você vai praticar</strong>
+<ul>
+  <li>Criar uma <a href="classes-objetos.html">classe</a> com <a href="campos.html">campos</a>, <a href="metodos.html">métodos</a> e objetos com <code>new</code>.</li>
+  <li><a href="encapsulamento.html">Encapsular</a>: <a href="propriedades.html">propriedades</a> com <code>private set</code> e um <a href="construtores.html">construtor</a>.</li>
+  <li>Recusar operações inválidas com <a href="throw.html">throw</a> e tratar com <a href="try-catch.html">try e catch</a>.</li>
+  <li>Guardar o extrato numa <a href="list.html">List</a> de <a href="records.html">records</a> e usar <a href="parametros-opcionais.html">parâmetros opcionais</a>.</li>
+  <li>Herdar com <a href="heranca.html">herança</a>, chamar o construtor da classe-mãe com <a href="base.html">base</a> e sobrescrever com <a href="virtual-override.html">virtual e override</a>.</li>
+  <li>Dinheiro sempre em <a href="decimais.html">decimal</a>, mostrado com <code>:C</code>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>O que vamos construir</h2>
+<p>No fim, a Ana tem uma conta corrente e uma poupança. Ela deposita R$ 1.500 na corrente, passa R$ 1.000 para a poupança, e a poupança rende 0,5% no mês:</p>
+
+<pre class="term" data-cwd="~/projetos/Banco">$ dotnet run
+Conta corrente  Ana       R$ 500,00
+Poupança        Ana     R$ 1.005,00
+
+Extrato de Ana
+  Transferência de Ana        R$ 1.000,00
+  Rendimento de 0,5%              R$ 5,00
+  Saldo                       R$ 1.005,00</pre>
+
+<ol class="passo">
+  <li><a href="#versao1">Uma classe Conta</a> (e o problema dos campos públicos).</li>
+  <li><a href="#versao2">Encapsular: a conta protege o saldo</a>.</li>
+  <li><a href="#versao3">Extrato e transferência</a>.</li>
+  <li><a href="#versao4">A poupança herda da conta</a>.</li>
+</ol>
+
+<h3>Antes de começar</h3>
+<p>Você precisa ter visto <a href="classes-objetos.html">Classes e Objetos</a>, <a href="propriedades.html">Propriedades</a>, <a href="construtores.html">Construtores</a>, <a href="encapsulamento.html">Encapsulamento</a> e <a href="throw.html">throw</a>; para a versão 4, <a href="heranca.html">Herança</a> e <a href="virtual-override.html">virtual e override</a>.</p>
+<p>Cada classe mora no seu arquivo, como em todo projeto C# de verdade: <code>Conta.cs</code>, depois <code>Movimentacao.cs</code> e <code>ContaPoupanca.cs</code>. Por isso é um projeto:</p>
+
+<pre class="term">$ cd projetos
+$ dotnet new console -o Banco
+O modelo "Aplicativo do Console" foi criado com êxito.
+
+Processando ações pós-criação...
+Restaurando /home/ana/projetos/Banco/Banco.csproj:
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Banco/Banco.csproj restaurado (em 104 ms).
+A restauração foi bem-sucedida.
+
+$ cd Banco</pre>
+
+<p>O <code>dotnet run</code> compila <strong>todos</strong> os <code>.cs</code> da pasta juntos, então o <code>Program.cs</code> enxerga a classe <code>Conta</code> sem nenhum <code>using</code>. Nas caixas Experimente, cada arquivo é uma <strong>aba</strong>.</p>
+
+<hr>
+
+<h2 id="versao1">Versão 1 · Uma classe Conta</h2>
+<p>Uma <a href="classes-objetos.html">classe</a> é a "planta" de um tipo de objeto: diz que dados ele guarda e o que ele sabe fazer. A conta guarda o titular e o saldo, e sabe depositar e sacar.</p>
+
+<pre class="file" data-file="Conta.cs">class Conta
+{
+    public string Titular = "";
+    public decimal Saldo;
+
+    public void Depositar(decimal valor)
+    {
+        Saldo += valor;
+    }
+
+    public void Sacar(decimal valor)
+    {
+        Saldo -= valor;
+    }
+}
+</pre>
+
+<pre class="file" data-file="Program.cs">Conta conta = new Conta();
+conta.Titular = "Ana";
+conta.Depositar(100m);
+conta.Sacar(30m);
+Console.WriteLine($"{conta.Titular}: {conta.Saldo:C}");
+
+conta.Sacar(500m);
+Console.WriteLine($"{conta.Titular}: {conta.Saldo:C}");
+
+conta.Saldo = 1_000_000m;
+Console.WriteLine($"{conta.Titular}: {conta.Saldo:C}");
+</pre>
+
+<dl class="anatomy">
+  <dt>class Conta</dt><dd>Cria o tipo <code>Conta</code>. Por convenção, cada classe fica num arquivo com o mesmo nome.</dd>
+  <dt>public string Titular = "";</dt><dd>Um <a href="campos.html">campo</a>: uma variável que cada conta tem. <code>public</code> quer dizer que qualquer parte do programa pode ler e mudar. O <code>= ""</code> evita o aviso de referência nula.</dd>
+  <dt>public decimal Saldo;</dt><dd>Dinheiro sempre em <code>decimal</code>. Um campo numérico começa em 0.</dd>
+  <dt>public void Depositar(decimal valor)</dt><dd>Um <a href="metodos.html">método</a>: algo que a conta sabe fazer. Dentro dele, <code>Saldo</code> é o saldo <strong>desta</strong> conta (veja <a href="this.html">this</a>).</dd>
+  <dt>Conta conta = new Conta();</dt><dd>O <code>new</code> cria um <strong>objeto</strong> a partir da planta: uma conta de verdade, com o seu próprio saldo.</dd>
+  <dt>conta.Depositar(100m);</dt><dd>Chama o método naquele objeto. O <code>m</code> faz do <code>100</code> um <code>decimal</code>.</dd>
+  <dt>{conta.Saldo:C}</dt><dd>Mostra como dinheiro, no formato da máquina: <code>R$ 70,00</code> (<a href="formatacao.html">Formatar Números</a>).</dd>
+</dl>
+
+<pre class="term" data-cwd="~/projetos/Banco">$ dotnet run
+Ana: R$ 70,00
+Ana: -R$ 430,00
+Ana: R$ 1.000.000,00</pre>
+
+<p>A primeira linha está certa: 100 − 30 = 70. As outras duas mostram o problema desta versão. A conta aceitou um saque de R$ 500 com R$ 70 de saldo e ficou <strong>negativa</strong>. E, pior, a última linha do <code>Program.cs</code> mudou o saldo direto, para um milhão, sem depósito nenhum. A classe tem os dados, mas não tem como <strong>proteger</strong> as regras: qualquer um mexe em qualquer coisa. A versão 2 conserta isso.</p>
+
+<div class="trycs" data-goal="out:Bruno: R$ 50\,00,src:new\s+Conta\(\)">
+<p class="try-task"><strong>Missão (versão 1):</strong> cada <code>new Conta()</code> é uma conta independente. No fim do <code>Program.cs</code>, crie a conta do <strong>Bruno</strong>, deposite <code>50m</code> e mostre <code>Bruno: R$ 50,00</code>. A conta da Ana não deve mudar.</p>
+<pre class="script" data-file="Program.cs">Conta conta = new Conta();
+conta.Titular = "Ana";
+conta.Depositar(100m);
+conta.Sacar(30m);
+Console.WriteLine($"{conta.Titular}: {conta.Saldo:C}");
+
+conta.Sacar(500m);
+Console.WriteLine($"{conta.Titular}: {conta.Saldo:C}");
+
+conta.Saldo = 1_000_000m;
+Console.WriteLine($"{conta.Titular}: {conta.Saldo:C}");
+</pre>
+<pre class="script" data-file="Conta.cs">class Conta
+{
+    public string Titular = "";
+    public decimal Saldo;
+
+    public void Depositar(decimal valor)
+    {
+        Saldo += valor;
+    }
+
+    public void Sacar(decimal valor)
+    {
+        Saldo -= valor;
+    }
+}
+</pre>
+<pre class="solucao" data-file="Program.cs">Conta conta = new Conta();
+conta.Titular = "Ana";
+conta.Depositar(100m);
+conta.Sacar(30m);
+Console.WriteLine($"{conta.Titular}: {conta.Saldo:C}");
+
+conta.Sacar(500m);
+Console.WriteLine($"{conta.Titular}: {conta.Saldo:C}");
+
+conta.Saldo = 1_000_000m;
+Console.WriteLine($"{conta.Titular}: {conta.Saldo:C}");
+
+Conta bruno = new Conta();
+bruno.Titular = "Bruno";
+bruno.Depositar(50m);
+Console.WriteLine($"{bruno.Titular}: {bruno.Saldo:C}");
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao2">Versão 2 · Encapsular: a conta protege o saldo</h2>
+<p>A ideia do <a href="encapsulamento.html">encapsulamento</a> é a do caixa do banco: você não abre o cofre, você pede ao caixa, e ele confere se pode. Três mudanças:</p>
+<ul>
+  <li>O saldo vira uma <a href="propriedades.html">propriedade</a> que todos podem <strong>ler</strong>, mas só a própria classe pode <strong>mudar</strong> (<code>private set</code>).</li>
+  <li>Um <a href="construtores.html">construtor</a> obriga a dizer o titular na hora de criar a conta.</li>
+  <li><code>Depositar</code> e <code>Sacar</code> conferem o valor e, se ele for inválido, <strong>lançam uma exceção</strong> (<a href="throw.html">throw</a>) em vez de fazer a conta errada.</li>
+</ul>
+
+<pre class="file" data-file="Conta.cs">class Conta
+{
+    public string Titular { get; }
+    public decimal Saldo { get; private set; }
+
+    public Conta(string titular)
+    {
+        if (string.IsNullOrWhiteSpace(titular))
+        {
+            throw new ArgumentException("O titular não pode ficar vazio.");
+        }
+        Titular = titular;
+    }
+
+    public void Depositar(decimal valor)
+    {
+        if (valor &lt;= 0)
+        {
+            throw new ArgumentException("O depósito tem de ser maior que zero.");
+        }
+        Saldo += valor;
+    }
+
+    public void Sacar(decimal valor)
+    {
+        if (valor &lt;= 0)
+        {
+            throw new ArgumentException("O saque tem de ser maior que zero.");
+        }
+        if (valor &gt; Saldo)
+        {
+            throw new InvalidOperationException($"Saldo insuficiente: o saldo é {Saldo:C} e o saque, {valor:C}.");
+        }
+        Saldo -= valor;
+    }
+}
+</pre>
+
+<pre class="file" data-file="Program.cs">Conta conta = new Conta("Ana");
+conta.Depositar(100m);
+conta.Sacar(30m);
+Console.WriteLine($"{conta.Titular}: {conta.Saldo:C}");
+
+try
+{
+    conta.Sacar(500m);
+}
+catch (InvalidOperationException erro)
+{
+    Console.WriteLine($"Não deu: {erro.Message}");
+}
+
+try
+{
+    conta.Depositar(-20m);
+}
+catch (ArgumentException erro)
+{
+    Console.WriteLine($"Não deu: {erro.Message}");
+}
+
+Console.WriteLine($"{conta.Titular}: {conta.Saldo:C}");
+</pre>
+
+<dl class="anatomy">
+  <dt>public string Titular { get; }</dt><dd>Uma propriedade só de leitura: recebe valor no construtor e nunca mais muda.</dd>
+  <dt>public decimal Saldo { get; private set; }</dt><dd>Todo mundo lê (<code>get</code> público); só o código <strong>dentro</strong> da classe muda (<code>private set</code>). Assim, o único jeito de mexer no saldo é por <code>Depositar</code> e <code>Sacar</code>, que conferem as regras.</dd>
+  <dt>public Conta(string titular)</dt><dd>O construtor: roda no <code>new</code>. Agora <code>new Conta()</code> sem titular nem compila; é preciso <code>new Conta("Ana")</code>.</dd>
+  <dt>string.IsNullOrWhiteSpace(titular)</dt><dd>"É nulo, vazio ou só espaços?". Um titular assim é recusado.</dd>
+  <dt>throw new ArgumentException("…");</dt><dd>Lança uma exceção: a operação para ali, nada muda, e quem chamou fica sabendo. <code>ArgumentException</code> quer dizer "o argumento que você passou é inválido".</dd>
+  <dt>throw new InvalidOperationException(…)</dt><dd>"A operação não pode ser feita agora": o valor é bom, mas o saldo não dá.</dd>
+  <dt>catch (InvalidOperationException erro)</dt><dd>No <code>Program.cs</code>, quem usa a conta decide o que fazer com a recusa. <code>erro.Message</code> é o texto que a conta escreveu no <code>throw</code>.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/projetos/Banco">$ dotnet run
+Ana: R$ 70,00
+Não deu: Saldo insuficiente: o saldo é R$ 70,00 e o saque, R$ 500,00.
+Não deu: O depósito tem de ser maior que zero.
+Ana: R$ 70,00</pre>
+
+<p>O saque grande e o depósito negativo foram recusados, e o saldo continuou em R$ 70,00.</p>
+
+<div class="cenario">
+<strong>Mudar o saldo direto: erro <code>CS0272</code></strong>
+<p>A Ana testou a proteção com a linha que, na versão 1, transformava o saldo em um milhão:</p>
+<pre class="file" data-file="Program.cs">Conta conta = new Conta("Ana");
+conta.Depositar(100m);
+conta.Saldo = 1_000_000m;
+Console.WriteLine($"{conta.Titular}: {conta.Saldo:C}");
+</pre>
+<pre class="term" data-cwd="~/projetos/Banco">$ dotnet run
+/home/ana/projetos/Banco/Program.cs(3,1): error CS0272: A propriedade ou o indexador "Conta.Saldo" não pode ser usado neste contexto porque o acessador set é inacessível [/home/ana/projetos/Banco/Banco.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>set</code> do <code>Saldo</code> é <code>private</code>, então, fora da classe <code>Conta</code>, ninguém pode atribuir um valor a ele (em inglês, <em>the set accessor is inaccessible</em>). É exatamente o que queríamos: o erro aparece na compilação, antes de o programa rodar.</p>
+<p><strong>Como consertar:</strong> não é para consertar a classe, é para usar a porta certa: <code>conta.Depositar(…)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Sem o <code>try</code>: a exceção derruba o programa</strong>
+<p>Sem o <code>try</code>/<code>catch</code> em volta do saque grande:</p>
+<pre class="term" data-cwd="~/projetos/Banco">$ dotnet run
+Ana: R$ 70,00
+Unhandled exception. System.InvalidOperationException: Saldo insuficiente: o saldo é R$ 70,00 e o saque, R$ 500,00.
+   at Conta.Sacar(Decimal valor) in /home/ana/projetos/Banco/Conta.cs:line 32
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/projetos/Banco/Program.cs:line 6
+$ echo $?
+134</pre>
+<p><strong>O que significa:</strong> o rastro (<em>stack trace</em>) se lê de cima para baixo: a exceção nasceu em <code>Conta.Sacar</code>, na linha 32 do <code>Conta.cs</code> (o <code>throw</code>), que foi chamado pela linha 6 do <code>Program.cs</code>. Ninguém a pegou, e o programa terminou com o código 134. A mensagem é a que a própria classe escreveu: uma boa mensagem de exceção diz o que deu errado e com quais valores.</p>
+<p><strong>Como consertar:</strong> envolva a chamada num <code>try</code> e pegue a exceção que você sabe tratar, como no <code>Program.cs</code> da versão 2 (veja <a href="try-catch.html">try e catch</a>).</p>
+</div>
+
+<div class="trycs" data-goal="out:Não deu: Saldo insuficiente,out:Ana: R$ 70\,00">
+<p class="try-task"><strong>Missão (versão 2):</strong> o <code>Sacar</code> da aba <code>Conta.cs</code> ainda aceita sacar mais do que o saldo, e a conta fica negativa. Antes do <code>Saldo -= valor;</code>, recuse o saque: <code>if (valor &gt; Saldo)</code>, lance uma <code>InvalidOperationException</code> com a mensagem <code>$"Saldo insuficiente: o saldo é {Saldo:C} e o saque, {valor:C}."</code>.</p>
+<pre class="script" data-file="Program.cs">Conta conta = new Conta("Ana");
+conta.Depositar(100m);
+conta.Sacar(30m);
+Console.WriteLine($"{conta.Titular}: {conta.Saldo:C}");
+
+try
+{
+    conta.Sacar(500m);
+}
+catch (InvalidOperationException erro)
+{
+    Console.WriteLine($"Não deu: {erro.Message}");
+}
+
+try
+{
+    conta.Depositar(-20m);
+}
+catch (ArgumentException erro)
+{
+    Console.WriteLine($"Não deu: {erro.Message}");
+}
+
+Console.WriteLine($"{conta.Titular}: {conta.Saldo:C}");
+</pre>
+<pre class="script" data-file="Conta.cs">class Conta
+{
+    public string Titular { get; }
+    public decimal Saldo { get; private set; }
+
+    public Conta(string titular)
+    {
+        if (string.IsNullOrWhiteSpace(titular))
+        {
+            throw new ArgumentException("O titular não pode ficar vazio.");
+        }
+        Titular = titular;
+    }
+
+    public void Depositar(decimal valor)
+    {
+        if (valor &lt;= 0)
+        {
+            throw new ArgumentException("O depósito tem de ser maior que zero.");
+        }
+        Saldo += valor;
+    }
+
+    public void Sacar(decimal valor)
+    {
+        if (valor &lt;= 0)
+        {
+            throw new ArgumentException("O saque tem de ser maior que zero.");
+        }
+        // recuse o saque maior que o saldo
+        Saldo -= valor;
+    }
+}
+</pre>
+<pre class="solucao" data-file="Conta.cs">class Conta
+{
+    public string Titular { get; }
+    public decimal Saldo { get; private set; }
+
+    public Conta(string titular)
+    {
+        if (string.IsNullOrWhiteSpace(titular))
+        {
+            throw new ArgumentException("O titular não pode ficar vazio.");
+        }
+        Titular = titular;
+    }
+
+    public void Depositar(decimal valor)
+    {
+        if (valor &lt;= 0)
+        {
+            throw new ArgumentException("O depósito tem de ser maior que zero.");
+        }
+        Saldo += valor;
+    }
+
+    public void Sacar(decimal valor)
+    {
+        if (valor &lt;= 0)
+        {
+            throw new ArgumentException("O saque tem de ser maior que zero.");
+        }
+        if (valor &gt; Saldo)
+        {
+            throw new InvalidOperationException($"Saldo insuficiente: o saldo é {Saldo:C} e o saque, {valor:C}.");
+        }
+        Saldo -= valor;
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao3">Versão 3 · Extrato e transferência</h2>
+<p>Um banco não guarda só o saldo: guarda <strong>cada movimentação</strong>, para o extrato. Cada uma tem uma descrição e um valor (positivo para entradas, negativo para saídas). É um dado simples, que não muda depois de criado: um <a href="records.html">record</a>, no seu próprio arquivo.</p>
+
+<pre class="file" data-file="Movimentacao.cs">record Movimentacao(string Descricao, decimal Valor);
+</pre>
+
+<p>A <code>Conta</code> ganha a lista de movimentações, uma descrição opcional em <code>Depositar</code> e <code>Sacar</code>, e dois métodos novos: <code>Transferir</code> e <code>MostrarExtrato</code>.</p>
+
+<pre class="file" data-file="Conta.cs">class Conta
+{
+    private readonly List&lt;Movimentacao&gt; _movimentacoes = new();
+
+    public string Titular { get; }
+    public decimal Saldo { get; private set; }
+
+    public Conta(string titular)
+    {
+        if (string.IsNullOrWhiteSpace(titular))
+        {
+            throw new ArgumentException("O titular não pode ficar vazio.");
+        }
+        Titular = titular;
+    }
+
+    public void Depositar(decimal valor, string descricao = "Depósito")
+    {
+        if (valor &lt;= 0)
+        {
+            throw new ArgumentException("O depósito tem de ser maior que zero.");
+        }
+        Saldo += valor;
+        _movimentacoes.Add(new Movimentacao(descricao, valor));
+    }
+
+    public void Sacar(decimal valor, string descricao = "Saque")
+    {
+        if (valor &lt;= 0)
+        {
+            throw new ArgumentException("O saque tem de ser maior que zero.");
+        }
+        if (valor &gt; Saldo)
+        {
+            throw new InvalidOperationException($"Saldo insuficiente: o saldo é {Saldo:C} e o saque, {valor:C}.");
+        }
+        Saldo -= valor;
+        _movimentacoes.Add(new Movimentacao(descricao, -valor));
+    }
+
+    public void Transferir(Conta destino, decimal valor)
+    {
+        Sacar(valor, $"Transferência para {destino.Titular}");
+        destino.Depositar(valor, $"Transferência de {Titular}");
+    }
+
+    public void MostrarExtrato()
+    {
+        Console.WriteLine($"Extrato de {Titular}");
+        foreach (Movimentacao m in _movimentacoes)
+        {
+            Console.WriteLine($"  {m.Descricao,-26} {m.Valor,12:C}");
+        }
+        Console.WriteLine($"  {"Saldo",-26} {Saldo,12:C}");
+    }
+}
+</pre>
+
+<pre class="file" data-file="Program.cs">Conta ana = new Conta("Ana");
+Conta bruno = new Conta("Bruno");
+
+ana.Depositar(1500m);
+ana.Sacar(200m);
+ana.Transferir(bruno, 350.75m);
+bruno.Depositar(80m, "Venda do caderno");
+
+ana.MostrarExtrato();
+Console.WriteLine();
+bruno.MostrarExtrato();
+</pre>
+
+<dl class="anatomy">
+  <dt>private readonly List&lt;Movimentacao&gt; _movimentacoes = new();</dt><dd>A lista é <code>private</code>: só a conta acrescenta movimentações, e sempre junto com a mudança do saldo. <code>readonly</code> quer dizer que o campo sempre aponta para a mesma lista (<a href="readonly.html">readonly e init</a>). O <code>_</code> no começo é a convenção para campos privados.</dd>
+  <dt>string descricao = "Depósito"</dt><dd>Um <a href="parametros-opcionais.html">parâmetro opcional</a>: quem não passar descrição ganha <code>"Depósito"</code>. <code>ana.Depositar(1500m)</code> continua funcionando.</dd>
+  <dt>new Movimentacao(descricao, -valor)</dt><dd>No saque, o valor entra negativo: o extrato mostra <code>-R$ 200,00</code>.</dd>
+  <dt>public void Transferir(Conta destino, decimal valor)</dt><dd>Recebe <strong>outra conta</strong> como parâmetro. Primeiro saca desta (se o saldo não der, o <code>Sacar</code> lança a exceção e o depósito nem acontece), depois deposita na outra.</dd>
+  <dt>{m.Descricao,-26} {m.Valor,12:C}</dt><dd>Colunas alinhadas: a descrição em 26 posições à esquerda, o valor em 12 à direita.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/projetos/Banco">$ ls
+Banco.csproj  bin  Conta.cs  Movimentacao.cs  obj  Program.cs
+$ dotnet run
+Extrato de Ana
+  Depósito                    R$ 1.500,00
+  Saque                        -R$ 200,00
+  Transferência para Bruno     -R$ 350,75
+  Saldo                         R$ 949,25
+
+Extrato de Bruno
+  Transferência de Ana          R$ 350,75
+  Venda do caderno               R$ 80,00
+  Saldo                         R$ 430,75</pre>
+
+<div class="tip">
+<strong>Por que <code>Transferir</code> usa <code>Sacar</code> e <code>Depositar</code>?</strong>
+<p>Daria para escrever <code>Saldo -= valor; destino.Saldo += valor;</code> (dentro da classe, o <code>private set</code> deixa, até na outra conta). Mas aí a transferência pularia as regras: aceitaria valor negativo e saldo insuficiente, e não apareceria no extrato. Reaproveitando os métodos, toda regra fica num lugar só.</p>
+</div>
+
+<div class="trycs" data-goal="out:Transferência para Bruno,out:Transferência de Ana,src:destino\.Depositar">
+<p class="try-task"><strong>Missão (versão 3):</strong> o <code>Transferir</code> da aba <code>Conta.cs</code> está vazio: o Bruno não recebe nada. Escreva as duas linhas: <code>Sacar(valor, $"Transferência para {destino.Titular}");</code> e <code>destino.Depositar(valor, $"Transferência de {Titular}");</code>.</p>
+<pre class="script" data-file="Program.cs">Conta ana = new Conta("Ana");
+Conta bruno = new Conta("Bruno");
+
+ana.Depositar(1500m);
+ana.Sacar(200m);
+ana.Transferir(bruno, 350.75m);
+bruno.Depositar(80m, "Venda do caderno");
+
+ana.MostrarExtrato();
+Console.WriteLine();
+bruno.MostrarExtrato();
+</pre>
+<pre class="script" data-file="Conta.cs">class Conta
+{
+    private readonly List&lt;Movimentacao&gt; _movimentacoes = new();
+
+    public string Titular { get; }
+    public decimal Saldo { get; private set; }
+
+    public Conta(string titular)
+    {
+        if (string.IsNullOrWhiteSpace(titular))
+        {
+            throw new ArgumentException("O titular não pode ficar vazio.");
+        }
+        Titular = titular;
+    }
+
+    public void Depositar(decimal valor, string descricao = "Depósito")
+    {
+        if (valor &lt;= 0)
+        {
+            throw new ArgumentException("O depósito tem de ser maior que zero.");
+        }
+        Saldo += valor;
+        _movimentacoes.Add(new Movimentacao(descricao, valor));
+    }
+
+    public void Sacar(decimal valor, string descricao = "Saque")
+    {
+        if (valor &lt;= 0)
+        {
+            throw new ArgumentException("O saque tem de ser maior que zero.");
+        }
+        if (valor &gt; Saldo)
+        {
+            throw new InvalidOperationException($"Saldo insuficiente: o saldo é {Saldo:C} e o saque, {valor:C}.");
+        }
+        Saldo -= valor;
+        _movimentacoes.Add(new Movimentacao(descricao, -valor));
+    }
+
+    public void Transferir(Conta destino, decimal valor)
+    {
+        // saque nesta conta e depósito na conta destino, com as descrições
+    }
+
+    public void MostrarExtrato()
+    {
+        Console.WriteLine($"Extrato de {Titular}");
+        foreach (Movimentacao m in _movimentacoes)
+        {
+            Console.WriteLine($"  {m.Descricao,-26} {m.Valor,12:C}");
+        }
+        Console.WriteLine($"  {"Saldo",-26} {Saldo,12:C}");
+    }
+}
+</pre>
+<pre class="script" data-file="Movimentacao.cs">record Movimentacao(string Descricao, decimal Valor);
+</pre>
+<pre class="solucao" data-file="Conta.cs">class Conta
+{
+    private readonly List&lt;Movimentacao&gt; _movimentacoes = new();
+
+    public string Titular { get; }
+    public decimal Saldo { get; private set; }
+
+    public Conta(string titular)
+    {
+        if (string.IsNullOrWhiteSpace(titular))
+        {
+            throw new ArgumentException("O titular não pode ficar vazio.");
+        }
+        Titular = titular;
+    }
+
+    public void Depositar(decimal valor, string descricao = "Depósito")
+    {
+        if (valor &lt;= 0)
+        {
+            throw new ArgumentException("O depósito tem de ser maior que zero.");
+        }
+        Saldo += valor;
+        _movimentacoes.Add(new Movimentacao(descricao, valor));
+    }
+
+    public void Sacar(decimal valor, string descricao = "Saque")
+    {
+        if (valor &lt;= 0)
+        {
+            throw new ArgumentException("O saque tem de ser maior que zero.");
+        }
+        if (valor &gt; Saldo)
+        {
+            throw new InvalidOperationException($"Saldo insuficiente: o saldo é {Saldo:C} e o saque, {valor:C}.");
+        }
+        Saldo -= valor;
+        _movimentacoes.Add(new Movimentacao(descricao, -valor));
+    }
+
+    public void Transferir(Conta destino, decimal valor)
+    {
+        Sacar(valor, $"Transferência para {destino.Titular}");
+        destino.Depositar(valor, $"Transferência de {Titular}");
+    }
+
+    public void MostrarExtrato()
+    {
+        Console.WriteLine($"Extrato de {Titular}");
+        foreach (Movimentacao m in _movimentacoes)
+        {
+            Console.WriteLine($"  {m.Descricao,-26} {m.Valor,12:C}");
+        }
+        Console.WriteLine($"  {"Saldo",-26} {Saldo,12:C}");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao4">Versão 4 · A poupança herda da conta</h2>
+<p>A Ana quer uma poupança para a reserva da loja. Uma poupança é uma conta (tem titular, saldo, depósito, saque, extrato) com <strong>uma coisa a mais</strong>: ela rende juros. Copiar a classe <code>Conta</code> inteira seria duplicar tudo. Com <a href="heranca.html">herança</a>, a <code>ContaPoupanca</code> <strong>herda</strong> tudo da <code>Conta</code> e só acrescenta o que é dela.</p>
+
+<p>Na <code>Conta</code>, uma linha nova: uma propriedade que diz o tipo da conta, marcada como <code>virtual</code> (as filhas podem trocá-la):</p>
+
+<pre class="file" data-file="Conta.cs">    public virtual string Tipo =&gt; "Conta corrente";
+</pre>
+
+<pre class="file" data-file="ContaPoupanca.cs">class ContaPoupanca : Conta
+{
+    public decimal TaxaMensal { get; }
+    public override string Tipo =&gt; "Poupança";
+
+    public ContaPoupanca(string titular, decimal taxaMensal) : base(titular)
+    {
+        TaxaMensal = taxaMensal;
+    }
+
+    public void RenderJuros()
+    {
+        decimal juros = Math.Round(Saldo * TaxaMensal, 2);
+        if (juros &gt; 0)
+        {
+            Depositar(juros, $"Rendimento de {TaxaMensal:P1}");
+        }
+    }
+}
+</pre>
+
+<pre class="file" data-file="Program.cs">Conta corrente = new Conta("Ana");
+ContaPoupanca reserva = new ContaPoupanca("Ana", 0.005m);
+
+corrente.Depositar(1500m);
+corrente.Transferir(reserva, 1000m);
+reserva.RenderJuros();
+
+List&lt;Conta&gt; contas = [corrente, reserva];
+foreach (Conta conta in contas)
+{
+    Console.WriteLine($"{conta.Tipo,-15} {conta.Titular,-6} {conta.Saldo,12:C}");
+}
+
+Console.WriteLine();
+reserva.MostrarExtrato();
+</pre>
+
+<dl class="anatomy">
+  <dt>class ContaPoupanca : Conta</dt><dd>O <code>:</code> diz "é uma <code>Conta</code>": a poupança herda <code>Titular</code>, <code>Saldo</code>, <code>Depositar</code>, <code>Sacar</code>, <code>Transferir</code> e <code>MostrarExtrato</code>.</dd>
+  <dt>public virtual string Tipo =&gt; "Conta corrente";</dt><dd>Na <code>Conta</code>: uma propriedade calculada (o <code>=&gt;</code> devolve o valor), que as classes filhas <strong>podem</strong> substituir.</dd>
+  <dt>public override string Tipo =&gt; "Poupança";</dt><dd>Na poupança: substitui (<em>override</em>) a versão da mãe.</dd>
+  <dt>: base(titular)</dt><dd>O construtor da poupança chama primeiro o construtor da <code>Conta</code>, que confere e guarda o titular (<a href="base.html">base</a>). Depois guarda a taxa.</dd>
+  <dt>Math.Round(Saldo * TaxaMensal, 2)</dt><dd>Os juros, arredondados para centavos. <code>Saldo</code> é a propriedade herdada: a poupança pode ler, e muda só por <code>Depositar</code>.</dd>
+  <dt>{TaxaMensal:P1}</dt><dd>Formato de porcentagem com 1 casa: <code>0.005m</code> vira <code>0,5%</code>.</dd>
+  <dt>List&lt;Conta&gt; contas = [corrente, reserva];</dt><dd>Uma lista de <code>Conta</code> aceita a poupança, porque toda poupança <strong>é</strong> uma conta.</dd>
+  <dt>conta.Tipo</dt><dd>Para cada conta da lista, o C# usa o <code>Tipo</code> do objeto de verdade: "Conta corrente" para uma, "Poupança" para a outra. Isso é o <a href="polimorfismo.html">polimorfismo</a>.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/projetos/Banco">$ ls
+Banco.csproj  bin  Conta.cs  ContaPoupanca.cs  Movimentacao.cs  obj  Program.cs
+$ dotnet run
+Conta corrente  Ana       R$ 500,00
+Poupança        Ana     R$ 1.005,00
+
+Extrato de Ana
+  Transferência de Ana        R$ 1.000,00
+  Rendimento de 0,5%              R$ 5,00
+  Saldo                       R$ 1.005,00</pre>
+
+<div class="cenario">
+<strong>Esqueci o <code>: base(titular)</code>: erro <code>CS7036</code></strong>
+<pre class="term" data-cwd="~/projetos/Banco">$ dotnet run
+/home/ana/projetos/Banco/ContaPoupanca.cs(6,12): error CS7036: Não há nenhum argumento fornecido que corresponda ao parâmetro necessário 'titular' de 'Conta.Conta(string)' [/home/ana/projetos/Banco/Banco.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> todo construtor de uma classe filha chama um construtor da mãe. Sem o <code>: base(…)</code>, o C# tenta chamar o construtor <strong>sem parâmetros</strong> da <code>Conta</code>, mas ele não existe: o único pede o <code>titular</code>. O erro aponta o construtor da poupança, na linha 6.</p>
+<p><strong>Como consertar:</strong> <code>public ContaPoupanca(string titular, decimal taxaMensal) : base(titular)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Esqueci o <code>virtual</code>: erro <code>CS0506</code></strong>
+<pre class="term" data-cwd="~/projetos/Banco">$ dotnet run
+/home/ana/projetos/Banco/ContaPoupanca.cs(4,28): error CS0506: "ContaPoupanca.Tipo": não é possível substituir o membro herdado "Conta.Tipo" porque ele não está marcado como virtual, abstract ou override [/home/ana/projetos/Banco/Banco.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> no C#, a classe-mãe decide o que pode ser substituído. Sem <code>virtual</code> no <code>Tipo</code> da <code>Conta</code>, o <code>override</code> da poupança não é permitido.</p>
+<p><strong>Como consertar:</strong> <code>public virtual string Tipo =&gt; "Conta corrente";</code> na <code>Conta</code> (veja <a href="virtual-override.html">virtual e override</a>).</p>
+</div>
+
+<div class="trycs" data-goal="outre:Poupança\s+Ana\s+R\$ 1\.005\,00,src:override\s+string\s+Tipo">
+<p class="try-task"><strong>Missão (versão 4):</strong> a lista mostra as duas contas como "Conta corrente". Na aba <code>ContaPoupanca.cs</code>, substitua o tipo: <code>public override string Tipo =&gt; "Poupança";</code>.</p>
+<pre class="script" data-file="Program.cs">Conta corrente = new Conta("Ana");
+ContaPoupanca reserva = new ContaPoupanca("Ana", 0.005m);
+
+corrente.Depositar(1500m);
+corrente.Transferir(reserva, 1000m);
+reserva.RenderJuros();
+
+List&lt;Conta&gt; contas = [corrente, reserva];
+foreach (Conta conta in contas)
+{
+    Console.WriteLine($"{conta.Tipo,-15} {conta.Titular,-6} {conta.Saldo,12:C}");
+}
+
+Console.WriteLine();
+reserva.MostrarExtrato();
+</pre>
+<pre class="script" data-file="ContaPoupanca.cs">class ContaPoupanca : Conta
+{
+    public decimal TaxaMensal { get; }
+
+    public ContaPoupanca(string titular, decimal taxaMensal) : base(titular)
+    {
+        TaxaMensal = taxaMensal;
+    }
+
+    public void RenderJuros()
+    {
+        decimal juros = Math.Round(Saldo * TaxaMensal, 2);
+        if (juros &gt; 0)
+        {
+            Depositar(juros, $"Rendimento de {TaxaMensal:P1}");
+        }
+    }
+}
+</pre>
+<pre class="script" data-file="Conta.cs">class Conta
+{
+    private readonly List&lt;Movimentacao&gt; _movimentacoes = new();
+
+    public string Titular { get; }
+    public decimal Saldo { get; private set; }
+    public virtual string Tipo =&gt; "Conta corrente";
+
+    public Conta(string titular)
+    {
+        if (string.IsNullOrWhiteSpace(titular))
+        {
+            throw new ArgumentException("O titular não pode ficar vazio.");
+        }
+        Titular = titular;
+    }
+
+    public void Depositar(decimal valor, string descricao = "Depósito")
+    {
+        if (valor &lt;= 0)
+        {
+            throw new ArgumentException("O depósito tem de ser maior que zero.");
+        }
+        Saldo += valor;
+        _movimentacoes.Add(new Movimentacao(descricao, valor));
+    }
+
+    public void Sacar(decimal valor, string descricao = "Saque")
+    {
+        if (valor &lt;= 0)
+        {
+            throw new ArgumentException("O saque tem de ser maior que zero.");
+        }
+        if (valor &gt; Saldo)
+        {
+            throw new InvalidOperationException($"Saldo insuficiente: o saldo é {Saldo:C} e o saque, {valor:C}.");
+        }
+        Saldo -= valor;
+        _movimentacoes.Add(new Movimentacao(descricao, -valor));
+    }
+
+    public void Transferir(Conta destino, decimal valor)
+    {
+        Sacar(valor, $"Transferência para {destino.Titular}");
+        destino.Depositar(valor, $"Transferência de {Titular}");
+    }
+
+    public void MostrarExtrato()
+    {
+        Console.WriteLine($"Extrato de {Titular}");
+        foreach (Movimentacao m in _movimentacoes)
+        {
+            Console.WriteLine($"  {m.Descricao,-26} {m.Valor,12:C}");
+        }
+        Console.WriteLine($"  {"Saldo",-26} {Saldo,12:C}");
+    }
+}
+</pre>
+<pre class="script" data-file="Movimentacao.cs">record Movimentacao(string Descricao, decimal Valor);
+</pre>
+<pre class="solucao" data-file="ContaPoupanca.cs">class ContaPoupanca : Conta
+{
+    public decimal TaxaMensal { get; }
+    public override string Tipo =&gt; "Poupança";
+
+    public ContaPoupanca(string titular, decimal taxaMensal) : base(titular)
+    {
+        TaxaMensal = taxaMensal;
+    }
+
+    public void RenderJuros()
+    {
+        decimal juros = Math.Round(Saldo * TaxaMensal, 2);
+        if (juros &gt; 0)
+        {
+            Depositar(juros, $"Rendimento de {TaxaMensal:P1}");
+        }
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>O programa completo</h2>
+<p>A versão final tem quatro arquivos na pasta <code>~/projetos/Banco</code>. O <code>Program.cs</code> e o <code>ContaPoupanca.cs</code> estão na versão 4, e o <code>Movimentacao.cs</code> na versão 3. A <code>Conta.cs</code> completa:</p>
+
+<pre class="file" data-file="Conta.cs">class Conta
+{
+    private readonly List&lt;Movimentacao&gt; _movimentacoes = new();
+
+    public string Titular { get; }
+    public decimal Saldo { get; private set; }
+    public virtual string Tipo =&gt; "Conta corrente";
+
+    public Conta(string titular)
+    {
+        if (string.IsNullOrWhiteSpace(titular))
+        {
+            throw new ArgumentException("O titular não pode ficar vazio.");
+        }
+        Titular = titular;
+    }
+
+    public void Depositar(decimal valor, string descricao = "Depósito")
+    {
+        if (valor &lt;= 0)
+        {
+            throw new ArgumentException("O depósito tem de ser maior que zero.");
+        }
+        Saldo += valor;
+        _movimentacoes.Add(new Movimentacao(descricao, valor));
+    }
+
+    public void Sacar(decimal valor, string descricao = "Saque")
+    {
+        if (valor &lt;= 0)
+        {
+            throw new ArgumentException("O saque tem de ser maior que zero.");
+        }
+        if (valor &gt; Saldo)
+        {
+            throw new InvalidOperationException($"Saldo insuficiente: o saldo é {Saldo:C} e o saque, {valor:C}.");
+        }
+        Saldo -= valor;
+        _movimentacoes.Add(new Movimentacao(descricao, -valor));
+    }
+
+    public void Transferir(Conta destino, decimal valor)
+    {
+        Sacar(valor, $"Transferência para {destino.Titular}");
+        destino.Depositar(valor, $"Transferência de {Titular}");
+    }
+
+    public void MostrarExtrato()
+    {
+        Console.WriteLine($"Extrato de {Titular}");
+        foreach (Movimentacao m in _movimentacoes)
+        {
+            Console.WriteLine($"  {m.Descricao,-26} {m.Valor,12:C}");
+        }
+        Console.WriteLine($"  {"Saldo",-26} {Saldo,12:C}");
+    }
+}
+</pre>
+
+<p>O que o projeto juntou: <a href="classes-objetos.html">classes</a> e objetos, <a href="propriedades.html">propriedades</a> com <code>private set</code>, <a href="construtores.html">construtores</a>, <a href="throw.html">throw</a> e <a href="try-catch.html">try/catch</a>, um <a href="records.html">record</a> numa <a href="list.html">List</a> <code>private readonly</code>, <a href="parametros-opcionais.html">parâmetros opcionais</a>, <a href="heranca.html">herança</a> com <a href="base.html">base</a>, <a href="virtual-override.html">virtual e override</a> e <a href="decimais.html">decimal</a> com <code>:C</code> e <code>:P1</code>.</p>
+
+<hr>
+
+<h2>Desafios extras</h2>
+<ol>
+  <li><strong>Exceção própria.</strong> Troque a <code>InvalidOperationException</code> por uma <code>SaldoInsuficienteException</code> com as propriedades <code>Saldo</code> e <code>Valor</code> (veja <a href="excecoes-proprias.html">Exceções Próprias</a>).</li>
+  <li><strong>Cheque especial.</strong> Crie uma <code>ContaCorrente</code> com um <code>Limite</code>, que deixa o saldo ficar negativo até o limite. Para isso, o <code>Sacar</code> da <code>Conta</code> precisa ser <code>virtual</code>, ou a regra "quanto pode sacar" pode virar uma propriedade <code>virtual decimal Disponivel</code>.</li>
+  <li><strong>Extrato só de leitura.</strong> Exponha as movimentações com <code>public IReadOnlyList&lt;Movimentacao&gt; Movimentacoes =&gt; _movimentacoes;</code> e mova o <code>MostrarExtrato</code> para o <code>Program.cs</code>: a conta guarda os dados, e quem mostra é o programa.</li>
+  <li><strong>Testes.</strong> Num projeto de testes, confira que um saque maior que o saldo lança a exceção e não muda o saldo (veja <a href="testes.html">Testes (xUnit)</a>).</li>
+  <li><strong>Salvar as contas.</strong> Guarde as contas num arquivo JSON, como na <a href="projeto-agenda.html">Agenda</a>. Cuidado: com o <code>private set</code>, o <code>JsonSerializer</code> não consegue preencher o saldo sozinho (veja <a href="json.html">JSON</a>).</li>
+</ol>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">1. O que <code>public decimal Saldo { get; private set; }</code> permite?</p>
+<label><input type="radio" name="q1"> Ninguém pode ler nem mudar o saldo.</label>
+<label><input type="radio" name="q1"> Qualquer parte do programa lê o saldo, mas só o código da própria classe o muda.</label>
+<label><input type="radio" name="q1"> Qualquer parte do programa lê e muda o saldo.</label>
+<label><input type="radio" name="q1"> Só o construtor pode ler o saldo.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">2. Por que o <code>Sacar</code> lança uma exceção em vez de só mostrar "Saldo insuficiente" com <code>Console.WriteLine</code>?</p>
+<label><input type="radio" name="q2"> Porque o <code>Console.WriteLine</code> não funciona dentro de classes.</label>
+<label><input type="radio" name="q2"> Porque exceções são mais rápidas.</label>
+<label><input type="radio" name="q2"> Porque o compilador exige.</label>
+<label><input type="radio" name="q2"> Para quem chamou ficar sabendo e decidir o que fazer; a conta não sabe se o programa tem tela, e uma transferência precisa parar antes do depósito.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">3. Em <code>class ContaPoupanca : Conta</code>, o que a poupança tem?</p>
+<label><input type="radio" name="q3"> Tudo o que a <code>Conta</code> tem, mais o que ela mesma declarar.</label>
+<label><input type="radio" name="q3"> Só o que ela mesma declarar.</label>
+<label><input type="radio" name="q3"> Só os membros <code>private</code> da <code>Conta</code>.</label>
+<label><input type="radio" name="q3"> Uma cópia do saldo de todas as contas.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Na lista <code>List&lt;Conta&gt;</code>, por que <code>conta.Tipo</code> mostra "Poupança" para a reserva?</p>
+<label><input type="radio" name="q4"> Porque a lista guarda o nome da classe.</label>
+<label><input type="radio" name="q4"> Porque o <code>foreach</code> converte a conta em poupança.</label>
+<label><input type="radio" name="q4"> Porque <code>Tipo</code> é <code>virtual</code> e a poupança faz <code>override</code>: vale a versão do objeto de verdade (polimorfismo).</label>
+<label><input type="radio" name="q4"> Por acaso: depende da ordem da lista.</label>
+</div>
+
+<div class="exercise">
+<p>5. Complete o construtor da poupança, que chama o construtor da <code>Conta</code>:</p>
+<div class="ex-code">public ContaPoupanca(string titular, decimal taxaMensal) : <input data-answer="base" aria-label="palavra-chave" size="5">(titular)</div>
+</div>
+
+<div class="exercise">
+<p>6. Complete o modificador que deixa o saldo ser mudado só dentro da classe:</p>
+<div class="ex-code">public decimal Saldo { get; <input data-answer="private" aria-label="modificador" size="8"> set; }</div>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma classe junta dados e comportamento; cada <code>new</code> cria um objeto independente.</li>
+  <li>Campos públicos deixam qualquer um quebrar as regras. Com <code>{ get; private set; }</code>, o saldo só muda pelos métodos da classe (fora dela, <code>CS0272</code>).</li>
+  <li>O construtor obriga a criar o objeto num estado válido; os métodos recusam operações inválidas com <code>throw</code>, e quem chama trata com <code>try</code>/<code>catch</code>.</li>
+  <li>Um record numa lista <code>private readonly</code> guarda o extrato; reaproveitar <code>Sacar</code> e <code>Depositar</code> na transferência mantém as regras num lugar só.</li>
+  <li>Com herança, a filha recebe tudo da mãe e chama o construtor dela com <code>: base(…)</code> (senão, <code>CS7036</code>).</li>
+  <li>Só membros <code>virtual</code> podem ser substituídos com <code>override</code> (senão, <code>CS0506</code>); numa lista da mãe, vale a versão do objeto de verdade.</li>
+</ul>
+<p>Próximo projeto: <a href="projeto-estoque.html">Estoque da Lojinha (LINQ)</a>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
