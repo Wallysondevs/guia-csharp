@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Herança — classe base e classe derivada com : | Guia C#</title>
+<meta name="description" content="Herança em C# para quem está começando: o problema do código repetido, class Cachorro : Animal, o teste do é um, o que a classe filha herda (e o private que ela não enxerga), herança em vários níveis, uma classe base só, object no topo, a ordem dos construtores e os erros reais CS1061, CS0122, CS1721, CS7036 e CS1729 do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Herança</span></h1>
+
+<p class="intro">Um cachorro e um gato são diferentes, mas têm muita coisa em comum: os dois têm nome, os dois comem, os dois dormem. Escrever tudo isso duas vezes é trabalho dobrado e erro dobrado. Com <strong>herança</strong>, você escreve o que é comum <strong>uma vez</strong>, numa classe <code>Animal</code>, e as classes <code>Cachorro</code> e <code>Gato</code> recebem tudo de presente, acrescentando só o que é delas. É o segundo pilar da orientação a objetos.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Que problema a herança resolve (o código repetido).</li>
+  <li>A sintaxe: <code>class Cachorro : Animal</code>.</li>
+  <li>Os nomes: classe <strong>base</strong> e classe <strong>derivada</strong>.</li>
+  <li>O teste do "é um", para saber quando usar herança.</li>
+  <li>O que é herdado e o que não é (o <code>private</code> e os construtores).</li>
+  <li>Herança em vários níveis, a regra de uma classe base só e o <code>object</code> no topo de tudo.</li>
+  <li>Os erros <code>CS1061</code>, <code>CS0122</code>, <code>CS1721</code>, <code>CS7036</code> e <code>CS1729</code>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>A ideia: herdar características</h2>
+<p>A Ana herdou da mãe a cor dos olhos e do pai o sobrenome. Ela não precisou "criar" essas coisas: nasceu com elas. Mas a Ana também tem coisas só dela, como o gosto por violão.</p>
+<p>Em C#, uma classe pode nascer com tudo o que outra classe tem e acrescentar o que é só dela:</p>
+<ul>
+  <li>A classe que <strong>dá</strong> as características é a <strong>classe base</strong> (também chamada de classe mãe, ou superclasse): <code>Animal</code>.</li>
+  <li>A classe que <strong>recebe</strong> é a <strong>classe derivada</strong> (classe filha, ou subclasse): <code>Cachorro</code>, <code>Gato</code>.</li>
+</ul>
+
+<hr>
+
+<h2>O problema: código repetido</h2>
+<p>A Ana está fazendo um joguinho de bichos de estimação. Primeira versão, sem herança:</p>
+
+<pre class="file" data-file="repetido.cs">var rex = new Cachorro { Nome = "Rex" };
+var mia = new Gato { Nome = "Mia" };
+rex.Comer();
+rex.Latir();
+mia.Comer();
+mia.Miar();
+
+class Cachorro
+{
+    public string Nome { get; set; } = "";
+
+    public void Comer()
+    {
+        Console.WriteLine($"{Nome} está comendo.");
+    }
+
+    public void Latir()
+    {
+        Console.WriteLine($"{Nome}: Au au!");
+    }
+}
+
+class Gato
+{
+    public string Nome { get; set; } = "";
+
+    public void Comer()
+    {
+        Console.WriteLine($"{Nome} está comendo.");
+    }
+
+    public void Miar()
+    {
+        Console.WriteLine($"{Nome}: Miau!");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run repetido.cs
+Rex está comendo.
+Rex: Au au!
+Mia está comendo.
+Mia: Miau!</pre>
+
+<p>Funciona, mas <code>Nome</code> e <code>Comer</code> estão escritos duas vezes, letra por letra. Se a Ana quiser mudar a frase para "está comendo ração", precisa lembrar de mudar nos dois lugares. Com um coelho, um peixe e um papagaio, seriam cinco cópias.</p>
+
+<hr>
+
+<h2>: Animal, herdando da classe base</h2>
+
+<pre class="file" data-file="heranca.cs">var rex = new Cachorro { Nome = "Rex" };
+var mia = new Gato { Nome = "Mia" };
+rex.Comer();
+rex.Latir();
+mia.Comer();
+mia.Miar();
+
+class Animal
+{
+    public string Nome { get; set; } = "";
+
+    public void Comer()
+    {
+        Console.WriteLine($"{Nome} está comendo.");
+    }
+}
+
+class Cachorro : Animal
+{
+    public void Latir()
+    {
+        Console.WriteLine($"{Nome}: Au au!");
+    }
+}
+
+class Gato : Animal
+{
+    public void Miar()
+    {
+        Console.WriteLine($"{Nome}: Miau!");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run heranca.cs
+Rex está comendo.
+Rex: Au au!
+Mia está comendo.
+Mia: Miau!          « a mesma saída, sem nada repetido</pre>
+
+<dl class="anatomy">
+  <dt>class Animal</dt><dd>A classe base. Tem o que todo animal tem: <code>Nome</code> e <code>Comer()</code>. Ela é uma classe comum; nada nela diz que alguém vai herdar.</dd>
+  <dt>class Cachorro : Animal</dt><dd>Os dois-pontos se leem "herda de". <code>Cachorro</code> nasce com <code>Nome</code> e <code>Comer()</code>, sem escrever uma linha deles.</dd>
+  <dt>public void Latir()</dt><dd>O que é só do cachorro. A classe derivada <strong>acrescenta</strong> coisas à base.</dd>
+  <dt>{Nome} dentro de Latir</dt><dd>A classe derivada usa o que herdou como se fosse dela.</dd>
+  <dt>rex.Comer()</dt><dd>Quem usa o objeto também não vê diferença: <code>Comer</code> está lá, herdado.</dd>
+</dl>
+
+<p>Agora, mudar a frase de <code>Comer</code> é mudar <strong>um</strong> lugar, e todos os animais passam a usar a frase nova.</p>
+
+<h3>A herança vai só para baixo</h3>
+<p>O gato herda do animal, não do cachorro. Os irmãos não trocam nada entre si:</p>
+
+<pre class="file" data-file="nao-late.cs — com erro de propósito">var mia = new Gato { Nome = "Mia" };
+mia.Latir();
+
+class Animal
+{
+    public string Nome { get; set; } = "";
+}
+
+class Cachorro : Animal
+{
+    public void Latir()
+    {
+        Console.WriteLine($"{Nome}: Au au!");
+    }
+}
+
+class Gato : Animal
+{
+}
+</pre>
+
+<pre class="term">$ dotnet run nao-late.cs
+/home/ana/cs/nao-late.cs(2,5): error CS1061: ‘Gato’ não contém uma definição para "Latir" e não foi possível encontrar nenhum método de extensão "Latir" que aceite um primeiro argumento do tipo ‘Gato’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"<code>Gato</code> não contém uma definição para <code>Latir</code>": é a mensagem de sempre quando um método não existe naquele tipo (o resto da frase, sobre "métodos de extensão", você pode ignorar por enquanto). Se todo animal precisa emitir um som, o método vai na classe <code>Animal</code>, e cada bicho faz do seu jeito. Isso é assunto de <a href="virtual-override.html">virtual e override</a>.</p>
+
+<div class="trycs" data-goal="out:Tico está comendo.,out:Tico: Piu piu!,src:class\s+Passaro\s*:\s*Animal">
+<p class="try-task"><strong>Missão:</strong> crie a classe <code>Passaro</code>, que herda de <code>Animal</code> e tem um método <code>Cantar()</code> que mostra o nome seguido de <code>: Piu piu!</code>. O programa de cima já está pronto.</p>
+<pre class="script">var tico = new Passaro { Nome = "Tico" };
+tico.Comer();
+tico.Cantar();
+
+class Animal
+{
+    public string Nome { get; set; } = "";
+
+    public void Comer()
+    {
+        Console.WriteLine($"{Nome} está comendo.");
+    }
+}
+
+// escreva a classe Passaro aqui
+</pre>
+<pre class="solucao">var tico = new Passaro { Nome = "Tico" };
+tico.Comer();
+tico.Cantar();
+
+class Animal
+{
+    public string Nome { get; set; } = "";
+
+    public void Comer()
+    {
+        Console.WriteLine($"{Nome} está comendo.");
+    }
+}
+
+class Passaro : Animal
+{
+    public void Cantar()
+    {
+        Console.WriteLine($"{Nome}: Piu piu!");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>O teste do "é um"</h2>
+<p>Herança não é só um truque para economizar código. Ela diz uma coisa sobre o mundo: "todo <code>Cachorro</code> <strong>é um</strong> <code>Animal</code>". Antes de escrever <code>class X : Y</code>, leia a frase em voz alta:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Frase</th><th>Faz sentido?</th><th>Herança?</th></tr>
+<tr><td>Um cachorro <strong>é um</strong> animal.</td><td>Sim</td><td><code>class Cachorro : Animal</code></td></tr>
+<tr><td>Uma conta poupança <strong>é uma</strong> conta.</td><td>Sim</td><td><code>class ContaPoupanca : Conta</code></td></tr>
+<tr><td>Um professor <strong>é uma</strong> pessoa.</td><td>Sim</td><td><code>class Professor : Pessoa</code></td></tr>
+<tr><td>Um carro <strong>é um</strong> motor.</td><td>Não: um carro <strong>tem um</strong> motor.</td><td>Não. O carro tem uma propriedade <code>Motor</code>.</td></tr>
+<tr><td>Uma turma <strong>é um</strong> aluno.</td><td>Não: uma turma <strong>tem</strong> alunos.</td><td>Não. A turma tem uma <code>List&lt;Aluno&gt;</code>.</td></tr>
+</table>
+</div>
+
+<p>Quando a frase certa é "tem um", a resposta é colocar um objeto dentro do outro (isso se chama <strong>composição</strong>), e não herdar. Herdar de <code>Motor</code> só para "aproveitar" os métodos dele daria um carro que, para o C#, é um motor, e isso confunde todo mundo.</p>
+
+<hr>
+
+<h2>O que é herdado (e o que não é)</h2>
+
+<h3>O private existe, mas a filha não enxerga</h3>
+<p>Um objeto <code>Cachorro</code> tem <strong>tudo</strong> o que um <code>Animal</code> tem, inclusive os campos <code>private</code>. Mas o código escrito dentro de <code>Cachorro</code> não pode tocar neles: <code>private</code> é só da própria classe, e a classe derivada é <strong>outra</strong> classe (lembre de <a href="modificadores-acesso.html">public, private e internal</a>).</p>
+
+<pre class="file" data-file="privado-base.cs — com erro de propósito">var rex = new Cachorro();
+rex.Brincar();
+
+class Animal
+{
+    private int _energia = 10;
+
+    public int Energia =&gt; _energia;
+
+    public void Descansar()
+    {
+        _energia += 5;
+    }
+}
+
+class Cachorro : Animal
+{
+    public void Brincar()
+    {
+        _energia -= 3;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run privado-base.cs
+/home/ana/cs/privado-base.cs(20,9): error CS0122: "Animal._energia" é inacessível devido ao seu nível de proteção
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Os métodos herdados, porém, continuam mexendo no campo, porque eles foram escritos <strong>dentro</strong> de <code>Animal</code>. Sem o <code>Brincar</code>:</p>
+
+<pre class="file" data-file="privado-ok.cs">var rex = new Cachorro();
+rex.Descansar();
+Console.WriteLine($"Energia do Rex: {rex.Energia}");
+
+class Animal
+{
+    private int _energia = 10;
+
+    public int Energia =&gt; _energia;
+
+    public void Descansar()
+    {
+        _energia += 5;
+    }
+}
+
+class Cachorro : Animal
+{
+}
+</pre>
+
+<pre class="term">$ dotnet run privado-ok.cs
+Energia do Rex: 15</pre>
+
+<p>O <code>_energia</code> do Rex existe (começou em 10 e foi para 15), mas só o código de <code>Animal</code> mexe nele. Para deixar a filha usar, a base tem duas saídas: oferecer um método <code>public</code> ou <code>protected</code> que faça a mudança com regras, ou marcar o campo como <code>protected</code>, o "armário da família".</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Membro da base</th><th>O objeto da filha tem?</th><th>O código da filha usa?</th><th>Quem está de fora usa?</th></tr>
+<tr><td><code>public</code></td><td>Sim</td><td>Sim</td><td>Sim</td></tr>
+<tr><td><code>protected</code></td><td>Sim</td><td>Sim</td><td>Não</td></tr>
+<tr><td><code>private</code></td><td>Sim</td><td>Não (<code>CS0122</code>)</td><td>Não</td></tr>
+<tr><td>Construtores</td><td colspan="3">Não são herdados (veja abaixo)</td></tr>
+</table>
+</div>
+
+<h3>Os construtores não são herdados</h3>
+<p>Quando um objeto da filha nasce, o construtor da base roda <strong>antes</strong>, para montar a "parte animal" do cachorro. Depois roda o da filha:</p>
+
+<pre class="file" data-file="ordem-ctor.cs">var rex = new Cachorro();
+
+class Animal
+{
+    public Animal()
+    {
+        Console.WriteLine("1. Construtor de Animal");
+    }
+}
+
+class Cachorro : Animal
+{
+    public Cachorro()
+    {
+        Console.WriteLine("2. Construtor de Cachorro");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run ordem-ctor.cs
+1. Construtor de Animal
+2. Construtor de Cachorro</pre>
+
+<p>Mas o construtor da base <strong>não vira</strong> construtor da filha. Se o único construtor de <code>Animal</code> pede um nome, o <code>Cachorro</code> fica sem saber como chamá-lo:</p>
+
+<pre class="file" data-file="ctor-param.cs — com erro de propósito">var rex = new Cachorro("Rex");
+
+class Animal
+{
+    public Animal(string nome)
+    {
+        Nome = nome;
+    }
+
+    public string Nome { get; }
+}
+
+class Cachorro : Animal
+{
+}
+</pre>
+
+<pre class="term">$ dotnet run ctor-param.cs
+/home/ana/cs/ctor-param.cs(13,7): error CS7036: Não há nenhum argumento fornecido que corresponda ao parâmetro necessário 'nome' de 'Animal.Animal(string)'
+/home/ana/cs/ctor-param.cs(1,15): error CS1729: "Cachorro" não contém um construtor que aceita 1 argumentos
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Dois erros:</p>
+<ul>
+  <li><code>CS7036</code>, na linha 13 (<code>class Cachorro</code>): para montar a parte animal, o C# tentaria chamar <code>Animal()</code> sem nada, mas <code>Animal</code> exige um <code>nome</code>.</li>
+  <li><code>CS1729</code>, na linha 1: <code>Cachorro</code> não tem construtor que receba um texto. O de <code>Animal</code> não foi herdado.</li>
+</ul>
+<p>O conserto é escrever um construtor em <code>Cachorro</code> que passe o nome para o de <code>Animal</code>, com a palavra <code>base</code>. É exatamente o assunto da <a href="base.html">próxima aula</a>.</p>
+
+<hr>
+
+<h2>Herança em vários níveis</h2>
+<p>Uma classe derivada pode ser base de outra. O cachorro é um mamífero, que é um animal:</p>
+
+<pre class="file" data-file="niveis.cs">var rex = new Cachorro { Nome = "Rex" };
+rex.Comer();
+rex.Mamar();
+rex.Latir();
+
+Console.WriteLine(rex is Cachorro);
+Console.WriteLine(rex is Mamifero);
+Console.WriteLine(rex is Animal);
+Console.WriteLine(rex is object);
+
+class Animal
+{
+    public string Nome { get; set; } = "";
+
+    public void Comer()
+    {
+        Console.WriteLine($"{Nome} está comendo.");
+    }
+}
+
+class Mamifero : Animal
+{
+    public void Mamar()
+    {
+        Console.WriteLine($"{Nome} mamou quando era filhote.");
+    }
+}
+
+class Cachorro : Mamifero
+{
+    public void Latir()
+    {
+        Console.WriteLine($"{Nome}: Au au!");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run niveis.cs
+Rex está comendo.
+Rex mamou quando era filhote.
+Rex: Au au!
+True
+True
+True
+True</pre>
+
+<p><code>Cachorro</code> recebe tudo de <code>Mamifero</code>, que já tinha recebido tudo de <code>Animal</code>. O operador <code>is</code> ("é") responde à pergunta do "é um": o Rex é cachorro, é mamífero, é animal e é <code>object</code>. Esse último você vai entender já já.</p>
+
+<div class="tip"><strong>Não exagere nos níveis.</strong> Dois ou três níveis são comuns. Com seis ou sete, para entender o que um <code>Cachorro</code> faz, você precisa abrir seis classes. Prefira hierarquias rasas.</div>
+
+<hr>
+
+<h2>Uma classe base só</h2>
+<p>Em C#, cada classe herda de <strong>uma</strong> classe só. Um pato é animal e é ave, mas não pode herdar das duas:</p>
+
+<pre class="file" data-file="duas-bases.cs — com erro de propósito">var donald = new Pato();
+
+class Animal
+{
+}
+
+class Ave
+{
+}
+
+class Pato : Animal, Ave
+{
+}
+</pre>
+
+<pre class="term">$ dotnet run duas-bases.cs
+/home/ana/cs/duas-bases.cs(11,22): error CS1721: Classe "Pato" não pode ter várias classes base: "Animal" e "Ave"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A saída é organizar em níveis (<code>Ave : Animal</code> e <code>Pato : Ave</code>) ou usar <a href="interfaces.html">interfaces</a>: uma classe pode ter uma classe base e <strong>várias</strong> interfaces, que são "contratos" do que ela sabe fazer (<code>class Pato : Ave, INadador, IVoador</code>).</p>
+
+<hr>
+
+<h2>No topo de tudo: object</h2>
+<p>Se você não escreve <code>: AlgumaCoisa</code>, a classe herda, sem você ver, de <code>object</code> (o nome completo é <code>System.Object</code>). Toda classe do C# está, direta ou indiretamente, embaixo dela. É de lá que vêm métodos que todo objeto tem, como <code>ToString()</code> e <code>GetType()</code>:</p>
+
+<pre class="file" data-file="object.cs">var rex = new Cachorro { Nome = "Rex" };
+Console.WriteLine(rex.ToString());
+Console.WriteLine(rex.GetType().Name);
+Console.WriteLine(rex.GetType().BaseType);
+
+class Animal
+{
+    public string Nome { get; set; } = "";
+}
+
+class Cachorro : Animal
+{
+}
+</pre>
+
+<pre class="term">$ dotnet run object.cs
+Cachorro
+Cachorro
+Animal</pre>
+
+<dl class="anatomy">
+  <dt>rex.ToString()</dt><dd>Nem <code>Cachorro</code> nem <code>Animal</code> escreveram um <code>ToString</code>; ele veio de <code>object</code>. O padrão devolve o nome da classe, o que não é muito útil. Em <a href="object.html">A Classe object</a> você aprende a trocá-lo por algo como <code>"Rex (cachorro)"</code>.</dd>
+  <dt>rex.GetType().Name</dt><dd>O tipo verdadeiro do objeto, <code>Cachorro</code>.</dd>
+  <dt>rex.GetType().BaseType</dt><dd>A classe base dele, <code>Animal</code>. A de <code>Animal</code> seria <code>System.Object</code>.</dd>
+</dl>
+
+<div class="note"><strong>E se uma classe não deve ter filhas?</strong> Marque-a com <code>sealed</code> ("lacrada"): <code>sealed class Cachorro : Animal</code>. Aí ninguém mais pode herdar dela. Veja <a href="sealed.html">sealed</a>.</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>error CS1061: "…" não contém uma definição para "…"</strong>
+<p><strong>O que aconteceu:</strong> você chamou, num objeto, um método que o tipo dele não tem nem herdou. Com herança, o caso típico é chamar o método de uma classe irmã (<code>mia.Latir()</code>) ou o da filha numa variável do tipo da base (<code>Animal bicho = new Cachorro(); bicho.Latir();</code>, assunto de <a href="polimorfismo.html">Polimorfismo</a>).</p>
+<p><strong>Como resolver:</strong> se todos precisam do método, coloque-o na classe base. Se não, chame-o só em quem o tem.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS0122 dentro da classe derivada</strong>
+<p><strong>O que aconteceu:</strong> a filha tentou usar um membro <code>private</code> da base.</p>
+<p><strong>Como resolver:</strong> use um método <code>public</code> ou <code>protected</code> da base, ou marque o membro como <code>protected</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS1721: Classe "…" não pode ter várias classes base</strong>
+<p><strong>O que aconteceu:</strong> duas classes depois dos dois-pontos.</p>
+<p><strong>Como resolver:</strong> escolha uma base e organize as outras em níveis ou em interfaces.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS7036 e CS1729 ao criar a filha</strong>
+<p><strong>O que aconteceu:</strong> a base só tem construtor com parâmetros, e a filha não diz como chamá-lo; ou você tentou usar na filha um construtor que só existe na base.</p>
+<p><strong>Como resolver:</strong> escreva um construtor na filha que chame o da base com <code>: base(…)</code>. Veja <a href="base.html">base</a>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>class Cachorro : Animal { … }</code></td><td><code>Cachorro</code> herda de <code>Animal</code></td></tr>
+<tr><td>Classe base</td><td>A que dá as características (mãe, superclasse)</td></tr>
+<tr><td>Classe derivada</td><td>A que herda (filha, subclasse)</td></tr>
+<tr><td><code>obj is Animal</code></td><td><code>true</code> se o objeto é um <code>Animal</code> (ou de uma classe derivada)</td></tr>
+<tr><td><code>protected</code></td><td>Membro visível para a classe e para as derivadas</td></tr>
+<tr><td><code>obj.GetType().BaseType</code></td><td>A classe base do tipo do objeto</td></tr>
+<tr><td><code>object</code> (<code>System.Object</code>)</td><td>A base de todas as classes</td></tr>
+<tr><td><code>sealed class X</code></td><td>Classe que não pode ter derivadas</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missão final: a garagem da Ana</h2>
+<div class="trycs" data-goal="out:Fusca: 4 rodas,out:Fusca: Biii!,out:Biz: 2 rodas,out:Biz empinou!,src:class\s+Carro\s*:\s*Veiculo,src:class\s+Moto\s*:\s*Veiculo">
+<p class="try-task"><strong>Missão:</strong> as classes <code>Carro</code> e <code>Moto</code> repetem <code>Modelo</code>, <code>Rodas</code> e <code>Mostrar()</code>. Crie uma classe base <code>Veiculo</code> com essas três coisas, faça <code>Carro</code> e <code>Moto</code> herdarem dela e deixe em cada uma só o método que é dela (<code>Buzinar</code> e <code>Empinar</code>).</p>
+<pre class="script">var fusca = new Carro { Modelo = "Fusca", Rodas = 4 };
+var biz = new Moto { Modelo = "Biz", Rodas = 2 };
+fusca.Mostrar();
+fusca.Buzinar();
+biz.Mostrar();
+biz.Empinar();
+
+class Carro
+{
+    public string Modelo { get; set; } = "";
+    public int Rodas { get; set; }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{Modelo}: {Rodas} rodas");
+    }
+
+    public void Buzinar()
+    {
+        Console.WriteLine($"{Modelo}: Biii!");
+    }
+}
+
+class Moto
+{
+    public string Modelo { get; set; } = "";
+    public int Rodas { get; set; }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{Modelo}: {Rodas} rodas");
+    }
+
+    public void Empinar()
+    {
+        Console.WriteLine($"{Modelo} empinou!");
+    }
+}
+</pre>
+<pre class="solucao">var fusca = new Carro { Modelo = "Fusca", Rodas = 4 };
+var biz = new Moto { Modelo = "Biz", Rodas = 2 };
+fusca.Mostrar();
+fusca.Buzinar();
+biz.Mostrar();
+biz.Empinar();
+
+class Veiculo
+{
+    public string Modelo { get; set; } = "";
+    public int Rodas { get; set; }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{Modelo}: {Rodas} rodas");
+    }
+}
+
+class Carro : Veiculo
+{
+    public void Buzinar()
+    {
+        Console.WriteLine($"{Modelo}: Biii!");
+    }
+}
+
+class Moto : Veiculo
+{
+    public void Empinar()
+    {
+        Console.WriteLine($"{Modelo} empinou!");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A sintaxe da herança</h3>
+<p>Complete a declaração para que <code>Professor</code> herde de <code>Pessoa</code>: <code>class Professor ___</code></p>
+<div class="ex-code"><input data-answer=": Pessoa|:Pessoa" aria-label="herança"></div>
+</div>
+
+<div class="exercise">
+<h3>2. O topo da escada</h3>
+<p>De qual classe toda classe do C# herda, mesmo sem escrever nada? (a palavra-chave em minúsculas)</p>
+<div class="ex-code"><input data-answer="object" aria-label="classe"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Quantas bases?</h3>
+<p>Quantas classes base uma classe do C# pode ter? (um número)</p>
+<div class="ex-code"><input data-answer="1|uma" aria-label="número"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Qual destes pares <strong>não</strong> deveria usar herança?</p>
+<label><input type="radio" name="q4"> <code>Gerente</code> e <code>Funcionario</code></label>
+<label><input type="radio" name="q4"> <code>Triangulo</code> e <code>Forma</code></label>
+<label><input type="radio" name="q4"> <code>Carro</code> e <code>Roda</code></label>
+<label><input type="radio" name="q4"> <code>ContaPoupanca</code> e <code>Conta</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. <code>Animal</code> tem <code>private int _energia</code>. Dentro de <code>Cachorro : Animal</code>, o que acontece com <code>_energia -= 3;</code>?</p>
+<label><input type="radio" name="q5"> Funciona: a filha herda tudo.</label>
+<label><input type="radio" name="q5"> Erro <code>CS0122</code>: o campo existe no objeto, mas a filha não pode usá-lo.</label>
+<label><input type="radio" name="q5"> Erro <code>CS1061</code>: o cachorro não tem esse campo.</label>
+<label><input type="radio" name="q5"> Compila, mas o valor não muda.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Ao criar um <code>Cachorro</code>, em que ordem rodam os construtores?</p>
+<label><input type="radio" name="q6"> Primeiro o de <code>Animal</code>, depois o de <code>Cachorro</code>.</label>
+<label><input type="radio" name="q6"> Primeiro o de <code>Cachorro</code>, depois o de <code>Animal</code>.</label>
+<label><input type="radio" name="q6"> Só o de <code>Cachorro</code>.</label>
+<label><input type="radio" name="q6"> Só o de <code>Animal</code>.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Herança evita código repetido: o comum vai na <strong>classe base</strong> (<code>Animal</code>), e cada <strong>classe derivada</strong> (<code>Cachorro : Animal</code>) acrescenta o que é dela.</li>
+  <li>Use herança só quando a frase "<em>X é um Y</em>" faz sentido. Para "tem um", coloque um objeto dentro do outro.</li>
+  <li>A filha herda o que é <code>public</code> e <code>protected</code>. O <code>private</code> existe no objeto, mas só o código da base mexe nele.</li>
+  <li>Construtores não são herdados. O da base roda antes do da filha; se ele pede parâmetros, a filha precisa de <code>: base(…)</code> (próxima aula).</li>
+  <li>Herança pode ter vários níveis, mas cada classe tem <strong>uma</strong> base só (<code>CS1721</code>). No topo de tudo está <code>object</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
