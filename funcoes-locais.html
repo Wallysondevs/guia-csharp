@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Funções Locais — métodos dentro de métodos | Guia C#</title>
+<meta name="description" content="Funções locais em C# para quem nunca programou: o que são, por que os métodos do fim de um arquivo com instruções de nível superior já são funções locais, como escrever uma dentro de um método de classe, captura de variáveis, static para proibir a captura, funções locais recursivas, a diferença para as lambdas e os erros reais do dotnet 10 (CS0103, CS8421, CS0106, CS0841, CS8321), com missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Funções Locais</span></h1>
+
+<p class="intro">Uma <strong>função local</strong> é um método escrito <strong>dentro de outro método</strong>. Ela só existe ali dentro, e só quem está ali pode chamá-la. Você já escreve funções locais desde a aula <a href="metodos.html">Métodos</a>, mesmo sem perceber: os métodos do fim de um arquivo com instruções de nível superior são funções locais do <code>Main</code> escondido. Nesta aula, que fecha o grupo de métodos, você vai usá-las de propósito, dentro dos métodos de uma classe, e entender quando elas ajudam e quando atrapalham.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma função local e onde você já usou várias.</li>
+  <li>Como escrever uma função local dentro de um método de classe, e por que ela fica invisível fora dele.</li>
+  <li>Que a função local <strong>enxerga</strong> as variáveis e os parâmetros do método que a contém (captura).</li>
+  <li>O <code>static</code> que proíbe a captura <span class="versao">C# 8</span>.</li>
+  <li>Onde escrever a função local no método, inclusive depois do <code>return</code>.</li>
+  <li>Funções locais recursivas e aninhadas.</li>
+  <li>A diferença entre uma função local e uma <strong>lambda</strong>.</li>
+  <li>Os erros <code>CS0103</code>, <code>CS8421</code>, <code>CS0106</code>, <code>CS0128</code>, <code>CS0841</code> e o aviso <code>CS8321</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram na máquina fictícia da Ana, na pasta <code>~/cs</code>, com o <strong>.NET 10</strong> e o comando <code>dotnet run arquivo.cs</code>. Funções locais existem desde o <span class="versao">C# 7</span>.</p>
+
+<hr>
+
+<h2>A ideia: a ferramenta da gaveta da bancada</h2>
+<p>Na oficina do avô da Ana, as ferramentas que todo mundo usa ficam no painel da parede: qualquer um pega. Mas cada bancada tem uma gaveta com ferramentas que só servem para o trabalho daquela bancada, como o molde específico de um móvel. Ninguém pendura esse molde no painel: ele só atrapalharia quem procura um martelo.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na oficina</th><th>Em C#</th></tr>
+<tr><td>Ferramenta do painel, que todos usam</td><td>Método da classe: qualquer método da classe pode chamar</td></tr>
+<tr><td>Ferramenta da gaveta de uma bancada</td><td><strong>Função local</strong>: só o método que a contém pode chamar</td></tr>
+<tr><td>Da gaveta, dá para usar o que está em cima da bancada</td><td>A função local enxerga as variáveis do método</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. Você já usa funções locais</h2>
+<p>Recapitulando <a href="metodos.html">Métodos</a>: num arquivo com instruções de nível superior, o compilador embrulha as instruções num <code>Main</code> escondido, e os métodos do fim do arquivo vão para dentro dele. As mensagens do compilador confirmam, como o aviso de método não usado:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run naousado.cs
+/home/ana/cs/naousado.cs(3,6): warning CS8321: A função local 'Linha' está declarada, mas nunca é usada
+Bom dia!</pre>
+
+<p>Tudo o que esta aula mostra vale para esses métodos também. A novidade é escrever funções locais dentro de <strong>qualquer</strong> método, inclusive os de uma classe.</p>
+
+<hr>
+
+<h2>2. Uma função local dentro de um método de classe</h2>
+<p>O método <code>MostrarRecibo</code> desenha três linhas e formata vários preços. Essas duas tarefas só interessam a ele, então viram funções locais, escritas no fim do corpo dele:</p>
+
+<pre class="file" data-file="flclasse.cs">class Program
+{
+    static void Main()
+    {
+        MostrarRecibo("Ana", 12.50m, 3m, 2.75m);
+    }
+
+    static void MostrarRecibo(string cliente, params decimal[] precos)
+    {
+        Linha();
+        Console.WriteLine($"Cliente: {cliente}");
+        Linha();
+        foreach (decimal p in precos)
+        {
+            Console.WriteLine(Formatar(p));
+        }
+        Linha();
+
+        void Linha()
+        {
+            Console.WriteLine("--------------------");
+        }
+
+        string Formatar(decimal valor)
+        {
+            return $"{valor,12:C}";
+        }
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run flclasse.cs
+--------------------
+Cliente: Ana
+--------------------
+    R$ 12,50
+     R$ 3,00
+     R$ 2,75
+--------------------</pre>
+
+<dl class="anatomy">
+  <dt>void Linha() { … }</dt><dd>Uma função local: está <strong>dentro</strong> das chaves de <code>MostrarRecibo</code>. Repare que não tem <code>static</code> nem <code>public</code>: uma função local é declarada como os métodos do fim do arquivo.</dd>
+  <dt>string Formatar(decimal valor)</dt><dd>Outra função local, com parâmetro e retorno, como qualquer método. O <code>{valor,12:C}</code> alinha o preço em 12 casas, à direita.</dd>
+  <dt>Linha(); no começo do método</dt><dd>A chamada vem antes da declaração, e funciona: dentro do bloco, a função local pode ser chamada de qualquer linha.</dd>
+</dl>
+
+<p>Fora de <code>MostrarRecibo</code>, essas funções não existem. Se o <code>Main</code> tentar usar <code>Linha</code>:</p>
+
+<pre class="file" data-file="flfora.cs">class Program
+{
+    static void Main()
+    {
+        MostrarRecibo("Ana");
+        Linha();
+    }
+
+    static void MostrarRecibo(string cliente)
+    {
+        Linha();
+        Console.WriteLine($"Cliente: {cliente}");
+
+        void Linha()
+        {
+            Console.WriteLine("--------------------");
+        }
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run flfora.cs
+/home/ana/cs/flfora.cs(6,9): error CS0103: O nome "Linha" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>É a regra das chaves de <a href="escopo.html">Escopo</a>: a função mora no bloco de <code>MostrarRecibo</code>. Isso é a vantagem dela, e não um defeito: a classe não fica cheia de métodos pequenos que só um método usa, e quem lê <code>MostrarRecibo</code> encontra os ajudantes ali mesmo. Se outro método precisar da <code>Linha</code>, aí ela deve virar um método da classe (<code>static void Linha()</code>, ao lado do <code>Main</code>).</p>
+
+<div class="trycs" data-goal="outre:^----------\nCliente: Bruno\n----------\nTotal: R\$ 15\,50\n----------\n$,src:(?&lt;!static\s+)void\s+Linha\s*\(\s*\)">
+<p class="try-task"><strong>Missão:</strong> o método <code>MostrarResumo</code> repete o mesmo <code>Console.WriteLine</code> três vezes. Crie, <strong>dentro</strong> de <code>MostrarResumo</code>, uma função local <code>void Linha()</code> que escreve a linha de traços, e troque as três repetições por <code>Linha();</code>. A saída tem de continuar a mesma:</p>
+<pre class="out">----------
+Cliente: Bruno
+----------
+Total: R$ 15,50
+----------</pre>
+<pre class="script">class Program
+{
+    static void Main()
+    {
+        MostrarResumo("Bruno", 15.50m);
+    }
+
+    static void MostrarResumo(string cliente, decimal total)
+    {
+        Console.WriteLine("----------");
+        Console.WriteLine($"Cliente: {cliente}");
+        Console.WriteLine("----------");
+        Console.WriteLine($"Total: {total:C}");
+        Console.WriteLine("----------");
+    }
+}
+</pre>
+<pre class="solucao">class Program
+{
+    static void Main()
+    {
+        MostrarResumo("Bruno", 15.50m);
+    }
+
+    static void MostrarResumo(string cliente, decimal total)
+    {
+        Linha();
+        Console.WriteLine($"Cliente: {cliente}");
+        Linha();
+        Console.WriteLine($"Total: {total:C}");
+        Linha();
+
+        void Linha()
+        {
+            Console.WriteLine("----------");
+        }
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>3. A função local enxerga o método</h2>
+<p>Uma função local enxerga as variáveis <strong>e os parâmetros</strong> do método que a contém. No exemplo abaixo, <code>Mostrar</code> usa o parâmetro <code>aluno</code> e a variável <code>minima</code> de <code>MostrarNotas</code> sem recebê-los:</p>
+
+<pre class="file" data-file="flcaptura.cs">class Program
+{
+    static void Main()
+    {
+        MostrarNotas("Ana", 7.5, 9, 6);
+    }
+
+    static void MostrarNotas(string aluno, params double[] notas)
+    {
+        double minima = 7;
+        foreach (double n in notas)
+        {
+            Mostrar(n);
+        }
+
+        void Mostrar(double nota)
+        {
+            string situacao = nota &gt;= minima ? "ok" : "abaixo";
+            Console.WriteLine($"{aluno}: {nota:F1} ({situacao})");
+        }
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run flcaptura.cs
+Ana: 7,5 (ok)
+Ana: 9,0 (ok)
+Ana: 6,0 (abaixo)</pre>
+
+<p>Isso é a <strong>captura</strong>, que você viu em <a href="escopo.html">Escopo</a>. Ela deixa a função local curta (só recebe o que muda a cada chamada, a nota), mas também esconde do que ela depende: para saber de onde vêm <code>aluno</code> e <code>minima</code>, quem lê precisa olhar o método inteiro.</p>
+
+<h3><code>static</code>: só o que chega por parâmetro <span class="versao">C# 8</span></h3>
+<p>Com <code>static</code> antes da função local, a captura é proibida. Tudo o que ela usa tem de chegar pelos parâmetros:</p>
+
+<pre class="file" data-file="flstatic.cs">class Program
+{
+    static void Main()
+    {
+        MostrarNotas("Ana", 7.5, 9, 6);
+    }
+
+    static void MostrarNotas(string aluno, params double[] notas)
+    {
+        double minima = 7;
+        foreach (double n in notas)
+        {
+            Console.WriteLine($"{aluno}: {n:F1} ({Situacao(n, minima)})");
+        }
+
+        static string Situacao(double nota, double minimaParaPassar)
+        {
+            return nota &gt;= minimaParaPassar ? "ok" : "abaixo";
+        }
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run flstatic.cs
+Ana: 7,5 (ok)
+Ana: 9,0 (ok)
+Ana: 6,0 (abaixo)</pre>
+
+<p>A <code>Situacao</code> agora é uma "função pura": olhando só para ela, você sabe tudo o que ela usa. Se ela tentar usar <code>minima</code> direto, o compilador recusa:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run flstaticerr.cs           « static string Situacao(double nota) usando minima
+/home/ana/cs/flstaticerr.cs(6,20): error CS8421: Uma função local estática não pode conter uma referência a 'minima'.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<div class="tip">
+<strong>Regra do guia</strong>
+<p>Comece com <code>static</code> nas funções locais. Tire o <code>static</code> só quando a captura deixar o código claramente mais simples, como no contador de vendas de <a href="escopo.html">Escopo</a>. Assim, cada captura é uma escolha, e não um acidente.</p>
+</div>
+
+<hr>
+
+<h2>4. Onde escrever a função local</h2>
+<p>A função local pode ficar em qualquer ponto do bloco. O costume mais comum é deixá-la no <strong>fim</strong> do método, depois do código principal, e até depois de um <code>return</code>:</p>
+
+<pre class="file" data-file="flvalidar.cs">class Program
+{
+    static void Main()
+    {
+        Console.WriteLine(Media(new double[] { 8, 6, 10 }));
+        Console.WriteLine(Media(new double[] { }));
+    }
+
+    static double Media(double[] notas)
+    {
+        if (notas.Length == 0)
+        {
+            return 0;
+        }
+        return Somar() / notas.Length;
+
+        double Somar()
+        {
+            double total = 0;
+            foreach (double n in notas) total += n;
+            return total;
+        }
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run flvalidar.cs
+8
+0</pre>
+
+<p>Depois de um <code>return</code>, uma linha comum daria o aviso <code>CS0162</code> (código inacessível, de <a href="retorno.html">Valor de Retorno</a>). Uma função local, não: ela não é uma instrução que "roda" naquele ponto, é só uma declaração. Quem lê vê primeiro a lógica do método e, se quiser, desce para os detalhes.</p>
+
+<h3>Função local dentro de função local</h3>
+<p>Uma função local também pode ter as suas. Cada uma só existe dentro de quem a contém:</p>
+
+<pre class="file" data-file="flaninhada2.cs">Relatorio();
+
+void Relatorio()
+{
+    Titulo("Vendas");
+    Titulo("Estoque");
+
+    void Titulo(string texto)
+    {
+        Console.WriteLine($"== {texto.ToUpper()} ==");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run flaninhada2.cs
+== VENDAS ==
+== ESTOQUE ==</pre>
+
+<p>Aqui, <code>Relatorio</code> é uma função local do <code>Main</code> escondido, e <code>Titulo</code> é uma função local de <code>Relatorio</code>. Se a última linha do arquivo chamasse <code>Titulo("Fora")</code>, viria o <code>CS0103</code>: o programa principal não enxerga dentro de <code>Relatorio</code>. Na prática, mais de um nível assim raramente ajuda.</p>
+
+<h3>Função local recursiva</h3>
+<p>Funções locais podem chamar a si mesmas (<a href="recursao.html">Recursão</a>). Um uso clássico: o método da classe recebe os dados e prepara a primeira chamada, e a função local recursiva faz o trabalho. Esta busca procura um número num array <strong>ordenado</strong>, olhando sempre o meio e descartando a metade em que ele não pode estar (a <strong>busca binária</strong>):</p>
+
+<pre class="file" data-file="flrecursiva.cs">class Program
+{
+    static void Main()
+    {
+        int[] numeros = { 4, 8, 15, 16, 23, 42 };
+        Console.WriteLine(Contem(numeros, 23));
+        Console.WriteLine(Contem(numeros, 5));
+    }
+
+    static bool Contem(int[] ordenados, int procurado)
+    {
+        return Buscar(0, ordenados.Length - 1);
+
+        bool Buscar(int inicio, int fim)
+        {
+            if (inicio &gt; fim) return false;
+            int meio = (inicio + fim) / 2;
+            if (ordenados[meio] == procurado) return true;
+            if (ordenados[meio] &lt; procurado) return Buscar(meio + 1, fim);
+            return Buscar(inicio, meio - 1);
+        }
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run flrecursiva.cs
+True
+False</pre>
+
+<p>Quem chama <code>Contem(numeros, 23)</code> não precisa saber nada de <code>inicio</code> e <code>fim</code>: esses detalhes ficam escondidos na função local, que captura <code>ordenados</code> e <code>procurado</code>. O caso base é <code>inicio &gt; fim</code> (não sobrou nada para procurar).</p>
+
+<hr>
+
+<h2>Formas diferentes: função local × lambda × método da classe</h2>
+<p>Existe outro jeito de criar uma "função dentro do método": guardar uma <strong>lambda</strong> numa variável (aulas <a href="lambdas.html">Lambdas</a> e <a href="func-action.html">Func e Action</a>). As duas linhas abaixo fazem coisas parecidas:</p>
+
+<pre class="file" data-file="fllambda.cs">int Dobro(int n) =&gt; n * 2;
+Func&lt;int, int&gt; triplo = n =&gt; n * 3;
+
+Console.WriteLine(Dobro(5));
+Console.WriteLine(triplo(5));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fllambda.cs
+10
+15</pre>
+
+<p>A primeira é uma função local. A segunda é uma <strong>variável</strong> chamada <code>triplo</code>, que guarda uma função. Por ser variável, ela segue as regras das variáveis, e não pode ser usada antes da linha em que nasce:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fllambdaantes.cs         « as duas chamadas no topo, as declarações embaixo
+/home/ana/cs/fllambdaantes.cs(2,19): error CS0841: Não é possível usar a variável local "triplo" antes de declará-la
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O <code>Dobro(5)</code> da linha 1 não deu erro: função local pode ser chamada antes de ser declarada. Só a lambda reclamou.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>Um ajudante que só um método usa</td><td><strong>Função local</strong> (de preferência <code>static</code>)</td></tr>
+<tr><td>Vários métodos da classe precisam dele</td><td>Método da classe (<code>static</code> ao lado do <code>Main</code>)</td></tr>
+<tr><td>Passar a função como argumento para outro método (<code>lista.Where(x =&gt; x &gt; 5)</code>)</td><td>Lambda (<a href="lambdas.html">Lambdas</a>)</td></tr>
+<tr><td>Recursão com parâmetros extras que quem chama não deve ver</td><td>Método da classe + função local recursiva</td></tr>
+<tr><td>Duas versões com o mesmo nome</td><td>Método da classe: funções locais não aceitam <a href="sobrecarga.html">sobrecarga</a> (<code>CS0128</code>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0103: O nome "Linha" não existe no contexto atual</code></strong>
+<p><strong>O que significa:</strong> você chamou uma função local de fora do método em que ela foi declarada.</p>
+<p><strong>Como consertar:</strong> se outros métodos também precisam dela, transforme-a num método da classe (<code>static void Linha()</code>, fora de qualquer método). Se não, chame-a só de dentro.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8421: Uma função local estática não pode conter uma referência a 'minima'.</code></strong>
+<p><strong>O que significa:</strong> a função local é <code>static</code> e tentou usar uma variável (ou um parâmetro) do método de fora.</p>
+<p><strong>Como consertar:</strong> acrescente um parâmetro e passe o valor na chamada. Tire o <code>static</code> só se a captura for mesmo o que você quer.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0106: O modificador "public" não é válido para este item</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run flpublic.cs              « public void Linha() no fim do arquivo
+/home/ana/cs/flpublic.cs(3,1): error CS0106: O modificador "public" não é válido para este item
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> uma função local não pode ter <code>public</code>, <code>private</code> nem <code>internal</code>: ela é sempre visível só dentro do bloco, então essas palavras não fazem sentido. Acontece muito ao copiar um método de uma classe para o fim de um arquivo com instruções de nível superior.</p>
+<p><strong>Como consertar:</strong> apague o modificador. O <code>static</code> pode ficar: ele é o único que uma função local aceita (além de alguns avançados, como o <code>async</code>, que você vai ver bem mais adiante).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0128: Uma variável de local ou função denominada 'Dobro' já está definida neste escopo</code></strong>
+<p><strong>O que significa:</strong> duas funções locais com o mesmo nome no mesmo bloco. Funções locais não podem ser sobrecarregadas.</p>
+<p><strong>Como consertar:</strong> use nomes diferentes ou leve as versões para a classe (<a href="sobrecarga.html">Sobrecarga</a>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0841: Não é possível usar a variável local "triplo" antes de declará-la</code></strong>
+<p><strong>O que significa:</strong> você usou uma lambda guardada numa variável antes da linha que a cria. Funções locais podem ser chamadas antes; variáveis, não.</p>
+<p><strong>Como consertar:</strong> mova a declaração para cima, ou transforme a lambda numa função local (<code>int Triplo(int n) =&gt; n * 3;</code>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS8321: A função local 'Linha' está declarada, mas nunca é usada</code></strong>
+<p><strong>O que significa:</strong> ninguém chama a função. Em geral é um nome digitado errado na chamada, ou um ajudante que sobrou de uma versão antiga.</p>
+<p><strong>Como consertar:</strong> chame-a onde deveria rodar, ou apague-a.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita / regra</th><th>O que faz</th></tr>
+<tr><td><code>void Ajudar() { … }</code> dentro de um método</td><td>Função local: só esse método enxerga e chama</td></tr>
+<tr><td>Métodos no fim de um arquivo com instruções de nível superior</td><td>São funções locais do <code>Main</code> escondido</td></tr>
+<tr><td>Captura</td><td>A função local usa (e muda) variáveis e parâmetros do método de fora</td></tr>
+<tr><td><code>static void Ajudar(…)</code> dentro de um método</td><td>Função local sem captura: só usa o que recebe (<code>CS8421</code> se tentar)</td></tr>
+<tr><td>Posição</td><td>Qualquer lugar do bloco, até depois do <code>return</code>; pode ser chamada antes de declarada</td></tr>
+<tr><td>Não pode</td><td>Ter <code>public</code>/<code>private</code> (<code>CS0106</code>), ser sobrecarregada (<code>CS0128</code>)</td></tr>
+<tr><td>Pode</td><td>Ter parâmetros, retorno, <code>=&gt;</code>, ser recursiva, ter funções locais dentro</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A palavra que proíbe a captura</h3>
+<p>Complete a declaração da função local para que ela não possa usar variáveis do método de fora:</p>
+<div class="ex-code"><input data-answer="static" aria-label="palavra"> int Dobro(int n) =&gt; n * 2;</div>
+</div>
+
+<div class="exercise">
+<h3>2. O código do erro</h3>
+<p>Qual é o código do erro que aparece quando uma função local tem <code>public</code>? (por exemplo, <code>CS1234</code>)</p>
+<div class="ex-code"><input data-answer="CS0106|cs0106" aria-label="código"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Quanto mostra?</h3>
+<p>Dentro de um método: <code>int bonus = 3; Console.WriteLine(Somar(10));</code> e, no fim do método, <code>int Somar(int x) =&gt; x + bonus;</code>. O que aparece?</p>
+<div class="ex-code"><input data-answer="13" aria-label="saída"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. A função local <code>Linha</code> foi declarada dentro de <code>MostrarRecibo</code>. Quem pode chamá-la?</p>
+<label><input type="radio" name="q4"> Qualquer método da classe</label>
+<label><input type="radio" name="q4"> Só o código de dentro de <code>MostrarRecibo</code></label>
+<label><input type="radio" name="q4"> Só o <code>Main</code></label>
+<label><input type="radio" name="q4"> Qualquer classe do programa</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Uma função local declarada depois de um <code>return</code>…</p>
+<label><input type="radio" name="q5"> dá o aviso <code>CS0162</code>, código inacessível</label>
+<label><input type="radio" name="q5"> nunca pode ser chamada</label>
+<label><input type="radio" name="q5"> funciona normalmente: é uma declaração, não uma instrução que roda ali</label>
+<label><input type="radio" name="q5"> dá erro de compilação</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Qual pode ser usada <strong>antes</strong> da linha em que é declarada?</p>
+<label><input type="radio" name="q6"> A função local <code>int Dobro(int n) =&gt; n * 2;</code></label>
+<label><input type="radio" name="q6"> A lambda <code>Func&lt;int, int&gt; dobro = n =&gt; n * 2;</code></label>
+<label><input type="radio" name="q6"> As duas</label>
+<label><input type="radio" name="q6"> Nenhuma</label>
+</div>
+
+<h3>Missão final: a taxa de entrega</h3>
+
+<div class="trycs" data-goal="outre:^R\$ 10\,00 -&gt; R\$ 11\,00\nR\$ 25\,00 -&gt; R\$ 27\,50\nR\$ 40\,00 -&gt; R\$ 44\,00\n$,src:static\s+decimal\s+ComTaxa\s*\(\s*decimal\s+\w+\s*\,\s*decimal\s+\w+\s*\)">
+<p class="try-task"><strong>Missão:</strong> a função local <code>ComTaxa</code> é <code>static</code>, mas usa a variável <code>taxa</code> do método, e o programa não compila (<code>CS8421</code>). <strong>Mantendo o <code>static</code></strong>, acrescente um segundo parâmetro <code>decimal</code> para a taxa e passe-a na chamada. A saída deve ser:</p>
+<pre class="out">R$ 10,00 -&gt; R$ 11,00
+R$ 25,00 -&gt; R$ 27,50
+R$ 40,00 -&gt; R$ 44,00</pre>
+<pre class="script">class Program
+{
+    static void Main()
+    {
+        MostrarPrecos(10m, 25m, 40m);
+    }
+
+    static void MostrarPrecos(params decimal[] precos)
+    {
+        decimal taxa = 0.10m;
+        foreach (decimal p in precos)
+        {
+            Console.WriteLine($"{p:C} -&gt; {ComTaxa(p):C}");
+        }
+
+        static decimal ComTaxa(decimal preco)
+        {
+            return preco + preco * taxa;
+        }
+    }
+}
+</pre>
+<pre class="solucao">class Program
+{
+    static void Main()
+    {
+        MostrarPrecos(10m, 25m, 40m);
+    }
+
+    static void MostrarPrecos(params decimal[] precos)
+    {
+        decimal taxa = 0.10m;
+        foreach (decimal p in precos)
+        {
+            Console.WriteLine($"{p:C} -&gt; {ComTaxa(p, taxa):C}");
+        }
+
+        static decimal ComTaxa(decimal preco, decimal taxa)
+        {
+            return preco + preco * taxa;
+        }
+    }
+}
+</pre>
+</div>
+
+<p>Repare que o parâmetro da função local também pode se chamar <code>taxa</code>: dentro dela, o nome é o do parâmetro, e não há captura nenhuma.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma <strong>função local</strong> é um método declarado dentro de outro. Só o método que a contém pode chamá-la (<code>CS0103</code> fora dele).</li>
+  <li>Os métodos do fim de um arquivo com instruções de nível superior já são funções locais do <code>Main</code> escondido.</li>
+  <li>A função local enxerga e muda as variáveis e os parâmetros do método de fora (captura). Com <code>static</code>, isso é proibido (<code>CS8421</code>), e ela só usa o que recebe.</li>
+  <li>Pode ficar em qualquer ponto do bloco, até depois do <code>return</code>, e ser chamada antes de declarada. Pode ser recursiva e ter funções locais dentro.</li>
+  <li>Não aceita <code>public</code>/<code>private</code> (<code>CS0106</code>) nem sobrecarga (<code>CS0128</code>). Diferente de uma lambda guardada em variável, pode ser usada antes da declaração.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
