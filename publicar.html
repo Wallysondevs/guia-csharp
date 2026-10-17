@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Publicar o Programa — dotnet publish, self-contained e AOT | Guia C#</title>
+<meta name="description" content="Publicar um programa C# para quem está começando: dotnet publish (Release), a pasta publish e os tamanhos reais, dependente do .NET × self-contained com -r linux-x64, arquivo único (PublishSingleFile), aparado (PublishTrimmed), código nativo (PublishAot), publicar para Windows (win-x64), publicar um arquivo solto e os erros NETSDK1083 e falta do runtime, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Publicar o Programa</span></h1>
+
+<p class="intro">O relatório da turma está pronto, testado e funcionando no computador da Ana. Agora a coordenadora da escola quer usá-lo no computador dela, que não tem o SDK do .NET, não tem o código e não sabe o que é <code>dotnet run</code>. <strong>Publicar</strong> é preparar o programa para isso: compilar a versão final e juntar numa pasta tudo o que ele precisa para rodar em outra máquina. Nesta aula você vai publicar o mesmo programa de cinco jeitos e comparar os tamanhos reais, de 136 KB a 80 MB.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A usar <code>dotnet publish</code> e a ler o que vai na pasta <code>publish</code>.</li>
+  <li>A diferença entre um programa <strong>dependente do .NET</strong> e um <strong>autocontido</strong> (<code>--self-contained</code>), e o que é o <code>-r linux-x64</code>.</li>
+  <li>Um executável só (<code>PublishSingleFile</code>), menor (<code>PublishTrimmed</code>) ou em código nativo (<code>PublishAot</code>).</li>
+  <li>A publicar para o Windows (<code>-r win-x64</code>) a partir do Linux.</li>
+  <li>A publicar um arquivo solto (<code>dotnet publish arquivo.cs</code>) <span class="versao">.NET 10</span>.</li>
+  <li>Os erros <code>NETSDK1083</code> e "You must install or update .NET".</li>
+</ul>
+</div>
+
+<p>Todas as saídas e todos os tamanhos desta aula são reais, feitos com o <strong>.NET 10 SDK</strong> (<code>10.0.112</code>) na máquina fictícia da Ana, no programa <code>Escola.Relatorio</code> da aula <a href="bibliotecas-classe.html">Bibliotecas de Classes</a> (ele usa a biblioteca <code>Escola.Notas</code>). Os tamanhos mudam um pouco de versão para versão do .NET. Algumas formas baixam pacotes do NuGet na primeira vez e precisam de internet.</p>
+
+<hr>
+
+<h2>A ideia: a marmita e o restaurante</h2>
+<p>A Ana quer levar o almoço para a coordenadora. Ela tem duas opções:</p>
+<ul>
+  <li><strong>Só a comida, numa marmita pequena.</strong> Leve e prática, mas a coordenadora precisa ter prato, talheres e micro-ondas em casa.</li>
+  <li><strong>A comida com prato, talheres e um micro-ondas portátil.</strong> Funciona em qualquer lugar, mas a sacola fica enorme.</li>
+</ul>
+
+<p>Publicar um programa é escolher entre essas duas sacolas. A "comida" é o seu código compilado (alguns KB). O "micro-ondas" é o <strong>runtime do .NET</strong>, o motor que roda programas .NET (dezenas de MB, veja <a href="dotnet.html">.NET: SDK, Runtime e CLR</a>).</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>O que vai junto</th><th>A outra máquina precisa de</th></tr>
+<tr><td><strong>Dependente do .NET</strong> (o padrão)</td><td>Só o seu código</td><td>O runtime do .NET 10 instalado</td></tr>
+<tr><td><strong>Autocontido</strong> (<em>self-contained</em>)</td><td>O seu código + o runtime inteiro</td><td>Nada: só o sistema certo (Linux x64, Windows x64…)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. <code>dotnet publish</code></h2>
+<pre class="term" data-cwd="~/projetos/Escola/src/Escola.Relatorio">$ dotnet publish
+  Determinando os projetos a serem restaurados...
+  Todos os projetos estão atualizados para restauração.
+  Escola.Notas -&gt; /home/ana/projetos/Escola/src/Escola.Notas/bin/Release/net10.0/Escola.Notas.dll
+  Escola.Relatorio -&gt; /home/ana/projetos/Escola/src/Escola.Relatorio/bin/Release/net10.0/Escola.Relatorio.dll
+  Escola.Relatorio -&gt; /home/ana/projetos/Escola/src/Escola.Relatorio/bin/Release/net10.0/publish/</pre>
+
+<dl class="anatomy">
+  <dt>dotnet publish</dt><dd>"Publique": compila e junta o programa numa pasta pronta para levar. Desde o .NET 8, o <code>publish</code> usa a configuração <strong>Release</strong> por padrão (repare no <code>bin/Release</code>): otimizada, sem <code>Debug.WriteLine</code> (veja <a href="depuracao.html">Depuração</a>).</dd>
+  <dt>Escola.Notas -&gt; …</dt><dd>A biblioteca que o programa usa foi compilada também, em Release.</dd>
+  <dt>… -&gt; …/bin/Release/net10.0/publish/</dt><dd>A pasta final. É ela que você copia para a outra máquina.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/projetos/Escola/src/Escola.Relatorio">$ ls -l bin/Release/net10.0/publish/
+total 132
+-rw-rw-r-- 1 ana ana  5120 out 17 13:27 Escola.Notas.dll
+-rw-rw-r-- 1 ana ana 11140 out 17 13:27 Escola.Notas.pdb
+-rw-rw-r-- 1 ana ana  1257 out 17 13:27 Escola.Notas.xml
+-rwxr-xr-x 1 ana ana 78904 out 17 13:27 Escola.Relatorio
+-rw-rw-r-- 1 ana ana   791 out 17 13:27 Escola.Relatorio.deps.json
+-rw-rw-r-- 1 ana ana  6144 out 17 13:27 Escola.Relatorio.dll
+-rw-rw-r-- 1 ana ana 11080 out 17 13:27 Escola.Relatorio.pdb
+-rw-rw-r-- 1 ana ana   330 out 17 13:27 Escola.Relatorio.runtimeconfig.json
+$ du -sh bin/Release/net10.0/publish/
+136K	bin/Release/net10.0/publish/
+$ ./bin/Release/net10.0/publish/Escola.Relatorio
+Ana     7,9 Aprovado
+Beto    6,3 Recuperação</pre>
+
+<dl class="anatomy">
+  <dt>Escola.Relatorio.dll (6 KB) e Escola.Notas.dll (5 KB)</dt><dd>O código da Ana, compilado. É só isso: 11 KB.</dd>
+  <dt>Escola.Relatorio (77 KB, com <code>x</code> de executável)</dt><dd>O <strong>lançador</strong> (em inglês, <em>apphost</em>): um executável pequeno do Linux que procura o runtime do .NET instalado e manda ele rodar o <code>.dll</code>. É o que a coordenadora roda com <code>./Escola.Relatorio</code>. Sem ele, daria para rodar com <code>dotnet Escola.Relatorio.dll</code>.</dd>
+  <dt>.runtimeconfig.json</dt><dd>Diz qual runtime o programa quer (veja logo abaixo).</dd>
+  <dt>.deps.json</dt><dd>A lista das dependências (aqui, a <code>Escola.Notas</code>).</dd>
+  <dt>.pdb e .xml</dt><dd>As informações de depuração (para o <em>stack trace</em> mostrar as linhas) e a documentação da biblioteca. O programa roda sem eles; os <code>.pdb</code> valem a pena manter, porque deixam os erros mais fáceis de entender.</dd>
+  <dt>136K</dt><dd>A pasta inteira tem 136 KB: cabe em qualquer lugar.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/projetos/Escola/src/Escola.Relatorio">$ cat bin/Release/net10.0/publish/Escola.Relatorio.runtimeconfig.json
+{
+  "runtimeOptions": {
+    "tfm": "net10.0",
+    "framework": {
+      "name": "Microsoft.NETCore.App",
+      "version": "10.0.0"
+    },
+    "configProperties": {
+      "System.Reflection.Metadata.MetadataUpdater.IsSupported": false,
+      "System.Runtime.Serialization.EnableUnsafeBinaryFormatterSerialization": false
+    }
+  }
+}</pre>
+
+<p>"Preciso do <code>Microsoft.NETCore.App</code> (o runtime de console), versão <code>10.0.0</code> ou mais nova do .NET 10." Essa é a "marmita pequena": o computador da coordenadora precisa ter o runtime do .NET 10 instalado (no Ubuntu, <code>sudo apt install dotnet-runtime-10.0</code>; veja <a href="instalar-linux.html">Instalar no Linux</a>). Para levar, a Ana empacota a pasta:</p>
+
+<pre class="term" data-cwd="~/projetos/Escola/src/Escola.Relatorio">$ cd bin/Release/net10.0 &amp;&amp; tar -czf ~/relatorio.tar.gz publish &amp;&amp; cd - &gt; /dev/null
+$ ls -l ~/relatorio.tar.gz
+-rw-rw-r-- 1 ana ana 44192 out 17 13:28 /home/ana/relatorio.tar.gz</pre>
+
+<p>43 KB compactados. A coordenadora descompacta com <code>tar -xzf relatorio.tar.gz</code> e roda <code>./publish/Escola.Relatorio</code>.</p>
+
+<hr>
+
+<h2>2. Autocontido: <code>-r linux-x64 --self-contained</code></h2>
+<p>E se a coordenadora não tiver (nem puder instalar) o .NET? Aí o runtime vai junto:</p>
+
+<pre class="term" data-cwd="~/projetos/Escola/src/Escola.Relatorio">$ dotnet publish -r linux-x64 --self-contained
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Escola/src/Escola.Relatorio/Escola.Relatorio.csproj restaurado (em 3,4 seg).
+  /home/ana/projetos/Escola/src/Escola.Notas/Escola.Notas.csproj restaurado (em 3,38 seg).
+  Escola.Notas -&gt; /home/ana/projetos/Escola/src/Escola.Notas/bin/Release/net10.0/Escola.Notas.dll
+  Escola.Relatorio -&gt; /home/ana/projetos/Escola/src/Escola.Relatorio/bin/Release/net10.0/linux-x64/Escola.Relatorio.dll
+  Escola.Relatorio -&gt; /home/ana/projetos/Escola/src/Escola.Relatorio/bin/Release/net10.0/linux-x64/publish/
+$ ls bin/Release/net10.0/linux-x64/publish/ | wc -l
+195
+$ ls bin/Release/net10.0/linux-x64/publish/ | grep -c '^System\.'
+164
+$ ls -l bin/Release/net10.0/linux-x64/publish/libcoreclr.so bin/Release/net10.0/linux-x64/publish/System.Private.CoreLib.dll
+-rwxrw-r-- 1 ana ana  7110952 ago 22 11:26 bin/Release/net10.0/linux-x64/publish/libcoreclr.so
+-rwxrw-r-- 1 ana ana 15576872 ago 22 11:31 bin/Release/net10.0/linux-x64/publish/System.Private.CoreLib.dll
+$ du -sh bin/Release/net10.0/linux-x64/publish/
+80M	bin/Release/net10.0/linux-x64/publish/
+$ ./bin/Release/net10.0/linux-x64/publish/Escola.Relatorio
+Ana     7,9 Aprovado
+Beto    6,3 Recuperação</pre>
+
+<dl class="anatomy">
+  <dt>-r linux-x64</dt><dd>O <strong>RID</strong> (<em>Runtime Identifier</em>, "identificador do ambiente"): para que sistema e processador publicar. <code>linux-x64</code> = Linux em processador Intel/AMD de 64 bits. Um programa autocontido leva um runtime feito para um sistema só, por isso o RID é obrigatório.</dd>
+  <dt>--self-contained</dt><dd>"Autocontido": leva o runtime junto.</dd>
+  <dt>restaurado (em 3,4 seg)</dt><dd>Na primeira vez, o NuGet baixou o runtime para <code>linux-x64</code> (o pacote <code>Microsoft.NETCore.App.Runtime.linux-x64</code>, veja <a href="nuget.html">Pacotes NuGet</a>).</dd>
+  <dt>195 arquivos, 164 deles <code>System.*</code></dt><dd>A biblioteca inteira do .NET: <code>System.Collections.dll</code>, <code>System.Linq.dll</code>, <code>System.Text.Json.dll</code>… Mesmo as que o programa nunca usa.</dd>
+  <dt>libcoreclr.so (6,8 MB)</dt><dd>O motor que roda o código (o CLR). A data de agosto é a da compilação do runtime pela Microsoft, não a da Ana.</dd>
+  <dt>System.Private.CoreLib.dll (15 MB)</dt><dd>O coração da biblioteca do .NET: <code>string</code>, <code>int</code>, <code>List</code>, <code>Console</code>.</dd>
+  <dt>80M</dt><dd>De 136 KB para 80 MB: o preço de não depender de nada instalado.</dd>
+</dl>
+
+<h3>Os RIDs mais comuns</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>RID</th><th>Sistema</th></tr>
+<tr><td><code>linux-x64</code></td><td>Linux, Intel/AMD 64 bits (a maioria dos PCs e servidores)</td></tr>
+<tr><td><code>linux-arm64</code></td><td>Linux em ARM 64 bits (Raspberry Pi 4 e 5, alguns servidores)</td></tr>
+<tr><td><code>linux-musl-x64</code></td><td>Linux com a biblioteca musl (Alpine, comum em contêineres)</td></tr>
+<tr><td><code>win-x64</code></td><td>Windows, Intel/AMD 64 bits</td></tr>
+<tr><td><code>osx-arm64</code></td><td>macOS em Mac com chip Apple (M1, M2…)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>3. Menos arquivos e menos megabytes</h2>
+<h3>Um arquivo só: <code>PublishSingleFile</code></h3>
+<p>195 arquivos são incômodos de copiar. A propriedade <code>PublishSingleFile</code> junta tudo num executável. As propriedades do <code>.csproj</code> podem ir na linha de comando com <code>-p:Nome=valor</code> (veja <a href="csproj.html">O Arquivo .csproj</a>), e o <code>-o</code> escolhe a pasta de saída:</p>
+
+<pre class="term" data-cwd="~/projetos/Escola/src/Escola.Relatorio">$ dotnet publish -r linux-x64 --self-contained -p:PublishSingleFile=true -o saida/arquivo-unico
+«…»
+  Escola.Relatorio -&gt; /home/ana/projetos/Escola/src/Escola.Relatorio/saida/arquivo-unico/
+$ ls -l saida/arquivo-unico
+total 71904
+-rw-rw-r-- 1 ana ana    11140 out 17 13:27 Escola.Notas.pdb
+-rw-rw-r-- 1 ana ana     1257 out 17 13:27 Escola.Notas.xml
+-rwxr-xr-x 1 ana ana 73599992 out 17 13:27 Escola.Relatorio
+-rw-rw-r-- 1 ana ana    11092 out 17 13:27 Escola.Relatorio.pdb
+$ ./saida/arquivo-unico/Escola.Relatorio
+Ana     7,9 Aprovado
+Beto    6,3 Recuperação</pre>
+
+<p>Um executável de 70 MB (contra os 80 MB da pasta), mais os <code>.pdb</code> e o <code>.xml</code>, que são opcionais.</p>
+
+<h3>Tirar o que não é usado: <code>PublishTrimmed</code></h3>
+<p>O programa da Ana usa uma fração minúscula das 164 bibliotecas <code>System.*</code>. O <code>PublishTrimmed</code> ("publicar aparado") analisa o programa e corta o que ele nunca chama:</p>
+
+<pre class="term" data-cwd="~/projetos/Escola/src/Escola.Relatorio">$ dotnet publish -r linux-x64 --self-contained -p:PublishSingleFile=true -p:PublishTrimmed=true -o saida/aparado
+  Determinando os projetos a serem restaurados...
+  Todos os projetos estão atualizados para restauração.
+  Escola.Notas -&gt; /home/ana/projetos/Escola/src/Escola.Notas/bin/Release/net10.0/Escola.Notas.dll
+  Escola.Relatorio -&gt; /home/ana/projetos/Escola/src/Escola.Relatorio/bin/Release/net10.0/linux-x64/Escola.Relatorio.dll
+  Otimizando montagens para tamanho. Esse processo pode demorar um pouco.
+  Escola.Relatorio -&gt; /home/ana/projetos/Escola/src/Escola.Relatorio/saida/aparado/
+$ ls -l saida/aparado
+total 14640
+-rw-rw-r-- 1 ana ana    11128 out 17 13:28 Escola.Notas.pdb
+-rw-rw-r-- 1 ana ana     1257 out 17 13:27 Escola.Notas.xml
+-rwxr-xr-x 1 ana ana 14960014 out 17 13:28 Escola.Relatorio
+-rw-rw-r-- 1 ana ana    11108 out 17 13:28 Escola.Relatorio.pdb
+$ ./saida/aparado/Escola.Relatorio
+Ana     7,9 Aprovado
+Beto    6,3 Recuperação</pre>
+
+<p>"Otimizando montagens (<em>assemblies</em>) para tamanho": de 70 MB para <strong>14 MB</strong>, ainda autocontido. O cuidado: o corte é feito por análise do código, e um programa que usa <a href="reflexao.html">Reflexão</a> (procurar classes e métodos pelo nome, em tempo de execução) pode precisar de algo que foi cortado. O compilador avisa nesses casos com avisos <code>IL2026</code> e parecidos. Programas pequenos como o da Ana não têm esse problema; sempre <strong>teste o executável aparado</strong> antes de entregar.</p>
+
+<h3>Código nativo: <code>PublishAot</code></h3>
+<p>Nas formas anteriores, o executável ainda leva o runtime, que traduz o código do .NET para a linguagem do processador <strong>enquanto</strong> o programa roda (é o "JIT", veja <a href="dotnet.html">.NET</a>). Com <code>PublishAot</code> (de <em>Ahead-Of-Time</em>, "antes da hora"), essa tradução é feita <strong>na publicação</strong>, e o resultado é um executável nativo do Linux, como um programa em C:</p>
+
+<pre class="term" data-cwd="~/projetos/Escola/src/Escola.Relatorio">$ dotnet publish -r linux-x64 -p:PublishAot=true -o saida/nativo
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Escola/src/Escola.Notas/Escola.Notas.csproj restaurado (em 2,62 seg).
+  /home/ana/projetos/Escola/src/Escola.Relatorio/Escola.Relatorio.csproj restaurado (em 2,62 seg).
+  Escola.Notas -&gt; /home/ana/projetos/Escola/src/Escola.Notas/bin/Release/net10.0/Escola.Notas.dll
+  Escola.Relatorio -&gt; /home/ana/projetos/Escola/src/Escola.Relatorio/bin/Release/net10.0/linux-x64/Escola.Relatorio.dll
+  Generating native code
+  Escola.Relatorio -&gt; /home/ana/projetos/Escola/src/Escola.Relatorio/saida/nativo/
+$ ls -l saida/nativo
+total 4468
+-rw-rw-r-- 1 ana ana   11140 out 17 13:28 Escola.Notas.pdb
+-rw-rw-r-- 1 ana ana    1257 out 17 13:28 Escola.Notas.xml
+-rwxrwxr-x 1 ana ana 1399496 out 17 13:28 Escola.Relatorio
+-rwxrwxr-x 1 ana ana 3154512 out 17 13:28 Escola.Relatorio.dbg
+$ ./saida/nativo/Escola.Relatorio
+Ana     7,9 Aprovado
+Beto    6,3 Recuperação</pre>
+
+<dl class="anatomy">
+  <dt>Generating native code</dt><dd>"Gerando código nativo": o compilador AOT (o <em>ILCompiler</em>, baixado do NuGet na primeira vez) traduziu tudo para instruções do processador. No Linux, ele usa o <code>clang</code> para montar o executável: instale com <code>sudo apt install clang</code> se não tiver.</dd>
+  <dt>Escola.Relatorio (1,3 MB)</dt><dd>Um executável nativo, autocontido, sem nenhum <code>.dll</code> ao lado. O <code>--self-contained</code> nem precisou ser escrito: com AOT, é sempre assim.</dd>
+  <dt>Escola.Relatorio.dbg</dt><dd>As informações de depuração do código nativo, num arquivo separado. Não vai para a outra máquina.</dd>
+</dl>
+
+<p>Além de pequeno, o executável nativo começa a rodar muito mais rápido, porque não tem runtime para iniciar nem código para traduzir:</p>
+
+<pre class="term" data-cwd="~/projetos/Escola/src/Escola.Relatorio">$ time ./bin/Release/net10.0/publish/Escola.Relatorio &gt; /dev/null
+
+real	0m0,052s
+user	0m0,040s
+sys	0m0,012s
+$ time ./saida/nativo/Escola.Relatorio &gt; /dev/null
+
+real	0m0,005s
+user	0m0,000s
+sys	0m0,005s</pre>
+
+<p>52 milissegundos contra 5 (o <code>time</code> mede quanto o comando levou; o <code>real</code> é o tempo de relógio). Para um programa que roda e termina, como um comando de terminal, faz diferença. As restrições do AOT são as do <code>PublishTrimmed</code> e mais algumas: a reflexão é limitada, e nada de carregar código novo em tempo de execução.</p>
+
+<hr>
+
+<h2>4. Publicar para o Windows, a partir do Linux</h2>
+<p>A secretaria da escola usa Windows. Não precisa de um Windows para publicar: basta trocar o RID.</p>
+
+<pre class="term" data-cwd="~/projetos/Escola/src/Escola.Relatorio">$ dotnet publish -r win-x64 --self-contained -o saida/windows 2&gt;&amp;1 | tail -1
+  Escola.Relatorio -&gt; /home/ana/projetos/Escola/src/Escola.Relatorio/saida/windows/
+$ ls saida/windows | grep -i escola
+Escola.Notas.dll
+Escola.Notas.pdb
+Escola.Notas.xml
+Escola.Relatorio.deps.json
+Escola.Relatorio.dll
+Escola.Relatorio.exe
+Escola.Relatorio.pdb
+Escola.Relatorio.runtimeconfig.json</pre>
+
+<p>Lá está o <code>Escola.Relatorio.exe</code>, o lançador do Windows, junto com o runtime do Windows. A Ana não consegue rodá-lo no Linux, mas pode copiar a pasta para o computador da secretaria. (O <code>PublishAot</code> é a exceção: o código nativo só pode ser gerado no próprio sistema de destino.)</p>
+
+<hr>
+
+<h2>5. Publicar um arquivo solto <span class="versao">.NET 10</span></h2>
+<p>Um arquivo rodado com <code>dotnet run arquivo.cs</code> também pode ser publicado. A Ana usou um programinha que diz em que configuração foi compilado:</p>
+
+<pre class="file" data-file="modo.cs">#if DEBUG
+Console.WriteLine("Modo: Debug");
+#else
+Console.WriteLine("Modo: Release");
+#endif
+</pre>
+
+<pre class="term" data-cwd="~/cs/publicar">$ dotnet run modo.cs
+Modo: Debug
+$ dotnet publish modo.cs
+  Determinando os projetos a serem restaurados...
+  /home/ana/cs/publicar/modo.csproj restaurado (em 369 ms).
+  modo -&gt; /home/ana/.local/share/dotnet/runfile/modo-46178f36cfe0fabfe574a798d3444c07f827d06d6620a62dba15a6082a464f2e/bin/release/modo.dll
+  Generating native code
+  modo -&gt; /home/ana/cs/publicar/artifacts/modo/
+$ ls -l artifacts/modo
+total 4032
+-rwxrwxr-x 1 ana ana 1270776 out 17 13:29 modo
+-rwxrwxr-x 1 ana ana 2854720 out 17 13:29 modo.dbg
+$ ./artifacts/modo/modo
+Modo: Release</pre>
+
+<dl class="anatomy">
+  <dt>~/.local/share/dotnet/runfile/modo-…</dt><dd>O projeto "escondido" que o <code>dotnet</code> cria para um arquivo solto (veja <a href="csproj.html">O Arquivo .csproj</a>). O código compilado fica lá.</dd>
+  <dt>Generating native code</dt><dd>Para arquivos soltos, o padrão é <strong>AOT</strong> (é o <code>&lt;PublishAot&gt;true&lt;/PublishAot&gt;</code> que o <code>dotnet project convert</code> mostrou).</dd>
+  <dt>artifacts/modo/modo</dt><dd>O executável nativo, de 1,2 MB, numa pasta <code>artifacts</code> ("artefatos", os produtos da compilação) ao lado do <code>.cs</code>.</dd>
+  <dt>Modo: Release</dt><dd>O <code>dotnet run</code> compila em Debug; o <code>dotnet publish</code>, em Release. Por isso a mesma linha mostra coisas diferentes.</dd>
+</dl>
+
+<p>No editor do guia, o programa é compilado como no <code>dotnet run</code>: em Debug. Experimente:</p>
+
+<div class="trycs" data-goal="out:Modo: Debug,src:#else">
+<p class="try-task"><strong>Missão:</strong> o programa abaixo sempre diz <code>Modo: ?</code>. Troque a linha por um bloco <code>#if DEBUG</code> … <code>#else</code> … <code>#endif</code> que mostre <code>Modo: Debug</code> numa configuração e <code>Modo: Release</code> na outra, como o <code>modo.cs</code>. Aqui, a saída deve ser <code>Modo: Debug</code>; publicado, o mesmo código diria <code>Modo: Release</code>.</p>
+<pre class="script">Console.WriteLine("Modo: ?");
+</pre>
+<pre class="solucao">#if DEBUG
+Console.WriteLine("Modo: Debug");
+#else
+Console.WriteLine("Modo: Release");
+#endif
+</pre>
+</div>
+
+<hr>
+
+<h2>Qual forma usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>Tamanho (o relatório da Ana)</th><th>Quando usar</th></tr>
+<tr><td><code>dotnet publish</code></td><td>136 KB, 8 arquivos</td><td>A outra máquina tem (ou pode instalar) o .NET 10: servidores, colegas programadores. A atualização do runtime fica com o sistema.</td></tr>
+<tr><td><code>… -r linux-x64 --self-contained</code></td><td>80 MB, 195 arquivos</td><td>Máquina sem .NET, sem querer complicar.</td></tr>
+<tr><td><code>… -p:PublishSingleFile=true</code></td><td>70 MB, 1 executável</td><td>O mesmo, mais fácil de copiar.</td></tr>
+<tr><td><code>… -p:PublishTrimmed=true</code></td><td>14 MB, 1 executável</td><td>Menor, depois de testar bem.</td></tr>
+<tr><td><code>… -p:PublishAot=true</code></td><td>1,3 MB, 1 executável nativo</td><td>Ferramentas de terminal, que precisam começar rápido; programas sem reflexão.</td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>Deixe a escolha no <code>.csproj</code>.</strong> Em vez de lembrar as opções toda vez, ponha-as no <code>PropertyGroup</code>: <code>&lt;RuntimeIdentifier&gt;linux-x64&lt;/RuntimeIdentifier&gt;</code>, <code>&lt;SelfContained&gt;true&lt;/SelfContained&gt;</code>, <code>&lt;PublishSingleFile&gt;true&lt;/PublishSingleFile&gt;</code>. Aí basta <code>dotnet publish</code>.
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error NETSDK1083: O RuntimeIdentifier 'linux-64' especificado não é reconhecido.</code></strong>
+<pre class="term" data-cwd="~/projetos/Escola/src/Escola.Relatorio">$ dotnet publish -r linux-64
+  Determinando os projetos a serem restaurados...
+/usr/lib/dotnet/sdk/10.0.112/Sdks/Microsoft.NET.Sdk/targets/Microsoft.NET.Sdk.FrameworkReferenceResolution.targets(190,5): error NETSDK1083: O RuntimeIdentifier 'linux-64' especificado não é reconhecido. Consulte https://aka.ms/netsdk1083 para obter mais informações. [/home/ana/projetos/Escola/src/Escola.Relatorio/Escola.Relatorio.csproj]
+«… a mesma linha, mais 3 vezes …»</pre>
+<p><strong>O que aconteceu:</strong> o RID foi digitado errado: faltou o <code>x</code> de <code>x64</code>. A mensagem se repete porque cada etapa da restauração tropeça no mesmo erro.</p>
+<p><strong>Como resolver:</strong> use um RID da tabela da seção 2: <code>-r linux-x64</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>You must install or update .NET to run this application.</code></strong>
+<p><strong>O que aconteceu:</strong> o programa foi publicado <strong>dependente do .NET</strong> (o <code>dotnet publish</code> simples) e levado para uma máquina sem o runtime do .NET 10. O lançador procurou o runtime, não achou, e mostrou a mensagem que você já viu na aula <a href="csproj.html">O Arquivo .csproj</a> (lá, o programa pedia o .NET 8): "você precisa instalar ou atualizar o .NET", com o runtime que faltou (<code>Microsoft.NETCore.App</code>, versão…) e os que ele encontrou.</p>
+<p><strong>Como resolver:</strong> instale o runtime na outra máquina (<code>sudo apt install dotnet-runtime-10.0</code>) ou publique autocontido (<code>-r linux-x64 --self-contained</code>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>bash: ./Escola.Relatorio: Permissão negada</code></strong>
+<p><strong>O que aconteceu:</strong> o arquivo perdeu a permissão de execução no caminho. Acontece ao copiar por um pendrive formatado para Windows, ou ao baixar de um site ou e-mail, que não guardam essa permissão (veja <a href="instalar-linux.html">Instalar no Linux</a>).</p>
+<p><strong>Como resolver:</strong> <code>chmod +x Escola.Relatorio</code>. Para não perder a permissão, mande a pasta dentro de um <code>.tar.gz</code>, como a Ana fez na seção 1: o <code>tar</code> guarda as permissões.</p>
+</div>
+
+<div class="cenario">
+<strong>O executável aparado (ou AOT) falha, e o normal funciona</strong>
+<p><strong>O que aconteceu:</strong> o <code>PublishTrimmed</code> ou o <code>PublishAot</code> cortaram algo que o programa usa por <a href="reflexao.html">reflexão</a>. Durante a publicação, o SDK costuma avisar com <code>warning IL2026</code>, <code>IL3050</code> ou parecidos.</p>
+<p><strong>Como resolver:</strong> leia os avisos <code>IL…</code> da publicação. Muitas bibliotecas oferecem um jeito sem reflexão (o <code>System.Text.Json</code>, por exemplo, tem os "geradores de código", veja <a href="json.html">JSON</a>). Se não houver, publique sem aparar.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando ou opção</th><th>O que faz</th></tr>
+<tr><td><code>dotnet publish</code></td><td>Publica em Release, dependente do .NET, em <code>bin/Release/net10.0/publish/</code>.</td></tr>
+<tr><td><code>-r linux-x64</code></td><td>Escolhe o sistema de destino (RID).</td></tr>
+<tr><td><code>--self-contained</code></td><td>Leva o runtime junto.</td></tr>
+<tr><td><code>-o pasta</code></td><td>Escolhe a pasta de saída.</td></tr>
+<tr><td><code>-p:PublishSingleFile=true</code></td><td>Um executável só.</td></tr>
+<tr><td><code>-p:PublishTrimmed=true</code></td><td>Corta o que não é usado (autocontido).</td></tr>
+<tr><td><code>-p:PublishAot=true</code></td><td>Executável nativo (precisa do <code>clang</code>).</td></tr>
+<tr><td><code>dotnet publish arquivo.cs</code></td><td>Publica um arquivo solto (AOT, em <code>artifacts/</code>).</td></tr>
+<tr><td><code>dotnet Programa.dll</code></td><td>Roda um programa dependente do .NET sem o lançador.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Publicar</h3>
+<p>Complete o comando que prepara o programa para entregar:</p>
+<div class="ex-code">dotnet <input data-answer="publish" aria-label="comando"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Para o Raspberry Pi</h3>
+<p>A Ana quer publicar autocontido para um Raspberry Pi 5 com Linux de 64 bits. Complete o RID:</p>
+<div class="ex-code">dotnet publish -r <input data-answer="linux-arm64" aria-label="RID"> --self-contained</div>
+</div>
+
+<div class="exercise">
+<h3>3. Um arquivo só</h3>
+<p>Complete a propriedade que junta tudo num executável:</p>
+<div class="ex-code">dotnet publish -r linux-x64 --self-contained -p:<input data-answer="PublishSingleFile" aria-label="propriedade">=true</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. A Ana publicou com <code>dotnet publish</code> (sem opções) e copiou a pasta para um computador sem .NET. O que acontece?</p>
+<label><input type="radio" name="q4"> Roda normalmente.</label>
+<label><input type="radio" name="q4"> Não roda: o lançador pede para instalar o .NET.</label>
+<label><input type="radio" name="q4"> Roda, mas mais devagar.</label>
+<label><input type="radio" name="q4"> Roda em modo Debug.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Qual forma deu o menor executável, sem precisar de .NET instalado?</p>
+<label><input type="radio" name="q5"> <code>--self-contained</code> sozinho (80 MB).</label>
+<label><input type="radio" name="q5"> <code>PublishSingleFile</code> (70 MB).</label>
+<label><input type="radio" name="q5"> <code>PublishAot</code> (1,3 MB).</label>
+<label><input type="radio" name="q5"> <code>dotnet publish</code> simples (136 KB).</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Em que configuração o <code>dotnet publish</code> compila, sem <code>-c</code>?</p>
+<label><input type="radio" name="q6"> Release.</label>
+<label><input type="radio" name="q6"> Debug.</label>
+<label><input type="radio" name="q6"> A mesma do último <code>dotnet build</code>.</label>
+<label><input type="radio" name="q6"> Nenhuma: ele só copia arquivos.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>dotnet publish</code> compila em Release e junta numa pasta tudo o que o programa precisa para rodar em outra máquina.</li>
+  <li>O padrão é <strong>dependente do .NET</strong>: pequeno (136 KB), mas a outra máquina precisa do runtime do .NET 10.</li>
+  <li><strong>Autocontido</strong> (<code>-r linux-x64 --self-contained</code>) leva o runtime: 80 MB, roda em qualquer Linux x64.</li>
+  <li><code>PublishSingleFile</code> junta num executável; <code>PublishTrimmed</code> corta o que não é usado; <code>PublishAot</code> gera código nativo (1,3 MB e começa em milissegundos).</li>
+  <li>O RID escolhe o sistema: <code>linux-x64</code>, <code>linux-arm64</code>, <code>win-x64</code>, <code>osx-arm64</code>. Dá para publicar para Windows a partir do Linux (menos com AOT).</li>
+  <li>Teste sempre o executável publicado, do jeito que ele vai ser entregue.</li>
+</ul>
+
+<div class="pager"></div>
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
