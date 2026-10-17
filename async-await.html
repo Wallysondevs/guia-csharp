@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# async e await — programação assíncrona com Task | Guia C#</title>
+<meta name="description" content="async e await em C# para quem nunca programou: por que esperar sem travar, o café da manhã síncrono (3 s) e assíncrono (2 s), métodos async Task e async Task&lt;T&gt;, o que o await faz passo a passo, await no Program.cs, ReadAllTextAsync e WriteAllTextAsync, exceções com try e catch, e os erros CS4014 (faltou o await), CS4032, CS1983, a Task impressa e o async void, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">async e await</span></h1>
+
+<p class="intro">Muitos programas passam a maior parte do tempo <strong>esperando</strong>: esperando um arquivo ser lido, uma página da internet responder, um banco de dados devolver os dados. Um programa que só espera, parado, desperdiça tempo, e num aplicativo com janelas a tela "congela". Com as palavras <code>async</code> ("assíncrono") e <code>await</code> ("aguardar"), o C# deixa o programa <strong>começar</strong> uma espera, fazer outras coisas, e continuar quando o resultado chegar. Nesta aula você vai preparar o café da manhã da Ana dos dois jeitos e ver o tempo cair de 3 para 2 segundos.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A diferença entre esperar parado (<strong>síncrono</strong>) e esperar fazendo outra coisa (<strong>assíncrono</strong>).</li>
+  <li>Escrever métodos <code>async Task</code> e <code>async Task&lt;T&gt;</code> e chamá-los com <code>await</code>.</li>
+  <li>O que acontece, passo a passo, quando o programa chega num <code>await</code>.</li>
+  <li>Usar <code>await</code> direto no <code>Program.cs</code> e no <code>static async Task Main</code>.</li>
+  <li>Ler e gravar arquivos com <code>ReadAllTextAsync</code> e <code>WriteAllTextAsync</code>, e tratar exceções com <code>try</code>.</li>
+  <li>Os erros mais comuns: o <code>await</code> esquecido (<code>CS4014</code>), <code>CS4032</code>, <code>CS1983</code> e o <code>async void</code>.</li>
+</ul>
+</div>
+
+<p>Esta aula usa <a href="metodos.html">métodos</a>, <a href="funcoes-locais.html">funções locais</a>, <a href="generics.html">generics</a> e <a href="try-catch.html">try e catch</a>. Os programas rodam com <code>dotnet run</code> na pasta <code>~/cs</code> da Ana. Os tempos medidos (como <code>Levou 2,0 s</code>) podem variar um pouco a cada execução.</p>
+
+<hr>
+
+<h2>A ideia: o café da manhã</h2>
+<p>A Ana vai preparar café (leva 2 minutos na cafeteira) e torrar pão (1 minuto na torradeira). Ela pode fazer de dois jeitos:</p>
+<ul>
+  <li><strong>Síncrono</strong> ("um depois do outro"): liga a cafeteira e fica olhando até o café ficar pronto. Só então põe o pão na torradeira e fica olhando de novo. Total: 3 minutos, quase todos parada.</li>
+  <li><strong>Assíncrono</strong> ("sem ficar esperando"): liga a cafeteira, põe o pão na torradeira e, enquanto as máquinas trabalham, arruma a mesa. Quando algo fica pronto, ela pega. Total: 2 minutos, o tempo da tarefa mais lenta.</li>
+</ul>
+<p>Repare que a Ana continua sendo <strong>uma pessoa só</strong>. Ela não ficou mais rápida nem ganhou mais braços: só parou de ficar olhando a máquina. É exatamente isso que o <code>await</code> faz. Quem trabalha durante a espera é o "aparelho" (o disco, a rede, o relógio), e não o seu programa. (Fazer várias <strong>contas</strong> ao mesmo tempo, usando vários núcleos do processador, é outro assunto: as aulas <a href="threads.html">Threads</a> e <a href="paralelismo.html">Parallel e PLINQ</a>.)</p>
+
+<hr>
+
+<h2>1. O jeito síncrono: esperar parado</h2>
+<p>Para simular as máquinas, os exemplos usam esperas: 2 segundos para o café e 1 para o pão. O <code>Thread.Sleep</code> ("dormir") <strong>trava</strong> o programa pelo tempo pedido, em milissegundos. O <code>Stopwatch</code> ("cronômetro", de <code>System.Diagnostics</code>) mede quanto tempo passou.</p>
+
+<pre class="file" data-file="sincrono.cs">using System.Diagnostics;
+
+Stopwatch relogio = Stopwatch.StartNew();
+string cafe = FazerCafe();
+string pao = TorrarPao();
+Console.WriteLine($"Na mesa: {cafe} e {pao}");
+Console.WriteLine($"Levou {relogio.Elapsed.TotalSeconds:F1} s");
+
+string FazerCafe()
+{
+    Console.WriteLine("Café: começou");
+    Thread.Sleep(2000);
+    Console.WriteLine("Café: pronto");
+    return "café";
+}
+
+string TorrarPao()
+{
+    Console.WriteLine("Pão: começou");
+    Thread.Sleep(1000);
+    Console.WriteLine("Pão: pronto");
+    return "pão";
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sincrono.cs
+Café: começou
+Café: pronto
+Pão: começou
+Pão: pronto
+Na mesa: café e pão
+Levou 3,0 s</pre>
+
+<p>Tudo na ordem em que está escrito, e o tempo é a <strong>soma</strong>: 2 + 1 = 3 segundos. Durante o <code>Thread.Sleep</code>, o programa não faz nada, e não pode fazer nada.</p>
+
+<hr>
+
+<h2>2. O jeito assíncrono: async, Task e await</h2>
+
+<pre class="file" data-file="assincrono.cs">using System.Diagnostics;
+
+Stopwatch relogio = Stopwatch.StartNew();
+Task&lt;string&gt; tarefaCafe = FazerCafeAsync();
+Task&lt;string&gt; tarefaPao = TorrarPaoAsync();
+Console.WriteLine("Enquanto isso, a Ana arruma a mesa");
+string cafe = await tarefaCafe;
+string pao = await tarefaPao;
+Console.WriteLine($"Na mesa: {cafe} e {pao}");
+Console.WriteLine($"Levou {relogio.Elapsed.TotalSeconds:F1} s");
+
+async Task&lt;string&gt; FazerCafeAsync()
+{
+    Console.WriteLine("Café: começou");
+    await Task.Delay(2000);
+    Console.WriteLine("Café: pronto");
+    return "café";
+}
+
+async Task&lt;string&gt; TorrarPaoAsync()
+{
+    Console.WriteLine("Pão: começou");
+    await Task.Delay(1000);
+    Console.WriteLine("Pão: pronto");
+    return "pão";
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run assincrono.cs
+Café: começou
+Pão: começou
+Enquanto isso, a Ana arruma a mesa
+Pão: pronto
+Café: pronto
+Na mesa: café e pão
+Levou 2,0 s</pre>
+
+<dl class="anatomy">
+  <dt>async Task&lt;string&gt; FazerCafeAsync()</dt><dd>Um método <strong>assíncrono</strong>. A palavra <code>async</code> avisa o compilador que dentro dele há <code>await</code>. O tipo de retorno <code>Task&lt;string&gt;</code> ("tarefa de string") quer dizer: "eu devolvo, <strong>logo de cara</strong>, uma tarefa; o texto vem depois, quando ela terminar". O nome termina em <code>Async</code> por convenção, para quem chama saber que é assíncrono.</dd>
+  <dt>await Task.Delay(2000)</dt><dd>O <code>Task.Delay</code> ("atraso") é a versão assíncrona do <code>Thread.Sleep</code>: uma tarefa que termina depois de 2 segundos. O <code>await</code> diz "enquanto ela não termina, este método fica <strong>pausado</strong>, e o programa pode fazer outras coisas". Quando o tempo passa, o método continua da linha seguinte.</dd>
+  <dt>return "café";</dt><dd>Dentro do método, você devolve o <code>string</code>, e não a <code>Task</code>: o compilador embrulha o valor na tarefa.</dd>
+  <dt>Task&lt;string&gt; tarefaCafe = FazerCafeAsync();</dt><dd>Chamar o método <strong>começa</strong> o trabalho e devolve a tarefa, sem esperar. Por isso o pão já começa na linha seguinte, com o café ainda na cafeteira.</dd>
+  <dt>string cafe = await tarefaCafe;</dt><dd>"Aguarde a tarefa do café e me dê o resultado". O <code>await</code> transforma a <code>Task&lt;string&gt;</code> no <code>string</code> que ela carrega.</dd>
+  <dt>await no Program.cs</dt><dd>As instruções de nível superior aceitam <code>await</code> direto. O compilador transforma o programa num <code>static async Task Main</code> (veja a seção 4).</dd>
+</dl>
+
+<p>O tempo caiu para 2 segundos, o da tarefa mais longa. E o pão ficou pronto <strong>antes</strong> do café, apesar de ter começado depois: as duas esperas aconteceram ao mesmo tempo.</p>
+
+<hr>
+
+<h2>3. Passo a passo: o que o await faz</h2>
+<p>O programa de cima, com o relógio ao lado:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tempo</th><th>O que acontece</th><th>Na tela</th></tr>
+<tr><td>0 s</td><td><code>FazerCafeAsync()</code> começa, mostra a mensagem e chega no <code>await Task.Delay(2000)</code>. Ele <strong>pausa</strong> e devolve a tarefa, ainda não terminada.</td><td>Café: começou</td></tr>
+<tr><td>0 s</td><td><code>TorrarPaoAsync()</code> faz o mesmo, com 1 segundo.</td><td>Pão: começou</td></tr>
+<tr><td>0 s</td><td>O programa principal continua.</td><td>Enquanto isso, a Ana arruma a mesa</td></tr>
+<tr><td>0 s</td><td><code>await tarefaCafe</code>: o café não terminou, então o programa principal pausa aqui.</td><td></td></tr>
+<tr><td>1 s</td><td>O tempo do pão acaba. <code>TorrarPaoAsync</code> continua de onde parou, mostra a mensagem e termina: a tarefa do pão está completa.</td><td>Pão: pronto</td></tr>
+<tr><td>2 s</td><td>O tempo do café acaba; <code>FazerCafeAsync</code> continua e termina.</td><td>Café: pronto</td></tr>
+<tr><td>2 s</td><td>O <code>await tarefaCafe</code> recebe <code>"café"</code>. O <code>await tarefaPao</code> nem precisa esperar: o pão já estava pronto.</td><td>Na mesa: café e pão</td></tr>
+</table>
+</div>
+
+<p>Três regras para lembrar:</p>
+<ol class="passo">
+  <li>Chamar um método <code>async</code> <strong>começa</strong> o trabalho e devolve uma <code>Task</code> na hora.</li>
+  <li>O <code>await</code> <strong>pausa só o método em que ele está</strong>, até a tarefa terminar, e entrega o resultado.</li>
+  <li>Para duas esperas acontecerem juntas, <strong>comece</strong> as duas antes de aguardar qualquer uma. Com <code>string cafe = await FazerCafeAsync();</code> seguido de <code>string pao = await TorrarPaoAsync();</code>, o pão só começaria depois do café, e voltaria a levar 3 segundos.</li>
+</ol>
+
+<hr>
+
+<h2>4. Métodos sem resultado e o Main assíncrono</h2>
+<p>Um método assíncrono que não devolve valor tem o tipo <code>Task</code> (sem o <code>&lt;T&gt;</code>), assim como um método comum seria <code>void</code>:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método comum</th><th>Assíncrono</th><th>Quem chama escreve</th></tr>
+<tr><td><code>void Salvar()</code></td><td><code>async Task SalvarAsync()</code></td><td><code>await SalvarAsync();</code></td></tr>
+<tr><td><code>string Ler()</code></td><td><code>async Task&lt;string&gt; LerAsync()</code></td><td><code>string t = await LerAsync();</code></td></tr>
+<tr><td><code>int Contar()</code></td><td><code>async Task&lt;int&gt; ContarAsync()</code></td><td><code>int n = await ContarAsync();</code></td></tr>
+</table>
+</div>
+
+<p>E quem usa <code>await</code> também precisa ser <code>async</code>. Por isso o <code>async</code> "sobe" pelos métodos até o começo do programa. No Program.cs com instruções de nível superior, o compilador cuida disso. No estilo com <code>Main</code> (aula <a href="top-level.html">Program.cs e o Main</a>), escreva <code>static async Task Main</code>:</p>
+
+<pre class="file" data-file="main.cs">class Program
+{
+    static async Task Main()
+    {
+        await Task.Delay(500);
+        Console.WriteLine("Main assíncrono");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run main.cs
+Main assíncrono</pre>
+
+<p>O <code>Main</code> assíncrono existe desde o C# 7.1 <span class="versao">C# 7.1</span>. Em código antigo, você pode ver <code>MetodoAsync().Wait()</code> ou <code>.Result</code> dentro de um <code>Main</code> comum: isso trava a thread até a tarefa terminar e, em aplicativos com janelas, pode travar o programa para sempre. Prefira o <code>await</code>.</p>
+
+<hr>
+
+<h2>5. Arquivos de verdade: ReadAllTextAsync</h2>
+<p>O <code>Task.Delay</code> só simula uma espera. Na vida real, as esperas são de disco e de rede, e o .NET tem versões <code>…Async</code> de quase tudo o que espera: <code>File.ReadAllTextAsync</code>, <code>File.WriteAllTextAsync</code>, <code>File.ReadAllLinesAsync</code>, <code>StreamReader.ReadLineAsync</code> (aulas <a href="arquivos.html">Arquivos</a> e <a href="streams.html">Ler e Escrever</a>), <code>HttpClient.GetStringAsync</code> para baixar páginas, e os métodos dos bancos de dados.</p>
+
+<pre class="file" data-file="diario.cs">await File.WriteAllTextAsync("diario.txt", "Hoje estudei async e await.\n");
+string texto = await File.ReadAllTextAsync("diario.txt");
+Console.Write(texto);
+
+try
+{
+    string outro = await LerMaiusculasAsync("nao-existe.txt");
+    Console.WriteLine(outro);
+}
+catch (FileNotFoundException e)
+{
+    Console.WriteLine($"Erro: {e.Message}");
+}
+
+async Task&lt;string&gt; LerMaiusculasAsync(string nome)
+{
+    string conteudo = await File.ReadAllTextAsync(nome);
+    return conteudo.ToUpper();
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run diario.cs
+Hoje estudei async e await.
+Erro: Could not find file '/home/ana/cs/nao-existe.txt'.</pre>
+
+<dl class="anatomy">
+  <dt>await File.WriteAllTextAsync(…)</dt><dd>Grava o arquivo sem travar o programa durante a gravação. Devolve uma <code>Task</code> (sem resultado); o <code>await</code> espera ela terminar antes da leitura.</dd>
+  <dt>await File.ReadAllTextAsync(…)</dt><dd>Devolve <code>Task&lt;string&gt;</code>; o <code>await</code> entrega o texto.</dd>
+  <dt>try { await … } catch</dt><dd>Uma exceção dentro de um método assíncrono fica guardada na <code>Task</code> e é <strong>lançada de novo no <code>await</code></strong>. Por isso o <code>try</code> fica em volta do <code>await</code>, como num método comum.</dd>
+</dl>
+
+<p>Num programa de console tão pequeno, a diferença de velocidade não aparece. Ela aparece quando há muitas esperas juntas (baixar 20 páginas ao mesmo tempo, aula <a href="tasks.html">Task</a>) e em programas com janelas e servidores web, que precisam continuar respondendo enquanto esperam.</p>
+
+<div class="trycs" data-goal="outre:Salvando\.\.\.\nSalvo!\nFim do programa,semaviso">
+<p class="try-task"><strong>Missão:</strong> rode e veja o aviso <code>CS4014</code>: o programa termina sem mostrar <code>Salvo!</code>, porque ninguém esperou a tarefa. Ponha <code>await</code> antes de <code>SalvarAsync();</code> para a saída ficar <code>Salvando...</code>, <code>Salvo!</code> e <code>Fim do programa</code>, sem avisos.</p>
+<pre class="script" data-file="salvar.cs">SalvarAsync();
+Console.WriteLine("Fim do programa");
+
+async Task SalvarAsync()
+{
+    Console.WriteLine("Salvando...");
+    await Task.Delay(1000);
+    await File.WriteAllTextAsync("dados.txt", "importante");
+    Console.WriteLine("Salvo!");
+}
+</pre>
+<pre class="solucao" data-file="salvar.cs">await SalvarAsync();
+Console.WriteLine("Fim do programa");
+
+async Task SalvarAsync()
+{
+    Console.WriteLine("Salvando...");
+    await Task.Delay(1000);
+    await File.WriteAllTextAsync("dados.txt", "importante");
+    Console.WriteLine("Salvo!");
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Quando usar async</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>Ler ou gravar arquivos, principalmente grandes ou muitos</td><td>Os métodos <code>…Async</code> com <code>await</code></td></tr>
+<tr><td>Internet, banco de dados, qualquer coisa que responde "depois"</td><td><code>async</code>/<code>await</code>: é para isso que eles existem</td></tr>
+<tr><td>Esperar um tempo sem travar</td><td><code>await Task.Delay(ms)</code>, nunca <code>Thread.Sleep</code> num método <code>async</code></td></tr>
+<tr><td>Várias esperas ao mesmo tempo</td><td>Comece todas e aguarde com <code>await Task.WhenAll(…)</code> (aula <a href="tasks.html">Task</a>)</td></tr>
+<tr><td>Uma conta demorada (o processador trabalhando)</td><td><code>await Task.Run(…)</code> (aula <a href="tasks.html">Task</a>) ou <a href="paralelismo.html">Parallel</a></td></tr>
+<tr><td>Um programa curto que faz uma coisa por vez</td><td>Os métodos comuns também servem; o assíncrono não deixa nada mais rápido sozinho</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>CS4014</code>: faltou o <code>await</code>, e o programa terminou antes</strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run salvar.cs
+/home/ana/cs/salvar.cs(1,1): warning CS4014: Como esta chamada não é aguardada, a execução do método atual continua antes da conclusão da chamada. Considere aplicar o operador 'await' ao resultado da chamada.
+Salvando...
+Fim do programa
+$ ls
+salvar.cs</pre>
+<p><strong>O que aconteceu:</strong> é o programa da missão de cima. Sem <code>await</code>, o <code>SalvarAsync()</code> começou, pausou no <code>Task.Delay</code> e devolveu a tarefa, que ninguém aguardou. O programa principal seguiu, mostrou <code>Fim do programa</code> e <strong>terminou</strong>, levando a tarefa junto: o <code>dados.txt</code> nem foi criado (o <code>ls</code> confirma). O aviso diz exatamente isso: "como esta chamada não é aguardada, a execução continua antes da conclusão da chamada".</p>
+<p><strong>Como resolver:</strong> <code>await SalvarAsync();</code>. Trate o <code>CS4014</code> como erro: uma tarefa sem <code>await</code> quase sempre é um engano.</p>
+</div>
+
+<div class="cenario">
+<strong><code>CS4032</code>: <code>await</code> num método que não é <code>async</code></strong>
+<pre class="file" data-file="semasync.cs">Console.WriteLine(Ler());
+
+string Ler()
+{
+    string texto = await File.ReadAllTextAsync("dados.txt");
+    return texto;
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run semasync.cs
+/home/ana/cs/semasync.cs(5,20): error CS4032: O operador "await" pode somente ser usado em um método assíncrono. Considere a possibilidade de marcar este método com o modificador "async" e alterar seu tipo de retorno para "Task&lt;string&gt;".
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> o compilador já diz o conserto (em inglês, <code>The 'await' operator can only be used within an async method</code>).</p>
+<p><strong>Como resolver:</strong> <code>async Task&lt;string&gt; LerAsync()</code>, e quem chama passa a usar <code>await</code>: <code>Console.WriteLine(await LerAsync());</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Apareceu <code>System.Runtime.CompilerServices.AsyncTaskMethodBuilder…</code></strong>
+<pre class="file" data-file="tarefa.cs">Console.WriteLine(LerAsync());
+Console.WriteLine(await LerAsync());
+
+async Task&lt;string&gt; LerAsync()
+{
+    await Task.Delay(100);
+    return "olá";
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run tarefa.cs
+System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1+AsyncStateMachineBox`1[System.String,Program+&lt;&lt;&lt;Main&gt;$&gt;g__LerAsync|0_0&gt;d]
+olá</pre>
+<p><strong>O que aconteceu:</strong> na primeira linha, faltou o <code>await</code>, e o <code>WriteLine</code> mostrou a <strong>tarefa</strong> em si (o nome interno do tipo que o compilador criou), e não o resultado. Não há erro nem aviso, porque escrever uma <code>Task</code> é permitido.</p>
+<p><strong>Como resolver:</strong> se aparecer um nome comprido com <code>Task</code> ou <code>AsyncStateMachineBox</code> na tela, procure o <code>await</code> que faltou.</p>
+</div>
+
+<div class="cenario">
+<strong><code>CS1983</code>: o tipo de retorno de um método async</strong>
+<pre class="file" data-file="tipo.cs">Console.WriteLine(await DobroAsync(21));
+
+async int DobroAsync(int n)
+{
+    await Task.Delay(100);
+    return n * 2;
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run tipo.cs
+/home/ana/cs/tipo.cs(1,19): error CS1061: ‘int’ não contém uma definição para "GetAwaiter" e não foi possível encontrar nenhum método de extensão "GetAwaiter" que aceite um primeiro argumento do tipo ‘int’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+/home/ana/cs/tipo.cs(3,11): error CS1983: O tipo de retorno de um método assíncrono precisa ser nulo, Task, Task&lt;T&gt;, um tipo semelhante à tarefa, IAsyncEnumerable&lt;T&gt; ou IAsyncEnumerator&lt;T&gt;
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> um método <code>async</code> precisa devolver uma tarefa (o "nulo" da tradução é o <code>void</code>). O segundo erro é o principal; o primeiro é consequência: um <code>int</code> não pode ser aguardado, porque não é uma tarefa (o <code>GetAwaiter</code> é o que o <code>await</code> procura).</p>
+<p><strong>Como resolver:</strong> <code>async Task&lt;int&gt; DobroAsync(int n)</code>. Quando houver vários erros, comece pelo que fala da causa, não necessariamente pelo primeiro da lista.</p>
+</div>
+
+<div class="cenario">
+<strong><code>async void</code>: a exceção que derruba o programa</strong>
+<pre class="file" data-file="avoid.cs">Explodir();
+await Task.Delay(500);
+Console.WriteLine("Fim");
+
+async void Explodir()
+{
+    await Task.Delay(100);
+    throw new InvalidOperationException("Deu errado!");
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run avoid.cs; echo "código: $?"
+Unhandled exception. System.InvalidOperationException: Deu errado!
+   at Program.&lt;&lt;Main&gt;$&gt;g__Explodir|0_0() in /home/ana/cs/avoid.cs:line 8
+   at System.Threading.Tasks.Task.&lt;&gt;c.&lt;ThrowAsync&gt;b__124_1(Object state)
+   at System.Threading.ThreadPoolWorkQueue.Dispatch()
+   at System.Threading.PortableThreadPool.WorkerThread.WorkerThreadStart()
+   at System.Threading.Thread.StartCallback()
+código: 134</pre>
+<p><strong>O que aconteceu:</strong> um método <code>async void</code> não devolve tarefa nenhuma, então ninguém pode aguardá-lo nem pegar a sua exceção com <code>try</code>. A exceção estoura "solta" e derruba o programa inteiro, sem chegar no <code>Fim</code>.</p>
+<p><strong>Como resolver:</strong> use <code>async Task</code>, sempre. O <code>async void</code> existe só para eventos de botões e janelas (aula <a href="eventos.html">Eventos</a>), em que o tipo do evento obriga.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>async Task MetodoAsync()</code></td><td>Método assíncrono sem resultado</td></tr>
+<tr><td><code>async Task&lt;T&gt; MetodoAsync()</code></td><td>Método assíncrono que devolve um <code>T</code> (com <code>return valor;</code>)</td></tr>
+<tr><td><code>await tarefa</code></td><td>Pausa o método até a tarefa terminar e entrega o resultado</td></tr>
+<tr><td><code>Task&lt;T&gt; t = MetodoAsync();</code></td><td>Começa o trabalho sem esperar</td></tr>
+<tr><td><code>await Task.Delay(ms)</code></td><td>Espera sem travar</td></tr>
+<tr><td><code>static async Task Main()</code></td><td>Main assíncrono (no Program.cs de nível superior, automático)</td></tr>
+<tr><td><code>File.ReadAllTextAsync</code>, <code>WriteAllTextAsync</code>, <code>ReadAllLinesAsync</code></td><td>Arquivos sem travar</td></tr>
+<tr><td><code>try { await … } catch (…) { }</code></td><td>Exceções de tarefas aparecem no <code>await</code></td></tr>
+<tr><td><code>Stopwatch.StartNew()</code>, <code>.Elapsed</code></td><td>Medir o tempo (<code>System.Diagnostics</code>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A palavra que pausa</h3>
+<p>Complete para esperar o texto do arquivo sem travar o programa:</p>
+<div class="ex-code">string texto = <input data-answer="await" aria-label="palavra-chave"> File.ReadAllTextAsync("notas.txt");</div>
+</div>
+
+<div class="exercise">
+<h3>2. O tipo de retorno</h3>
+<p>Complete o tipo de um método assíncrono que devolve um <code>int</code>:</p>
+<div class="ex-code">async <input data-answer="Task&lt;int&gt;|Task<int>" aria-label="tipo"> ContarAlunosAsync()</div>
+</div>
+
+<div class="exercise">
+<h3>3. Esperar sem travar</h3>
+<p>Complete para esperar 3 segundos dentro de um método <code>async</code>:</p>
+<div class="ex-code">await Task.<input data-answer="Delay" aria-label="método">(3000);</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O que acontece na linha <code>Task&lt;string&gt; t = BaixarAsync();</code>?</p>
+<label><input type="radio" name="q4"> O programa espera o download terminar.</label>
+<label><input type="radio" name="q4"> O download começa e a tarefa é devolvida na hora, sem esperar.</label>
+<label><input type="radio" name="q4"> Nada: o download só começa no <code>await</code>.</label>
+<label><input type="radio" name="q4"> Erro de compilação: faltou o <code>await</code>.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Dois métodos assíncronos levam 2 s e 1 s. Quanto tempo leva <code>string a = await A(); string b = await B();</code>?</p>
+<label><input type="radio" name="q5"> 2 s</label>
+<label><input type="radio" name="q5"> 1 s</label>
+<label><input type="radio" name="q5"> 3 s, porque o B só começa depois que o A termina</label>
+<label><input type="radio" name="q5"> 0 s</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que evitar <code>async void</code>?</p>
+<label><input type="radio" name="q6"> Porque ninguém pode aguardá-lo, e uma exceção dentro dele derruba o programa.</label>
+<label><input type="radio" name="q6"> Porque ele é mais lento.</label>
+<label><input type="radio" name="q6"> Porque ele não compila.</label>
+<label><input type="radio" name="q6"> Porque ele não pode usar <code>await</code>.</label>
+</div>
+
+<h3>Missão final: o café da manhã sem esperar</h3>
+<div class="trycs" data-goal="outre:Café: começou\nPão: começou\nSuco: começou,out:Na mesa: café\, pão e suco,src:await Task\.Delay">
+<p class="try-task"><strong>Missão:</strong> o café da manhã está no jeito síncrono, um depois do outro. Transforme-o no jeito assíncrono:</p>
+<ol class="passo">
+  <li>troque cada método por um <code>async Task&lt;string&gt;</code> com nome terminado em <code>Async</code>, e o <code>Thread.Sleep</code> por <code>await Task.Delay</code>;</li>
+  <li>no começo do programa, <strong>comece as três tarefas</strong> (guarde cada <code>Task&lt;string&gt;</code> numa variável) e só depois aguarde cada uma com <code>await</code>.</li>
+</ol>
+<p class="try-task">As três mensagens <code>começou</code> devem aparecer seguidas, no começo, e a última linha deve ser <code>Na mesa: café, pão e suco</code>.</p>
+<pre class="script" data-file="cafe.cs">string cafe = FazerCafe();
+string pao = TorrarPao();
+string suco = FazerSuco();
+Console.WriteLine($"Na mesa: {cafe}, {pao} e {suco}");
+
+string FazerCafe()
+{
+    Console.WriteLine("Café: começou");
+    Thread.Sleep(2000);
+    Console.WriteLine("Café: pronto");
+    return "café";
+}
+
+string TorrarPao()
+{
+    Console.WriteLine("Pão: começou");
+    Thread.Sleep(1000);
+    Console.WriteLine("Pão: pronto");
+    return "pão";
+}
+
+string FazerSuco()
+{
+    Console.WriteLine("Suco: começou");
+    Thread.Sleep(1500);
+    Console.WriteLine("Suco: pronto");
+    return "suco";
+}
+</pre>
+<pre class="solucao" data-file="cafe.cs">Task&lt;string&gt; tarefaCafe = FazerCafeAsync();
+Task&lt;string&gt; tarefaPao = TorrarPaoAsync();
+Task&lt;string&gt; tarefaSuco = FazerSucoAsync();
+string cafe = await tarefaCafe;
+string pao = await tarefaPao;
+string suco = await tarefaSuco;
+Console.WriteLine($"Na mesa: {cafe}, {pao} e {suco}");
+
+async Task&lt;string&gt; FazerCafeAsync()
+{
+    Console.WriteLine("Café: começou");
+    await Task.Delay(2000);
+    Console.WriteLine("Café: pronto");
+    return "café";
+}
+
+async Task&lt;string&gt; TorrarPaoAsync()
+{
+    Console.WriteLine("Pão: começou");
+    await Task.Delay(1000);
+    Console.WriteLine("Pão: pronto");
+    return "pão";
+}
+
+async Task&lt;string&gt; FazerSucoAsync()
+{
+    Console.WriteLine("Suco: começou");
+    await Task.Delay(1500);
+    Console.WriteLine("Suco: pronto");
+    return "suco";
+}
+</pre>
+</div>
+
+<p>Depois de rodar a solução, repare na ordem dos <code>pronto</code>: pão (1 s), suco (1,5 s) e café (2 s), a ordem das esperas, e não a do código. Se quiser ir além: ponha um <code>Stopwatch</code> e compare o tempo dos dois jeitos (no síncrono, 4,5 s; no assíncrono, 2 s).</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Assíncrono é esperar sem ficar parado: o programa começa uma espera (disco, rede, tempo), faz outras coisas e continua quando o resultado chega.</li>
+  <li>Um método <code>async Task&lt;T&gt;</code> devolve uma tarefa na hora; o <code>await</code> pausa só aquele método até a tarefa terminar e entrega o resultado.</li>
+  <li>Para esperas acontecerem juntas, comece todas as tarefas antes de aguardar. O tempo total vira o da mais longa.</li>
+  <li>Quem usa <code>await</code> é <code>async</code>; no Program.cs de nível superior, o <code>await</code> já funciona (é um <code>static async Task Main</code>).</li>
+  <li>Use <code>Task.Delay</code> e os métodos <code>…Async</code> (como <code>File.ReadAllTextAsync</code>) em vez de esperas que travam. Exceções aparecem no <code>await</code>, dentro do <code>try</code>.</li>
+  <li>Erros comuns: o <code>await</code> esquecido (<code>CS4014</code>, a tarefa se perde), <code>CS4032</code>, <code>CS1983</code> e o <code>async void</code>, que derruba o programa.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
