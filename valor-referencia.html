@@ -335,7 +335,7 @@ $ echo $?
 <p>Cada <em>boxing</em> cria um objeto novo na memória, e isso custa tempo. Num laço com milhões de voltas, faz diferença. Por isso o C# moderno usa <a href="generics.html">generics</a>: uma <code>List&lt;int&gt;</code> guarda os <code>int</code> direto, sem caixas, enquanto a antiga <code>ArrayList</code> (de antes dos generics) guardava tudo como <code>object</code>. Regra prática: <strong>use o tipo certo, não <code>object</code></strong>, e o <em>boxing</em> quase nunca aparece.</p>
 
 <div class="trycs">
-<p class="try-task"><strong>Experimente:</strong> rode e veja a <code>InvalidCastException</code> e o código de saída 134. Depois, conserte de dois jeitos: com <code>(int)caixa</code> e com <code>if (caixa is int numero)</code>. Teste também <code>object caixa = 42L;</code> (o <code>L</code> faz o número ser <code>long</code>).</p>
+<p class="try-task"><strong>Experimente:</strong> rode e veja a <code>InvalidCastException</code> e o código de saída 134. Depois, conserte de dois jeitos: com <code>(int)caixa</code> e com <code>if (caixa is int numero)</code>. Teste também <code>object caixa = 42L;</code> (o <code>L</code> faz o número ser <code>long</code>). No editor do guia, a mensagem da exceção sai mais curta, <code>Specified cast is not valid.</code> ("a conversão indicada não é válida"); o tipo da exceção, a linha e o 134 são os mesmos do <code>dotnet</code>.</p>
 <pre class="script">object caixa = 42;
 long grande = (long)caixa;
 Console.WriteLine(grande);
