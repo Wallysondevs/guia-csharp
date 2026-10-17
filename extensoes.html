@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Métodos de Extensão — this e os blocos extension do C# 14 | Guia C#</title>
+<meta name="description" content="Métodos de extensão em C# para quem nunca programou: acrescentar métodos a decimal, string e List com static class e this, chamar como se fossem do próprio tipo, o using do namespace, extensões que aceitam null, quem vence quando há método de instância, os blocos extension do C# 14 com propriedades e membros estáticos, a ligação com o LINQ e os erros reais CS1061, CS1106, CS9283 e CS0122 do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Métodos de Extensão</span></h1>
+
+<p class="intro">A Ana calcula descontos o tempo todo. Seria ótimo escrever <code>preco.ComDesconto(10)</code>, como se o <code>decimal</code> tivesse nascido com esse método. Mas o <code>decimal</code> é do .NET, e ela não pode mexer nele. Um <strong>método de extensão</strong> resolve isso: é um método <a href="static.html">estático</a>, escrito por você, que o compilador deixa chamar <strong>com o ponto</strong>, como se fosse do próprio tipo. O <a href="linq.html">LINQ</a> inteiro é feito de métodos de extensão, e o C# 14 trouxe um jeito novo de escrevê-los, com propriedades.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Criar um método de extensão com <code>static class</code> e <code>this</code>.</li>
+  <li>Que <code>preco.ComDesconto(10)</code> e <code>ExtensoesDePreco.ComDesconto(preco, 10)</code> são a mesma chamada.</li>
+  <li>Extensões para <code>string</code> e para <code>List&lt;Produto&gt;</code>, inclusive uma que aceita <code>null</code>.</li>
+  <li>O <code>using</code> que faz a extensão aparecer, e quem vence quando o tipo já tem um método com o mesmo nome.</li>
+  <li>Os <strong>blocos <code>extension</code></strong> do C# 14: propriedades e membros estáticos de extensão.</li>
+  <li>Por que o <code>Where</code> do LINQ aparece em qualquer lista.</li>
+  <li>Os erros reais: <code>CS1061</code>, <code>CS1106</code>, <code>CS9283</code> e <code>CS0122</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas rodaram com o <strong>.NET 10</strong> (C# 14) na máquina da Ana, na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: o adesivo na máquina</h2>
+<p>A balança da lojinha veio de fábrica com os botões "pesar" e "zerar". A Ana não pode abrir a balança e soldar um botão novo. Mas ela pode colar ao lado um <strong>adesivo</strong> com uma tabela: "para o preço do quilo de bala, multiplique o peso por 32". Quem usa a balança enxerga o adesivo junto dos botões, como se fizesse parte dela.</p>
+
+<p>O método de extensão é o adesivo: ele fica <strong>fora</strong> do tipo (numa classe sua), não muda nada dentro dele e só usa o que o tipo já mostra para todo mundo. Mas, na hora de usar, aparece com o ponto, junto dos métodos do próprio tipo.</p>
+
+<hr>
+
+<h2>1. O primeiro método de extensão</h2>
+
+<pre class="file" data-file="extensao.cs">decimal preco = 50m;
+
+Console.WriteLine(preco.ComDesconto(10));
+Console.WriteLine(129.90m.ComDesconto(20));
+Console.WriteLine(ExtensoesDePreco.ComDesconto(preco, 10));
+
+static class ExtensoesDePreco
+{
+    public static decimal ComDesconto(this decimal preco, int porcento)
+    {
+        return preco - preco * porcento / 100;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run extensao.cs
+45
+103,92
+45</pre>
+
+<p>Três ingredientes transformam um método estático comum num método de extensão:</p>
+
+<dl class="anatomy">
+  <dt>static class ExtensoesDePreco</dt><dd>A classe que guarda as extensões precisa ser <code>static</code> (veja <a href="static.html">static</a>) e não pode ser genérica nem ficar dentro de outra classe. O nome é livre; a convenção é <code>Extensoes…</code> ou <code>…Extensions</code>.</dd>
+  <dt>public static</dt><dd>O método também é estático.</dd>
+  <dt>this decimal preco</dt><dd>O <strong><code>this</code> antes do primeiro parâmetro</strong> é o que faz a mágica: diz "este método estende o tipo <code>decimal</code>". Na chamada <code>preco.ComDesconto(10)</code>, o valor <strong>antes do ponto</strong> vira o <code>preco</code>.</dd>
+  <dt>int porcento</dt><dd>Os outros parâmetros são normais e vão entre os parênteses: o <code>10</code> de <code>ComDesconto(10)</code>.</dd>
+</dl>
+
+<p>A terceira linha da saída mostra o segredo: <code>preco.ComDesconto(10)</code> é só um jeito mais bonito de escrever <code>ExtensoesDePreco.ComDesconto(preco, 10)</code>. O compilador troca uma pela outra; nada é acrescentado ao <code>decimal</code> de verdade. A segunda linha mostra que até um número escrito direto no código ganha o método: <code>129.90m.ComDesconto(20)</code> dá <code>103,92</code>.</p>
+
+<div class="trycs" data-goal="out:Com frete: 28,src:this\s+decimal,src:preco\.ComFrete\(\)">
+<p class="try-task"><strong>Missão:</strong> o <code>ComFrete</code> é um método estático comum, chamado com o nome da classe. Transforme-o em método de extensão (acrescente o <code>this</code>) e troque a chamada por <code>preco.ComFrete()</code>. A saída continua <code>Com frete: 28</code>.</p>
+<pre class="script">decimal preco = 20m;
+Console.WriteLine($"Com frete: {ExtensoesDePreco.ComFrete(preco)}");
+
+static class ExtensoesDePreco
+{
+    public static decimal ComFrete(decimal preco) =&gt; preco + 8m;
+}
+</pre>
+<pre class="solucao">decimal preco = 20m;
+Console.WriteLine($"Com frete: {preco.ComFrete()}");
+
+static class ExtensoesDePreco
+{
+    public static decimal ComFrete(this decimal preco) =&gt; preco + 8m;
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Extensões para <code>string</code> (e para <code>null</code>)</h2>
+<p>Qualquer tipo pode ganhar extensões. Para a vitrine da lojinha, a Ana quer resumir nomes compridos e pôr a primeira letra em maiúscula:</p>
+
+<pre class="file" data-file="texto.cs">string nome = "caderno universitário de 200 folhas";
+
+Console.WriteLine(nome.Resumir(15));
+Console.WriteLine("lápis".Resumir(15));
+Console.WriteLine(nome.Capitalizar());
+
+string? vazio = null;
+Console.WriteLine(vazio.EstaVazio());
+Console.WriteLine("".EstaVazio());
+Console.WriteLine(nome.EstaVazio());
+
+static class ExtensoesDeTexto
+{
+    public static string Resumir(this string texto, int tamanho) =&gt;
+        texto.Length &lt;= tamanho ? texto : texto[..tamanho] + "…";
+
+    public static string Capitalizar(this string texto) =&gt;
+        texto.Length == 0 ? texto : char.ToUpper(texto[0]) + texto[1..];
+
+    public static bool EstaVazio(this string? texto) =&gt;
+        texto is null || texto.Length == 0;
+}
+</pre>
+
+<pre class="term">$ dotnet run texto.cs
+caderno univers…
+lápis
+Caderno universitário de 200 folhas
+True
+True
+False</pre>
+
+<ul>
+  <li><code>Resumir</code>: se o texto passa do tamanho, corta (<code>texto[..tamanho]</code>, veja <a href="indices-intervalos.html">Índices e Intervalos</a>) e põe reticências. Uma classe pode ter quantas extensões quiser.</li>
+  <li><code>Capitalizar</code>: troca só a primeira letra por maiúscula e junta o resto (<code>texto[1..]</code>).</li>
+  <li><code>EstaVazio</code> estende <code>string?</code> e funciona <strong>até com <code>null</code></strong>. Um método de verdade chamado num <code>null</code> daria <code>NullReferenceException</code>; a extensão, não, porque é só a chamada <code>ExtensoesDeTexto.EstaVazio(null)</code>, e o método trata o <code>null</code>. O .NET já tem a mesma ideia pronta: <code>string.IsNullOrEmpty(texto)</code>.</li>
+</ul>
+
+<hr>
+
+<h2>3. Extensões para os seus tipos e para listas</h2>
+<p>Também dá para estender <a href="list.html"><code>List&lt;T&gt;</code></a> de um tipo específico. O carrinho de compras ganha <code>Total()</code> e <code>MaisCaro()</code>:</p>
+
+<pre class="file" data-file="lista-ext.cs">List&lt;Produto&gt; carrinho =
+[
+    new("Caderno", 18.90m),
+    new("Lápis", 2.50m),
+    new("Mochila", 129.90m),
+];
+
+Console.WriteLine($"Total: {carrinho.Total():C}");
+Console.WriteLine($"Mais caro: {carrinho.MaisCaro().Nome}");
+
+static class ExtensoesDoCarrinho
+{
+    public static decimal Total(this List&lt;Produto&gt; lista)
+    {
+        decimal soma = 0m;
+        foreach (Produto p in lista) soma += p.Preco;
+        return soma;
+    }
+
+    public static Produto MaisCaro(this List&lt;Produto&gt; lista)
+    {
+        Produto maior = lista[0];
+        foreach (Produto p in lista)
+        {
+            if (p.Preco &gt; maior.Preco) maior = p;
+        }
+        return maior;
+    }
+}
+
+record Produto(string Nome, decimal Preco);
+</pre>
+
+<pre class="term">$ dotnet run lista-ext.cs
+Total: R$ 151,30
+Mais caro: Mochila</pre>
+
+<p>Se o tipo é seu (como o <code>record Produto</code>), você poderia pôr o método direto nele. A extensão faz sentido quando o tipo <strong>não é seu</strong> (<code>decimal</code>, <code>string</code>, <code>List&lt;T&gt;</code>), ou quando você quer manter o tipo pequeno e juntar as "ferramentas" num lugar à parte.</p>
+
+<hr>
+
+<h2>4. O <code>using</code> e quem vence</h2>
+
+<h3>A extensão só aparece com o <code>using</code> do namespace dela</h3>
+<p>Em projetos de verdade, as extensões ficam num <a href="namespaces.html">namespace</a>. Elas só aparecem no código que importa esse namespace com <code>using</code>:</p>
+
+<pre class="file" data-file="namespace-ok.cs">using Loja.Extensoes;
+
+decimal preco = 50m;
+Console.WriteLine(preco.ComDesconto(10));
+
+namespace Loja.Extensoes
+{
+    static class ExtensoesDePreco
+    {
+        public static decimal ComDesconto(this decimal preco, int porcento) =&gt;
+            preco - preco * porcento / 100;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run namespace-ok.cs
+45</pre>
+
+<p>Sem a primeira linha, o compilador não acha o método (veja o erro <code>CS1061</code> em <a href="#errado">Quando dá errado</a>). É por isso que, em projetos antigos, todo arquivo que usa LINQ começa com <code>using System.Linq;</code>. Hoje esse <code>using</code> já vem embutido (os <em>implicit usings</em> do .NET 6+, veja <a href="namespaces.html">Namespaces e using</a>).</p>
+
+<h3>Um método do próprio tipo sempre vence</h3>
+<p>Se o tipo já tem um método com o mesmo nome e os mesmos parâmetros, a extensão é ignorada, sem aviso:</p>
+
+<pre class="file" data-file="vence.cs">Produto p = new("Caderno", 18.90m);
+Console.WriteLine(p.Descricao());
+
+static class ExtensoesDeProduto
+{
+    public static string Descricao(this Produto p) =&gt; "da extensão";
+}
+
+record Produto(string Nome, decimal Preco)
+{
+    public string Descricao() =&gt; $"{Nome} por {Preco:C}";
+}
+</pre>
+
+<pre class="term">$ dotnet run vence.cs
+Caderno por R$ 18,90     « o método do record venceu</pre>
+
+<p>O compilador procura primeiro nos métodos do próprio tipo, e só se não achar procura as extensões. Isso protege o seu código: uma extensão nunca muda o comportamento de um método que já existe. Mas também quer dizer que, se uma versão nova do .NET acrescentar ao tipo um método com o nome da sua extensão, a sua deixa de ser chamada.</p>
+
+<hr>
+
+<h2>5. Os blocos <code>extension</code> do C# 14 <span class="versao">C# 14</span></h2>
+<p>Até o C# 13, só existiam <strong>métodos</strong> de extensão. O C# 14 (.NET 10) trouxe os <strong>blocos <code>extension</code></strong>, que permitem também <strong>propriedades</strong> de extensão e membros <strong>estáticos</strong> de extensão (chamados pelo nome do tipo, como <code>decimal.Frete</code>):</p>
+
+<pre class="file" data-file="bloco14.cs">decimal preco = 129.90m;
+
+Console.WriteLine(preco.ComDesconto(10));
+Console.WriteLine(preco.EhCaro);
+Console.WriteLine(2.50m.EhCaro);
+Console.WriteLine(preco.EmReais);
+Console.WriteLine(decimal.Frete);
+Console.WriteLine(decimal.ComFrete(20m));
+
+static class ExtensoesDePreco
+{
+    extension(decimal preco)
+    {
+        public decimal ComDesconto(int porcento) =&gt; preco - preco * porcento / 100;
+        public bool EhCaro =&gt; preco &gt; 100m;
+        public string EmReais =&gt; preco.ToString("C");
+    }
+
+    extension(decimal)
+    {
+        public static decimal Frete =&gt; 8m;
+        public static decimal ComFrete(decimal valor) =&gt; valor + 8m;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run bloco14.cs
+116,91
+True
+False
+R$ 129,90
+8
+28</pre>
+
+<dl class="anatomy">
+  <dt>extension(decimal preco)</dt><dd>Abre um bloco de extensões para o tipo <code>decimal</code>. O <code>preco</code> é o <strong>receptor</strong>: o valor antes do ponto. Ele vale para todos os membros do bloco, e por isso nenhum deles repete o <code>this decimal preco</code>.</dd>
+  <dt>public decimal ComDesconto(int porcento)</dt><dd>Um método de extensão, escrito como um método comum (sem <code>static</code> e sem <code>this</code>). Funciona igual ao da seção 1.</dd>
+  <dt>public bool EhCaro =&gt; …</dt><dd>Uma <strong>propriedade</strong> de extensão (veja <a href="propriedades.html">Propriedades</a>): chamada sem parênteses, <code>preco.EhCaro</code>. Antes do C# 14, isso era impossível; era preciso escrever um método <code>EhCaro()</code>.</dd>
+  <dt>extension(decimal)</dt><dd>Um bloco <strong>sem nome</strong> de receptor: os membros dele são <code>static</code> e se chamam pelo nome do tipo, <code>decimal.Frete</code> e <code>decimal.ComFrete(20m)</code>, como se fossem do próprio <code>decimal</code>.</dd>
+</dl>
+
+<p>Os blocos continuam dentro de uma <code>static class</code> de nível superior e não genérica, como os métodos de extensão clássicos. As duas formas podem conviver na mesma classe, e um método escrito num bloco é chamado do mesmo jeito que um escrito com <code>this</code>: quem usa não percebe a diferença.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Forma clássica (<code>this</code>)</th><th>Bloco <code>extension</code> (C# 14)</th></tr>
+<tr><td>Um método: <code>preco.ComDesconto(10)</code></td><td>Sim</td><td>Sim</td></tr>
+<tr><td>Uma propriedade: <code>preco.EhCaro</code></td><td>Não</td><td>Sim</td></tr>
+<tr><td>Um membro estático: <code>decimal.Frete</code></td><td>Não</td><td>Sim</td></tr>
+<tr><td>Funcionar em versões antigas do C#</td><td>Sim (desde o C# 3)</td><td>Não: só C# 14 / .NET 10</td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>Qual usar</strong>
+<p>Para métodos, as duas formas dão o mesmo resultado, e a clássica (com <code>this</code>) é a que você vai encontrar em quase todo o código que existe hoje, inclusive no próprio LINQ. Use os blocos quando quiser <strong>propriedades</strong> ou membros <strong>estáticos</strong>, ou quando várias extensões do mesmo tipo ficarem mais organizadas num bloco só.</p>
+</div>
+
+<hr>
+
+<h2>6. O LINQ é feito de extensões</h2>
+<p>Agora você pode entender de onde vem o <code>Where</code> que aparece em qualquer lista, array ou coleção: ele é um método de extensão do tipo <a href="ienumerable.html"><code>IEnumerable&lt;T&gt;</code></a>, escrito na classe estática <code>System.Linq.Enumerable</code>. As duas linhas abaixo são a mesma chamada:</p>
+
+<pre class="file" data-file="linqext.cs">List&lt;decimal&gt; precos = [18.90m, 2.50m, 129.90m];
+var baratos1 = precos.Where(p =&gt; p &lt; 20m);
+var baratos2 = Enumerable.Where(precos, p =&gt; p &lt; 20m);
+Console.WriteLine(string.Join(" | ", baratos1));
+Console.WriteLine(string.Join(" | ", baratos2));
+</pre>
+
+<pre class="term">$ dotnet run linqext.cs
+18,90 | 2,50
+18,90 | 2,50</pre>
+
+<p>Como estende a interface <code>IEnumerable&lt;T&gt;</code>, e não uma classe, o mesmo <code>Where</code> serve para <code>List</code>, arrays, <code>HashSet</code> e qualquer coisa que dê para percorrer com <code>foreach</code>. Esse é o assunto da próxima aula, <a href="linq.html">O que é LINQ</a>.</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS1061: falta o <code>using</code> do namespace</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="namespace-erro.cs">decimal preco = 50m;
+Console.WriteLine(preco.ComDesconto(10));
+
+namespace Loja.Extensoes
+{
+    static class ExtensoesDePreco
+    {
+        public static decimal ComDesconto(this decimal preco, int porcento) =&gt;
+            preco - preco * porcento / 100;
+    }
+}
+</pre>
+<pre class="term">$ dotnet run namespace-erro.cs
+/home/ana/cs/namespace-erro.cs(2,25): error CS1061: ‘decimal’ não contém uma definição para "ComDesconto" e não foi possível encontrar nenhum método de extensão "ComDesconto" que aceite um primeiro argumento do tipo ‘decimal’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> o <code>decimal</code> não tem <code>ComDesconto</code>, e nenhuma extensão <strong>visível</strong> tem. A própria mensagem dá a pista: "você está se esquecendo de usar uma diretiva" (a diretiva <code>using</code>).</p>
+<p><strong>Como consertar:</strong> acrescente <code>using Loja.Extensoes;</code> no topo do arquivo.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1061: esqueceu o <code>this</code></strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="semthis.cs">Console.WriteLine(50m.ComDesconto(10));
+
+static class ExtensoesDePreco
+{
+    public static decimal ComDesconto(decimal preco, int porcento) =&gt;
+        preco - preco * porcento / 100;
+}
+</pre>
+<pre class="term">$ dotnet run semthis.cs
+/home/ana/cs/semthis.cs(1,23): error CS1061: ‘decimal’ não contém uma definição para "ComDesconto" e não foi possível encontrar nenhum método de extensão "ComDesconto" que aceite um primeiro argumento do tipo ‘decimal’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> a mesma mensagem, por outro motivo: sem o <code>this</code>, o método é estático comum, não uma extensão.</p>
+<p><strong>Como consertar:</strong> <code>ComDesconto(this decimal preco, int porcento)</code>, ou chame como método estático: <code>ExtensoesDePreco.ComDesconto(50m, 10)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1106: a classe não é <code>static</code></strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="naoestatica.cs">Console.WriteLine(50m.ComDesconto(10));
+
+class ExtensoesDePreco
+{
+    public static decimal ComDesconto(this decimal preco, int porcento) =&gt;
+        preco - preco * porcento / 100;
+}
+</pre>
+<pre class="term">$ dotnet run naoestatica.cs
+/home/ana/cs/naoestatica.cs(3,7): error CS1106: O método de extensão deve ser definido em uma classe estática não genérica
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>Como consertar:</strong> <code>static class ExtensoesDePreco</code>. Ela também não pode ser genérica (<code>class Ext&lt;T&gt;</code>) nem ficar dentro de outra classe.</p>
+</div>
+
+<div class="cenario">
+<strong>CS9283: bloco <code>extension</code> fora de uma classe estática</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="bloco-erro.cs">Console.WriteLine(50m.EhCaro);
+
+class ExtensoesDePreco
+{
+    extension(decimal preco)
+    {
+        public bool EhCaro =&gt; preco &gt; 100m;
+    }
+}
+</pre>
+<pre class="term">$ dotnet run bloco-erro.cs
+/home/ana/cs/bloco-erro.cs(5,5): error CS9283: As extensões devem ser declaradas em uma classe estática de nível superior, não genérica
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>Como consertar:</strong> a mesma regra dos métodos clássicos, com um código de erro novo: <code>static class ExtensoesDePreco</code>, no nível de cima do arquivo.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0122: a extensão não enxerga o que é privado</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="privado.cs">Produto p = new("Caderno", 18.90m);
+Console.WriteLine(p.ComDesconto(10));
+
+static class ExtensoesDeProduto
+{
+    public static decimal ComDesconto(this Produto p, int porcento) =&gt; p.precoBase * (100 - porcento) / 100;
+}
+
+class Produto(string nome, decimal preco)
+{
+    public string Nome { get; } = nome;
+    private decimal precoBase = preco;
+}
+</pre>
+<pre class="term">$ dotnet run privado.cs
+/home/ana/cs/privado.cs(6,74): error CS0122: "Produto.precoBase" é inacessível devido ao seu nível de proteção
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> a extensão parece fazer parte do tipo, mas é um método de <strong>outra</strong> classe. Ela só enxerga o que é público (veja <a href="modificadores-acesso.html">public, private e internal</a>). É o "adesivo" do lado de fora da balança.</p>
+<p><strong>Como consertar:</strong> use o que o tipo mostra publicamente (uma propriedade <code>public decimal Preco { get; }</code>), ou, se o tipo é seu, escreva o método dentro dele.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>static class Ext { public static R M(this T x, …) { … } }</code></td><td>Método de extensão clássico para o tipo <code>T</code>.</td></tr>
+<tr><td><code>valor.M(…)</code></td><td>Chama a extensão; o mesmo que <code>Ext.M(valor, …)</code>.</td></tr>
+<tr><td><code>this string? texto</code></td><td>Extensão que aceita <code>null</code> (o método precisa tratar).</td></tr>
+<tr><td><code>extension(T x) { public R M(…) =&gt; …; }</code></td><td>Bloco do C# 14: método de extensão.</td></tr>
+<tr><td><code>extension(T x) { public R P =&gt; …; }</code></td><td>Bloco do C# 14: propriedade de extensão, <code>valor.P</code>.</td></tr>
+<tr><td><code>extension(T) { public static R S =&gt; …; }</code></td><td>Bloco do C# 14: membro estático, <code>T.S</code>.</td></tr>
+<tr><td><code>using Namespace.DasExtensoes;</code></td><td>Torna as extensões daquele namespace visíveis.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O ingrediente que falta</h3>
+<p>Complete o primeiro parâmetro para que <code>Dobro</code> seja uma extensão de <code>int</code>:</p>
+<div class="ex-code">public static int Dobro(<input data-answer="this int n|this int x|this int numero|this int valor" aria-label="parâmetro">) =&gt; n * 2;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Chamar a extensão</h3>
+<p>Com a extensão <code>Resumir(this string texto, int tamanho)</code>, chame-a na variável <code>nome</code> para resumir em 10 caracteres:</p>
+<div class="ex-code"><input data-answer="nome.Resumir(10)|nome.Resumir(10);" aria-label="chamada"></div>
+</div>
+
+<div class="exercise">
+<h3>3. A palavra do C# 14</h3>
+<p>Complete a abertura do bloco do C# 14 que estende <code>string</code> com o receptor chamado <code>texto</code>:</p>
+<div class="ex-code"><input data-answer="extension(string texto)" aria-label="bloco"> { public bool Vazio =&gt; texto.Length == 0; }</div>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">4. <code>preco.ComDesconto(10)</code> é o mesmo que…</p>
+<label><input type="radio" name="q4"> <code>ExtensoesDePreco.ComDesconto(preco, 10)</code></label>
+<label><input type="radio" name="q4"> <code>decimal.ComDesconto(10)</code></label>
+<label><input type="radio" name="q4"> <code>preco.ComDesconto(preco, 10)</code></label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. O tipo <code>Produto</code> tem um método <code>Descricao()</code>, e você cria uma extensão <code>Descricao(this Produto p)</code>. Qual roda em <code>p.Descricao()</code>?</p>
+<label><input type="radio" name="q5"> A extensão, porque foi escrita depois.</label>
+<label><input type="radio" name="q5"> Dá erro de ambiguidade.</label>
+<label><input type="radio" name="q5"> O método do próprio <code>Produto</code>: ele sempre vence.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">6. O que só os blocos <code>extension</code> do C# 14 permitem?</p>
+<label><input type="radio" name="q6"> Métodos de extensão para <code>string</code>.</label>
+<label><input type="radio" name="q6"> Propriedades de extensão, como <code>preco.EhCaro</code>.</label>
+<label><input type="radio" name="q6"> Acessar campos privados do tipo estendido.</label>
+</div>
+
+<div class="trycs" data-goal="outre:R\$\s2\,50: barato,outre:R\$\s18\,90: normal,outre:R\$\s1\,75: barato,src:EhBarato\s*=&gt;">
+<p class="try-task"><strong>Missão final:</strong> no bloco <code>extension</code>, crie a propriedade <code>EhBarato</code> (verdadeira quando o preço é menor que <code>5m</code>) e troque, no <code>Console.WriteLine</code>, <code>p.EhCaro ? "caro"</code> por <code>p.EhBarato ? "barato"</code>. A saída deve ser <code>R$ 2,50: barato</code>, <code>R$ 18,90: normal</code> e <code>R$ 1,75: barato</code>.</p>
+<pre class="script">decimal[] precos = [2.50m, 18.90m, 1.75m];
+
+foreach (decimal p in precos)
+{
+    Console.WriteLine($"{p:C}: {(p.EhCaro ? "caro" : "normal")}");
+}
+
+static class ExtensoesDePreco
+{
+    extension(decimal preco)
+    {
+        public bool EhCaro =&gt; preco &gt; 100m;
+        // crie aqui a propriedade EhBarato (preço menor que 5m)
+    }
+}
+</pre>
+<pre class="solucao">decimal[] precos = [2.50m, 18.90m, 1.75m];
+
+foreach (decimal p in precos)
+{
+    Console.WriteLine($"{p:C}: {(p.EhBarato ? "barato" : "normal")}");
+}
+
+static class ExtensoesDePreco
+{
+    extension(decimal preco)
+    {
+        public bool EhCaro =&gt; preco &gt; 100m;
+        public bool EhBarato =&gt; preco &lt; 5m;
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um método de extensão "acrescenta" um método a um tipo que não é seu: <code>static class</code> + <code>public static</code> + <code>this</code> no primeiro parâmetro.</li>
+  <li><code>preco.ComDesconto(10)</code> é só outro jeito de escrever <code>ExtensoesDePreco.ComDesconto(preco, 10)</code>; nada muda dentro do tipo.</li>
+  <li>A extensão só enxerga o que é público (<code>CS0122</code>) e só aparece com o <code>using</code> do namespace dela (<code>CS1061</code>).</li>
+  <li>Um método do próprio tipo sempre vence uma extensão com o mesmo nome.</li>
+  <li>No C# 14, os blocos <code>extension(decimal preco) { … }</code> permitem também <strong>propriedades</strong> e membros <strong>estáticos</strong> de extensão.</li>
+  <li>O LINQ (<code>Where</code>, <code>Select</code>, <code>OrderBy</code>…) é um conjunto de métodos de extensão de <code>IEnumerable&lt;T&gt;</code>.</li>
+</ul>
+
+<p>Próxima aula: <a href="linq.html">O que é LINQ</a>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
