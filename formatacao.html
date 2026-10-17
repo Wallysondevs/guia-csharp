@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Formatar Números — N2, C, P, D3, F e alinhamento | Guia C#</title>
+<meta name="description" content="Formatar números em C# para quem nunca programou: moeda (C) com R$ 1.234,50, N2 com separador de milhar, F2, porcentagem (P) e 12,50%, D3 para 007, formatos personalizados (0.00, #,##0), alinhar colunas com {valor,10:C}, arredondamento de double × decimal, a cultura pt-BR e as exceções reais FormatException e o erro CS1503 do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Formatar Números</span></h1>
+
+<p class="intro">O caixa da lojinha calcula o total: <code>1234.5</code>. Na tela, porém, a Ana quer ver <code>R$ 1.234,50</code>: com o símbolo do real, o ponto separando os milhares e duas casas depois da vírgula. Transformar um número num texto "bonito" se chama <strong>formatar</strong>, e o C# faz isso com letras curtas: <code>C</code> para moeda, <code>N2</code> para número com duas casas, <code>P</code> para porcentagem, <code>D3</code> para inteiros com zeros na frente. Nesta aula você vai conhecer cada formato, ver a saída real numa máquina em português e aprender a alinhar valores em colunas.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Os formatos-padrão: <code>C</code> (moeda), <code>N</code> (número), <code>F</code> (casas fixas), <code>P</code> (porcentagem), <code>D</code> (inteiro com zeros) e <code>X</code> (hexadecimal).</li>
+  <li>O número depois da letra (<code>N2</code>, <code>P1</code>, <code>D3</code>) e por que é bom escrevê-lo sempre.</li>
+  <li>Três lugares onde o formato funciona: <code>ToString("C")</code>, <code>$"{x:C}"</code> e <code>string.Format("{0:C}", x)</code>.</li>
+  <li>Formatos personalizados (<code>"0.00"</code>, <code>"#,##0"</code>) e alinhar colunas com <code>{valor,10:C}</code>.</li>
+  <li>Como o arredondamento funciona, por que o resultado depende da <strong>cultura</strong> e os erros reais.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>, Ubuntu em português do Brasil, cultura <code>pt-BR</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: a etiqueta de preço</h2>
+<p>O número guardado na memória é só uma quantidade: 1234,5. A etiqueta que vai na prateleira é outra coisa: um <strong>texto</strong> com <code>R$</code>, ponto, vírgula e duas casas. A mesma quantidade pode ganhar etiquetas diferentes: <code>R$ 1.234,50</code> no Brasil, <code>$1,234.50</code> nos Estados Unidos, <code>1.234,50</code> numa planilha.</p>
+<p>Formatar é escolher a etiqueta. O número em si não muda; só o jeito de mostrar.</p>
+
+<hr>
+
+<h2>1. A primeira formatação</h2>
+
+<pre class="file" data-file="basico.cs">decimal preco = 1234.5m;
+Console.WriteLine(preco);
+Console.WriteLine(preco.ToString("C"));
+Console.WriteLine(preco.ToString("N2"));
+Console.WriteLine(preco.ToString("F2"));
+Console.WriteLine($"{preco:C}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run basico.cs
+1234,5          « sem formato: só a vírgula da cultura pt-BR
+R$ 1.234,50     « C = moeda
+1.234,50        « N2 = número com separador de milhar e 2 casas
+1234,50         « F2 = 2 casas, sem separador de milhar
+R$ 1.234,50     « o mesmo C, dentro da interpolação</pre>
+
+<dl class="anatomy">
+  <dt>preco.ToString("C")</dt><dd><code>ToString</code> ("para texto") transforma o número em <code>string</code>. O texto entre aspas é o <strong>formato</strong>: <code>"C"</code>, de <em>currency</em> ("moeda").</dd>
+  <dt>"N2"</dt><dd>A <strong>letra</strong> diz o tipo de etiqueta (<code>N</code> = <em>number</em>, número) e o <strong>número</strong> depois dela diz quantas casas decimais (<code>2</code>).</dd>
+  <dt>$"{preco:C}"</dt><dd>Na interpolação (aula <a href="interpolacao.html">Interpolação</a>), o formato vem depois de <code>:</code>, dentro das chaves, sem aspas. É o jeito mais usado.</dd>
+  <dt>a vírgula e o R$</dt><dd>Vêm da <strong>cultura</strong> do computador. A máquina da Ana está em português do Brasil, então o .NET usa vírgula decimal, ponto nos milhares e <code>R$</code>. Veja a seção 7.</dd>
+</dl>
+
+<div class="trycs" data-goal="outre:Preço: R\$\s1\.234\,50,src:preco:C">
+<p class="try-task"><strong>Missão:</strong> a etiqueta saiu <code>Preço: 1234,5</code>. Acrescente o formato de moeda dentro das chaves para aparecer <code>Preço: R$ 1.234,50</code>.</p>
+<pre class="out">Preço: R$ 1.234,50</pre>
+<pre class="script" data-file="etiqueta.cs">decimal preco = 1234.5m;
+Console.WriteLine($"Preço: {preco}");
+</pre>
+<pre class="solucao" data-file="etiqueta.cs">decimal preco = 1234.5m;
+Console.WriteLine($"Preço: {preco:C}");
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Os formatos de número: <code>C</code>, <code>N</code>, <code>F</code>, <code>E</code></h2>
+<p>Veja o mesmo <code>double</code> com vários formatos:</p>
+
+<pre class="file" data-file="tabela.cs">double x = 1234.5678;
+Console.WriteLine(x.ToString("N"));
+Console.WriteLine(x.ToString("N0"));
+Console.WriteLine(x.ToString("N1"));
+Console.WriteLine(x.ToString("N3"));
+Console.WriteLine(x.ToString("F0"));
+Console.WriteLine(x.ToString("F3"));
+Console.WriteLine(x.ToString("C"));
+Console.WriteLine(x.ToString("C0"));
+Console.WriteLine(x.ToString("E2"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tabela.cs
+1.234,568       « N sem número: aqui saíram 3 casas (veja o aviso abaixo)
+1.235           « N0: sem casas, arredondado
+1.234,6
+1.234,568
+1235            « F0: sem casas e sem separador de milhar
+1234,568
+R$ 1.234,57     « C: 2 casas, arredondado
+R$ 1.235        « C0: moeda sem centavos
+1,23E+003       « E2: notação científica, 1,23 × 10³</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Formato</th><th>Nome</th><th>O que faz</th><th><code>1234.5678</code> vira</th></tr>
+<tr><td><code>C</code> / <code>C2</code></td><td>moeda (<em>currency</em>)</td><td>símbolo do país, milhar, casas</td><td><code>R$ 1.234,57</code></td></tr>
+<tr><td><code>N2</code></td><td>número (<em>number</em>)</td><td>separador de milhar e N casas</td><td><code>1.234,57</code></td></tr>
+<tr><td><code>F2</code></td><td>ponto fixo (<em>fixed-point</em>)</td><td>N casas, <strong>sem</strong> separador de milhar</td><td><code>1234,57</code></td></tr>
+<tr><td><code>E2</code></td><td>exponencial</td><td>notação científica</td><td><code>1,23E+003</code></td></tr>
+</table>
+</div>
+
+<div class="warning">
+<strong>Escreva sempre o número de casas</strong>
+<p>Sem o número (<code>"N"</code>, <code>"P"</code>), a quantidade de casas vem da cultura do sistema, e ela muda de computador para computador. No Ubuntu da Ana, <code>"N"</code> deu <strong>3</strong> casas (<code>1.234,568</code>); no Windows em português, o mesmo programa costuma dar 2. Com <code>"N2"</code>, sai <code>1.234,57</code> em qualquer lugar. A exceção é o <code>"C"</code>, que usa as casas da moeda (2 para o real).</p>
+</div>
+
+<hr>
+
+<h2>3. Porcentagem: <code>P</code></h2>
+<p>O formato <code>P</code> (<em>percent</em>) <strong>multiplica por 100</strong> e põe o <code>%</code>. Por isso, a taxa de 12,5% se guarda como <code>0.125</code>:</p>
+
+<pre class="file" data-file="pct.cs">double taxa = 0.125;
+Console.WriteLine(taxa.ToString("P"));
+Console.WriteLine(taxa.ToString("P0"));
+Console.WriteLine(taxa.ToString("P1"));
+Console.WriteLine(taxa.ToString("P2"));
+Console.WriteLine((0.5).ToString("P0"));
+Console.WriteLine((12.5).ToString("P0"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pct.cs
+12,500%     « P sem número: 3 casas nesta máquina
+12%         « P0: o 12,5 arredondou para 12 (veja a seção 6)
+12,5%
+12,50%      « P2
+50%
+1.250%      « 12.5 × 100: o P não sabe que você já tinha multiplicado!</pre>
+
+<p>A última linha é o erro mais comum com <code>P</code>: guardar <code>12.5</code> pensando em "12,5%". Para o <code>P</code>, <code>12.5</code> é 1250%. Guarde a fração (<code>0.125</code>) e deixe o <code>P</code> multiplicar, ou guarde 12.5 e escreva o <code>%</code> você mesmo: <code>$"{12.5:N1}%"</code>.</p>
+
+<hr>
+
+<h2>4. Inteiros: <code>D</code> e <code>X</code></h2>
+<p>O formato <code>D</code> (<em>decimal digits</em>, "dígitos") é só para <strong>inteiros</strong>. O número depois dele é a quantidade <strong>mínima</strong> de dígitos, completada com zeros à esquerda:</p>
+
+<pre class="file" data-file="inteiro.cs">int numero = 7;
+Console.WriteLine(numero.ToString("D3"));
+Console.WriteLine(numero.ToString("D5"));
+Console.WriteLine((-42).ToString("D4"));
+Console.WriteLine(1234567.ToString("N0"));
+Console.WriteLine(255.ToString("X"));
+Console.WriteLine(255.ToString("X4"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run inteiro.cs
+007         « pedido número 007
+00007
+-0042       « o sinal fica na frente dos zeros
+1.234.567   « para separar milhares num inteiro, use N0
+FF          « X = hexadecimal (base 16): 255 é FF
+00FF</pre>
+
+<dl class="anatomy">
+  <dt>D3</dt><dd>"Pelo menos 3 dígitos." <code>7</code> vira <code>007</code>, mas <code>1234</code> continua <code>1234</code>: o <code>D</code> nunca corta. Ótimo para números de pedido, de matrícula, de chamada.</dd>
+  <dt>N0 com inteiro</dt><dd>O <code>D</code> não põe ponto nos milhares. Para isso, use <code>N0</code>.</dd>
+  <dt>X</dt><dd>Mostra o número em base 16 (de 0 a 9 e de A a F). Aparece em cores (<code>#FF0000</code>) e códigos de erro. <code>x</code> minúsculo dá letras minúsculas (<code>ff</code>).</dd>
+</dl>
+
+<hr>
+
+<h2>5. Formatos personalizados e alinhamento</h2>
+
+<h3>Monte o seu formato</h3>
+<p>Além das letras, dá para desenhar o formato com símbolos. O <code>0</code> é um dígito obrigatório (aparece zero se não houver); o <code>#</code> é um dígito opcional; o <strong>ponto</strong> marca onde fica a vírgula decimal, e a <strong>vírgula</strong> marca o separador de milhar. No formato, você escreve como nos Estados Unidos, e o .NET troca pelos símbolos da cultura na saída:</p>
+
+<pre class="file" data-file="custom.cs">double x = 1234.5;
+Console.WriteLine(x.ToString("0.00"));
+Console.WriteLine(x.ToString("#,##0.00"));
+Console.WriteLine(x.ToString("00000"));
+Console.WriteLine(7.ToString("000"));
+Console.WriteLine(0.5.ToString("0.#"));
+Console.WriteLine(2.0.ToString("0.#"));
+Console.WriteLine(0.3.ToString("0%"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run custom.cs
+1234,50      « 0.00: sempre duas casas
+1.234,50     « #,##0.00: com separador de milhar (igual ao N2)
+01235        « 00000: cinco dígitos, arredondado
+007          « igual ao D3
+0,5          « 0.#: uma casa, só se precisar
+2            « ...e aqui não precisou
+30%          « % no formato também multiplica por 100</pre>
+
+<p><strong>Qual usar?</strong> Prefira as letras (<code>N2</code>, <code>C</code>, <code>P1</code>): são curtas e todo mundo conhece. Use os personalizados quando nenhuma letra serve, como o <code>"0.#"</code> ("casa decimal só se precisar").</p>
+
+<h3>Alinhar em colunas: <code>{valor,largura:formato}</code></h3>
+<p>Na interpolação, a <strong>vírgula</strong> depois do valor reserva uma largura (aula <a href="interpolacao.html">Interpolação</a>). Junto com o formato, ela monta tabelas alinhadas, como a nota da lojinha:</p>
+
+<pre class="file" data-file="alinhar.cs">Console.WriteLine($"{"Produto",-10}{"Qtd",5}{"Preço",12}");
+Console.WriteLine($"{"Arroz",-10}{2,5}{5.9m,12:C}");
+Console.WriteLine($"{"Feijão",-10}{1,5}{8.5m,12:C}");
+Console.WriteLine($"{"Café",-10}{3,5}{17.25m,12:C}");
+Console.WriteLine(new string('-', 27));
+Console.WriteLine($"{"Total",-10}{6,5}{72.45m,12:C}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run alinhar.cs
+Produto     Qtd       Preço
+Arroz         2     R$ 5,90
+Feijão        1     R$ 8,50
+Café          3    R$ 17,25
+---------------------------
+Total         6    R$ 72,45</pre>
+
+<dl class="anatomy">
+  <dt>{"Arroz",-10}</dt><dd>10 posições, texto à <strong>esquerda</strong> (largura negativa). É o costume para nomes.</dd>
+  <dt>{2,5}</dt><dd>5 posições, à <strong>direita</strong> (largura positiva). É o costume para números: as unidades ficam umas embaixo das outras.</dd>
+  <dt>{5.9m,12:C}</dt><dd>Largura e formato juntos: primeiro a vírgula com a largura, depois os dois-pontos com o formato. A ordem é sempre essa: <code>{valor,largura:formato}</code>.</dd>
+</dl>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> acrescente um produto à nota, mude as larguras (o que acontece com um nome maior que 10 letras?) e troque <code>C</code> por <code>N2</code>.</p>
+<pre class="script" data-file="nota.cs">Console.WriteLine($"{"Produto",-10}{"Preço",12}");
+Console.WriteLine($"{"Arroz",-10}{5.9m,12:C}");
+Console.WriteLine($"{"Feijão",-10}{8.5m,12:C}");
+Console.WriteLine($"{"Pedido nº",-10}{7,12:D3}");
+</pre>
+</div>
+
+<hr>
+
+<h2>6. Arredondamento: <code>decimal</code> × <code>double</code></h2>
+<p>Ao cortar casas, o formato <strong>arredonda</strong>. Com <code>decimal</code>, o .NET arredonda como na escola: 5 ou mais sobe. Com <code>double</code>, há duas surpresas:</p>
+
+<pre class="file" data-file="arred.cs">Console.WriteLine(0.125m.ToString("F2"));
+Console.WriteLine(2.5m.ToString("F0"));
+Console.WriteLine(0.125.ToString("F2"));
+Console.WriteLine(2.5.ToString("F0"));
+Console.WriteLine(3.5.ToString("F0"));
+Console.WriteLine(1.005.ToString("F2"));
+Console.WriteLine(1.005m.ToString("F2"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run arred.cs
+0,13     « decimal: 0,125 sobe para 0,13, como na escola
+3        « decimal: 2,5 sobe para 3
+0,12     « double: empate exato vai para o número PAR (2)
+2        « double: 2,5 vai para 2 (par)...
+4        « ...e 3,5 vai para 4 (par)
+1,00     « double: 1.005 é guardado como 1,00499999…, então desce
+1,01     « decimal: 1,005 é exato, e sobe</pre>
+
+<ol class="passo">
+  <li><strong>Empates com <code>double</code>:</strong> quando o número está exatamente no meio (0,125; 2,5), o .NET arredonda para o lado do dígito <strong>par</strong>. Essa regra, o "arredondamento do banqueiro", evita que os erros se acumulem sempre para cima em milhões de contas.</li>
+  <li><strong>Falsos empates com <code>double</code>:</strong> <code>1.005</code> não é guardado como 1,005, e sim como um número um pouquinho menor (aula <a href="decimais.html">float, double e decimal</a>). Ele nem é um empate: desce para 1,00.</li>
+</ol>
+<p>Moral: para <strong>dinheiro</strong>, use <code>decimal</code>, e o arredondamento será o que o cliente espera. Para arredondar o <strong>valor</strong> (e não só a etiqueta), existe <code>Math.Round</code> (aula <a href="math.html">Matemática</a>).</p>
+
+<hr>
+
+<h2>7. A cultura decide os símbolos</h2>
+<p>Vírgula ou ponto, <code>R$</code> ou <code>$</code>: tudo vem da <strong>cultura</strong> (<code>CultureInfo</code>), o conjunto de regras de um país e idioma. Sem dizer nada, o .NET usa a cultura do sistema. Dá para escolher outra:</p>
+
+<pre class="file" data-file="cultura.cs">using System.Globalization;
+decimal preco = 1234.5m;
+Console.WriteLine(preco.ToString("C"));
+Console.WriteLine(preco.ToString("C", new CultureInfo("en-US")));
+Console.WriteLine(preco.ToString("C", new CultureInfo("pt-PT")));
+Console.WriteLine(preco.ToString("N2", CultureInfo.InvariantCulture));
+Console.WriteLine(CultureInfo.CurrentCulture.Name);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run cultura.cs
+R$ 1.234,50     « a cultura da máquina (pt-BR)
+$1,234.50       « Estados Unidos: ponto decimal, vírgula nos milhares
+1 234,50 €      « Portugal: espaço nos milhares, euro no fim
+1,234.50        « invariante: regras fixas, iguais em qualquer computador
+pt-BR</pre>
+
+<dl class="anatomy">
+  <dt>using System.Globalization;</dt><dd>Avisa que vamos usar nomes do "pacote" de globalização, como <code>CultureInfo</code> (aula <a href="namespaces.html">Namespaces e using</a>).</dd>
+  <dt>ToString("C", new CultureInfo("en-US"))</dt><dd>O segundo argumento escolhe a cultura. <code>"en-US"</code> é inglês dos Estados Unidos; <code>"pt-PT"</code>, português de Portugal.</dd>
+  <dt>CultureInfo.InvariantCulture</dt><dd>A cultura "neutra", que não muda com o computador. Use para gravar números em arquivos e trocar dados entre programas (aula <a href="cultura.html">Cultura</a>).</dd>
+</dl>
+
+<div class="warning">
+<strong>O espaço do <code>R$</code> nem sempre é um espaço comum</strong>
+<p>Na máquina da Ana, o espaço entre <code>R$</code> e o número é um espaço comum (o byte <code>20</code>, conferido com <code>xxd</code>). Mas o espaço que separa os milhares em <code>1 234,50 €</code> já é outro caractere: o <strong>espaço sem quebra</strong> (U+00A0, bytes <code>c2 a0</code>), que impede a linha de quebrar no meio do número. Em outros sistemas e versões, o próprio <code>R$</code> pode vir com esse espaço especial. Por isso, <strong>não compare textos formatados</strong> (<code>texto == "R$ 5,00"</code>) para tomar decisões: compare os números, e formate só para mostrar.</p>
+</div>
+
+<hr>
+
+<h2>Formas diferentes de formatar</h2>
+
+<pre class="file" data-file="formas.cs">decimal preco = 9.9m;
+Console.WriteLine(preco.ToString("C"));
+Console.WriteLine($"{preco:C}");
+Console.WriteLine(string.Format("{0:C}", preco));
+Console.WriteLine("{0:C}", preco);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run formas.cs
+R$ 9,90
+R$ 9,90
+R$ 9,90
+R$ 9,90</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Qual usar</th></tr>
+<tr><td><code>$"{preco:C}"</code></td><td><strong>O padrão</strong>, quando o número vai dentro de uma frase.</td></tr>
+<tr><td><code>preco.ToString("C")</code></td><td>Quando você quer só o número formatado, numa variável: <code>string etiqueta = preco.ToString("C");</code>. É também o jeito de passar outra cultura.</td></tr>
+<tr><td><code>string.Format("{0:C}", preco)</code></td><td>Código antigo, ou quando o texto com as lacunas vem de fora do programa.</td></tr>
+<tr><td><code>Console.WriteLine("{0:C}", preco)</code></td><td>Tutoriais antigos. Prefira a interpolação.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="erros">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>Unhandled exception. System.FormatException: Format specifier was invalid.</code> com <code>D</code></strong>
+<pre class="file" data-file="ef1.cs">decimal preco = 9.9m;
+Console.WriteLine(preco.ToString("D2"));
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ef1.cs
+Unhandled exception. System.FormatException: Format specifier was invalid.
+   at System.Number.NumberToString[TChar](ValueListBuilder`1&amp; vlb, NumberBuffer&amp; number, Char format, Int32 nMaxDigits, NumberFormatInfo info)
+   at System.Number.FormatDecimal(Decimal value, ReadOnlySpan`1 format, NumberFormatInfo info)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/ef1.cs:line 2</pre>
+<p><strong>O que significa:</strong> "o especificador de formato era inválido". O <code>D</code> só serve para inteiros (<code>int</code>, <code>long</code>…), e <code>preco</code> é <code>decimal</code>. O compilador não confere o texto do formato: o erro só aparece ao rodar, com código de saída 134.</p>
+<p><strong>Como consertar:</strong> para casas decimais, use <code>N2</code> ou <code>F2</code>. Para zeros na frente de um número com vírgula, um formato personalizado: <code>"000.00"</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>System.FormatException: Format specifier was invalid.</code> com uma letra que não existe</strong>
+<pre class="file" data-file="ef2.cs">int x = 5;
+Console.WriteLine(x.ToString("Z"));
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ef2.cs
+Unhandled exception. System.FormatException: Format specifier was invalid.
+   at System.Number.NumberToString[TChar](ValueListBuilder`1&amp; vlb, NumberBuffer&amp; number, Char format, Int32 nMaxDigits, NumberFormatInfo info)
+   at System.Number.&lt;FormatInt32&gt;g__FormatInt32Slow|21_0(Int32 value, Int32 hexMask, String format, IFormatProvider provider)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/ef2.cs:line 2</pre>
+<p><strong>O que significa:</strong> não existe o formato <code>Z</code>. Uma letra sozinha (ou letra + número) é lida como formato-padrão, e se ela não existe, dá exceção.</p>
+<p><strong>Como consertar:</strong> use uma das letras da tabela de <a href="#referencia">Referência</a>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1503: Argumento 1: não é possível converter de "string" para "System.IFormatProvider?"</code></strong>
+<pre class="file" data-file="ef4.cs">string preco = "12.5";
+Console.WriteLine(preco.ToString("C"));
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ef4.cs
+/home/ana/cs/ef4.cs(2,34): error CS1503: Argumento 1: não é possível converter de "string" para "System.IFormatProvider?"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> <code>preco</code> é um <strong>texto</strong>, não um número. O <code>ToString</code> de uma string não aceita formatos como <code>"C"</code> (ele espera outra coisa, um "fornecedor de formato", e por isso a mensagem fala em <code>IFormatProvider</code>).</p>
+<p><strong>Como consertar:</strong> transforme o texto em número primeiro, com <code>decimal.Parse</code> ou <code>decimal.TryParse</code> (aula <a href="parse.html">Parse e TryParse</a>), e formate o número.</p>
+</div>
+
+<div class="cenario">
+<strong>A porcentagem saiu cem vezes maior (<code>1.250%</code>)</strong>
+<p><strong>O que significa:</strong> o <code>P</code> multiplica por 100, e o valor já estava em "pontos percentuais" (12.5 em vez de 0.125).</p>
+<p><strong>Como consertar:</strong> guarde a fração (<code>0.125</code>), ou formate sem <code>P</code>: <code>$"{taxa:N1}%"</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>O mesmo programa mostra 2 casas num computador e 3 em outro</strong>
+<p><strong>O que significa:</strong> você usou <code>"N"</code> ou <code>"P"</code> sem o número de casas, e a quantidade veio da cultura do sistema.</p>
+<p><strong>Como consertar:</strong> escreva as casas: <code>"N2"</code>, <code>"P1"</code>.</p>
+</div>
+
+<hr>
+
+<h2 id="referencia">Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Formato</th><th>Para</th><th>Exemplo (cultura pt-BR)</th><th>Resultado</th></tr>
+<tr><td><code>C</code>, <code>C0</code></td><td>moeda</td><td><code>1234.5m.ToString("C")</code></td><td><code>R$ 1.234,50</code></td></tr>
+<tr><td><code>N2</code></td><td>número com milhar</td><td><code>1234.5.ToString("N2")</code></td><td><code>1.234,50</code></td></tr>
+<tr><td><code>N0</code></td><td>inteiro com milhar</td><td><code>1234567.ToString("N0")</code></td><td><code>1.234.567</code></td></tr>
+<tr><td><code>F2</code></td><td>casas fixas, sem milhar</td><td><code>1234.5.ToString("F2")</code></td><td><code>1234,50</code></td></tr>
+<tr><td><code>P1</code></td><td>porcentagem (× 100)</td><td><code>0.125.ToString("P1")</code></td><td><code>12,5%</code></td></tr>
+<tr><td><code>D3</code></td><td>inteiro com zeros à esquerda</td><td><code>7.ToString("D3")</code></td><td><code>007</code></td></tr>
+<tr><td><code>X</code>, <code>X4</code></td><td>hexadecimal (inteiros)</td><td><code>255.ToString("X4")</code></td><td><code>00FF</code></td></tr>
+<tr><td><code>E2</code></td><td>notação científica</td><td><code>1234.5.ToString("E2")</code></td><td><code>1,23E+003</code></td></tr>
+<tr><td><code>"0.00"</code></td><td>personalizado: 2 casas</td><td><code>3.14159.ToString("0.00")</code></td><td><code>3,14</code></td></tr>
+<tr><td><code>"#,##0"</code></td><td>personalizado: milhar</td><td><code>1234.ToString("#,##0")</code></td><td><code>1.234</code></td></tr>
+<tr><td><code>"0.#"</code></td><td>personalizado: casa opcional</td><td><code>2.0.ToString("0.#")</code></td><td><code>2</code></td></tr>
+<tr><td><code>{x,10:C}</code></td><td>largura 10, à direita, moeda</td><td><code>$"[{5.9m,10:C}]"</code></td><td><code>[   R$ 5,90]</code></td></tr>
+<tr><td><code>{x,-10}</code></td><td>largura 10, à esquerda</td><td><code>$"[{"oi",-4}]"</code></td><td><code>[oi  ]</code></td></tr>
+</table>
+</div>
+<p>As letras podem ser maiúsculas ou minúsculas (<code>"c"</code> = <code>"C"</code>), com exceção do <code>X</code>/<code>x</code>, que muda a caixa das letras de A a F.</p>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Moeda</h3>
+<p>Complete para mostrar <code>R$ 49,90</code>:</p>
+<div class="ex-code">$"{preco:<input data-answer="C|C2|c|c2" aria-label="formato">}"</div>
+</div>
+
+<div class="exercise">
+<h3>2. Zeros na frente</h3>
+<p>Complete para o pedido 42 aparecer como <code>00042</code>:</p>
+<div class="ex-code">pedido.ToString("<input data-answer="D5|d5|00000" aria-label="formato">")</div>
+</div>
+
+<div class="exercise">
+<h3>3. Porcentagem</h3>
+<p>Que valor guardar em <code>taxa</code> para <code>taxa.ToString("P0")</code> mostrar <code>30%</code>?</p>
+<div class="ex-code">double taxa = <input data-answer="0.3|0.30|.3" aria-label="valor">;</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Qual a diferença entre <code>N2</code> e <code>F2</code> para <code>1234.5</code>?</p>
+<label><input type="radio" name="q4"> Nenhuma.</label>
+<label><input type="radio" name="q4"> <code>N2</code> põe o separador de milhar (<code>1.234,50</code>); <code>F2</code> não (<code>1234,50</code>).</label>
+<label><input type="radio" name="q4"> <code>F2</code> põe o <code>R$</code>.</label>
+<label><input type="radio" name="q4"> <code>N2</code> arredonda e <code>F2</code> não.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. O que acontece com <code>9.9m.ToString("D2")</code>?</p>
+<label><input type="radio" name="q5"> Mostra <code>09,90</code>.</label>
+<label><input type="radio" name="q5"> Mostra <code>10</code>.</label>
+<label><input type="radio" name="q5"> Não compila.</label>
+<label><input type="radio" name="q5"> Compila, mas lança <code>FormatException</code> ao rodar: <code>D</code> é só para inteiros.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Em <code>$"{valor,10:C}"</code>, o que é o <code>10</code>?</p>
+<label><input type="radio" name="q6"> A largura: o texto ocupa 10 posições, alinhado à direita.</label>
+<label><input type="radio" name="q6"> O número de casas decimais.</label>
+<label><input type="radio" name="q6"> O valor máximo.</label>
+<label><input type="radio" name="q6"> A cultura.</label>
+</div>
+
+<h3>Missão final: o recibo com desconto</h3>
+
+<div class="trycs" data-goal="outre:Preço: R\$\s100\,00,outre:Desconto: 12\,5\s?%,outre:Total: R\$\s87\,50,src:P1">
+<p class="try-task"><strong>Missão:</strong> o recibo da lojinha está cru: <code>100</code>, <code>0,125</code>, <code>87,500</code>. Formate o preço e o total como <strong>moeda</strong> e o desconto como <strong>porcentagem com uma casa</strong> (<code>P1</code>), para aparecer o recibo abaixo. Não mude as contas.</p>
+<pre class="out">Preço: R$ 100,00
+Desconto: 12,5%
+Total: R$ 87,50</pre>
+<pre class="script" data-file="recibo.cs">decimal preco = 100m;
+decimal desconto = 0.125m;
+decimal total = preco - preco * desconto;
+Console.WriteLine($"Preço: {preco}");
+Console.WriteLine($"Desconto: {desconto}");
+Console.WriteLine($"Total: {total}");
+</pre>
+<pre class="solucao" data-file="recibo.cs">decimal preco = 100m;
+decimal desconto = 0.125m;
+decimal total = preco - preco * desconto;
+Console.WriteLine($"Preço: {preco:C}");
+Console.WriteLine($"Desconto: {desconto:P1}");
+Console.WriteLine($"Total: {total:C}");
+</pre>
+</div>
+
+<p>Depois, alinhe o recibo em colunas: <code>{"Preço:",-10}{preco,12:C}</code>, e faça o mesmo nas outras linhas.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Formatar é escolher como um número aparece; o valor não muda. Use <code>$"{x:formato}"</code> ou <code>x.ToString("formato")</code>.</li>
+  <li><code>C</code> = moeda (<code>R$ 1.234,50</code>); <code>N2</code> = milhar e 2 casas; <code>F2</code> = 2 casas sem milhar; <code>P1</code> = porcentagem (multiplica por 100); <code>D3</code> = inteiro com zeros (<code>007</code>); <code>X</code> = hexadecimal.</li>
+  <li>Escreva sempre as casas (<code>N2</code>, <code>P1</code>): sem elas, a quantidade depende do sistema.</li>
+  <li>Personalizados: <code>"0.00"</code>, <code>"#,##0"</code>, <code>"0.#"</code>. Alinhamento: <code>{valor,largura:formato}</code>; largura negativa encosta à esquerda.</li>
+  <li><code>decimal</code> arredonda como na escola; <code>double</code> vai para o par nos empates e tem falsos empates (<code>1.005</code>).</li>
+  <li>Vírgula, ponto e <code>R$</code> vêm da cultura (<code>pt-BR</code>). Não compare textos formatados; compare números.</li>
+  <li><code>D</code> com <code>decimal</code> ou uma letra que não existe: <code>FormatException</code> ao rodar.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
