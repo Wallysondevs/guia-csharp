@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Números Aleatórios (Random) — sortear com Random.Shared | Guia C#</title>
+<meta name="description" content="Números aleatórios em C# para quem nunca programou: um dado de 1 a 6 com Random.Shared.Next(1, 7) e por que o 7 fica de fora, Next, NextDouble e NextInt64, sortear um elemento, GetItems e Shuffle, a semente fixa com new Random(42) e a mesma sequência no editor e no dotnet, por que Random não serve para senhas (RandomNumberGenerator), e os erros reais ArgumentOutOfRangeException e CS1955, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Números Aleatórios (Random)</span></h1>
+
+<p class="intro">Jogos jogam dados, sorteios escolhem um ganhador, quizzes embaralham as perguntas. Em todos eles o programa precisa de números que <strong>não</strong> dá para prever. No C#, quem sorteia é a classe <strong><code>Random</code></strong> ("aleatório"), e o jeito mais simples de usá-la é o <code>Random.Shared</code>, um sorteador pronto que todo o programa compartilha. Nesta aula você vai jogar dados, sortear alunos, embaralhar cartas, entender o que é a <strong>semente</strong> e por que, para senhas, a ferramenta é outra.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como sortear um número com <code>Random.Shared.Next</code>, e por que o dado é <code>Next(1, 7)</code> e não <code>Next(1, 6)</code>.</li>
+  <li>As outras formas: <code>Next()</code>, <code>Next(max)</code>, <code>NextDouble()</code> e <code>NextInt64</code>.</li>
+  <li>Como sortear um elemento de um array, vários com <code>GetItems</code>, e embaralhar com <code>Shuffle</code>.</li>
+  <li>O que é a <strong>semente</strong>, e quando usar <code>new Random(42)</code>.</li>
+  <li>Por que o <code>Random</code> não serve para senhas, e o que usar no lugar.</li>
+  <li>Os erros reais: <code>ArgumentOutOfRangeException</code> e <code>CS1955</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas foram rodados com o <strong>.NET 10</strong> (<code>dotnet --version</code> = <code>10.0.112</code>, C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<div class="warning">
+<strong>Os números desta aula mudam a cada execução</strong>
+<p>Esse é o objetivo: se você rodar os exemplos (no seu computador ou no editor do guia), vai ver <strong>outros números</strong>, e cada Rodar dá um resultado diferente. Os terminais da aula mostram uma execução de verdade, entre milhões possíveis. As missões conferem o que vale em <strong>qualquer</strong> sorteio (o intervalo, se não há repetição), nunca os números sorteados.</p>
+</div>
+
+<hr>
+
+<h2>A ideia: o caderno de números</h2>
+<p>Imagine uma professora com um caderno de milhões de números escritos em sequência, sem nenhum padrão que se perceba. Quando alguém pede "um número aleatório", ela lê o próximo número do caderno.</p>
+<ul>
+  <li>Para quem recebe, os números parecem sorte.</li>
+  <li>Mas, se ela começar sempre da mesma página, a turma de amanhã recebe <strong>os mesmos números</strong>, na mesma ordem.</li>
+  <li>O número da página em que ela começa se chama <strong>semente</strong> (em inglês, <em>seed</em>).</li>
+</ul>
+<p>O <code>Random</code> funciona assim. Os números não são sorte de verdade: são o resultado de uma <strong>conta</strong>, feita a partir do número anterior. Por isso se chamam <strong>pseudoaleatórios</strong> ("falsos aleatórios"). Para jogos e sorteios, isso basta. A boa notícia: o <code>Random.Shared</code> escolhe uma página diferente a cada vez que o programa roda, sem você fazer nada.</p>
+
+<hr>
+
+<h2>1. Um dado de 1 a 6</h2>
+
+<pre class="file" data-file="dado.cs">for (int i = 0; i &lt; 10; i++)
+{
+    int dado = Random.Shared.Next(1, 7);
+    Console.Write($"{dado} ");
+}
+Console.WriteLine();
+</pre>
+
+<dl class="anatomy">
+  <dt>Random</dt><dd>A classe que sorteia. Ela vem do <code>System</code>, que todo programa já enxerga.</dd>
+  <dt>.Shared</dt><dd>"Compartilhado": um sorteador pronto, criado pelo próprio .NET, que qualquer parte do programa pode usar. Ele já vem com uma semente diferente a cada execução. <span class="versao">.NET 6</span></dd>
+  <dt>.Next(1, 7)</dt><dd>"Próximo": sorteia o próximo número inteiro, <strong>de 1 até 6</strong>. O primeiro número (1) <strong>entra</strong>; o segundo (7) <strong>não entra</strong>. É a mesma regra do intervalo <code>1..7</code> da aula <a href="indices-intervalos.html">Índices e Intervalos</a>.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run dado.cs
+4 3 4 5 4 3 4 6 2 4
+$ dotnet run dado.cs
+1 2 5 1 5 6 3 5 3 3      « outra partida, outros números</pre>
+
+<div class="tip">
+<strong>Por que o 7, e não o 6?</strong>
+<p>O segundo número do <code>Next</code> é o <strong>limite</strong>, que fica de fora. Por isso, para um dado, é <code>Next(1, 7)</code>. Parece estranho, mas tem uma vantagem: <code>Next(0, n)</code> dá exatamente os índices de um array de <code>n</code> elementos (de 0 a <code>n − 1</code>), e <code>7 − 1 = 6</code> é a quantidade de resultados possíveis. Escrever <code>Next(1, 6)</code> é o erro mais comum desta aula: o 6 nunca sai.</p>
+</div>
+
+<div class="trycs" data-goal="out:Menor: 1,out:Maior: 6,src:Next\s*\(">
+<p class="try-task"><strong>Missão:</strong> o programa joga o dado 10 mil vezes e mostra o menor e o maior resultado. Rode e veja: o maior é 5, porque o 6 nunca sai. Conserte o <code>Next</code> para o dado dar de 1 a 6 (a saída tem de ter <code>Menor: 1</code> e <code>Maior: 6</code>).</p>
+<pre class="out">Menor: 1
+Maior: 6</pre>
+<pre class="script">int menor = 100, maior = 0;
+for (int i = 0; i &lt; 10_000; i++)
+{
+    int dado = Random.Shared.Next(1, 6);   // conserte: tem de dar de 1 a 6
+    menor = Math.Min(menor, dado);
+    maior = Math.Max(maior, dado);
+}
+Console.WriteLine($"Menor: {menor}");
+Console.WriteLine($"Maior: {maior}");
+</pre>
+<pre class="solucao">int menor = 100, maior = 0;
+for (int i = 0; i &lt; 10_000; i++)
+{
+    int dado = Random.Shared.Next(1, 7);
+    menor = Math.Min(menor, dado);
+    maior = Math.Max(maior, dado);
+}
+Console.WriteLine($"Menor: {menor}");
+Console.WriteLine($"Maior: {maior}");
+</pre>
+</div>
+
+<hr>
+
+<h2>2. As formas de sortear</h2>
+
+<pre class="file" data-file="tipos.cs">Random r = Random.Shared;
+Console.WriteLine(r.Next());
+Console.WriteLine(r.Next(10));
+Console.WriteLine(r.Next(1, 101));
+Console.WriteLine(r.NextDouble());
+Console.WriteLine(r.NextInt64(1, 10_000_000_000));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tipos.cs
+1011742441
+6
+4
+0,6050410577727472
+6739814538</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Sorteia</th><th>Exemplo de uso</th></tr>
+<tr><td><code>Next()</code></td><td>um <code>int</code> de 0 até 2.147.483.646</td><td>Raramente: um número grande qualquer</td></tr>
+<tr><td><code>Next(max)</code></td><td>de 0 até <code>max − 1</code></td><td><code>Next(10)</code>: um algarismo de 0 a 9; <code>Next(v.Length)</code>: um índice do array <code>v</code></td></tr>
+<tr><td><code>Next(min, max)</code></td><td>de <code>min</code> até <code>max − 1</code></td><td><code>Next(1, 7)</code>: um dado; <code>Next(1, 101)</code>: de 1 a 100</td></tr>
+<tr><td><code>NextDouble()</code></td><td>um <code>double</code> de 0 (entra) até 1 (não entra)</td><td>Chances: <code>if (r.NextDouble() &lt; 0.3)</code> acontece em 30% das vezes</td></tr>
+<tr><td><code>NextInt64(min, max)</code></td><td>um <code>long</code>, para intervalos maiores que o <code>int</code></td><td>Um número de conta de 10 dígitos</td></tr>
+</table>
+</div>
+
+<dl class="anatomy">
+  <dt>Random r = Random.Shared;</dt><dd>Uma variável com um nome curto para o mesmo sorteador, só para não repetir <code>Random.Shared</code> em toda linha.</dd>
+  <dt>10_000_000_000</dt><dd>Os <code>_</code> só separam os milhares para quem lê (aula <a href="inteiros.html">Inteiros</a>): é dez bilhões.</dd>
+</dl>
+
+<h3>Um número com vírgula num intervalo</h3>
+<p>O <code>NextDouble()</code> dá de 0 a 1. Para outro intervalo, multiplique pelo tamanho e some o começo. Uma temperatura entre 20 e 30 graus:</p>
+
+<pre class="file" data-file="faixa.cs">double temperatura = 20 + Random.Shared.NextDouble() * 10;
+Console.WriteLine($"{temperatura:F1} °C");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run faixa.cs
+29,3 °C
+$ dotnet run faixa.cs
+21,0 °C</pre>
+
+<p>O <code>NextDouble() * 10</code> dá de 0 a 10; somando 20, de 20 a 30. O <code>:F1</code> mostra uma casa decimal (aula <a href="formatacao.html">Formatar Números</a>).</p>
+
+<hr>
+
+<h2>3. Sortear e embaralhar listas</h2>
+
+<h3>Sortear um elemento</h3>
+<p>A professora Ana quer sortear quem apresenta o trabalho. O truque é sortear um <strong>índice</strong>: <code>Next(alunos.Length)</code> dá de 0 até <code>Length − 1</code>, exatamente as posições do array (aula <a href="arrays.html">Arrays</a>).</p>
+
+<pre class="file" data-file="sortear.cs">string[] alunos = ["Ana", "Bia", "Caio", "Davi", "Eva"];
+string escolhido = alunos[Random.Shared.Next(alunos.Length)];
+Console.WriteLine($"Quem apresenta hoje: {escolhido}");
+string[] dois = Random.Shared.GetItems(alunos, 2);
+Console.WriteLine($"Com repetição: {string.Join(", ", dois)}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sortear.cs
+Quem apresenta hoje: Eva
+Com repetição: Eva, Ana</pre>
+
+<dl class="anatomy">
+  <dt>alunos[Random.Shared.Next(alunos.Length)]</dt><dd>Lê-se de dentro para fora: sorteia um número de 0 a 4, e usa como índice. Nunca passa do fim, porque o limite (<code>Length</code>) fica de fora.</dd>
+  <dt>Random.Shared.GetItems(alunos, 2)</dt><dd>"Pegar itens": sorteia 2 elementos, <strong>com repetição</strong>: o mesmo aluno pode sair duas vezes, como num dado jogado duas vezes. <span class="versao">.NET 8</span></dd>
+</dl>
+
+<div class="trycs" data-goal="outre:^Quem apresenta hoje: (Ana|Bia|Caio|Davi|Eva)\n$,src:Next\s*\(\s*alunos\.Length\s*\)">
+<p class="try-task"><strong>Missão:</strong> o programa sempre escolhe o primeiro aluno, <code>alunos[0]</code>. Troque o 0 por um índice sorteado com <code>Random.Shared.Next(alunos.Length)</code>, para cada Rodar escolher um aluno qualquer da lista. Rode algumas vezes e veja o nome mudar.</p>
+<pre class="script">string[] alunos = ["Ana", "Bia", "Caio", "Davi", "Eva"];
+string escolhido = alunos[0];   // sorteie o índice
+Console.WriteLine($"Quem apresenta hoje: {escolhido}");
+</pre>
+<pre class="solucao">string[] alunos = ["Ana", "Bia", "Caio", "Davi", "Eva"];
+string escolhido = alunos[Random.Shared.Next(alunos.Length)];
+Console.WriteLine($"Quem apresenta hoje: {escolhido}");
+</pre>
+</div>
+
+<h3>Embaralhar</h3>
+
+<pre class="file" data-file="embaralhar.cs">int[] cartas = [1, 2, 3, 4, 5, 6, 7, 8];
+Random.Shared.Shuffle(cartas);
+Console.WriteLine(string.Join(" ", cartas));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run embaralhar.cs
+7 3 8 4 5 6 2 1</pre>
+
+<p>O <code>Shuffle</code> ("embaralhar") <span class="versao">.NET 8</span> troca os elementos de lugar <strong>no próprio array</strong>, como o <code>Array.Sort</code> da aula <a href="classe-array.html">A Classe Array</a>, e com a mesma pegadinha: a ordem antiga some. Todas as cartas continuam lá, cada uma uma vez só. Por isso, para sortear vários <strong>sem repetição</strong> (os números de uma loteria, a ordem das apresentações), o jeito é embaralhar e pegar os primeiros: <code>cartas[..3]</code>.</p>
+
+<hr>
+
+<h2>4. A semente: <code>new Random(42)</code></h2>
+<p>Às vezes você <strong>quer</strong> os mesmos números toda vez: para testar um jogo (e reproduzir o bug que só aparece quando sai 6, 6, 1), ou para gerar sempre o mesmo mapa a partir de um "código do mundo". Para isso, crie o seu próprio sorteador com uma semente fixa:</p>
+
+<pre class="file" data-file="semente.cs">Random sorteio = new Random(42);
+for (int i = 0; i &lt; 10; i++)
+{
+    Console.Write($"{sorteio.Next(1, 7)} ");
+}
+Console.WriteLine();
+Console.WriteLine(sorteio.Next());
+Console.WriteLine(sorteio.NextDouble());
+Console.WriteLine(sorteio.Next(100));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run semente.cs
+5 1 1 4 2 2 5 4 2 5
+503774878
+0,2573213978937461
+50
+$ dotnet run semente.cs
+5 1 1 4 2 2 5 4 2 5      « exatamente os mesmos, na mesma ordem
+503774878
+0,2573213978937461
+50</pre>
+
+<dl class="anatomy">
+  <dt>new Random(42)</dt><dd>Cria um sorteador novo (<code>new</code>, aula <a href="classes-objetos.html">Classes e Objetos</a>), começando na "página" 42 do caderno. Qualquer número inteiro serve de semente; 42 é só um costume dos programadores.</dd>
+  <dt>sorteio.Next(1, 7)</dt><dd>Os mesmos métodos do <code>Random.Shared</code>, mas agora chamados na sua variável.</dd>
+</dl>
+
+<p>Rodou duas vezes e saíram os mesmos números. No editor do guia, o mesmo programa dá <strong>a mesma sequência</strong> (<code>5 1 1 4 2 2 5 4 2 5</code>, <code>503774878</code>…): o guia conferiu, rodando o programa no editor e no <code>dotnet</code> do Linux, e também com <code>Shuffle</code> e <code>GetItems</code>. Mesmo assim, as missões não dependem deles, porque a documentação do .NET avisa que a conta por trás do <code>Random</code> pode mudar numa versão futura. Use a semente para testar e repetir, não como uma promessa eterna.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Semente</th><th>Quando usar</th></tr>
+<tr><td><code>Random.Shared</code></td><td>Diferente a cada execução, escolhida pelo .NET</td><td>Quase sempre: jogos, sorteios, testes de "e se"</td></tr>
+<tr><td><code>new Random(42)</code></td><td>Fixa: a mesma sequência toda vez</td><td>Testes que precisam se repetir, mapas a partir de um código</td></tr>
+<tr><td><code>new Random()</code></td><td>Diferente a cada vez</td><td>Código antigo, de antes do .NET 6. Hoje, prefira o <code>Random.Shared</code></td></tr>
+</table>
+</div>
+
+<div class="note">
+<strong>E o <code>new Random()</code> dentro do laço?</strong>
+<p>Você vai ler em tutoriais antigos que criar um <code>new Random()</code> a cada volta do laço repete o mesmo número. Isso acontecia no .NET Framework, que usava o relógio como semente. No .NET moderno, cada <code>new Random()</code> começa num ponto diferente, e o problema sumiu. Mas um <code>new Random(42)</code> dentro do laço repete, sim: cada volta recomeça da página 42.</p>
+<pre class="term" data-cwd="~/cs">$ cat laco-new.cs
+for (int i = 0; i &lt; 5; i++)
+{
+    Random r = new Random();
+    Console.Write($"{r.Next(1, 7)} ");
+}
+Console.WriteLine();
+for (int i = 0; i &lt; 5; i++)
+{
+    Random r = new Random(42);
+    Console.Write($"{r.Next(1, 7)} ");
+}
+Console.WriteLine();
+$ dotnet run laco-new.cs
+2 1 1 6 3
+5 5 5 5 5         « semente fixa recriada a cada volta: sempre o primeiro número</pre>
+<p>A regra simples: um sorteador só, criado <strong>uma vez</strong>, fora do laço. Com o <code>Random.Shared</code>, nem precisa pensar nisso.</p>
+</div>
+
+<hr>
+
+<h2>5. Para senhas: <code>RandomNumberGenerator</code></h2>
+<p>A sequência do <code>Random</code> sai de uma conta. Para um jogo, ninguém consegue (nem quer) adivinhar o próximo número. Mas, para uma <strong>senha</strong>, um código de verificação ou um sorteio com dinheiro envolvido, alguém pode querer, e há técnicas para isso. Nesses casos, o .NET tem o <code>RandomNumberGenerator</code> ("gerador de números aleatórios"), que usa o sorteador <strong>criptográfico</strong> do sistema operacional, feito para ser imprevisível:</p>
+
+<pre class="file" data-file="senha.cs">using System.Security.Cryptography;
+string letras = "abcdefghijkmnpqrstuvwxyz23456789";
+char[] senha = new char[10];
+for (int i = 0; i &lt; senha.Length; i++)
+{
+    senha[i] = letras[RandomNumberGenerator.GetInt32(letras.Length)];
+}
+Console.WriteLine(new string(senha));
+Console.WriteLine(RandomNumberGenerator.GetString(letras, 10));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run senha.cs
+4vyzbhnuxc
+ufypp5sa3m</pre>
+
+<dl class="anatomy">
+  <dt>using System.Security.Cryptography;</dt><dd>"Segurança, criptografia": onde mora o <code>RandomNumberGenerator</code>. Vai na primeira linha do arquivo (aula <a href="namespaces.html">Namespaces e using</a>).</dd>
+  <dt>letras</dt><dd>As letras e algarismos que podem sair. Faltam o <code>l</code>, o <code>o</code>, o <code>0</code> e o <code>1</code> de propósito: são fáceis de confundir quando alguém copia a senha.</dd>
+  <dt>RandomNumberGenerator.GetInt32(letras.Length)</dt><dd>Como o <code>Next(max)</code>: de 0 até <code>Length − 1</code>, só que imprevisível. Não tem semente: não dá para repetir.</dd>
+  <dt>RandomNumberGenerator.GetString(letras, 10)</dt><dd>O laço inteiro numa linha: 10 caracteres sorteados do texto <code>letras</code>. <span class="versao">.NET 8</span></dd>
+</dl>
+
+<div class="warning">
+<strong>Regra do guia</strong>
+<p><code>Random</code> (e <code>Random.Shared</code>) para jogos e sorteios do dia a dia. <code>RandomNumberGenerator</code> para tudo o que protege alguma coisa: senhas, tokens, códigos de confirmação.</p>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>O 6 nunca sai: <code>Next(1, 6)</code></strong>
+<p><strong>O que significa:</strong> o segundo número do <code>Next</code> fica de fora. <code>Next(1, 6)</code> dá de 1 a 5. Não há erro nem aviso: o dado só é "viciado".</p>
+<p><strong>Como consertar:</strong> o limite é o maior valor <strong>mais 1</strong>: <code>Next(1, 7)</code>. Para um índice de array, <code>Next(v.Length)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>Unhandled exception. System.ArgumentOutOfRangeException: 'minValue' cannot be greater than maxValue.</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat invertido.cs
+int n = Random.Shared.Next(6, 1);
+$ dotnet run invertido.cs
+Unhandled exception. System.ArgumentOutOfRangeException: 'minValue' cannot be greater than maxValue. (Parameter 'minValue')
+   at System.Random.ThrowMinMaxValueSwapped()
+   at System.Random.ThreadSafeRandom.Next(Int32 minValue, Int32 maxValue)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/invertido.cs:line 1</pre>
+<p><strong>O que significa:</strong> "o mínimo não pode ser maior que o máximo". Os dois números estão trocados. O programa terminou com o código 134. O mesmo acontece com <code>Next(-5)</code> (limite negativo), e o <code>Next(0)</code> não dá erro mas devolve sempre 0, e um <code>alunos[Random.Shared.Next(alunos.Length)]</code> com o array <strong>vazio</strong> quebra com <code>IndexOutOfRangeException</code>, porque não há ninguém para sortear.</p>
+<p><strong>Como consertar:</strong> primeiro o menor, depois o maior: <code>Next(1, 6)</code>. Se os valores vêm de fora, confira antes, ou use <code>Math.Min</code> e <code>Math.Max</code> (aula <a href="math.html">Matemática</a>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1955: O membro não invocável "Random.Shared" não pode ser usado como um método.</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat shared-semente.cs
+Random r = Random.Shared(42);
+$ dotnet run shared-semente.cs
+/home/ana/cs/shared-semente.cs(1,19): error CS1955: O membro não invocável "Random.Shared" não pode ser usado como um método.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>Random.Shared</code> é um sorteador pronto, não uma "tecla" que se aperta com parênteses. E ele não aceita semente: a dele é escolhida pelo .NET. Em inglês: <em>Non-invocable member 'Random.Shared' cannot be used like a method</em>.</p>
+<p><strong>Como consertar:</strong> para uma semente fixa, crie o seu: <code>Random r = new Random(42);</code>. Sem semente, use <code>Random.Shared</code> sem parênteses.</p>
+</div>
+
+<div class="cenario">
+<strong>Sempre o mesmo número</strong>
+<p><strong>O que significa:</strong> há uma semente fixa (<code>new Random(42)</code>) que você esqueceu lá, ou ela está sendo criada de novo a cada volta do laço.</p>
+<p><strong>Como consertar:</strong> use <code>Random.Shared</code>, ou crie o sorteador <strong>uma vez</strong>, antes do laço.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>Random.Shared.Next(1, 7)</code></td><td>Um inteiro de 1 a 6 (o 7 fica de fora)</td></tr>
+<tr><td><code>Random.Shared.Next(n)</code></td><td>De 0 a <code>n − 1</code></td></tr>
+<tr><td><code>Random.Shared.NextDouble()</code></td><td>Um <code>double</code> de 0 até antes de 1</td></tr>
+<tr><td><code>min + Random.Shared.NextDouble() * (max - min)</code></td><td>Um <code>double</code> entre <code>min</code> e <code>max</code></td></tr>
+<tr><td><code>Random.Shared.NextInt64(min, max)</code></td><td>Um <code>long</code> de <code>min</code> a <code>max − 1</code></td></tr>
+<tr><td><code>v[Random.Shared.Next(v.Length)]</code></td><td>Um elemento sorteado do array</td></tr>
+<tr><td><code>Random.Shared.GetItems(v, n)</code></td><td><code>n</code> elementos sorteados, com repetição</td></tr>
+<tr><td><code>Random.Shared.Shuffle(v)</code></td><td>Embaralha o próprio array</td></tr>
+<tr><td><code>new Random(42)</code></td><td>Sorteador com semente fixa: a mesma sequência toda vez</td></tr>
+<tr><td><code>RandomNumberGenerator.GetInt32(n)</code></td><td>De 0 a <code>n − 1</code>, imprevisível (senhas)</td></tr>
+<tr><td><code>RandomNumberGenerator.GetString(letras, n)</code></td><td>Texto de <code>n</code> caracteres sorteados de <code>letras</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. De 1 a 100</h3>
+<p>Complete para sortear um número de 1 a 100:</p>
+<div class="ex-code">int n = Random.Shared.Next(1, <input data-answer="101" aria-label="limite">);</div>
+</div>
+
+<div class="exercise">
+<h3>2. Um índice</h3>
+<p>Complete para sortear uma posição válida do array <code>cartas</code>:</p>
+<div class="ex-code">int i = Random.Shared.Next(<input data-answer="cartas.Length" aria-label="limite">);</div>
+</div>
+
+<div class="exercise">
+<h3>3. Semente fixa</h3>
+<p>Complete para criar um sorteador que dá sempre a mesma sequência, com a semente 7:</p>
+<div class="ex-code">Random r = <input data-answer="new Random(7)|new(7)" aria-label="criação">;</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Quais valores <code>Random.Shared.Next(1, 6)</code> pode devolver?</p>
+<label><input type="radio" name="q4"> De 1 a 6</label>
+<label><input type="radio" name="q4"> De 1 a 5</label>
+<label><input type="radio" name="q4"> De 0 a 6</label>
+<label><input type="radio" name="q4"> De 2 a 6</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. Para gerar o código de recuperação de senha de um site, a Ana deve usar…</p>
+<label><input type="radio" name="q5"> <code>Random.Shared.Next</code></label>
+<label><input type="radio" name="q5"> <code>new Random(42)</code></label>
+<label><input type="radio" name="q5"> <code>new Random()</code> dentro de um laço</label>
+<label><input type="radio" name="q5"> <code>RandomNumberGenerator</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Um programa com <code>new Random(42)</code> foi rodado três vezes. O que aconteceu com os números?</p>
+<label><input type="radio" name="q6"> Saíram os mesmos nas três vezes</label>
+<label><input type="radio" name="q6"> Saíram diferentes a cada vez</label>
+<label><input type="radio" name="q6"> Saiu sempre 42</label>
+<label><input type="radio" name="q6"> Deu erro: a semente tem de ser maior que 100</label>
+</div>
+
+<h3>Missão final: o jogo da loteria</h3>
+
+<div class="trycs" data-goal="out:6 números diferentes: True,out:Todos entre 1 e 60: True,src:Shuffle|Next">
+<p class="try-task"><strong>Missão:</strong> faça um jogo de loteria: <strong>6 números diferentes</strong>, de 1 a 60. As duas últimas linhas do programa conferem o seu jogo; não mude essas linhas. Dica: sortear 6 vezes com <code>Next</code> pode repetir um número. Encha um array com os números de 1 a 60, embaralhe com <code>Shuffle</code> e pegue os 6 primeiros (<code>[..6]</code>). Os números do seu jogo serão outros a cada Rodar; as duas conferências têm de dar <code>True</code>.</p>
+<pre class="out">Jogo: 4 17 23 38 51 60
+6 números diferentes: True
+Todos entre 1 e 60: True</pre>
+<pre class="script">int[] jogo = new int[6];
+
+// sorteie aqui os 6 números
+
+Array.Sort(jogo);
+Console.WriteLine($"Jogo: {string.Join(" ", jogo)}");
+Console.WriteLine($"6 números diferentes: {jogo.Distinct().Count() == 6}");
+Console.WriteLine($"Todos entre 1 e 60: {Array.TrueForAll(jogo, n =&gt; n &gt;= 1 &amp;&amp; n &lt;= 60)}");
+</pre>
+<pre class="solucao">int[] numeros = new int[60];
+for (int i = 0; i &lt; numeros.Length; i++)
+{
+    numeros[i] = i + 1;
+}
+Random.Shared.Shuffle(numeros);
+int[] jogo = numeros[..6];
+
+Array.Sort(jogo);
+Console.WriteLine($"Jogo: {string.Join(" ", jogo)}");
+Console.WriteLine($"6 números diferentes: {jogo.Distinct().Count() == 6}");
+Console.WriteLine($"Todos entre 1 e 60: {Array.TrueForAll(jogo, n =&gt; n &gt;= 1 &amp;&amp; n &lt;= 60)}");
+</pre>
+</div>
+
+<p>O laço enche o array com 1, 2, 3… 60. O <code>Shuffle</code> embaralha, e a fatia <code>[..6]</code> (aula <a href="indices-intervalos.html">Índices e Intervalos</a>) pega os 6 primeiros. Como cada número estava no array uma vez só, não tem como repetir. O <code>Array.Sort</code> só deixa o jogo mais fácil de ler, e as duas conferências usam o <code>Distinct</code> do LINQ (que tira os repetidos) e o <code>TrueForAll</code> da aula <a href="classe-array.html">A Classe Array</a>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Os números do <code>Random</code> são <strong>pseudoaleatórios</strong>: saem de uma conta, a partir de uma <strong>semente</strong>. Para jogos e sorteios, bastam.</li>
+  <li>Use <code>Random.Shared</code>: um sorteador pronto, com uma semente diferente a cada execução.</li>
+  <li><code>Next(min, max)</code> sorteia de <code>min</code> até <code>max − 1</code>: um dado é <code>Next(1, 7)</code>. <code>Next(v.Length)</code> sorteia um índice do array.</li>
+  <li><code>NextDouble()</code> dá de 0 a 1; <code>GetItems</code> sorteia vários (com repetição); <code>Shuffle</code> embaralha (e, pegando os primeiros, sorteia sem repetição).</li>
+  <li><code>new Random(42)</code> repete sempre a mesma sequência: bom para testes. No editor e no <code>dotnet</code> do Linux, a sequência deu igual. Crie o sorteador uma vez, fora do laço.</li>
+  <li>Para senhas e códigos de segurança, <code>RandomNumberGenerator</code>, nunca <code>Random</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
