@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Novidades — do C# 8 ao 14, com field, extension e ?.= | Guia C#</title>
+<meta name="description" content="As novidades do C# 8 ao C# 14 para iniciantes: tabela por versão e .NET, LangVersion e o erro CS9260, e os recursos do C# 14 conferidos no dotnet 10: a palavra field, os blocos extension, a atribuição condicional nula ?.=, nameof com genéricos abertos, parâmetros de lambda com out e ref, construtores partial, operadores += e spans de primeira classe, com missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Novidades do C# 8 ao 14</span></h1>
+
+<p class="intro">O C# ganha uma versão nova <strong>todo ano</strong>, em novembro, junto com o .NET. Muito do que este guia ensina como "o jeito normal" (<code>dotnet run ola.cs</code> sem <code>class Program</code>, <code>[1, 2, 3]</code>, <code>record</code>, <code>is not null</code>) não existia há poucos anos, e você ainda vai encontrar muito código no estilo antigo. Esta aula é um mapa: o que entrou em cada versão, do C# 8 (2019) ao C# 14 (2025), onde cada coisa é ensinada no guia e, com mais detalhe, as novidades do <strong>C# 14</strong>, conferidas uma a uma no .NET 10 da máquina da Ana.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A relação entre a versão do C# e a do .NET, e o que é o <code>LangVersion</code> (erro <code>CS9260</code>).</li>
+  <li>A tabela das novidades do C# 8 ao 13, com um programa que usa várias delas.</li>
+  <li>O C# 14 na prática: a palavra <code>field</code>, os blocos <code>extension</code>, a atribuição condicional nula <code>?.=</code>, <code>nameof(List&lt;&gt;)</code>, lambdas com <code>out</code> e <code>ref</code> sem tipos, construtores <code>partial</code>, operadores <code>+=</code> e spans de primeira classe.</li>
+  <li>As armadilhas: um campo chamado <code>field</code> (<code>CS9258</code>) e o <code>?.</code> com <code>++</code> (<code>CS1059</code>).</li>
+</ul>
+</div>
+
+<p>Esta aula passa por muitos assuntos do guia e aponta a aula de cada um. Vale a pena voltar a ela depois de terminar o Nível 3. Os exemplos rodaram com <code>dotnet run</code> no .NET 10 (<code>dotnet --version</code> = <code>10.0.112</code>) da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código: linguagem × plataforma</h2>
+<p>Lembre a diferença entre o <strong>C#</strong> (a linguagem: as palavras e regras que você escreve) e o <strong>.NET</strong> (a plataforma: o compilador, as bibliotecas e o runtime que roda o programa), da aula <a href="dotnet.html">.NET: SDK, Runtime e CLR</a>. Cada .NET vem com um compilador que entende uma versão do C#, e cada projeto escolhe a versão da linguagem pelo .NET de destino:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>C#</th><th>.NET</th><th>Lançamento</th><th>Suporte</th></tr>
+<tr><td>C# 8</td><td>.NET Core 3.0 / 3.1</td><td>2019</td><td>encerrado</td></tr>
+<tr><td>C# 9</td><td>.NET 5</td><td>nov. 2020</td><td>encerrado</td></tr>
+<tr><td>C# 10</td><td>.NET 6 (LTS)</td><td>nov. 2021</td><td>encerrado</td></tr>
+<tr><td>C# 11</td><td>.NET 7</td><td>nov. 2022</td><td>encerrado</td></tr>
+<tr><td>C# 12</td><td>.NET 8 (LTS)</td><td>nov. 2023</td><td>até nov. 2026</td></tr>
+<tr><td>C# 13</td><td>.NET 9</td><td>nov. 2024</td><td>até nov. 2026</td></tr>
+<tr><td><strong>C# 14</strong></td><td><strong>.NET 10 (LTS)</strong></td><td>nov. 2025</td><td>até nov. 2028</td></tr>
+</table>
+</div>
+
+<p>LTS (<em>Long Term Support</em>, "suporte longo") são as versões de 3 anos de suporte, as preferidas das empresas. A aula <a href="versoes.html">Versões do C# e do .NET</a> conta essa história com mais calma. O que importa aqui: no .NET 10, o padrão é o C# 14, e um projeto pode pedir uma versão mais antiga da linguagem com <code>&lt;LangVersion&gt;</code> no <a href="csproj.html">.csproj</a>. Se o código usar algo mais novo que a versão pedida, o compilador avisa exatamente o quê:</p>
+
+<pre class="term" data-cwd="~/projetos/Velho">$ dotnet run
+/home/ana/projetos/Velho/Program.cs(8,19): error CS9260: O recurso "campo palavra-chave" não está disponível no C# 13.0. Use a versão da linguagem 14.0 ou superior. [/home/ana/projetos/Velho/Velho.csproj]
+/home/ana/projetos/Velho/Program.cs(14,20): error CS9260: O recurso "campo palavra-chave" não está disponível no C# 13.0. Use a versão da linguagem 14.0 ou superior. [/home/ana/projetos/Velho/Velho.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Esse projeto tinha <code>&lt;LangVersion&gt;13&lt;/LangVersion&gt;</code> e usava a palavra <code>field</code> (seção 3). "Campo palavra-chave" é a tradução, meio torta, de <em>field keyword</em>. O mesmo <code>CS9260</code> aparece para cada recurso: "atribuição condicional nula", "listas de padrões"… É o jeito mais rápido de descobrir de que versão um recurso é.</p>
+
+<hr>
+
+<h2>1. A tabela: do C# 8 ao 13</h2>
+<p>As novidades mais importantes de cada versão, e a aula do guia que ensina cada uma:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Versão</th><th>Recurso</th><th>Exemplo</th><th>Aula</th></tr>
+<tr><td rowspan="6">C# 8</td><td>Referências anuláveis</td><td><code>string? nome</code></td><td><a href="referencias-anulaveis.html">Referências Anuláveis</a></td></tr>
+<tr><td>Expressões switch</td><td><code>x switch { 1 =&gt; "um", _ =&gt; "?" }</code></td><td><a href="switch-expressoes.html">Expressões switch</a></td></tr>
+<tr><td>Índices e intervalos</td><td><code>a[^1]</code>, <code>a[1..3]</code></td><td><a href="indices-intervalos.html">Índices e Intervalos</a></td></tr>
+<tr><td><code>using</code> sem chaves</td><td><code>using var arquivo = …;</code></td><td><a href="using-dispose.html">using e IDisposable</a></td></tr>
+<tr><td><code>??=</code></td><td><code>nome ??= "Ana";</code></td><td><a href="operadores-null.html">?? e ??=</a></td></tr>
+<tr><td>Padrões de propriedade e posicionais</td><td><code>p is { Idade: 18 }</code></td><td><a href="pattern-matching.html">Pattern Matching</a></td></tr>
+<tr><td rowspan="5">C# 9</td><td>Instruções de nível superior</td><td>sem <code>class Program</code> nem <code>Main</code></td><td><a href="top-level.html">Program.cs e o Main</a></td></tr>
+<tr><td>Records</td><td><code>record Ponto(int X, int Y);</code></td><td><a href="records.html">Records</a></td></tr>
+<tr><td><code>init</code></td><td><code>public string Nome { get; init; }</code></td><td><a href="readonly.html">readonly e init</a></td></tr>
+<tr><td><code>new</code> sem o tipo</td><td><code>Produto p = new("Caderno");</code></td><td><a href="construtores.html">Construtores</a></td></tr>
+<tr><td>Padrões relacionais e lógicos</td><td><code>n is &gt;= 0 and &lt;= 10</code>, <code>is not null</code></td><td><a href="pattern-matching.html">Pattern Matching</a></td></tr>
+<tr><td rowspan="4">C# 10</td><td><code>global using</code> e <code>using</code> implícitos</td><td><code>global using System.Text;</code></td><td><a href="namespaces.html">Namespaces e using</a></td></tr>
+<tr><td>Namespace de arquivo</td><td><code>namespace Loja;</code></td><td><a href="namespaces.html">Namespaces e using</a></td></tr>
+<tr><td><code>record struct</code></td><td><code>record struct Cor(byte R, byte G, byte B);</code></td><td><a href="records.html">Records</a></td></tr>
+<tr><td><code>[CallerArgumentExpression]</code></td><td>o texto do argumento</td><td><a href="atributos.html">Atributos</a></td></tr>
+<tr><td rowspan="5">C# 11</td><td>Strings brutas (<em>raw strings</em>)</td><td><code>"""texto com "aspas" """</code></td><td><a href="escapes.html">Escapes e Strings Literais</a></td></tr>
+<tr><td>Padrões de lista</td><td><code>l is [1, .., var ultimo]</code></td><td><a href="pattern-matching.html">Pattern Matching</a></td></tr>
+<tr><td><code>required</code></td><td><code>public required string Nome { get; init; }</code></td><td><a href="inicializadores.html">Inicializadores e required</a></td></tr>
+<tr><td>Matemática genérica</td><td><code>T Somar&lt;T&gt;(T a, T b) where T : INumber&lt;T&gt;</code></td><td><a href="restricoes-genericas.html">Restrições (where)</a></td></tr>
+<tr><td>Atributos genéricos</td><td><code>[Validar&lt;int&gt;]</code></td><td><a href="atributos.html">Atributos</a></td></tr>
+<tr><td rowspan="3">C# 12</td><td>Expressões de coleção</td><td><code>int[] a = [1, 2, 3];</code>, <code>[..a, 4]</code></td><td><a href="arrays.html">Arrays</a>, <a href="list.html">List</a></td></tr>
+<tr><td>Construtores primários em classes</td><td><code>class Caixa(string operadora) { … }</code></td><td><a href="construtores.html">Construtores</a></td></tr>
+<tr><td>Valores padrão em lambdas</td><td><code>(int x = 1) =&gt; x * 2</code></td><td><a href="lambdas.html">Lambdas</a></td></tr>
+<tr><td rowspan="4">C# 13</td><td><code>params</code> com coleções</td><td><code>params ReadOnlySpan&lt;int&gt; valores</code></td><td><a href="params.html">params</a></td></tr>
+<tr><td>O tipo <code>Lock</code></td><td><code>private readonly Lock _trava = new();</code></td><td><a href="lock.html">Sincronização (lock)</a></td></tr>
+<tr><td>Propriedades <code>partial</code></td><td><code>[GeneratedRegex(…)] static partial Regex R { get; }</code></td><td><a href="regex.html">Regex</a>, <a href="partial.html">partial</a></td></tr>
+<tr><td>Escape <code>\e</code></td><td>o caractere ESC, para cores no terminal</td><td><a href="escapes.html">Escapes</a></td></tr>
+</table>
+</div>
+
+<h3>Um programa, várias versões</h3>
+<p>Este programa da lojinha usa um recurso de quase cada versão. Os comentários dizem de qual:</p>
+
+<pre class="file" data-file="tour.cs">// C# 9: instruções de nível superior (sem class Program nem Main)
+List&lt;Produto&gt; estoque = [new("Caderno", 15.90m), new("Caneta", 2.50m)];   // C# 12: [ ]
+
+string? aviso = null;
+aviso ??= "sem avisos";                                // C# 8: ??=
+Console.WriteLine(aviso);
+
+foreach (var p in estoque)
+{
+    string faixa = p.Preco switch                       // C# 8: expressão switch
+    {
+        &lt; 5 =&gt; "barato",                                // C# 9: padrões relacionais
+        _ =&gt; "normal",
+    };
+    Console.WriteLine($"{p.Nome}: {faixa}");
+}
+
+Console.WriteLine(estoque is [var primeiro, ..] ? $"Primeiro: {primeiro.Nome}" : "vazio");   // C# 11
+
+string json = """
+    { "loja": "Ana", "aberta": true }
+    """;                                                // C# 11: raw string
+Console.WriteLine(json);
+
+Caixa caixa = new("Ana");                               // C# 12: construtor primário
+Console.WriteLine(caixa.Somar(10m, 5.5m, 2m));          // C# 13: params com coleções
+
+record Produto(string Nome, decimal Preco);             // C# 9: record
+
+class Caixa(string operadora)
+{
+    public string Somar(params ReadOnlySpan&lt;decimal&gt; valores)
+    {
+        decimal total = 0;
+        foreach (var v in valores) total += v;
+        return $"{operadora} somou {total}";
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tour.cs
+sem avisos
+Caderno: normal
+Caneta: barato
+Primeiro: Caderno
+{ "loja": "Ana", "aberta": true }
+Ana somou 17,5</pre>
+
+<p>No C# 7, esse mesmo programa precisaria de <code>class Program</code> e <code>static void Main</code>, de <code>new List&lt;Produto&gt; { new Produto("Caderno", 15.90m), … }</code>, de uma classe <code>Produto</code> inteira com construtor e propriedades, de um <code>if</code> no lugar do <code>??=</code>, de um <code>switch</code> com <code>case</code> e <code>break</code>, de <code>\"</code> no JSON… A linguagem ficou bem mais enxuta.</p>
+
+<hr>
+
+<h2>2. O C# 14 em uma tabela <span class="versao">C# 14</span></h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Recurso</th><th>Em uma linha</th><th>Onde</th></tr>
+<tr><td>A palavra <code>field</code></td><td>Acessar o campo escondido de uma propriedade automática, para validar no <code>set</code></td><td>Seção 3</td></tr>
+<tr><td>Blocos <code>extension</code></td><td>Propriedades de extensão e membros estáticos de extensão, além de métodos</td><td>Seção 4</td></tr>
+<tr><td>Atribuição condicional nula</td><td><code>cliente?.Pontos = 10;</code> só grava se <code>cliente</code> não for nulo</td><td>Seção 5</td></tr>
+<tr><td><code>nameof</code> com genérico aberto</td><td><code>nameof(List&lt;&gt;)</code> dá <code>"List"</code></td><td>Seção 6</td></tr>
+<tr><td>Lambdas com modificadores, sem tipos</td><td><code>(texto, out numero) =&gt; …</code></td><td>Seção 6</td></tr>
+<tr><td>Construtores e eventos <code>partial</code></td><td>Declarar num arquivo, implementar em outro</td><td>Seção 6</td></tr>
+<tr><td><code>+=</code>, <code>++</code> definidos pelo usuário</td><td><code>public void operator +=(int n)</code></td><td><a href="sobrecarga-operadores.html">Sobrecarga de Operadores</a></td></tr>
+<tr><td>Spans de primeira classe</td><td>Array vira <code>ReadOnlySpan</code> sozinho, até em métodos de extensão</td><td><a href="span.html">Span&lt;T&gt;</a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>3. A palavra <code>field</code> <span class="versao">C# 14</span></h2>
+<p>Uma <a href="propriedades.html">propriedade automática</a> (<code>{ get; set; }</code>) tem um campo escondido, que o compilador cria. Até o C# 13, se você quisesse <strong>validar</strong> o valor no <code>set</code>, precisava desistir da propriedade automática e escrever o campo à mão (<code>private decimal _preco;</code>). No C# 14, a palavra <code>field</code> ("campo") é <strong>esse campo escondido</strong>, e você pode usá-la dentro do <code>get</code> ou do <code>set</code>:</p>
+
+<pre class="file" data-file="field.cs">Produto p = new() { Nome = "  caderno  ", Preco = -5 };
+Console.WriteLine($"[{p.Nome}] custa {p.Preco}");
+p.Preco = 15.90m;
+Console.WriteLine($"[{p.Nome}] custa {p.Preco}");
+
+class Produto
+{
+    public string Nome
+    {
+        get;
+        set =&gt; field = value.Trim();
+    } = "";
+
+    public decimal Preco
+    {
+        get;
+        set =&gt; field = value &lt; 0 ? 0 : value;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run field.cs
+[caderno] custa 0
+[caderno] custa 15,90</pre>
+
+<dl class="anatomy">
+  <dt>get;</dt><dd>O <code>get</code> continua automático: devolve o campo escondido.</dd>
+  <dt>set =&gt; field = value.Trim();</dt><dd>O <code>set</code> tem corpo: tira os espaços das pontas e grava no campo escondido, que agora tem nome: <code>field</code>.</dd>
+  <dt>} = "";</dt><dd>O valor inicial vai para o mesmo campo.</dd>
+  <dt>value &lt; 0 ? 0 : value</dt><dd>Preço negativo vira 0. Por isso o <code>-5</code> do inicializador virou <code>0</code>.</dd>
+</dl>
+
+<p>Antes, seriam 6 linhas a mais: <code>private string _nome = "";</code>, <code>get =&gt; _nome;</code>, <code>set =&gt; _nome = value.Trim();</code>, e o mesmo para o preço. E o campo <code>_nome</code> ficaria visível para o resto da classe, que poderia gravar nele sem passar pela validação. O <code>field</code> só existe dentro da propriedade.</p>
+
+<div class="trycs" data-goal="out:Nota: 10,out:Nota: 0,out:Nota: 7,src:\bfield\b">
+<p class="try-task"><strong>Missão:</strong> uma nota precisa ficar entre 0 e 10. Troque o <code>set;</code> por um <code>set</code> que use <code>field</code> e <code>Math.Clamp(value, 0, 10)</code> ("prender" o valor na faixa). A saída deve ser <code>Nota: 10</code>, <code>Nota: 0</code> e <code>Nota: 7</code>.</p>
+<pre class="script">Aluno a = new();
+a.Nota = 15;
+Console.WriteLine($"Nota: {a.Nota}");
+a.Nota = -3;
+Console.WriteLine($"Nota: {a.Nota}");
+a.Nota = 7;
+Console.WriteLine($"Nota: {a.Nota}");
+
+class Aluno
+{
+    public int Nota { get; set; }
+}
+</pre>
+<pre class="solucao">Aluno a = new();
+a.Nota = 15;
+Console.WriteLine($"Nota: {a.Nota}");
+a.Nota = -3;
+Console.WriteLine($"Nota: {a.Nota}");
+a.Nota = 7;
+Console.WriteLine($"Nota: {a.Nota}");
+
+class Aluno
+{
+    public int Nota { get; set =&gt; field = Math.Clamp(value, 0, 10); }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>4. Blocos <code>extension</code> <span class="versao">C# 14</span></h2>
+<p>Os <a href="extensoes.html">métodos de extensão</a> (com <code>this</code> no primeiro parâmetro) existem desde o C# 3, mas só serviam para <strong>métodos</strong>. O C# 14 trouxe uma forma nova: um bloco <code>extension(tipo nome) { … }</code> dentro de uma classe estática, onde cabem também <strong>propriedades</strong> de extensão e membros <strong>estáticos</strong> de extensão:</p>
+
+<pre class="file" data-file="extensao.cs">string frase = "a lojinha da Ana";
+Console.WriteLine(frase.Palavras);
+Console.WriteLine(frase.Iniciais());
+Console.WriteLine(string.Repetir("-", 10));
+int[] vazio = [];
+Console.WriteLine(vazio.EstaVazia);
+
+static class ExtensoesDeTexto
+{
+    extension(string s)
+    {
+        public int Palavras =&gt; s.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+
+        public string Iniciais() =&gt; string.Concat(s.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(p =&gt; char.ToUpper(p[0])));
+
+        public static string Repetir(string pedaco, int vezes) =&gt; string.Concat(Enumerable.Repeat(pedaco, vezes));
+    }
+
+    extension&lt;T&gt;(IEnumerable&lt;T&gt; itens)
+    {
+        public bool EstaVazia =&gt; !itens.Any();
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run extensao.cs
+4
+ALDA
+----------
+True</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Trecho</th><th>O que é</th></tr>
+<tr><td><code>extension(string s) { … }</code></td><td>"Tudo aqui dentro estende <code>string</code>; dentro dos membros, o texto se chama <code>s</code>." O <code>s</code> faz o papel do antigo <code>this string s</code>.</td></tr>
+<tr><td><code>public int Palavras =&gt; …</code></td><td>Uma <strong>propriedade</strong> de extensão: usa-se <code>frase.Palavras</code>, sem parênteses. Antes do C# 14, isso não existia.</td></tr>
+<tr><td><code>public string Iniciais() =&gt; …</code></td><td>Um método de extensão comum, no estilo novo. O jeito antigo (<code>this string s</code>) continua valendo, e os dois convivem.</td></tr>
+<tr><td><code>public static string Repetir(…)</code></td><td>Um membro <strong>estático</strong> de extensão: aparece como se fosse do próprio tipo, <code>string.Repetir("-", 10)</code>.</td></tr>
+<tr><td><code>extension&lt;T&gt;(IEnumerable&lt;T&gt; itens)</code></td><td>Um bloco genérico: vale para qualquer coleção, como o <code>int[]</code>.</td></tr>
+</table>
+</div>
+
+<div class="trycs" data-goal="out:4 palavras,out:2 palavras,src:extension\s*\(\s*string">
+<p class="try-task"><strong>Missão:</strong> crie, dentro de <code>Extensoes</code>, um bloco <code>extension(string s)</code> com a propriedade <code>public int Palavras =&gt; s.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;</code> e tire os <code>//</code>. A saída deve ser <code>4 palavras</code> e <code>2 palavras</code>.</p>
+<pre class="script">string a = "a lojinha da Ana";
+string b = "  caderno   azul ";
+// Console.WriteLine($"{a.Palavras} palavras");
+// Console.WriteLine($"{b.Palavras} palavras");
+Console.WriteLine(a);
+
+static class Extensoes
+{
+    // escreva o bloco extension aqui
+}
+</pre>
+<pre class="solucao">string a = "a lojinha da Ana";
+string b = "  caderno   azul ";
+Console.WriteLine($"{a.Palavras} palavras");
+Console.WriteLine($"{b.Palavras} palavras");
+Console.WriteLine(a);
+
+static class Extensoes
+{
+    extension(string s)
+    {
+        public int Palavras =&gt; s.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>5. Atribuição condicional nula: <code>?.=</code> <span class="versao">C# 14</span></h2>
+<p>O operador <code>?.</code> (veja <a href="operadores-null.html">?. e ??</a>) já servia para <strong>ler</strong> sem medo de <code>null</code>: <code>cliente?.Nome</code> dá <code>null</code> se <code>cliente</code> for nulo, em vez de lançar exceção. No C# 14, ele também serve para <strong>gravar</strong>: <code>cliente?.Pontos = 10;</code> grava se <code>cliente</code> existir e não faz nada se ele for nulo.</p>
+
+<pre class="file" data-file="nulo.cs">Cliente? ana = new() { Nome = "Ana" };
+Cliente? ninguem = null;
+
+ana?.Pontos = 10;
+ninguem?.Pontos = 10;
+ana?.Pontos += 5;
+ninguem?.Pontos += 5;
+
+Console.WriteLine(ana?.Pontos);
+Console.WriteLine(ninguem?.Pontos is null ? "ninguém, nada aconteceu" : "?");
+
+int[]? notas = [7, 8];
+notas?[0] = 10;
+Console.WriteLine(notas?[0]);
+
+class Cliente
+{
+    public string Nome { get; set; } = "";
+    public int Pontos { get; set; }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run nulo.cs
+15
+ninguém, nada aconteceu
+10</pre>
+
+<dl class="anatomy">
+  <dt>ana?.Pontos = 10;</dt><dd>"Se <code>ana</code> não for nulo, grave 10 em <code>Pontos</code>." Antes: <code>if (ana is not null) ana.Pontos = 10;</code>.</dd>
+  <dt>ninguem?.Pontos = 10;</dt><dd><code>ninguem</code> é <code>null</code>: a linha não faz nada, e não há <code>NullReferenceException</code>.</dd>
+  <dt>ana?.Pontos += 5;</dt><dd>Também vale com <code>+=</code>, <code>-=</code> e companhia: 10 + 5 = 15.</dd>
+  <dt>notas?[0] = 10;</dt><dd>E com colchetes: o <code>?[ ]</code> grava no array só se ele existir.</dd>
+</dl>
+
+<p>Um detalhe importante: o lado direito <strong>só é calculado</strong> se o objeto não for nulo. Em <code>ninguem?.Pontos = CalcularPontos();</code>, o método <code>CalcularPontos</code> nem é chamado.</p>
+
+<hr>
+
+<h2>6. As outras novidades do C# 14</h2>
+
+<h3><code>nameof</code> com genéricos abertos</h3>
+<p>O <code>nameof</code> devolve o nome de algo como texto, conferido pelo compilador. Até o C# 13, para um tipo genérico era preciso inventar um tipo qualquer (<code>nameof(List&lt;int&gt;)</code>). Agora dá para deixar os <code>&lt;&gt;</code> vazios:</p>
+
+<pre class="file" data-file="nomes.cs">Console.WriteLine(nameof(List&lt;&gt;));
+Console.WriteLine(nameof(Dictionary&lt;,&gt;));
+Console.WriteLine(nameof(List&lt;&gt;.Count));
+Console.WriteLine(nameof(List&lt;int&gt;));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run nomes.cs
+List
+Dictionary
+Count
+List</pre>
+
+<p>Repare que o resultado é só o nome, sem os <code>&lt;&gt;</code>, nas duas formas. A vírgula em <code>Dictionary&lt;,&gt;</code> diz "dois parâmetros de tipo".</p>
+
+<h3>Parâmetros de lambda com <code>out</code> e <code>ref</code>, sem tipos</h3>
+<p>Numa <a href="lambdas.html">lambda</a>, o C# descobre os tipos dos parâmetros pelo <a href="delegates.html">delegate</a>. Mas, se um parâmetro tinha <code>out</code> ou <code>ref</code>, era obrigatório escrever todos os tipos: <code>(string texto, out int numero) =&gt; …</code>. No C# 14, o modificador basta:</p>
+
+<pre class="file" data-file="lambda.cs">Conversor conv = (texto, out numero) =&gt; int.TryParse(texto, out numero);
+
+foreach (var t in new[] { "42", "abc" })
+{
+    bool ok = conv(t, out int n);
+    Console.WriteLine($"{t}: {(ok ? n : "inválido")}");
+}
+
+Dobrar dobrar = (ref x) =&gt; x *= 2;
+int v = 21;
+dobrar(ref v);
+Console.WriteLine(v);
+
+delegate bool Conversor(string texto, out int numero);
+delegate void Dobrar(ref int x);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run lambda.cs
+42: 42
+abc: inválido
+42</pre>
+
+<p>O delegate <code>Conversor</code> já diz que <code>texto</code> é <code>string</code> e <code>numero</code> é <code>out int</code>; a lambda só repete o <code>out</code>. O <code>ref x</code> da segunda lambda dobra a variável original (veja <a href="ref-out-in.html">ref, out e in</a>): 21 virou 42.</p>
+
+<h3>Construtores e eventos <code>partial</code></h3>
+<p>As <a href="partial.html">classes parciais</a> podem ter partes em arquivos diferentes, e desde o C# 13 propriedades também podem ser declaradas numa parte e implementadas em outra. O C# 14 estendeu isso a <strong>construtores</strong> e <strong>eventos</strong>. É um recurso pensado para geradores de código, como o do <a href="regex.html"><code>[GeneratedRegex]</code></a>:</p>
+
+<pre class="file" data-file="parcial.cs">Conta c = new(100m);
+Console.WriteLine(c.Saldo);
+
+partial class Conta
+{
+    public decimal Saldo { get; }
+    public partial Conta(decimal inicial);
+}
+
+partial class Conta
+{
+    public partial Conta(decimal inicial)
+    {
+        Saldo = inicial;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run parcial.cs
+100</pre>
+
+<h3>Operadores <code>+=</code> e spans de primeira classe</h3>
+<p>Os dois têm aula própria: o <code>public void operator +=(…)</code> de instância está em <a href="sobrecarga-operadores.html">Sobrecarga de Operadores</a> (seção 5), e a conversão automática de array para <code>ReadOnlySpan</code> em métodos de extensão está em <a href="span.html">Span&lt;T&gt;</a> (seção 3), com o erro <code>CS1929</code> que o mesmo código dá no C# 13.</p>
+
+<div class="note">
+<strong>No editor do guia</strong>
+<p>O editor desta página compila com o C# 14 de verdade: todos os exemplos desta aula foram conferidos no testador do guia e deram a mesma saída que o <code>dotnet</code> 10 do laboratório.</p>
+</div>
+
+<hr>
+
+<h2>Qual usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Recomendação</th></tr>
+<tr><td>Projeto novo no .NET 10</td><td>Use o C# 14 à vontade: é o padrão e tem suporte até 2028.</td></tr>
+<tr><td>Projeto que ainda roda no .NET 8</td><td>Ele usa C# 12: nada de <code>field</code>, <code>extension</code>, <code>?.=</code>, <code>params ReadOnlySpan</code>. Cada versão do C# só tem suporte oficial no .NET que a trouxe; para usar o C# 14, atualize o projeto para o .NET 10 (o .NET 8 sai de suporte em novembro de 2026).</td></tr>
+<tr><td>Validar uma propriedade</td><td><code>field</code> no <code>set</code>, em vez de um campo <code>_nome</code> à mão.</td></tr>
+<tr><td>Uma "propriedade" a mais num tipo que não é seu</td><td>Bloco <code>extension</code> com uma propriedade.</td></tr>
+<tr><td>Gravar num objeto que pode ser nulo</td><td><code>obj?.Prop = valor;</code> (mas pense se o <code>null</code> ali não é um erro que deveria aparecer).</td></tr>
+<tr><td>Ler código antigo</td><td>Use a tabela da seção 1 para reconhecer a forma nova de cada coisa.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<h3><code>error CS9260</code>: recurso novo numa versão antiga</h3>
+<p>Mensagem: <code>O recurso "…" não está disponível no C# 13.0. Use a versão da linguagem 14.0 ou superior.</code> (veja "A ideia antes do código"). <strong>Como consertar:</strong> tire o <code>&lt;LangVersion&gt;</code> do <code>.csproj</code> (o padrão do .NET 10 é o C# 14) ou, se o projeto precisa mesmo da versão antiga, escreva do jeito antigo. Atenção: os blocos <code>extension</code> numa versão antiga nem chegam a dar <code>CS9260</code>; o compilador não reconhece a sintaxe e mostra erros confusos, como <code>CS1513: } esperada</code>.</p>
+</div>
+
+<div class="cenario">
+<h3>Uma classe que já tinha um campo chamado <code>field</code></h3>
+<pre class="file" data-file="campo.cs">Caixa c = new();
+c.Valor = 7;
+Console.WriteLine(c.Valor);
+Console.WriteLine(c.CampoAntigo);
+
+class Caixa
+{
+    private int field;
+    public int CampoAntigo =&gt; this.field;
+    public int Valor
+    {
+        get =&gt; field;
+        set =&gt; field = value;
+    }
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run campo.cs
+/home/ana/cs/campo.cs(12,16): warning CS9258: Na versão da linguagem 14.0, a palavra-chave ''field'' é associada a um campo de suporte sintetizado para a propriedade. Para evitar a geração de um campo de suporte sintetizado e para se referir ao membro existente, use 'this.field' ou '@field'.
+/home/ana/cs/campo.cs(13,16): warning CS9258: Na versão da linguagem 14.0, a palavra-chave ''field'' é associada a um campo de suporte sintetizado para a propriedade. Para evitar a geração de um campo de suporte sintetizado e para se referir ao membro existente, use 'this.field' ou '@field'.
+/home/ana/cs/campo.cs(8,17): warning CS0649: Campo "Caixa.field" nunca é atribuído e sempre terá seu valor padrão 0
+7
+0</pre>
+<p><strong>O que quer dizer:</strong> num código escrito antes do C# 14, <code>field</code> era um nome comum. Agora, dentro de uma propriedade, ele é a palavra nova: o <code>Valor</code> passou a usar um campo escondido, e o campo <code>field</code> da linha 8 ficou esquecido (por isso <code>CampoAntigo</code> mostrou 0). O compilador avisa com <code>CS9258</code>. <strong>Como consertar:</strong> se você quer o campo antigo, escreva <code>this.field</code> ou <code>@field</code> dentro da propriedade, como a mensagem sugere; melhor ainda, renomeie o campo para <code>_valor</code>.</p>
+</div>
+
+<div class="cenario">
+<h3><code>?.</code> com <code>++</code></h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="mais.cs">Cliente? ana = new();
+ana?.Pontos++;
+class Cliente { public int Pontos { get; set; } }
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run mais.cs
+/home/ana/cs/mais.cs(2,1): error CS1059: O operando de aumento ou diminuição deve ser uma variável, propriedade ou indexador
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> a atribuição condicional nula aceita <code>=</code>, <code>+=</code>, <code>-=</code> e afins, mas <strong>não</strong> <code>++</code> e <code>--</code>. <strong>Como consertar:</strong> <code>ana?.Pontos += 1;</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida: recurso → versão</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Recurso</th><th>Versão</th></tr>
+<tr><td><code>string?</code>, <code>switch</code> expressão, <code>^1</code> e <code>..</code>, <code>??=</code>, <code>using var</code></td><td>C# 8</td></tr>
+<tr><td>Sem <code>Main</code>, <code>record</code>, <code>init</code>, <code>new()</code>, <code>is not null</code>, <code>and</code>/<code>or</code></td><td>C# 9</td></tr>
+<tr><td><code>global using</code>, <code>namespace X;</code>, <code>record struct</code>, <code>{ A.B: … }</code></td><td>C# 10</td></tr>
+<tr><td><code>"""…"""</code>, <code>[1, ..]</code> em padrões, <code>required</code>, <code>INumber&lt;T&gt;</code></td><td>C# 11</td></tr>
+<tr><td><code>[1, 2, 3]</code>, <code>class X(int a)</code>, lambdas com valor padrão</td><td>C# 12</td></tr>
+<tr><td><code>params ReadOnlySpan&lt;T&gt;</code>, <code>Lock</code>, propriedades <code>partial</code>, <code>\e</code></td><td>C# 13</td></tr>
+<tr><td><code>field</code>, <code>extension(…) { }</code>, <code>?.=</code>, <code>nameof(List&lt;&gt;)</code>, <code>(x, out y) =&gt;</code>, construtores <code>partial</code>, <code>operator +=</code>, spans de primeira classe</td><td>C# 14</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<p>1. Complete o <code>set</code> para gravar no campo escondido da propriedade:</p>
+<div class="ex-code">public string Nome { get; set =&gt; <input data-answer="field"> = value.Trim(); }</div>
+</div>
+
+<div class="exercise">
+<p>2. Qual operador grava só se o objeto não for nulo?</p>
+<div class="ex-code">cliente<input data-answer="?.">Pontos = 10;</div>
+</div>
+
+<div class="exercise">
+<p>3. Qual versão do C# vem com o .NET 10?</p>
+<div class="ex-code">C# <input data-answer="14"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. O que mostra <code>Console.WriteLine(nameof(Dictionary&lt;,&gt;));</code> no C# 14?</p>
+<label><input type="radio" name="q4"> <code>Dictionary&lt;,&gt;</code></label>
+<label><input type="radio" name="q4"> Erro de compilação.</label>
+<label><input type="radio" name="q4"> <code>Dictionary</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. Num bloco <code>extension(string s) { public int Palavras =&gt; …; }</code>, como se usa a propriedade?</p>
+<label><input type="radio" name="q5"> <code>frase.Palavras</code></label>
+<label><input type="radio" name="q5"> <code>frase.Palavras()</code></label>
+<label><input type="radio" name="q5"> <code>Extensoes.Palavras(frase)</code> apenas</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">6. Um projeto com <code>&lt;LangVersion&gt;13&lt;/LangVersion&gt;</code> usa <code>cliente?.Pontos = 10;</code>. O que acontece?</p>
+<label><input type="radio" name="q6"> Compila e funciona igual.</label>
+<label><input type="radio" name="q6"> Erro <code>CS9260</code>: o recurso "atribuição condicional nula" não está disponível no C# 13.0.</label>
+<label><input type="radio" name="q6"> Compila, mas lança <code>NullReferenceException</code>.</label>
+</div>
+
+<div class="trycs" data-goal="out:Ana: 15 pontos,out:Bruno: 20 pontos,out:ninguém mais,src:\?\.\s*Pontos\s*\+?=">
+<p class="try-task"><strong>Missão final:</strong> a promoção da loja dá 10 pontos a cada cliente da fila, mas algumas posições da fila estão vazias (<code>null</code>). Troque o <code>if</code> por uma atribuição condicional nula: <code>c?.Pontos += 10;</code>. A saída não muda (<code>Ana: 15 pontos</code>, <code>Bruno: 20 pontos</code>, <code>ninguém mais</code>), mas o código fica com uma linha só.</p>
+<pre class="script">Cliente?[] fila = [new("Ana", 5), null, new("Bruno", 10), null];
+
+foreach (var c in fila)
+{
+    if (c is not null)
+    {
+        c.Pontos = c.Pontos + 10;
+    }
+}
+
+foreach (var c in fila)
+{
+    if (c is not null) Console.WriteLine($"{c.Nome}: {c.Pontos} pontos");
+}
+Console.WriteLine("ninguém mais");
+
+class Cliente(string nome, int pontos)
+{
+    public string Nome { get; } = nome;
+    public int Pontos { get; set; } = pontos;
+}
+</pre>
+<pre class="solucao">Cliente?[] fila = [new("Ana", 5), null, new("Bruno", 10), null];
+
+foreach (var c in fila)
+{
+    c?.Pontos += 10;
+}
+
+foreach (var c in fila)
+{
+    if (c is not null) Console.WriteLine($"{c.Nome}: {c.Pontos} pontos");
+}
+Console.WriteLine("ninguém mais");
+
+class Cliente(string nome, int pontos)
+{
+    public string Nome { get; } = nome;
+    public int Pontos { get; set; } = pontos;
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Cada .NET traz uma versão do C#: .NET 8 → C# 12, .NET 9 → C# 13, <strong>.NET 10 → C# 14</strong> (LTS, até 2028). Um recurso mais novo que o <code>&lt;LangVersion&gt;</code> do projeto dá <code>CS9260</code>, dizendo o nome do recurso e a versão necessária.</li>
+  <li>Do C# 8 ao 13, a linguagem ganhou referências anuláveis, expressões switch, índices <code>^</code>, records, instruções de nível superior, padrões cada vez mais ricos, strings brutas, <code>required</code>, expressões de coleção, construtores primários e <code>params</code> com spans.</li>
+  <li>C# 14: <code>field</code> nas propriedades (cuidado com campos chamados <code>field</code>: <code>CS9258</code>), blocos <code>extension</code> com propriedades e membros estáticos, <code>obj?.Prop = valor</code> (e <code>+=</code>, mas não <code>++</code>: <code>CS1059</code>), <code>nameof(List&lt;&gt;)</code>, lambdas <code>(x, out y) =&gt;</code>, construtores e eventos <code>partial</code>, <code>operator +=</code> e spans de primeira classe.</li>
+  <li>Todos os exemplos do C# 14 desta aula foram conferidos no .NET 10 do laboratório e no editor do guia.</li>
+</ul>
+
+<p>Próxima aula: <a href="arquivos.html">Arquivos (File)</a>, o começo do grupo Arquivos e Dados.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
