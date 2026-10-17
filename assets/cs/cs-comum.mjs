@@ -39,5 +39,6 @@ export function configurar(dotnet, mapa) {
     .withEnvironmentVariable("LANG", "pt_BR.UTF-8")
     .withEnvironmentVariable("HOME", "/home/ana")
     .withEnvironmentVariable("USER", "ana")
-    .withResourceLoader(carregadorDe(mapa));
+    .withResourceLoader(carregadorDe(mapa))
+    .withConfig(globalThis.location && /dbg=1/.test(globalThis.location.search) ? { diagnosticTracing: true } : {});
 }

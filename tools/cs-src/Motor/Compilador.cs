@@ -114,9 +114,27 @@ public static partial class Compilador
         var comp = CSharpCompilation.Create(nome, arvores, referencias ?? throw new InvalidOperationException("referências não carregadas"), opcoes);
         using var msDll = new MemoryStream();
         using var msPdb = new MemoryStream();
-        var res = comp.Emit(msDll, msPdb, options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb, pdbFilePath: obj + nome + ".pdb"));
-
-        var visiveis = res.Diagnostics.Where(d => !d.IsSuppressed && (d.Severity == DiagnosticSeverity.Error || d.Severity == DiagnosticSeverity.Warning)).ToList();
+        // Como o csc: primeiro os erros de sintaxe; se houver, para aí (não mostra os semânticos).
+        // Depois as declarações; se houver erro, para. Só então compila os métodos e gera o .dll.
+        static bool Visivel(Diagnostic d) => !d.IsSuppressed && (d.Severity == DiagnosticSeverity.Error || d.Severity == DiagnosticSeverity.Warning);
+        var opDiag = opcoes.SpecificDiagnosticOptions;
+        Diagnostic? Filtrar(Diagnostic d)
+        {
+            return opDiag.TryGetValue(d.Id, out var rd) && rd == ReportDiagnostic.Suppress ? null : d;
+        }
+        List<Diagnostic> Etapa(IEnumerable<Diagnostic> ds) => ds.Select(Filtrar).Where(d => d != null && Visivel(d)).Select(d => d!).ToList();
+        var visiveis = Etapa(comp.GetParseDiagnostics());
+        bool ok = false;
+        if (!visiveis.Any(d => d.Severity == DiagnosticSeverity.Error))
+        {
+            visiveis.AddRange(Etapa(comp.GetDeclarationDiagnostics()));
+            if (!visiveis.Any(d => d.Severity == DiagnosticSeverity.Error))
+            {
+                var res = comp.Emit(msDll, msPdb, options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb, pdbFilePath: obj + nome + ".pdb"));
+                visiveis = res.Diagnostics.Where(Visivel).ToList();
+                ok = res.Success;
+            }
+        }
         // o dotnet mostra primeiro os erros, depois os avisos (cada grupo na ordem do código)
         var ordenados = visiveis.Where(d => d.Severity == DiagnosticSeverity.Error).Concat(visiveis.Where(d => d.Severity == DiagnosticSeverity.Warning)).ToList();
         string sufixo = projeto == null ? "" : " [" + pasta + "/" + projeto + ".csproj]";
@@ -125,7 +143,7 @@ public static partial class Compilador
         using var buf = new MemoryStream();
         using var w = new Utf8JsonWriter(buf);
         w.WriteStartObject();
-        w.WriteBoolean("ok", res.Success);
+        w.WriteBoolean("ok", ok);
         w.WriteStartArray("diags");
         foreach (var d in ordenados)
         {
@@ -144,13 +162,13 @@ public static partial class Compilador
             w.WriteEndObject();
         }
         w.WriteEndArray();
-        if (!res.Success) texto.Append("\nOcorreu uma falha no build. Corrija os erros de build e execute novamente.\n");
+        if (!ok) texto.Append("\nOcorreu uma falha no build. Corrija os erros de build e execute novamente.\n");
         w.WriteString("texto", texto.ToString());
         w.WriteNumber("ms", (int)(DateTime.UtcNow - t0).TotalMilliseconds);
         w.WriteEndObject();
         w.Flush();
-        dll = res.Success ? msDll.ToArray() : [];
-        pdb = res.Success ? msPdb.ToArray() : [];
+        dll = ok ? msDll.ToArray() : [];
+        pdb = ok ? msPdb.ToArray() : [];
         return Encoding.UTF8.GetString(buf.ToArray());
     }
 

@@ -11,7 +11,8 @@
                    (no navegador ele esperaria o leitor digitar).
    --com ARQ       outro arquivo da caixa (aba): os .cs são compilados juntos (vira um projeto,
                    como no laboratório); os outros ficam na pasta em que o programa roda.
-   --args "…"      os argumentos (como data-args), em vez de "-- arg1 arg2".
+   --args "…"      os argumentos (como data-args: "Ana 'Maria Clara' 29"); os outros valores que não são
+                   arquivo também viram argumentos (como depois de "--").
    --nativo        compila e roda também com o dotnet do laboratório e compara.
 */
 "use strict";
@@ -34,7 +35,7 @@ async function main() {
     else if (x === "--com") com.push(a[++i]);
     else if (x === "--args") args.push(...Sim.dividirArgs(a[++i] || ""));
     else if (x === "--nativo") nativo = true;
-    else if (!principal) principal = x;
+    else if (!principal && (/\.cs$/i.test(x) || fs.existsSync(x))) principal = x;
     else args.push(x);
   }
   if (!principal) uso();

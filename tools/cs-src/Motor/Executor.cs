@@ -85,7 +85,7 @@ public static partial class Executor
     // o Linhas acrescenta, lendo o PDB do programa.
     static string FormatarExcecao(Exception ex)
     {
-        var linhas = ex.ToString().Split('\n').Select(l => l.TrimEnd('\r')).ToList();
+        var linhas = ex.ToString().Split('\n').Select(l => SemArgsGenericos(l.TrimEnd('\r'))).ToList();
         Linhas.Completar(ex, linhas);
         var r = new List<string>();
         foreach (var l in linhas)
@@ -97,6 +97,30 @@ public static partial class Executor
         while (r.Count > 0 && r[^1].TrimStart().StartsWith("--- End of stack trace")) r.RemoveAt(r.Count - 1);
         if (entrada != null) r.Add(entrada);
         return string.Join("\n", r);
+    }
+
+    // o Mono escreve "Dictionary`2[[System.String, System.Private.CoreLib, Version=…],[…]]"; o CoreCLR, "Dictionary`2"
+    internal static string SemArgsGenericos(string l)
+    {
+        if (!l.Contains("`")) return l;
+        var sb = new StringBuilder();
+        for (int i = 0; i < l.Length; i++)
+        {
+            sb.Append(l[i]);
+            if (l[i] == '`')
+            {
+                int j = i + 1;
+                while (j < l.Length && char.IsDigit(l[j])) sb.Append(l[j++]);
+                if (j > i + 1 && j + 1 < l.Length && l[j] == '[' && l[j + 1] == '[')
+                {
+                    int prof = 0, k = j;
+                    for (; k < l.Length; k++) { if (l[k] == '[') prof++; else if (l[k] == ']' && --prof == 0) break; }
+                    j = k + 1;
+                }
+                i = j - 1;
+            }
+        }
+        return sb.ToString();
     }
 
     [JSExport] public static int Bytes() => bytes;
