@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Operadores de Atribuição — =, +=, -=, *=, /= e %= | Guia C#</title>
+<meta name="description" content="Operadores de atribuição em C# para quem nunca programou: o = que guarda um valor, as formas curtas +=, -=, *=, /= e %=, += com texto, a atribuição em cadeia (a = b = 0), a conversão escondida do += em byte, ??= e os operadores de bits, e os erros CS0165, CS0029, CS0131 e CS0266, com saídas reais do .NET 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Operadores de Atribuição</span></h1>
+
+<p class="intro">Você usa o <code>=</code> desde a primeira variável: <code>int pontos = 10;</code>. Ele é um <strong>operador de atribuição</strong>: guarda o valor da direita na variável da esquerda. Mas programas mudam valores o tempo todo ("soma 5 pontos", "tira 1 vida", "dobra o saldo"), e para isso o C# tem atalhos: <code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code> e <code>%=</code>. Nesta aula você vai ver cada um, o que acontece por trás e os erros mais comuns, como confundir <code>=</code> com <code>==</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que o <code>=</code> faz de verdade: "guarde", e não "é igual".</li>
+  <li>As formas curtas: <code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code> e <code>%=</code>.</li>
+  <li><code>+=</code> com texto, para ir montando uma string.</li>
+  <li>A atribuição em cadeia (<code>a = b = c = 0</code>).</li>
+  <li>A conversão escondida: por que <code>vidas += 2</code> funciona num <code>byte</code> e <code>vidas = vidas + 2</code> não.</li>
+  <li>Os outros: <code>??=</code> e os de bits (<code>&lt;&lt;=</code>, <code>|=</code>…).</li>
+  <li>Os erros: <code>=</code> no lugar de <code>==</code>, <code>=+</code> no lugar de <code>+=</code>, variável sem valor e constante.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: o placar do jogo</h2>
+<p>Num placar de jogo, ninguém escreve o número do zero a cada ponto. O juiz olha o número que está lá, soma 1 e põe o novo no lugar. "Pegue o valor atual, faça uma conta e guarde o resultado de volta" é a coisa que um programa mais faz, e é para isso que existem os operadores de atribuição.</p>
+<p>Antes, um detalhe importante: no C#, <code>=</code> <strong>não</strong> quer dizer "é igual", como na matemática. Quer dizer "<strong>guarde</strong>". Leia <code>pontos = 10</code> como "pontos recebe 10". Para perguntar se dois valores são iguais existe outro operador, o <code>==</code> (aula <a href="operadores-comparacao.html">Operadores de Comparação</a>).</p>
+
+<hr>
+
+<h2>1. O <code>=</code>: guardar um valor</h2>
+<p>O <code>=</code> funciona sempre da direita para a esquerda: <strong>primeiro</strong> o C# calcula tudo o que está à direita, <strong>depois</strong> guarda o resultado na variável à esquerda. Por isso esta linha, que seria absurda na matemática, é a mais comum da programação:</p>
+
+<pre class="file" data-file="trecho">pontos = pontos + 5;</pre>
+
+<p>"Pegue o valor atual de <code>pontos</code>, some 5, e guarde o resultado em <code>pontos</code>." Se <code>pontos</code> valia 10, agora vale 15. O valor antigo é substituído.</p>
+
+<hr>
+
+<h2>2. As formas curtas: <code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code>, <code>%=</code></h2>
+<p>Como <code>pontos = pontos + 5</code> aparece o tempo todo, o C# tem um atalho: <code>pontos += 5</code>. O nome da variável aparece uma vez só:</p>
+
+<pre class="file" data-file="atrib1.cs">int pontos = 10;
+pontos += 5;
+Console.WriteLine(pontos);
+pontos -= 3;
+Console.WriteLine(pontos);
+pontos *= 2;
+Console.WriteLine(pontos);
+pontos /= 5;
+Console.WriteLine(pontos);
+pontos %= 3;
+Console.WriteLine(pontos);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run atrib1.cs
+15
+12
+24
+4          « 24 / 5 = 4 (divisão inteira)
+1          « 4 % 3 = 1</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma curta</th><th>É o mesmo que</th><th>No exemplo</th></tr>
+<tr><td><code>pontos += 5</code></td><td><code>pontos = pontos + 5</code></td><td>10 → 15</td></tr>
+<tr><td><code>pontos -= 3</code></td><td><code>pontos = pontos - 3</code></td><td>15 → 12</td></tr>
+<tr><td><code>pontos *= 2</code></td><td><code>pontos = pontos * 2</code></td><td>12 → 24</td></tr>
+<tr><td><code>pontos /= 5</code></td><td><code>pontos = pontos / 5</code></td><td>24 → 4</td></tr>
+<tr><td><code>pontos %= 3</code></td><td><code>pontos = pontos % 3</code></td><td>4 → 1</td></tr>
+</table>
+</div>
+
+<p>As contas seguem as regras da aula <a href="operadores-aritmeticos.html">Operadores Aritméticos</a>: com <code>int</code>, o <code>/=</code> faz divisão inteira (24 / 5 = 4, não 4,8). E o lado direito pode ser qualquer conta: <code>total += preco * quantidade;</code> calcula <code>preco * quantidade</code> primeiro e soma o resultado ao <code>total</code>.</p>
+
+<div class="tip">
+<strong>E o <code>pontos += 1</code>?</strong>
+<p>Somar ou subtrair 1 é tão comum que tem um atalho ainda menor: <code>pontos++</code> e <code>pontos--</code>. Eles têm aula própria: <a href="incremento.html">++ e --</a>.</p>
+</div>
+
+<h3>O cofrinho da Ana</h3>
+
+<pre class="file" data-file="cofrinho.cs">decimal cofrinho = 0m;
+cofrinho += 10m;
+cofrinho += 5.50m;
+cofrinho -= 3m;
+cofrinho *= 2;
+Console.WriteLine($"Cofrinho: R$ {cofrinho}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run cofrinho.cs
+Cofrinho: R$ 25,00</pre>
+
+<p>0 + 10 + 5,50 - 3 = 12,50; dobrado, 25,00. Com <code>decimal</code>, o <code>*= 2</code> aceita o <code>int</code> 2 sem problema, e as casas decimais se mantêm.</p>
+
+<div class="trycs" data-goal="out:Saldo: 240,src:\+=,src:-=,src:\*=">
+<p class="try-task"><strong>Missão:</strong> o jogo começa com 100 moedas. Troque cada comentário por uma linha com a forma curta certa: o jogador <strong>ganha 50</strong> (<code>+=</code>), <strong>gasta 30</strong> (<code>-=</code>) e depois tem o saldo <strong>dobrado</strong> (<code>*=</code>). (100 + 50 - 30) × 2 = <code>Saldo: 240</code>.</p>
+<pre class="script" data-file="moedas.cs">int moedas = 100;
+// ganha 50
+// gasta 30
+// dobra
+Console.WriteLine($"Saldo: {moedas}");
+</pre>
+<pre class="solucao" data-file="moedas.cs">int moedas = 100;
+moedas += 50;
+moedas -= 30;
+moedas *= 2;
+Console.WriteLine($"Saldo: {moedas}");
+</pre>
+</div>
+
+<hr>
+
+<h2>3. <code>+=</code> com texto</h2>
+<p>Como o <code>+</code> junta textos, o <code>+=</code> serve para ir <strong>acrescentando</strong> a uma string:</p>
+
+<pre class="file" data-file="atribstring.cs">string lista = "arroz";
+lista += ", feijão";
+lista += ", café";
+Console.WriteLine(lista);
+string texto = "Pontos: ";
+texto += 10;
+Console.WriteLine(texto);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run atribstring.cs
+arroz, feijão, café
+Pontos: 10</pre>
+
+<p>Até um número pode ser acrescentado: ele vira texto (<code>"Pontos: " + 10</code>). Para juntar muitos pedaços, num laço com milhares de voltas, existe o <a href="stringbuilder.html">StringBuilder</a>, que é bem mais rápido. Os outros atalhos (<code>-=</code>, <code>*=</code>…) não funcionam com texto.</p>
+
+<hr>
+
+<h2>4. A atribuição também é um valor</h2>
+<p>No C#, <code>x = 8</code> não só guarda o 8: a expressão inteira também <strong>vale</strong> 8. Isso permite a atribuição em cadeia:</p>
+
+<pre class="file" data-file="atrib2.cs">int a, b, c;
+a = b = c = 7;
+Console.WriteLine($"{a} {b} {c}");
+int x = 5;
+int y = (x = 8) + 1;
+Console.WriteLine($"{x} {y}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run atrib2.cs
+7 7 7
+8 9</pre>
+
+<dl class="anatomy">
+  <dt>int a, b, c;</dt><dd>Cria três variáveis <code>int</code> de uma vez, ainda sem valor.</dd>
+  <dt>a = b = c = 7;</dt><dd>Da direita para a esquerda: <code>c = 7</code> guarda 7 e vale 7; então <code>b = 7</code>; então <code>a = 7</code>. Útil para zerar várias variáveis.</dd>
+  <dt>int y = (x = 8) + 1;</dt><dd>Primeiro <code>x</code> recebe 8; a expressão vale 8; mais 1, 9 vai para <code>y</code>. Funciona, mas é difícil de ler: evite. Uma coisa por linha é sempre mais claro.</dd>
+</dl>
+
+<hr>
+
+<h2>5. A conversão escondida do <code>+=</code></h2>
+<p>Na aula <a href="inteiros.html">Inteiros</a> você viu que uma conta com <code>byte</code> é feita em <code>int</code>, e que o resultado não volta sozinho para o <code>byte</code>. Mas veja:</p>
+
+<pre class="file" data-file="atribbyte.cs">byte vidas = 3;
+vidas += 2;
+Console.WriteLine(vidas);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run atribbyte.cs
+5</pre>
+
+<pre class="file" data-file="atribbyteerro.cs">byte vidas = 3;
+vidas = vidas + 2;
+Console.WriteLine(vidas);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run atribbyteerro.cs
+/home/ana/cs/atribbyteerro.cs(2,9): error CS0266: Não é possível converter implicitamente tipo "int" em "byte". Existe uma conversão explícita (há uma conversão ausente?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Então <code>vidas += 2</code> <strong>não</strong> é exatamente <code>vidas = vidas + 2</code>. A forma curta tem um cast embutido: é <code>vidas = (byte)(vidas + 2)</code>. O C# deixa porque você está guardando de volta na mesma variável, então o tipo certo é óbvio. O lado ruim: o cast escondido pode derramar sem aviso, como qualquer cast (aula <a href="conversao-tipos.html">Conversão de Tipos</a>):</p>
+
+<pre class="file" data-file="atribbyte2.cs">byte b = 250;
+b += 10;
+Console.WriteLine(b);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run atribbyte2.cs
+4          « 260 não cabe num byte: deu a volta</pre>
+
+<p>O cast escondido só existe quando o valor da direita já "caberia" no tipo da variável. Somar um <code>double</code> a um <code>int</code> continua proibido:</p>
+
+<pre class="file" data-file="atribdouble.cs">int total = 10;
+total += 2.5;
+Console.WriteLine(total);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run atribdouble.cs
+/home/ana/cs/atribdouble.cs(2,1): error CS0266: Não é possível converter implicitamente tipo "double" em "int". Existe uma conversão explícita (há uma conversão ausente?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>E o <code>checked</code> também vale para as formas curtas: dentro de <code>checked { … }</code>, um <code>saldo += 1</code> que estoura lança <code>OverflowException</code>.</p>
+
+<hr>
+
+<h2>6. Os outros operadores de atribuição</h2>
+<p>Todo operador de duas partes tem a sua forma com <code>=</code>. Dois grupos aparecem mais adiante no guia:</p>
+
+<pre class="file" data-file="atribnull.cs">string? apelido = null;
+apelido ??= "Sem apelido";
+Console.WriteLine(apelido);
+apelido ??= "Outro";
+Console.WriteLine(apelido);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run atribnull.cs
+Sem apelido
+Sem apelido</pre>
+
+<p>O <code>??=</code> <span class="versao">C# 8</span> guarda o valor <strong>só se a variável estiver <code>null</code></strong>: na primeira vez guardou; na segunda, <code>apelido</code> já tinha valor e nada mudou. Ele é explicado em <a href="operadores-null.html">Operadores ??, ?. e ??=</a>.</p>
+
+<pre class="file" data-file="atribbits.cs">int n = 1;
+n &lt;&lt;= 3;
+Console.WriteLine(n);
+n &gt;&gt;= 1;
+Console.WriteLine(n);
+n |= 1;
+Console.WriteLine(n);
+n &amp;= 6;
+Console.WriteLine(n);
+n ^= 7;
+Console.WriteLine(n);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run atribbits.cs
+8
+4
+5
+4
+3</pre>
+
+<p>Esses mexem nos bits do número (deslocar, "ou", "e", "ou exclusivo"). São raros no dia a dia; o <code>&amp;=</code> e o <code>|=</code> com <code>bool</code> aparecem em <a href="operadores-logicos.html">Operadores Lógicos</a>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>É o mesmo que</th><th>Assunto</th></tr>
+<tr><td><code>x = y</code></td><td>guarde <code>y</code> em <code>x</code></td><td>esta aula</td></tr>
+<tr><td><code>x += y</code>, <code>-=</code>, <code>*=</code>, <code>/=</code>, <code>%=</code></td><td><code>x = (tipo de x)(x + y)</code>…</td><td>esta aula</td></tr>
+<tr><td><code>x ??= y</code></td><td>se <code>x</code> é <code>null</code>, <code>x = y</code></td><td><a href="operadores-null.html">Operadores null</a></td></tr>
+<tr><td><code>x &amp;= y</code>, <code>|=</code>, <code>^=</code></td><td><code>x = x &amp; y</code>…</td><td>bits e <code>bool</code></td></tr>
+<tr><td><code>x &lt;&lt;= n</code>, <code>&gt;&gt;=</code>, <code>&gt;&gt;&gt;=</code></td><td><code>x = x &lt;&lt; n</code>…</td><td>deslocamento de bits (<code>&gt;&gt;&gt;=</code> é do <span class="versao">C# 11</span>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>=</code> no lugar de <code>==</code>: <code>error CS0029: Não é possível converter implicitamente tipo "int" em "bool"</code></strong>
+<pre class="file" data-file="atribif.cs">int x = 5;
+if (x = 5)
+{
+    Console.WriteLine("cinco");
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run atribif.cs
+/home/ana/cs/atribif.cs(2,5): error CS0029: Não é possível converter implicitamente tipo "int" em "bool"
+/home/ana/cs/atribif.cs(1,5): warning CS0219: A variável "x" é atribuída, mas seu valor nunca é usado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> a intenção era perguntar "x é igual a 5?", mas <code>x = 5</code> <strong>guarda</strong> 5 e vale 5, um <code>int</code>. O <code>if</code> precisa de um <code>bool</code>. Em C, esse erro passa despercebido; no C#, não compila. O aviso <code>CS0219</code> vem junto porque, para o compilador, <code>x</code> só recebe valores e nunca é lido.</p>
+<p><strong>Como consertar:</strong> para comparar, <code>==</code>: <code>if (x == 5)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>=+</code> no lugar de <code>+=</code>: compila, mas o valor sai errado</strong>
+<pre class="file" data-file="atribespaco.cs">int x = 10;
+x =+ 5;
+Console.WriteLine(x);
+x =- 3;
+Console.WriteLine(x);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run atribespaco.cs
+5          « esperava 15
+-3         « esperava 2</pre>
+<p><strong>O que significa:</strong> <code>x =+ 5</code> é lido como <code>x = +5</code> ("guarde mais cinco"), e <code>x =- 3</code> como <code>x = -3</code>. Nenhum erro, nenhum aviso.</p>
+<p><strong>Como consertar:</strong> o sinal da conta vem <strong>antes</strong> do igual: <code>+=</code>, <code>-=</code>. Um truque para lembrar: "mais, igual", na ordem em que se fala.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0165: Uso de variável local não atribuída "total"</code></strong>
+<pre class="file" data-file="atribnaoatrib.cs">int total;
+total += 5;
+Console.WriteLine(total);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run atribnaoatrib.cs
+/home/ana/cs/atribnaoatrib.cs(2,1): error CS0165: Uso de variável local não atribuída "total"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> <code>total += 5</code> precisa ler o valor atual de <code>total</code>, e ele não tem valor nenhum.</p>
+<p><strong>Como consertar:</strong> comece do zero: <code>int total = 0;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0131: O lado esquerdo de uma atribuição deve ser uma variável, uma propriedade ou um indexador</code></strong>
+<p><strong>O que significa:</strong> à esquerda do <code>=</code> (ou do <code>+=</code>) há algo que não pode receber valor: uma <a href="constantes.html">constante</a> (<code>Limite += 1</code>), um número (<code>5 = x</code>) ou uma conta (<code>a + b = 10</code>).</p>
+<p><strong>Como consertar:</strong> a variável que recebe fica sempre à esquerda, sozinha: <code>x = 5</code>, <code>c = a + b</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0266</code> (ou <code>CS0019</code>) num <code>+=</code></strong>
+<p><strong>O que significa:</strong> o valor da direita é de um tipo que não entra na variável: <code>total += 2.5</code> com <code>total</code> <code>int</code> dá <code>CS0266</code>; <code>saldo += 0.1</code> com <code>saldo</code> <code>decimal</code> dá <code>CS0019</code> (<code>decimal</code> e <code>double</code> não se misturam).</p>
+<p><strong>Como consertar:</strong> use o tipo certo do lado direito (<code>0.1m</code>) ou mude o tipo da variável (<code>double total</code>).</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Lê-se</th><th>Exemplo (<code>x</code> vale 10)</th></tr>
+<tr><td><code>x = 5</code></td><td>"x recebe 5"</td><td>5</td></tr>
+<tr><td><code>x += 5</code></td><td>"some 5 a x"</td><td>15</td></tr>
+<tr><td><code>x -= 5</code></td><td>"tire 5 de x"</td><td>5</td></tr>
+<tr><td><code>x *= 5</code></td><td>"multiplique x por 5"</td><td>50</td></tr>
+<tr><td><code>x /= 5</code></td><td>"divida x por 5"</td><td>2</td></tr>
+<tr><td><code>x %= 3</code></td><td>"x recebe o resto de x por 3"</td><td>1</td></tr>
+<tr><td><code>texto += "abc"</code></td><td>"acrescente abc"</td><td>—</td></tr>
+<tr><td><code>a = b = 0</code></td><td>em cadeia, da direita para a esquerda</td><td>—</td></tr>
+<tr><td><code>x ??= y</code></td><td>"se x é null, recebe y"</td><td>—</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A forma curta</h3>
+<p>Complete com a forma curta de <code>saldo = saldo - 20;</code>:</p>
+<div class="ex-code">saldo <input data-answer="-=" aria-label="operador"> 20;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Quanto vale?</h3>
+<p><code>int n = 7; n *= 3; n -= 1;</code> Quanto vale <code>n</code>?</p>
+<div class="ex-code"><input data-answer="20" aria-label="valor"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Divisão curta</h3>
+<p><code>int n = 17; n /= 5;</code> Quanto vale <code>n</code>?</p>
+<div class="ex-code"><input data-answer="3" aria-label="valor"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. <code>int x = 10; x =+ 3;</code> Quanto vale <code>x</code>?</p>
+<label><input type="radio" name="q4"> 13</label>
+<label><input type="radio" name="q4"> 3: <code>=+ 3</code> é <code>= +3</code></label>
+<label><input type="radio" name="q4"> 7</label>
+<label><input type="radio" name="q4"> Não compila</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. <code>byte b = 3; b += 2;</code> compila, mas <code>b = b + 2;</code> não. Por quê?</p>
+<label><input type="radio" name="q5"> <code>+=</code> é mais rápido</label>
+<label><input type="radio" name="q5"> <code>b + 2</code> é um <code>double</code></label>
+<label><input type="radio" name="q5"> É um defeito do compilador</label>
+<label><input type="radio" name="q5"> O <code>+=</code> tem um cast embutido para o tipo da variável; <code>b + 2</code> sozinho é um <code>int</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. O que <code>if (idade = 18)</code> causa?</p>
+<label><input type="radio" name="q6"> Não compila (<code>CS0029</code>): <code>=</code> guarda; para comparar é <code>==</code></label>
+<label><input type="radio" name="q6"> Compara e funciona</label>
+<label><input type="radio" name="q6"> Sempre entra no <code>if</code></label>
+<label><input type="radio" name="q6"> Nunca entra no <code>if</code></label>
+</div>
+
+<h3>Missão final: a lista de compras</h3>
+
+<div class="trycs" data-goal="out:Compras: pão\, leite\, ovos,out:Total: 23\,40,src:lista\s*\+=,src:total\s*\+=">
+<p class="try-task"><strong>Missão:</strong> a Ana vai montando a lista e o total das compras. As duas primeiras compras já estão feitas. Complete a terceira (ovos, R$ 13,90) com <code>lista += …</code> e <code>total += …</code>, para mostrar <code>Compras: pão, leite, ovos</code> e <code>Total: 23,40</code>.</p>
+<pre class="script" data-file="compras.cs">string lista = "pão";
+decimal total = 4.50m;
+
+lista += ", leite";
+total += 5.00m;
+
+// terceira compra: ovos, 13.90m
+
+Console.WriteLine($"Compras: {lista}");
+Console.WriteLine($"Total: {total}");
+</pre>
+<pre class="solucao" data-file="compras.cs">string lista = "pão";
+decimal total = 4.50m;
+
+lista += ", leite";
+total += 5.00m;
+
+lista += ", ovos";
+total += 13.90m;
+
+Console.WriteLine($"Compras: {lista}");
+Console.WriteLine($"Total: {total}");
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>=</code> quer dizer "guarde": calcula a direita e guarda na esquerda. <code>pontos = pontos + 5</code> é normal. Para comparar, <code>==</code>.</li>
+  <li>Formas curtas: <code>x += y</code> é <code>x = x + y</code>; o mesmo com <code>-=</code>, <code>*=</code>, <code>/=</code> (divisão inteira com <code>int</code>) e <code>%=</code>.</li>
+  <li><code>texto += "…"</code> acrescenta a uma string.</li>
+  <li>A atribuição vale o valor guardado: <code>a = b = c = 0</code>.</li>
+  <li>O <code>+=</code> tem um cast embutido: funciona em <code>byte</code> (e pode dar a volta: 250 + 10 = 4), mas não aceita <code>double</code> num <code>int</code> (<code>CS0266</code>).</li>
+  <li><code>??=</code> guarda só se a variável é <code>null</code>; <code>&amp;=</code>, <code>|=</code>, <code>^=</code>, <code>&lt;&lt;=</code>, <code>&gt;&gt;=</code> são para bits.</li>
+  <li>Cuidado com <code>=+</code> (é <code>= +</code>, sem erro) e com variável sem valor antes do <code>+=</code> (<code>CS0165</code>).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
