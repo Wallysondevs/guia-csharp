@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Glossário — os termos do guia explicados em poucas palavras | Guia C#</title>
+<meta name="description" content="Glossário do Guia C#: .NET, SDK, CLR, IL, JIT, Roslyn, dotnet run, projeto, .csproj, NuGet, variável, tipo, var, decimal, string, interpolação, array, List, Dictionary, null, referências anuláveis, método, parâmetro, classe, objeto, propriedade, construtor, record, struct, herança, interface, polimorfismo, exceção, try/catch, using, LINQ, lambda, delegate, evento, generics, async e await, Task, coletor de lixo, pilha e heap, e mais, em ordem alfabética, cada um com link para a aula.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Glossário</span></h1>
+
+<p class="intro">Os termos que aparecem no guia, em ordem alfabética, explicados em uma ou duas frases, cada um com o link para a aula em que é explicado com calma. Termos em inglês aparecem com a tradução. Quando o nome em inglês é o mais usado no dia a dia (como <em>array</em> ou <code>async</code>), ele é a entrada principal.</p>
+
+<div class="tip">
+<strong>Dica</strong>
+<p>Use <kbd>Ctrl</kbd>+<kbd>F</kbd> no navegador para achar um termo, ou o índice de letras abaixo. Para consultas rápidas, veja também as referências de <a href="ref-palavras-chave.html">palavras-chave</a>, de <a href="ref-tipos.html">tipos e limites</a>, de <a href="ref-operadores.html">operadores</a>, de <a href="ref-string.html">string</a> e de <a href="ref-erros.html">erros do compilador</a>.</p>
+</div>
+
+<p class="indice-letras"><a href="#g-A">A</a> · <a href="#g-B">B</a> · <a href="#g-C">C</a> · <a href="#g-D">D</a> · <a href="#g-E">E</a> · <a href="#g-F">F</a> · <a href="#g-G">G</a> · <a href="#g-H">H</a> · <a href="#g-I">I</a> · <a href="#g-J">J</a> · <a href="#g-L">L</a> · <a href="#g-M">M</a> · <a href="#g-N">N</a> · <a href="#g-O">O</a> · <a href="#g-P">P</a> · <a href="#g-Q">Q</a> · <a href="#g-R">R</a> · <a href="#g-S">S</a> · <a href="#g-T">T</a> · <a href="#g-U">U</a> · <a href="#g-V">V</a> · <a href="#g-W">W</a> · <a href="#g-Y">Y</a></p>
+
+<h2 id="g-A">A</h2>
+<dl class="glossario">
+<dt><strong>abstract</strong> (classe abstrata)</dt>
+<dd>Uma classe que serve só de base e não pode ser criada com <code>new</code>. Pode ter métodos <code>abstract</code>, sem corpo, que toda classe filha é obrigada a implementar com <code>override</code>. Veja: <a href="abstratas.html">Classes Abstratas</a>.</dd>
+<dt><strong>Acessador</strong> (<code>get</code>, <code>set</code>, <code>init</code>)</dt>
+<dd>As partes de uma propriedade: o <code>get</code> roda quando alguém lê o valor; o <code>set</code>, quando alguém atribui; o <code>init</code>, só na criação do objeto. Cada um pode ter o seu modificador de acesso, como em <code>{ get; private set; }</code>. Veja: <a href="propriedades.html">Propriedades</a> e <a href="readonly.html">readonly e init</a>.</dd>
+<dt><strong>args</strong></dt>
+<dd>O array de <code>string</code> com o que foi escrito depois do nome do programa na linha de comando: em <code>dotnet run conta.cs -- 10 20</code>, <code>args</code> é <code>["10", "20"]</code>. Veja: <a href="args.html">Argumentos da Linha de Comando</a>.</dd>
+<dt><strong>Argumento</strong></dt>
+<dd>O valor que você entrega a um método quando o chama: em <code>Somar(2, 3)</code>, os argumentos são <code>2</code> e <code>3</code>. Do lado de dentro, eles chegam nos <strong>parâmetros</strong>. Veja: <a href="parametros.html">Parâmetros</a> e <a href="parametros-opcionais.html">Parâmetros Opcionais e Nomeados</a>.</dd>
+<dt><strong>Array</strong> (vetor)</dt>
+<dd>Uma fileira de valores do mesmo tipo, com tamanho fixo: <code>int[] notas = [7, 8, 6];</code>. O primeiro elemento é o de índice 0, e o C# confere todo acesso: passar do fim lança <code>IndexOutOfRangeException</code>. Veja: <a href="arrays.html">Arrays</a>, <a href="arrays-multidimensionais.html">Arrays Multidimensionais</a> e <a href="classe-array.html">A Classe Array</a>.</dd>
+<dt><strong>async</strong> e <strong>await</strong></dt>
+<dd>Palavras para esperar uma operação demorada (ler um arquivo, baixar algo) sem travar o programa. Um método <code>async</code> devolve uma <code>Task</code>, e o <code>await</code> pausa o método até a tarefa terminar, deixando a thread livre. Veja: <a href="async-await.html">async e await</a>.</dd>
+<dt><strong>Atribuição</strong></dt>
+<dd>Guardar um valor numa variável que já existe, com <code>=</code>: <code>idade = 31;</code>. Não confunda com a comparação <code>==</code>. Os atalhos <code>+=</code>, <code>-=</code>, <code>*=</code> fazem a conta e guardam. Veja: <a href="variaveis.html">Variáveis</a> e <a href="operadores-atribuicao.html">Operadores de Atribuição</a>.</dd>
+<dt><strong>Atributo</strong></dt>
+<dd>Uma etiqueta entre colchetes que dá uma informação a mais ao compilador ou ao programa: <code>[Obsolete]</code>, <code>[Flags]</code>, <code>[JsonPropertyName("nome")]</code>. Veja: <a href="atributos.html">Atributos</a>.</dd>
+<dt><strong>Aviso</strong> (<em>warning</em>)</dt>
+<dd>Mensagem do compilador sobre algo suspeito que <strong>não</strong> impede o programa de rodar, como <code>CS8602</code> (possível <code>null</code>) ou <code>CS0168</code> (variável não usada). Quase sempre aponta um defeito real. Com <code>TreatWarningsAsErrors</code>, todo aviso vira erro. Veja: <a href="avisos.html">Avisos do Compilador</a> e <a href="boas-praticas.html">Boas Práticas</a>.</dd>
+</dl>
+
+<h2 id="g-B">B</h2>
+<dl class="glossario">
+<dt><strong>base</strong></dt>
+<dd>Dentro de uma classe filha, a palavra que se refere à classe-mãe: <code>: base(titular)</code> chama o construtor dela, e <code>base.Metodo()</code> chama a versão dela de um método. Veja: <a href="base.html">base</a>.</dd>
+<dt><strong>Biblioteca de classes</strong></dt>
+<dd>Um projeto que não roda sozinho: ele gera um <code>.dll</code> com classes para outros programas usarem. Criada com <code>dotnet new classlib</code> e ligada com <code>ProjectReference</code>. Veja: <a href="bibliotecas-classe.html">Bibliotecas de Classes</a>.</dd>
+<dt><strong>Bloco</strong></dt>
+<dd>Um trecho de código entre chaves <code>{ }</code>, como o corpo de um <code>if</code>, de um laço ou de um método. Uma variável criada dentro de um bloco só existe nele. Veja: <a href="sintaxe.html">Sintaxe</a> e <a href="escopo.html">Escopo</a>.</dd>
+<dt><strong>bool</strong></dt>
+<dd>O tipo que guarda só <code>true</code> (verdadeiro) ou <code>false</code> (falso). Toda comparação dá um <code>bool</code>, e toda condição de <code>if</code> e <code>while</code> tem de ser um. Veja: <a href="char-bool.html">char e bool</a>.</dd>
+<dt><strong>Boxing</strong></dt>
+<dd>Quando um tipo de valor (um <code>int</code>, por exemplo) é guardado numa variável <code>object</code>: o .NET o embrulha numa "caixa" no heap. Tirar da caixa é o <em>unboxing</em>, e um tipo errado lança <code>InvalidCastException</code>. Veja: <a href="valor-referencia.html">Valor × Referência</a>.</dd>
+<dt><strong>break</strong> e <strong>continue</strong></dt>
+<dd>Dentro de um laço, <code>break</code> sai do laço na hora; <code>continue</code> pula o resto da volta atual e começa a próxima. O <code>break</code> também termina cada <code>case</code> de um <code>switch</code>. Veja: <a href="break-continue.html">break e continue</a>.</dd>
+<dt><strong>Build</strong> (compilação)</dt>
+<dd>Transformar o código-fonte no programa: o <code>dotnet build</code> chama o compilador e gera os arquivos em <code>bin/</code>. O <code>dotnet run</code> faz o build antes de rodar, se o código mudou. Veja: <a href="projetos-console.html">Projetos</a> e <a href="dotnet-cli.html">O Comando dotnet</a>.</dd>
+</dl>
+
+<h2 id="g-C">C</h2>
+<dl class="glossario">
+<dt><strong>C#</strong> (lê-se "cê sharp")</dt>
+<dd>A linguagem deste guia, criada pela Microsoft em 2000 e hoje de código aberto. É compilada, orientada a objetos e com tipos conferidos pelo compilador. A versão atual é a 14, com o .NET 10. Veja: <a href="introducao.html">O que é C#</a> e <a href="versoes.html">Versões</a>.</dd>
+<dt><strong>Caminho</strong> (<em>path</em>)</dt>
+<dd>O endereço de um arquivo ou pasta: absoluto (<code>/home/ana/cs/notas.txt</code>) ou relativo à pasta atual (<code>notas.txt</code>). Monte caminhos com <code>Path.Combine</code>. Veja: <a href="caminhos.html">Pastas e Caminhos</a>.</dd>
+<dt><strong>Campo</strong> (<em>field</em>)</dt>
+<dd>Uma variável que pertence a um objeto (ou à classe, se for <code>static</code>). Por convenção, campos são <code>private</code> e têm nome <code>_camelCase</code>; o acesso de fora é feito por propriedades. Veja: <a href="campos.html">Campos</a>.</dd>
+<dt><strong>Cancelamento</strong></dt>
+<dd>O jeito combinado de pedir para uma tarefa parar: um <code>CancellationTokenSource</code> dá o sinal, e a tarefa confere o <code>CancellationToken</code>. Veja: <a href="cancelamento.html">Cancelamento</a>.</dd>
+<dt><strong>Cast</strong> (conversão explícita)</dt>
+<dd>Forçar a conversão de um tipo em outro escrevendo o tipo entre parênteses: <code>(int)7.9</code> dá 7 (corta a parte decimal). Pode perder dados, por isso o compilador exige que você peça. Veja: <a href="conversao-tipos.html">Conversão de Tipos</a>.</dd>
+<dt><strong>catch</strong></dt>
+<dd>O bloco que trata uma exceção lançada dentro do <code>try</code>: <code>catch (FormatException)</code>. Pegue só as exceções que você sabe tratar, e nunca deixe um <code>catch</code> vazio. Veja: <a href="try-catch.html">try e catch</a>.</dd>
+<dt><strong>char</strong></dt>
+<dd>O tipo de um caractere só, entre aspas simples: <code>'A'</code>. Cada <code>char</code> tem um código numérico (<code>'A'</code> é 65). Veja: <a href="char-bool.html">char e bool</a>.</dd>
+<dt><strong>Classe</strong></dt>
+<dd>O molde de um tipo de objeto: diz que dados ele guarda (campos e propriedades) e o que ele faz (métodos). <code>class Conta { … }</code>. É um tipo de referência. Veja: <a href="poo.html">O que é POO</a> e <a href="classes-objetos.html">Classes e Objetos</a>.</dd>
+<dt><strong>CLR</strong> (<em>Common Language Runtime</em>)</dt>
+<dd>A parte do .NET que roda os programas: carrega a IL, compila com o JIT, cuida da memória com o coletor de lixo e das exceções. Veja: <a href="dotnet.html">.NET: SDK, Runtime e CLR</a>.</dd>
+<dt><strong>Código de saída</strong></dt>
+<dd>O número que o programa devolve ao terminar: 0 é sucesso; outro número, problema. Uma exceção não tratada termina com 134 no Linux. No terminal, <code>echo $?</code> mostra o código. Veja: <a href="dotnet-run.html">Rodar com dotnet run</a> e <a href="excecoes.html">Exceções</a>.</dd>
+<dt><strong>Coleção</strong></dt>
+<dd>Um objeto que guarda vários valores e cresce ou diminui conforme o uso: <code>List</code>, <code>Dictionary</code>, <code>HashSet</code>, <code>Queue</code>, <code>Stack</code>. Veja: <a href="colecoes.html">Coleções</a>.</dd>
+<dt><strong>Coletor de lixo</strong> (<em>garbage collector</em>, GC)</dt>
+<dd>A parte do .NET que libera a memória dos objetos que nenhuma variável alcança mais, numa hora que ele escolhe. Divide os objetos em gerações (0, 1 e 2). Veja: <a href="memoria.html">Memória e Coletor de Lixo</a>.</dd>
+<dt><strong>Comentário</strong></dt>
+<dd>Texto para pessoas, que o compilador ignora: <code>// até o fim da linha</code> ou <code>/* em bloco */</code>. O <code>///</code> faz comentários de documentação. Veja: <a href="comentarios.html">Comentários</a>.</dd>
+<dt><strong>Compilador</strong></dt>
+<dd>O programa que lê o seu código C# e o transforma em IL. O compilador do C# se chama <strong>Roslyn</strong>; ele é quem mostra os erros e avisos <code>CS…</code>. Veja: <a href="dotnet.html">.NET</a> e <a href="erros-compilacao.html">Lendo Erros do Compilador</a>.</dd>
+<dt><strong>Condição de corrida</strong> (<em>race condition</em>)</dt>
+<dd>Quando duas threads mexem na mesma variável ao mesmo tempo e o resultado depende de quem chega primeiro, como num <code>contador++</code> em paralelo. Resolve-se com <code>lock</code> ou <code>Interlocked</code>. Veja: <a href="lock.html">Sincronização (lock)</a> e <a href="threads.html">Threads</a>.</dd>
+<dt><strong>const</strong> (constante)</dt>
+<dd>Um valor com nome que nunca muda e é conhecido na compilação: <code>const decimal Desconto = 0.10m;</code>. Acaba com os "números mágicos" soltos no código. Veja: <a href="constantes.html">Constantes</a>.</dd>
+<dt><strong>Construtor</strong></dt>
+<dd>O método especial que roda no <code>new</code> e prepara o objeto: tem o nome da classe e nenhum tipo de retorno. Pode exigir dados (<code>new Conta("Ana")</code>) e conferi-los. Veja: <a href="construtores.html">Construtores</a>.</dd>
+<dt><strong>Construtor primário</strong> <span class="versao">C# 12</span></dt>
+<dd>Os parâmetros escritos logo depois do nome da classe, <code>class Tela(string nome) { … }</code>, que ficam disponíveis no corpo inteiro. Os records já tinham algo parecido. Veja: <a href="construtores.html">Construtores</a> e <a href="base.html">base</a>.</dd>
+<dt><strong>.csproj</strong></dt>
+<dd>O arquivo XML que descreve um projeto: o tipo de programa (<code>OutputType</code>), a versão do .NET (<code>TargetFramework</code>), os pacotes e as opções, como <code>Nullable</code>. Veja: <a href="csproj.html">O Arquivo .csproj</a>.</dd>
+<dt><strong>Cultura</strong></dt>
+<dd>As regras de um país para números, datas e moeda. Na máquina da Ana (pt-BR), <code>3.5</code> aparece como <code>3,5</code> e o formato <code>C</code> usa <code>R$</code>. <code>CultureInfo.InvariantCulture</code> usa sempre o ponto. Veja: <a href="cultura.html">Cultura</a>.</dd>
+</dl>
+
+<h2 id="g-D">D</h2>
+<dl class="glossario">
+<dt><strong>DateTime</strong>, <strong>DateOnly</strong> e <strong>TimeSpan</strong></dt>
+<dd>Os tipos de data e hora: <code>DateTime</code> guarda data e hora, <code>DateOnly</code> só a data, e <code>TimeSpan</code> uma duração (a diferença entre duas datas). Veja: <a href="datas.html">Datas e Horas</a>.</dd>
+<dt><strong>decimal</strong></dt>
+<dd>O tipo de número com vírgula que guarda em base 10, sem os erros de arredondamento do <code>double</code>: <code>0.1m + 0.2m</code> dá exatamente <code>0,3</code>. É o tipo para dinheiro; o sufixo é <code>m</code>. Veja: <a href="decimais.html">float, double e decimal</a>.</dd>
+<dt><strong>Delegate</strong></dt>
+<dd>Um tipo que guarda uma referência a um método, para chamá-lo depois ou passá-lo para outro método. <code>Func</code>, <code>Action</code> e <code>Predicate</code> são delegates prontos. Veja: <a href="delegates.html">Delegates</a> e <a href="func-action.html">Func, Action e Predicate</a>.</dd>
+<dt><strong>Depurador</strong> (<em>debugger</em>)</dt>
+<dd>A ferramenta que roda o programa passo a passo, para em pontos de parada e mostra o valor das variáveis. O VS Code e o Rider têm um. Veja: <a href="depuracao.html">Depuração</a>.</dd>
+<dt><strong>Desconstrução</strong></dt>
+<dd>Tirar os pedaços de uma tupla ou de um record para variáveis separadas, numa linha: <code>var (nome, idade) = pessoa;</code>. Veja: <a href="tuplas.html">Tuplas</a> e <a href="records.html">Records</a>.</dd>
+<dt><strong>Dictionary</strong> (dicionário)</dt>
+<dd>Uma coleção de pares chave e valor, como uma agenda (nome → telefone): <code>Dictionary&lt;string, int&gt;</code>. Ler uma chave que não existe com <code>[ ]</code> lança <code>KeyNotFoundException</code>; use <code>TryGetValue</code>. Veja: <a href="dictionary.html">Dictionary</a>.</dd>
+<dt><strong>Diretiva</strong> (<code>#:package</code>, <code>#:property</code>) <span class="versao">.NET 10</span></dt>
+<dd>Linhas especiais no topo de um arquivo solto que fazem o papel do <code>.csproj</code>: <code>#:package</code> acrescenta um pacote NuGet e <code>#:property</code> muda uma opção, como <code>TreatWarningsAsErrors=true</code>. Veja: <a href="dotnet-run.html">Rodar com dotnet run</a> e <a href="csproj.html">O Arquivo .csproj</a>.</dd>
+<dt><strong>Dispose</strong> e <strong>IDisposable</strong></dt>
+<dd><code>IDisposable</code> é a interface das classes que seguram algo que precisa ser fechado (um arquivo, uma conexão); <code>Dispose()</code> é o método que fecha. O <code>using</code> chama o <code>Dispose</code> por você. Veja: <a href="using-dispose.html">using e IDisposable</a>.</dd>
+<dt><strong>do while</strong></dt>
+<dd>O laço que roda o corpo <strong>antes</strong> de testar a condição, por isso roda pelo menos uma vez. Bom para "pergunte até a resposta valer". Veja: <a href="do-while.html">do while</a>.</dd>
+<dt><strong>dotnet</strong> (o comando)</dt>
+<dd>A ferramenta de linha de comando do .NET: <code>dotnet run</code>, <code>dotnet new</code>, <code>dotnet build</code>, <code>dotnet test</code>, <code>dotnet format</code>, <code>dotnet package add</code>… Veja: <a href="dotnet-cli.html">O Comando dotnet</a>.</dd>
+<dt><strong>dotnet run arquivo.cs</strong> (<em>file-based app</em>) <span class="versao">.NET 10</span></dt>
+<dd>Rodar um arquivo <code>.cs</code> solto, sem criar projeto. É como a Ana roda os programas dos níveis 1 e 2. Veja: <a href="dotnet-run.html">Rodar com dotnet run</a>.</dd>
+<dt><strong>double</strong></dt>
+<dd>O tipo padrão de número com vírgula: rápido e com uns 15 dígitos de precisão, mas guarda em base 2, então <code>0.1 + 0.2</code> dá <code>0,30000000000000004</code>. Bom para medidas, ruim para dinheiro. Veja: <a href="decimais.html">float, double e decimal</a>.</dd>
+</dl>
+
+<h2 id="g-E">E</h2>
+<dl class="glossario">
+<dt><strong>Encapsulamento</strong></dt>
+<dd>Esconder os dados de um objeto e só deixar mexer neles por métodos e propriedades que conferem as regras, como o saldo com <code>private set</code> que só muda por <code>Depositar</code> e <code>Sacar</code>. Veja: <a href="encapsulamento.html">Encapsulamento</a> e <a href="projeto-banco.html">Conta Bancária</a>.</dd>
+<dt><strong>enum</strong> (enumeração)</dt>
+<dd>Um tipo com uma lista fixa de opções com nome: <code>enum DiaDaSemana { Segunda, Terca, … }</code>. Cada opção tem um número por baixo. Veja: <a href="enums.html">Enums</a>.</dd>
+<dt><strong>Erro de compilação</strong></dt>
+<dd>Um problema que impede o programa de ser criado, mostrado como <code>arquivo(linha,coluna): error CS0029: …</code>. O código <code>CS…</code> é o mesmo em qualquer língua. Veja: <a href="erros-compilacao.html">Lendo Erros do Compilador</a> e <a href="ref-erros.html">Erros do Compilador (CS…)</a>.</dd>
+<dt><strong>Escape</strong> (sequência de escape)</dt>
+<dd>Uma barra invertida seguida de um caractere, dentro de um texto, que vale por algo difícil de digitar: <code>\n</code> (nova linha), <code>\t</code> (tabulação), <code>\"</code> (aspas). Veja: <a href="escapes.html">Escapes e Strings Literais</a>.</dd>
+<dt><strong>Escopo</strong></dt>
+<dd>A região do código em que uma variável existe: o bloco <code>{ }</code> em que ela nasceu. Fora dele, o nome dá <code>CS0103</code>. Veja: <a href="escopo.html">Escopo</a>.</dd>
+<dt><strong>Evento</strong> (<code>event</code>)</dt>
+<dd>Um aviso que um objeto dá para quem se inscreveu: inscreve-se com <code>+=</code>, sai com <code>-=</code> e o dono dispara com <code>?.Invoke()</code>. Esquecer o <code>-=</code> pode manter objetos vivos na memória. Veja: <a href="eventos.html">Eventos</a> e <a href="memoria.html">Memória</a>.</dd>
+<dt><strong>Exceção</strong></dt>
+<dd>Um erro durante a execução (não na compilação), como dividir um inteiro por zero ou ler fora de um array. Se ninguém a tratar, o programa cai com <code>Unhandled exception</code> e o código 134. Veja: <a href="excecoes.html">Exceções</a>, <a href="excecoes-proprias.html">Exceções Próprias</a> e <a href="ref-excecoes.html">Referência de Exceções</a>.</dd>
+<dt><strong>Execução adiada</strong> (<em>deferred execution</em>)</dt>
+<dd>A consulta LINQ não roda quando é escrita, só quando alguém percorre o resultado (<code>foreach</code>, <code>Count()</code>, <code>ToList()</code>). Se a lista mudar antes, o resultado muda. Veja: <a href="linq.html">O que é LINQ</a> e <a href="yield.html">yield return</a>.</dd>
+<dt><strong>Expressão de coleção</strong> <span class="versao">C# 12</span></dt>
+<dd>Os colchetes que criam um array ou uma lista: <code>int[] notas = [7, 8, 6];</code>, <code>List&lt;string&gt; vazia = [];</code>. Veja: <a href="arrays.html">Arrays</a> e <a href="colecoes.html">Coleções</a>.</dd>
+<dt><strong>Expressão switch</strong> <span class="versao">C# 8</span></dt>
+<dd>A forma do <code>switch</code> que <strong>devolve um valor</strong>: <code>nota switch { &gt;= 6 =&gt; "Aprovado", _ =&gt; "Reprovado" }</code>. O <code>_</code> é o "qualquer outro". Veja: <a href="switch-expressoes.html">Expressões switch</a>.</dd>
+<dt><strong>Extensão</strong> (método de extensão)</dt>
+<dd>Um método <code>static</code> com <code>this</code> no primeiro parâmetro, que pode ser chamado como se fosse do próprio tipo: <code>preco.ComDesconto()</code>. Todo o LINQ é feito assim. O C# 14 trouxe os blocos <code>extension</code>. Veja: <a href="extensoes.html">Métodos de Extensão</a>.</dd>
+</dl>
+
+<h2 id="g-F">F</h2>
+<dl class="glossario">
+<dt><strong>field</strong> <span class="versao">C# 14</span></dt>
+<dd>Dentro do <code>get</code> ou do <code>set</code> de uma propriedade, a palavra que dá acesso ao campo de apoio que o compilador cria, sem você declarar um campo à parte. Veja: <a href="propriedades.html">Propriedades</a>.</dd>
+<dt><strong>File</strong></dt>
+<dd>A classe com os métodos prontos para arquivos: <code>File.ReadAllText</code>, <code>WriteAllText</code>, <code>ReadAllLines</code>, <code>AppendAllText</code>, <code>Exists</code>. Veja: <a href="arquivos.html">Arquivos (File)</a>.</dd>
+<dt><strong>Finalizador</strong></dt>
+<dd>Um método <code>~NomeDaClasse()</code> que roda quando o coletor de lixo leva o objeto, sem hora marcada. Quase nunca é preciso escrever um; para fechar recursos, use <code>using</code>. Veja: <a href="memoria.html">Memória e Coletor de Lixo</a>.</dd>
+<dt><strong>finally</strong></dt>
+<dd>O bloco depois do <code>try</code> (e dos <code>catch</code>) que roda <strong>sempre</strong>, com ou sem exceção. Bom para limpar e fechar. Veja: <a href="finally.html">finally</a>.</dd>
+<dt><strong>for</strong></dt>
+<dd>O laço com contador: <code>for (int i = 0; i &lt; 5; i++)</code>, com início, condição e passo. Veja: <a href="for.html">for</a> e <a href="lacos-aninhados.html">Laços Aninhados</a>.</dd>
+<dt><strong>foreach</strong></dt>
+<dd>O laço "para cada item da coleção": <code>foreach (string nome in nomes)</code>. Não precisa de índice e nunca passa do fim; mudar a lista dentro dele lança <code>InvalidOperationException</code>. Veja: <a href="foreach.html">foreach</a> e <a href="ienumerable.html">IEnumerable e foreach</a>.</dd>
+<dt><strong>Formato</strong> (<code>C</code>, <code>N2</code>, <code>P</code>…)</dt>
+<dd>Letras que dizem como mostrar um número: <code>{preco:C}</code> (moeda, <code>R$ 12,50</code>), <code>{x:N2}</code> (duas casas e milhar), <code>{taxa:P}</code> (porcentagem). Veja: <a href="formatacao.html">Formatar Números</a>.</dd>
+<dt><strong>Func</strong>, <strong>Action</strong> e <strong>Predicate</strong></dt>
+<dd>Delegates prontos: <code>Func&lt;int, int&gt;</code> recebe e devolve valores, <code>Action&lt;string&gt;</code> só recebe (não devolve nada), <code>Predicate&lt;T&gt;</code> responde <code>true</code> ou <code>false</code>. Veja: <a href="func-action.html">Func, Action e Predicate</a>.</dd>
+<dt><strong>Função local</strong></dt>
+<dd>Um método escrito dentro de outro método. Os métodos no fim de um arquivo com instruções de nível superior são funções locais do programa principal. Sem <code>static</code>, elas enxergam as variáveis de fora. Veja: <a href="funcoes-locais.html">Funções Locais</a>.</dd>
+</dl>
+
+<h2 id="g-G">G</h2>
+<dl class="glossario">
+<dt><strong>Generics</strong> (genéricos)</dt>
+<dd>Classes e métodos com um "tipo em branco", preenchido na hora de usar: <code>List&lt;T&gt;</code> vira <code>List&lt;int&gt;</code> ou <code>List&lt;Aluno&gt;</code>. Dão reaproveitamento sem perder a conferência de tipos. Veja: <a href="generics.html">Generics</a> e <a href="restricoes-genericas.html">Restrições (where)</a>.</dd>
+<dt><strong>Gerações</strong> (do coletor de lixo)</dt>
+<dd>As faixas em que o coletor separa os objetos: 0 (recém-criados, varrida muitas vezes), 1 e 2 (os que sobreviveram, varrida raramente). Veja: <a href="memoria.html">Memória e Coletor de Lixo</a>.</dd>
+<dt><strong>GroupBy</strong></dt>
+<dd>O método LINQ que separa uma sequência em grupos por uma chave, como produtos por categoria. Cada grupo tem a <code>Key</code> e os seus elementos. Veja: <a href="linq-agrupar.html">Agrupar (GroupBy)</a>.</dd>
+</dl>
+
+<h2 id="g-H">H</h2>
+<dl class="glossario">
+<dt><strong>HashSet</strong></dt>
+<dd>Um conjunto: uma coleção que não aceita repetidos (o <code>Add</code> de um item que já existe devolve <code>false</code>) e responde <code>Contains</code> muito rápido. Não garante ordem. Veja: <a href="hashset.html">HashSet</a>.</dd>
+<dt><strong>Heap</strong></dt>
+<dd>A área da memória onde ficam os objetos criados com <code>new</code>. Quem libera o heap é o coletor de lixo. Veja: <a href="memoria.html">Memória e Coletor de Lixo</a>.</dd>
+<dt><strong>Herança</strong></dt>
+<dd>Uma classe filha recebe tudo de uma classe-mãe e acrescenta o que é dela: <code>class ContaPoupanca : Conta</code>. Em C#, cada classe tem uma mãe só (e todas descendem de <code>object</code>). Veja: <a href="heranca.html">Herança</a>.</dd>
+</dl>
+
+<h2 id="g-I">I</h2>
+<dl class="glossario">
+<dt><strong>Identificador</strong></dt>
+<dd>O nome que você dá a uma variável, método ou classe. Pode ter letras, dígitos e <code>_</code>, não pode começar com dígito nem ser uma palavra reservada. Veja: <a href="identificadores.html">Nomes e Convenções</a>.</dd>
+<dt><strong>IEnumerable</strong></dt>
+<dd>A interface de tudo o que pode ser percorrido com <code>foreach</code>: arrays, listas, resultados do LINQ. Um método que recebe <code>IEnumerable&lt;T&gt;</code> aceita qualquer coleção. Veja: <a href="ienumerable.html">IEnumerable e foreach</a>.</dd>
+<dt><strong>if</strong> e <strong>else</strong></dt>
+<dd>A decisão: o bloco do <code>if</code> roda só se a condição for verdadeira; o do <code>else</code>, caso contrário. <code>else if</code> encadeia várias condições. Veja: <a href="if-else.html">if e else</a> e <a href="else-if.html">else if</a>.</dd>
+<dt><strong>IL</strong> (<em>Intermediate Language</em>, linguagem intermediária)</dt>
+<dd>O código que o compilador do C# gera, guardado no <code>.dll</code>. Não é código de máquina: o JIT o transforma em código do processador na hora de rodar. Veja: <a href="dotnet.html">.NET</a>.</dd>
+<dt><strong>Imutável</strong></dt>
+<dd>Que não muda depois de criado. A <code>string</code> é imutável (<code>ToUpper</code> devolve um texto novo), e os records posicionais também (use <code>with</code> para uma cópia alterada). Veja: <a href="strings.html">Strings</a> e <a href="records.html">Records</a>.</dd>
+<dt><strong>Indexador</strong></dt>
+<dd>O que permite usar colchetes num objeto seu, como numa lista: <code>turma[0]</code>. É declarado com <code>this[int indice]</code>. Veja: <a href="indexadores.html">Indexadores</a>.</dd>
+<dt><strong>Índice</strong></dt>
+<dd>A posição de um elemento num array, lista ou string, começando em 0. <code>^1</code> é o último. Veja: <a href="arrays.html">Arrays</a> e <a href="indices-intervalos.html">Índices e Intervalos</a>.</dd>
+<dt><strong>Inferência de tipo</strong></dt>
+<dd>Quando o compilador descobre o tipo sozinho, pelo valor: <code>var total = 0m;</code> é <code>decimal</code>. O tipo continua fixo. Veja: <a href="var.html">Inferência com var</a>.</dd>
+<dt><strong>Inicializador de objeto</strong></dt>
+<dd>As chaves depois do <code>new</code> que preenchem as propriedades: <code>new Produto { Nome = "Caneta", Preco = 2.5m }</code>. Com <code>required</code>, a propriedade tem de aparecer ali. Veja: <a href="inicializadores.html">Inicializadores e required</a>.</dd>
+<dt><strong>Instruções de nível superior</strong> (<em>top-level statements</em>) <span class="versao">C# 9</span></dt>
+<dd>Escrever o programa direto no arquivo, sem <code>class Program</code> e <code>static void Main</code>. O compilador cria o <code>Main</code> por você. Veja: <a href="top-level.html">Program.cs e o Main</a>.</dd>
+<dt><strong>int</strong></dt>
+<dd>O tipo padrão de número inteiro, de cerca de −2,1 bilhões a +2,1 bilhões (4 bytes). Passar do limite "dá a volta" (estouro), a menos que use <code>checked</code>. Veja: <a href="inteiros.html">Inteiros</a> e <a href="ref-tipos.html">Tipos e Limites</a>.</dd>
+<dt><strong>Interface</strong></dt>
+<dd>Um contrato: uma lista de métodos e propriedades que uma classe promete ter. O nome começa com <code>I</code>, como <code>IComparable</code>. Uma classe pode implementar várias. Veja: <a href="interfaces.html">Interfaces</a>.</dd>
+<dt><strong>Interpolação</strong></dt>
+<dd>Um texto com <code>$</code> na frente em que cada <code>{…}</code> é trocado pelo valor: <code>$"Olá, {nome}!"</code>. Aceita formato e largura: <code>{preco,10:C}</code>. Veja: <a href="interpolacao.html">Interpolação</a>.</dd>
+</dl>
+
+<h2 id="g-J">J</h2>
+<dl class="glossario">
+<dt><strong>JIT</strong> (<em>just-in-time</em>, "na hora certa")</dt>
+<dd>O compilador do CLR que transforma a IL em código do processador enquanto o programa roda, método por método. Veja: <a href="dotnet.html">.NET</a>.</dd>
+<dt><strong>JSON</strong></dt>
+<dd>Um formato de texto para guardar e trocar dados: <code>{ "Nome": "Ana", "Idade": 31 }</code>. No C#, <code>JsonSerializer.Serialize</code> transforma objetos em JSON e <code>Deserialize</code> faz o caminho de volta. Veja: <a href="json.html">JSON</a> e <a href="projeto-agenda.html">Agenda de Contatos</a>.</dd>
+</dl>
+
+<h2 id="g-L">L</h2>
+<dl class="glossario">
+<dt><strong>Laço</strong> (<em>loop</em>, repetição)</dt>
+<dd>Um bloco que repete: <code>while</code>, <code>do while</code>, <code>for</code> e <code>foreach</code>. Um laço cuja condição nunca fica falsa é um laço infinito. Veja: <a href="while.html">while</a>, <a href="for.html">for</a> e <a href="foreach.html">foreach</a>.</dd>
+<dt><strong>Lambda</strong></dt>
+<dd>Um método sem nome, escrito numa linha: <code>p =&gt; p.Preco &gt; 10</code> ("dado <code>p</code>, devolve se o preço passa de 10"). É o que se passa para o LINQ e para os delegates. Veja: <a href="lambdas.html">Lambdas</a>.</dd>
+<dt><strong>LINQ</strong> (<em>Language Integrated Query</em>)</dt>
+<dd>Os métodos de consulta das coleções: <code>Where</code> (filtrar), <code>Select</code> (transformar), <code>OrderBy</code> (ordenar), <code>GroupBy</code>, <code>Count</code>, <code>Sum</code>… Veja: <a href="linq.html">O que é LINQ</a> e <a href="ref-linq.html">Referência de LINQ</a>.</dd>
+<dt><strong>List</strong> (<code>List&lt;T&gt;</code>)</dt>
+<dd>A coleção mais usada: uma lista que cresce com <code>Add</code>, diminui com <code>Remove</code> e é acessada pela posição, como um array sem tamanho fixo. Veja: <a href="list.html">List&lt;T&gt;</a>.</dd>
+<dt><strong>lock</strong></dt>
+<dd>Um bloco que só uma thread por vez pode executar, para proteger uma variável compartilhada. Veja: <a href="lock.html">Sincronização (lock)</a>.</dd>
+<dt><strong>LTS</strong> (<em>Long Term Support</em>)</dt>
+<dd>Uma versão do .NET com suporte por três anos, como o .NET 10 (novembro de 2025). As versões STS têm suporte menor. Veja: <a href="versoes.html">Versões do C# e do .NET</a>.</dd>
+</dl>
+
+<h2 id="g-M">M</h2>
+<dl class="glossario">
+<dt><strong>Main</strong></dt>
+<dd>O método por onde o programa começa (o ponto de entrada): <code>static void Main(string[] args)</code>. Com instruções de nível superior, o compilador o cria sozinho. Veja: <a href="top-level.html">Program.cs e o Main</a>.</dd>
+<dt><strong>Math</strong></dt>
+<dd>A classe com as funções matemáticas: <code>Math.Max</code>, <code>Math.Pow</code>, <code>Math.Sqrt</code>, <code>Math.Round</code> (que arredonda o ,5 para o par). Veja: <a href="math.html">Matemática (Math)</a>.</dd>
+<dt><strong>Método</strong></dt>
+<dd>Um bloco de código com nome, que recebe parâmetros e pode devolver um valor: <code>decimal CalcularTotal(int quantidade)</code>. Veja: <a href="metodos.html">Métodos</a>, <a href="retorno.html">Valor de Retorno</a> e <a href="sobrecarga.html">Sobrecarga</a>.</dd>
+<dt><strong>Modificador de acesso</strong></dt>
+<dd>A palavra que diz quem enxerga um membro ou tipo: <code>public</code> (todos), <code>private</code> (só a própria classe), <code>internal</code> (o mesmo projeto), <code>protected</code> (a classe e as filhas). Veja: <a href="modificadores-acesso.html">public, private e internal</a>.</dd>
+</dl>
+
+<h2 id="g-N">N</h2>
+<dl class="glossario">
+<dt><strong>Namespace</strong></dt>
+<dd>Um "sobrenome" que agrupa tipos e evita conflitos de nome: a classe <code>JsonSerializer</code> mora em <code>System.Text.Json</code>. O <code>using</code> no topo do arquivo dispensa escrever o nome completo. Veja: <a href="namespaces.html">Namespaces e using</a>.</dd>
+<dt><strong>.NET</strong></dt>
+<dd>A plataforma em que o C# roda: o compilador, o runtime (CLR), a biblioteca de classes e as ferramentas. É gratuita, de código aberto e roda em Linux, Windows e macOS. Veja: <a href="dotnet.html">.NET: SDK, Runtime e CLR</a>.</dd>
+<dt><strong>new</strong></dt>
+<dd>Cria um objeto (ou um array) e chama o construtor: <code>new Conta("Ana")</code>. Quando o tipo já está escrito à esquerda, basta <code>new()</code>. Veja: <a href="classes-objetos.html">Classes e Objetos</a>.</dd>
+<dt><strong>NuGet</strong></dt>
+<dd>O repositório de pacotes do .NET (nuget.org). <code>dotnet package add NomeDoPacote</code> acrescenta uma biblioteca ao projeto. Veja: <a href="nuget.html">Pacotes NuGet</a>.</dd>
+<dt><strong>null</strong></dt>
+<dd>"Nenhum objeto": o valor de uma referência que não aponta para nada. Usar um membro de algo <code>null</code> lança <code>NullReferenceException</code>. Tipos de valor só aceitam <code>null</code> com <code>?</code> (<code>int?</code>). Veja: <a href="null.html">null e Tipos Anuláveis</a> e <a href="operadores-null.html">Operadores ??, ?. e ??=</a>.</dd>
+</dl>
+
+<h2 id="g-O">O</h2>
+<dl class="glossario">
+<dt><strong>object</strong></dt>
+<dd>A classe-mãe de todos os tipos do C#. Todo objeto herda dela <code>ToString</code>, <code>Equals</code>, <code>GetHashCode</code> e <code>GetType</code>. Veja: <a href="object.html">A Classe object</a>.</dd>
+<dt><strong>Objeto</strong> (instância)</dt>
+<dd>Uma "ficha preenchida" criada a partir de uma classe com <code>new</code>, com os seus próprios valores. A classe <code>Conta</code> é o molde; a conta da Ana é um objeto. Veja: <a href="classes-objetos.html">Classes e Objetos</a>.</dd>
+<dt><strong>Operador</strong></dt>
+<dd>Um símbolo que faz uma operação: <code>+</code>, <code>%</code>, <code>==</code>, <code>&amp;&amp;</code>, <code>??</code>. A precedência decide quem é feito primeiro. Veja: <a href="ref-operadores.html">Referência de Operadores</a> e <a href="precedencia.html">Precedência</a>.</dd>
+<dt><strong>Operadores lógicos</strong></dt>
+<dd><code>&amp;&amp;</code> (e), <code>||</code> (ou) e <code>!</code> (não), que juntam condições <code>bool</code>. O <code>&amp;&amp;</code> e o <code>||</code> param assim que sabem a resposta (curto-circuito). Veja: <a href="operadores-logicos.html">Operadores Lógicos</a>.</dd>
+<dt><strong>out</strong></dt>
+<dd>Um parâmetro pelo qual o método <strong>devolve</strong> um valor além do retorno, como em <code>int.TryParse(texto, out int numero)</code>. Veja: <a href="ref-out-in.html">ref, out e in</a>.</dd>
+<dt><strong>override</strong></dt>
+<dd>Na classe filha, substitui um membro <code>virtual</code> ou <code>abstract</code> da mãe. Sem <code>virtual</code> na mãe, dá o erro <code>CS0506</code>. Veja: <a href="virtual-override.html">virtual e override</a>.</dd>
+</dl>
+
+<h2 id="g-P">P</h2>
+<dl class="glossario">
+<dt><strong>Parâmetro</strong></dt>
+<dd>A variável de um método que recebe um argumento: em <code>void Saudar(string nome)</code>, <code>nome</code> é o parâmetro. Pode ter valor padrão (opcional) e ser passado pelo nome. Veja: <a href="parametros.html">Parâmetros</a>, <a href="parametros-opcionais.html">Parâmetros Opcionais</a> e <a href="params.html">params</a>.</dd>
+<dt><strong>Parse</strong> e <strong>TryParse</strong></dt>
+<dd>Converter texto em número: <code>int.Parse("42")</code> lança <code>FormatException</code> se o texto não for número; <code>int.TryParse</code> devolve <code>false</code> e é o certo para o que o usuário digita. Veja: <a href="parse.html">Parse e TryParse</a>.</dd>
+<dt><strong>partial</strong></dt>
+<dd>Divide uma classe em vários arquivos, que o compilador junta. Muito usado com código gerado por ferramentas. Veja: <a href="partial.html">Classes Parciais</a>.</dd>
+<dt><strong>Pattern matching</strong> (casamento de padrões)</dt>
+<dd>Testar a forma de um valor: <code>if (x is int n)</code>, <code>nota is &gt;= 0 and &lt;= 10</code>, <code>pessoa is { Idade: &gt; 18 }</code>. Veja: <a href="pattern-matching.html">Pattern Matching</a>.</dd>
+<dt><strong>Pilha</strong> (<em>stack</em>)</dt>
+<dd>Duas coisas no guia: a área da memória onde ficam as variáveis locais de cada método que está rodando (encher a pilha dá <code>Stack overflow.</code>); e a coleção <code>Stack&lt;T&gt;</code>, em que o último a entrar é o primeiro a sair. Veja: <a href="memoria.html">Memória</a>, <a href="recursao.html">Recursão</a> e <a href="stack.html">Stack</a>.</dd>
+<dt><strong>Polimorfismo</strong></dt>
+<dd>Uma variável de um tipo-mãe guardando um objeto de uma filha e rodando a versão da filha: num <code>List&lt;Conta&gt;</code>, cada conta mostra o seu próprio <code>Tipo</code>. Veja: <a href="polimorfismo.html">Polimorfismo</a>.</dd>
+<dt><strong>POO</strong> (programação orientada a objetos)</dt>
+<dd>Organizar o programa em objetos que juntam dados e comportamento. Os quatro pilares: encapsulamento, herança, polimorfismo e abstração. Veja: <a href="poo.html">O que é POO</a>.</dd>
+<dt><strong>Projeto</strong></dt>
+<dd>Uma pasta com um <code>.csproj</code> e os arquivos <code>.cs</code>, criada com <code>dotnet new console -o Nome</code> e rodada com <code>dotnet run</code>. Necessário para vários arquivos, pacotes e testes. Veja: <a href="projetos-console.html">Projetos (dotnet new console)</a> e <a href="solucoes.html">Soluções</a>.</dd>
+<dt><strong>Propriedade</strong></dt>
+<dd>Um membro que parece um campo de fora (<code>conta.Saldo</code>), mas é feito de acessadores <code>get</code> e <code>set</code>, que podem conferir regras ou calcular o valor. Veja: <a href="propriedades.html">Propriedades</a>.</dd>
+<dt><strong>Publicar</strong></dt>
+<dd>Gerar a versão do programa para entregar a outras pessoas, com <code>dotnet publish</code>: com ou sem o .NET junto, ou como programa nativo (AOT). Veja: <a href="publicar.html">Publicar o Programa</a>.</dd>
+</dl>
+
+<h2 id="g-Q">Q</h2>
+<dl class="glossario">
+<dt><strong>Queue</strong> (fila)</dt>
+<dd>A coleção em que o primeiro a entrar é o primeiro a sair: <code>Enqueue</code> põe no fim, <code>Dequeue</code> tira do começo. Veja: <a href="queue.html">Queue</a>.</dd>
+</dl>
+
+<h2 id="g-R">R</h2>
+<dl class="glossario">
+<dt><strong>readonly</strong></dt>
+<dd>Um campo que só recebe valor na declaração ou no construtor e depois não muda. Diferente de <code>const</code>, o valor pode ser calculado quando o programa roda. Veja: <a href="readonly.html">readonly e init</a>.</dd>
+<dt><strong>Record</strong> <span class="versao">C# 9</span></dt>
+<dd>Um tipo para dados, criado numa linha: <code>record Aluno(string Nome, double Nota);</code>. Já vem com <code>ToString</code>, igualdade pelo conteúdo e cópia com <code>with</code>. Veja: <a href="records.html">Records</a>.</dd>
+<dt><strong>Recursão</strong></dt>
+<dd>Um método que chama a si mesmo. Precisa de um caso base que pare as chamadas, senão a pilha enche e o programa cai com <code>Stack overflow.</code>. Veja: <a href="recursao.html">Recursão</a>.</dd>
+<dt><strong>ref</strong></dt>
+<dd>Passa a própria variável para o método, em vez de uma cópia: o que o método mudar, muda lá fora. Veja: <a href="ref-out-in.html">ref, out e in</a>.</dd>
+<dt><strong>Referência</strong></dt>
+<dd>O que uma variável de um tipo de referência guarda: o endereço do objeto no heap, e não o objeto. Copiar a variável copia o endereço. Veja: <a href="valor-referencia.html">Valor × Referência</a>.</dd>
+<dt><strong>Referências anuláveis</strong> (<code>string?</code>) <span class="versao">C# 8</span></dt>
+<dd>A conferência do compilador que separa <code>string</code> (nunca <code>null</code>) de <code>string?</code> (pode ser <code>null</code>) e avisa, com <code>CS8602</code> e parentes, onde um <code>null</code> pode causar uma exceção. Vem ligada (<code>Nullable</code> = <code>enable</code>). Veja: <a href="referencias-anulaveis.html">Referências Anuláveis</a>.</dd>
+<dt><strong>Reflexão</strong></dt>
+<dd>O programa examinando os próprios tipos enquanto roda: listar propriedades, achar métodos pelo nome. É assim que o <code>JsonSerializer</code> descobre as propriedades. Veja: <a href="reflexao.html">Reflexão</a>.</dd>
+<dt><strong>Regex</strong> (expressão regular)</dt>
+<dd>Um padrão de texto, como <code>\d{5}-\d{3}</code> para um CEP, usado para validar, procurar e trocar pedaços de texto. Veja: <a href="regex.html">Expressões Regulares</a>.</dd>
+<dt><strong>Roslyn</strong></dt>
+<dd>O nome do compilador do C#, o mesmo no <code>dotnet</code> e no editor do guia. Veja: <a href="dotnet.html">.NET</a> e <a href="simulador.html">O Editor do Guia</a>.</dd>
+<dt><strong>Runtime</strong></dt>
+<dd>A parte do .NET necessária para <strong>rodar</strong> programas (o CLR e a biblioteca). Para <strong>criar</strong> programas é preciso o SDK, que já inclui o runtime. Veja: <a href="dotnet.html">.NET: SDK, Runtime e CLR</a>.</dd>
+</dl>
+
+<h2 id="g-S">S</h2>
+<dl class="glossario">
+<dt><strong>SDK</strong> (<em>Software Development Kit</em>)</dt>
+<dd>O pacote para programar em .NET: o comando <code>dotnet</code>, o compilador, os modelos de projeto e o runtime. No Ubuntu, <code>sudo apt install dotnet-sdk-10.0</code>. Veja: <a href="instalar-linux.html">Instalar no Linux</a> e <a href="dotnet.html">.NET</a>.</dd>
+<dt><strong>sealed</strong></dt>
+<dd>Uma classe selada não pode ter filhas; um <code>sealed override</code> impede as filhas de substituírem de novo. Veja: <a href="sealed.html">sealed</a>.</dd>
+<dt><strong>Serializar</strong></dt>
+<dd>Transformar um objeto em texto (ou bytes) para guardar ou enviar, como em JSON; desserializar é o caminho de volta. Veja: <a href="json.html">JSON</a>.</dd>
+<dt><strong>Sobrecarga</strong></dt>
+<dd>Vários métodos com o mesmo nome e listas de parâmetros diferentes; o compilador escolhe pela chamada. Também existe sobrecarga de operadores, como ensinar o <code>+</code> a somar dois objetos seus. Veja: <a href="sobrecarga.html">Sobrecarga</a> e <a href="sobrecarga-operadores.html">Sobrecarga de Operadores</a>.</dd>
+<dt><strong>Solução</strong> (<code>.slnx</code>)</dt>
+<dd>Um arquivo que junta vários projetos (o programa, uma biblioteca, os testes) para compilar tudo de uma vez. O .NET 10 usa o formato <code>.slnx</code>. Veja: <a href="solucoes.html">Soluções e Vários Projetos</a>.</dd>
+<dt><strong>Span</strong> (<code>Span&lt;T&gt;</code>)</dt>
+<dd>Uma "janela" sobre um pedaço de um array ou texto, sem copiar. Usada para código rápido. Veja: <a href="span.html">Span&lt;T&gt;</a>.</dd>
+<dt><strong>Stack trace</strong> (rastro da pilha)</dt>
+<dd>As linhas <code>at … in arquivo.cs:line N</code> de uma exceção, que mostram onde ela nasceu e quem chamou quem. Leia de cima para baixo. Veja: <a href="excecoes.html">Exceções</a> e <a href="depuracao.html">Depuração</a>.</dd>
+<dt><strong>static</strong></dt>
+<dd>Um membro que é da classe, e não de cada objeto: existe um só, usado pelo nome da classe (<code>Math.Max</code>, <code>Contador.Total</code>). Numa função local, <code>static</code> proíbe usar as variáveis de fora. Veja: <a href="static.html">static</a>.</dd>
+<dt><strong>Stream</strong></dt>
+<dd>Um "fluxo" de dados lido ou escrito aos poucos, como um arquivo com <code>StreamReader</code> e <code>StreamWriter</code>. Veja: <a href="streams.html">StreamReader e StreamWriter</a>.</dd>
+<dt><strong>string</strong></dt>
+<dd>O tipo de texto: <code>"Olá"</code>. É um tipo de referência imutável, e o <code>==</code> compara o conteúdo. Veja: <a href="strings.html">Strings</a>, <a href="metodos-string.html">Métodos de String</a> e <a href="ref-string.html">Referência de string</a>.</dd>
+<dt><strong>StringBuilder</strong></dt>
+<dd>Uma classe para montar textos aos poucos sem criar uma string nova a cada pedaço. Num laço grande, é muito mais leve que <code>+=</code>. Veja: <a href="stringbuilder.html">StringBuilder</a>.</dd>
+<dt><strong>Struct</strong></dt>
+<dd>Um tipo de valor com campos e métodos, como uma classe pequena: a atribuição copia o conteúdo inteiro. <code>int</code>, <code>double</code> e <code>DateTime</code> são structs. Veja: <a href="structs.html">Structs</a>.</dd>
+<dt><strong>switch</strong></dt>
+<dd>Escolhe um caminho pelo valor: <code>switch (opcao) { case "1": …; break; default: …; break; }</code>. Em C#, um <code>case</code> não pode "cair" no seguinte (<code>CS0163</code>). Veja: <a href="switch.html">switch</a> e <a href="switch-expressoes.html">Expressões switch</a>.</dd>
+</dl>
+
+<h2 id="g-T">T</h2>
+<dl class="glossario">
+<dt><strong>Task</strong></dt>
+<dd>Um objeto que representa um trabalho que vai terminar no futuro, com ou sem resultado (<code>Task&lt;int&gt;</code>). É o que um método <code>async</code> devolve. Veja: <a href="tasks.html">Task</a> e <a href="async-await.html">async e await</a>.</dd>
+<dt><strong>Ternário</strong> (<code>? :</code>)</dt>
+<dd>Um <code>if</code>/<code>else</code> que devolve um valor numa linha: <code>idade &gt;= 18 ? "adulto" : "menor"</code>. Veja: <a href="ternario.html">Operador Ternário</a>.</dd>
+<dt><strong>Testes automatizados</strong></dt>
+<dd>Código que confere outro código: um projeto xUnit com métodos <code>[Fact]</code> e <code>Assert.Equal</code>, rodados com <code>dotnet test</code>. Veja: <a href="testes.html">Testes (xUnit)</a>.</dd>
+<dt><strong>this</strong></dt>
+<dd>Dentro de uma classe, o próprio objeto que está executando o método: <code>this.nome = nome;</code>. Veja: <a href="this.html">this</a>.</dd>
+<dt><strong>Thread</strong></dt>
+<dd>Uma linha de execução: o programa começa com uma, e pode criar outras para fazer coisas ao mesmo tempo. Na prática, prefira <code>Task</code>. Veja: <a href="threads.html">Threads</a> e <a href="paralelismo.html">Parallel e PLINQ</a>.</dd>
+<dt><strong>throw</strong></dt>
+<dd>Lança uma exceção: <code>throw new ArgumentException("…");</code>. Dentro de um <code>catch</code>, <code>throw;</code> sozinho relança a mesma exceção. Veja: <a href="throw.html">throw</a>.</dd>
+<dt><strong>Tipo</strong></dt>
+<dd>O que uma variável pode guardar e o que dá para fazer com ela: <code>int</code>, <code>double</code>, <code>string</code>, <code>bool</code> ou uma classe sua. Em C#, o tipo de uma variável nunca muda. Veja: <a href="tipos-dados.html">Tipos de Dados</a> e <a href="ref-tipos.html">Tipos e Limites</a>.</dd>
+<dt><strong>Tipo de valor</strong> × <strong>tipo de referência</strong></dt>
+<dd>Tipos de valor (<code>int</code>, <code>bool</code>, structs, enums) guardam o próprio valor, e a atribuição copia. Tipos de referência (classes, <code>string</code>, arrays) guardam o endereço do objeto, e a atribuição copia o endereço. Veja: <a href="valor-referencia.html">Valor × Referência</a>.</dd>
+<dt><strong>try</strong></dt>
+<dd>O bloco com o código que pode lançar uma exceção, seguido de <code>catch</code> e/ou <code>finally</code>. Veja: <a href="try-catch.html">try e catch</a>.</dd>
+<dt><strong>Tupla</strong></dt>
+<dd>Vários valores juntos sem criar um tipo: <code>(string Nome, int Idade) pessoa = ("Ana", 31);</code>. Bom para um método devolver mais de um valor. Veja: <a href="tuplas.html">Tuplas</a>.</dd>
+</dl>
+
+<h2 id="g-U">U</h2>
+<dl class="glossario">
+<dt><strong>using</strong> (diretiva)</dt>
+<dd>No topo do arquivo, <code>using System.Text.Json;</code> deixa usar os tipos daquele namespace sem o nome completo. Os projetos já trazem vários <code>using</code> implícitos. Veja: <a href="namespaces.html">Namespaces e using</a>.</dd>
+<dt><strong>using</strong> (instrução)</dt>
+<dd><code>using (var arquivo = …) { … }</code> ou <code>using var arquivo = …;</code> chamam o <code>Dispose</code> no fim, fechando o recurso mesmo com exceção. Veja: <a href="using-dispose.html">using e IDisposable</a>.</dd>
+<dt><strong>UTF-8</strong></dt>
+<dd>A codificação de texto padrão do .NET e do Linux, em que letras acentuadas ocupam mais de um byte. Salve os arquivos <code>.cs</code> em UTF-8. Veja: <a href="arquivos.html">Arquivos</a> e <a href="editores.html">Editores e IDEs</a>.</dd>
+</dl>
+
+<h2 id="g-V">V</h2>
+<dl class="glossario">
+<dt><strong>var</strong></dt>
+<dd>Deixa o compilador descobrir o tipo pelo valor: <code>var nome = "Ana";</code> é <code>string</code>. Não é um tipo "solto": o tipo continua fixo. Veja: <a href="var.html">Inferência com var</a>.</dd>
+<dt><strong>Variável</strong></dt>
+<dd>Um espaço da memória com nome e tipo, que guarda um valor: <code>int idade = 31;</code>. Veja: <a href="variaveis.html">Variáveis</a>.</dd>
+<dt><strong>virtual</strong></dt>
+<dd>Marca um membro da classe-mãe que as filhas <strong>podem</strong> substituir com <code>override</code>. Veja: <a href="virtual-override.html">virtual e override</a>.</dd>
+<dt><strong>void</strong></dt>
+<dd>"Nada": o tipo de retorno de um método que não devolve valor. Veja: <a href="metodos.html">Métodos</a> e <a href="retorno.html">Valor de Retorno</a>.</dd>
+</dl>
+
+<h2 id="g-W">W</h2>
+<dl class="glossario">
+<dt><strong>WebAssembly</strong></dt>
+<dd>Um formato que deixa o navegador rodar programas compilados. O editor do guia roda o .NET em WebAssembly, por isso compila e executa C# de verdade sem instalar nada. Veja: <a href="simulador.html">O Editor do Guia</a>.</dd>
+<dt><strong>Where</strong></dt>
+<dd>O método LINQ que filtra: <code>produtos.Where(p =&gt; p.Preco &lt; 10)</code> fica só com os que passam na condição. Veja: <a href="linq-filtrar.html">Filtrar e Projetar (Where, Select)</a>.</dd>
+<dt><strong>while</strong></dt>
+<dd>O laço que repete enquanto a condição for verdadeira, testando antes de cada volta (pode não rodar nenhuma). Veja: <a href="while.html">while</a>.</dd>
+<dt><strong>with</strong></dt>
+<dd>Cria uma cópia de um record (ou struct) com algumas propriedades trocadas: <code>bruno with { Nota = 8 }</code>. Veja: <a href="records.html">Records</a>.</dd>
+</dl>
+
+<h2 id="g-Y">Y</h2>
+<dl class="glossario">
+<dt><strong>yield return</strong></dt>
+<dd>Faz um método entregar os itens de uma sequência um por vez, pausando entre um e outro. O <code>foreach</code> puxa o próximo quando precisa. Veja: <a href="yield.html">Iteradores (yield return)</a>.</dd>
+</dl>
+
+<h2>E agora?</h2>
+<p>Quer testar o que você sabe? Faça o <a href="quiz.html">Quiz</a>, com 40 perguntas dos três níveis. Para ver os termos funcionando juntos, siga um dos <a href="projetos.html">Projetos</a>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
