@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Func, Action e Predicate — os delegates prontos do .NET | Guia C#</title>
+<meta name="description" content="Func, Action e Predicate em C# para quem nunca programou: como ler Func&lt;decimal, int, decimal&gt;, Action&lt;string&gt; e Predicate&lt;Produto&gt;, guardar métodos e lambdas sem declarar delegate, escrever métodos que recebem um Func, um método que fabrica lambdas e os erros reais CS0029, CS0305, CS1593 e CS0201 do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Func, Action e Predicate</span></h1>
+
+<p class="intro">Nas aulas de <a href="delegates.html">Delegates</a> e <a href="lambdas.html">Lambdas</a>, cada lambda precisou de um tipo delegate declarado por nós: <code>delegate decimal RegraDePreco(decimal preco);</code>. Se cada programa tivesse de inventar um delegate para "recebe um <code>decimal</code>, devolve um <code>decimal</code>", haveria milhares de delegates iguais com nomes diferentes. Por isso o .NET já traz delegates <strong>prontos</strong>, que servem para quase tudo: <code>Func</code>, <code>Action</code> e <code>Predicate</code>. Eles são os tipos que você vai ver em toda a biblioteca, inclusive no <a href="linq.html">LINQ</a>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li><code>Func&lt;…&gt;</code>: para métodos que <strong>devolvem</strong> um valor, e como ler os tipos entre <code>&lt;</code> e <code>&gt;</code>.</li>
+  <li><code>Action&lt;…&gt;</code>: para métodos que <strong>não devolvem</strong> nada (<code>void</code>).</li>
+  <li><code>Predicate&lt;T&gt;</code>: para perguntas de sim ou não, usado pela <code>List&lt;T&gt;</code>.</li>
+  <li>Guardar métodos prontos (<code>Console.WriteLine</code>) num <code>Action</code> ou <code>Func</code>.</li>
+  <li>Escrever seus próprios métodos que recebem um <code>Func</code> ou um <code>Action</code>.</li>
+  <li>Um método que <strong>fabrica</strong> lambdas: devolve um <code>Func</code>.</li>
+  <li>Os erros reais: <code>CS0029</code>, <code>CS1662</code>, <code>CS0201</code>, <code>CS0305</code> e <code>CS1593</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas rodaram com o <strong>.NET 10</strong> (C# 14) na máquina da Ana, na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. <code>Func</code>, <code>Action</code> e <code>Predicate</code> moram no namespace <code>System</code>, que já vem importado: não precisa de nenhum <code>using</code>.</p>
+
+<hr>
+
+<h2>A ideia: as tomadas padronizadas</h2>
+<p>Imagine se cada aparelho da lojinha da Ana viesse com um plugue de formato próprio: um para a máquina de cartão, outro para a balança, outro para o ventilador. Ela teria de instalar uma tomada nova para cada aparelho. Por isso existem as <strong>tomadas padronizadas</strong>: dois ou três formatos servem para quase tudo.</p>
+
+<p>Os delegates que você declara (<code>RegraDePreco</code>, <code>Aviso</code>) são tomadas sob medida. <code>Func</code>, <code>Action</code> e <code>Predicate</code> são as tomadas padrão do .NET:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Delegate pronto</th><th>Formato</th><th>Tradução</th></tr>
+<tr><td><code>Func&lt;…, TResult&gt;</code></td><td>recebe de 0 a 16 valores e <strong>devolve</strong> um</td><td><em>function</em>, "função"</td></tr>
+<tr><td><code>Action&lt;…&gt;</code></td><td>recebe de 0 a 16 valores e <strong>não devolve</strong> nada</td><td>"ação"</td></tr>
+<tr><td><code>Predicate&lt;T&gt;</code></td><td>recebe <strong>um</strong> valor e devolve <code>bool</code></td><td>"predicado": uma afirmação que é verdadeira ou falsa</td></tr>
+</table>
+</div>
+
+<p>Os tipos entre <code>&lt;</code> e <code>&gt;</code> são os <strong>argumentos de tipo</strong> de um tipo <a href="generics.html">genérico</a>: eles dizem o que entra e o que sai, e assim um só <code>Func</code> serve para qualquer combinação.</p>
+
+<hr>
+
+<h2>1. <code>Func</code>: recebe e devolve</h2>
+
+<pre class="file" data-file="func.cs">Func&lt;decimal, decimal&gt; blackFriday = p =&gt; p * 0.7m;
+Func&lt;decimal, int, decimal&gt; total = (preco, qtd) =&gt; preco * qtd;
+Func&lt;string&gt; saudacao = () =&gt; "Bem-vindo à lojinha!";
+
+Console.WriteLine(blackFriday(50m));
+Console.WriteLine(total(2.50m, 3));
+Console.WriteLine(saudacao());
+</pre>
+
+<pre class="term">$ dotnet run func.cs
+35,0
+7,50
+Bem-vindo à lojinha!</pre>
+
+<p>A regra para ler um <code>Func</code>: <strong>o último tipo é sempre o retorno</strong>; os outros, na ordem, são os parâmetros.</p>
+
+<pre class="syntax">Func&lt;decimal, decimal&gt;         « recebe decimal              → devolve decimal
+Func&lt;decimal, int, decimal&gt;    « recebe decimal e int        → devolve decimal
+Func&lt;string&gt;                   « não recebe nada             → devolve string
+      └─ entradas ─┘  └ saída ┘</pre>
+
+<p>Compare com o delegate da aula anterior. As duas linhas abaixo guardam a mesma lambda; a diferença é que a primeira precisa da declaração <code>delegate decimal RegraDePreco(decimal preco);</code> no fim do arquivo, e a segunda não precisa de nada:</p>
+
+<pre class="file" data-file="comparacao.cs">RegraDePreco regra1 = p =&gt; p * 0.7m;          // tipo próprio, declarado por você
+Func&lt;decimal, decimal&gt; regra2 = p =&gt; p * 0.7m; // tipo pronto do .NET
+</pre>
+
+<p>Na saída, <code>35,0</code> aparece com uma casa porque o <code>decimal</code> guarda as casas da conta (<code>50 × 0,7</code>: uma casa). Para dinheiro, mostre com <code>:C</code>, como nas outras aulas.</p>
+
+<hr>
+
+<h2>2. <code>Action</code>: recebe e não devolve</h2>
+<p>Para métodos <code>void</code>, que <strong>fazem</strong> algo (escrever, salvar, avisar) em vez de calcular, use <code>Action</code>. Todos os tipos entre <code>&lt;</code> e <code>&gt;</code> são parâmetros, porque não há retorno:</p>
+
+<pre class="file" data-file="action.cs">Action abrir = () =&gt; Console.WriteLine("Loja aberta!");
+Action&lt;string&gt; avisar = msg =&gt; Console.WriteLine($"[aviso] {msg}");
+Action&lt;string, int&gt; repor = (produto, qtd) =&gt;
+    Console.WriteLine($"Repor {qtd} unidades de {produto}");
+
+abrir();
+avisar("Acabou o troco");
+repor("Caderno", 20);
+</pre>
+
+<pre class="term">$ dotnet run action.cs
+Loja aberta!
+[aviso] Acabou o troco
+Repor 20 unidades de Caderno</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>Recebe</th><th>Exemplo de chamada</th></tr>
+<tr><td><code>Action</code></td><td>nada (sem <code>&lt;&gt;</code>)</td><td><code>abrir()</code></td></tr>
+<tr><td><code>Action&lt;string&gt;</code></td><td>um <code>string</code></td><td><code>avisar("Acabou o troco")</code></td></tr>
+<tr><td><code>Action&lt;string, int&gt;</code></td><td>um <code>string</code> e um <code>int</code>, nessa ordem</td><td><code>repor("Caderno", 20)</code></td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>Como escolher entre <code>Func</code> e <code>Action</code></strong>
+<p>Pergunte: "o método devolve alguma coisa?". Se devolve, é <code>Func</code>, e o tipo devolvido vai por último. Se é <code>void</code>, é <code>Action</code>. Um <code>Func</code> sempre tem pelo menos um tipo entre <code>&lt;</code> e <code>&gt;</code> (o retorno); um <code>Action</code> pode não ter nenhum.</p>
+</div>
+
+<div class="trycs" data-goal="outre:Preço: R\$\s28\,00,src:Func&lt;decimal\,\s*decimal&gt;,src:Action&lt;decimal&gt;">
+<p class="try-task"><strong>Missão:</strong> siga os comentários. Crie um <code>Func&lt;decimal, decimal&gt;</code> chamado <code>comFrete</code>, que soma <code>8m</code> ao preço, e um <code>Action&lt;decimal&gt;</code> chamado <code>mostrar</code>, que escreve <code>Preço: </code> seguido do valor com <code>:C</code>. No fim, chame <code>mostrar(comFrete(20m));</code>. A saída deve ser <code>Preço: R$ 28,00</code>.</p>
+<pre class="script">// 1. crie aqui o Func&lt;decimal, decimal&gt; comFrete (soma 8m ao preço)
+// 2. crie aqui o Action&lt;decimal&gt; mostrar (escreve "Preço: " e o valor com :C)
+// 3. troque a linha abaixo por: mostrar(comFrete(20m));
+Console.WriteLine("Preço: ?");
+</pre>
+<pre class="solucao">Func&lt;decimal, decimal&gt; comFrete = p =&gt; p + 8m;
+Action&lt;decimal&gt; mostrar = p =&gt; Console.WriteLine($"Preço: {p:C}");
+
+mostrar(comFrete(20m));
+</pre>
+</div>
+
+<hr>
+
+<h2>3. <code>Predicate</code>: sim ou não</h2>
+<p>Um <code>Predicate&lt;T&gt;</code> recebe um valor e responde <code>true</code> ou <code>false</code>: "este produto é barato?". É o tipo que os métodos <code>Find</code>, <code>FindAll</code>, <code>Exists</code> e <code>RemoveAll</code> da <a href="list.html"><code>List&lt;T&gt;</code></a> recebem:</p>
+
+<pre class="file" data-file="predicate.cs">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", 18.90m),
+    new("Lápis", 2.50m),
+    new("Mochila", 129.90m),
+    new("Borracha", 1.75m),
+];
+
+Predicate&lt;Produto&gt; barato = p =&gt; p.Preco &lt; 5m;
+
+Console.WriteLine(barato(produtos[0]));
+Console.WriteLine(produtos.Exists(barato));
+Console.WriteLine(produtos.Find(barato)?.Nome);
+
+List&lt;Produto&gt; baratos = produtos.FindAll(barato);
+Console.WriteLine(string.Join(", ", baratos.ConvertAll(p =&gt; p.Nome)));
+
+record Produto(string Nome, decimal Preco);
+</pre>
+
+<pre class="term">$ dotnet run predicate.cs
+False             « o caderno (18,90) não é barato
+True              « existe algum barato
+Lápis             « o primeiro barato
+Lápis, Borracha   « todos os baratos</pre>
+
+<p>A vantagem de guardar a pergunta numa variável com nome (<code>barato</code>) é usá-la várias vezes, e o código se lê quase como português: <code>produtos.Exists(barato)</code>, "existe algum produto barato?".</p>
+
+<div class="note">
+<strong><code>Predicate&lt;T&gt;</code> e <code>Func&lt;T, bool&gt;</code> fazem a mesma coisa</strong>
+<p>Os dois recebem um <code>T</code> e devolvem <code>bool</code>. O <code>Predicate</code> é mais antigo (.NET 2.0) e ficou nos métodos da <code>List&lt;T&gt;</code>; o <a href="linq.html">LINQ</a>, que veio depois, usa <code>Func&lt;T, bool&gt;</code>. Uma lambda escrita direto serve para os dois, mas uma <strong>variável</strong> de um tipo não pode ir para o outro (veja o erro <code>CS0029</code> em <a href="#errado">Quando dá errado</a>).</p>
+</div>
+
+<p>Existe ainda o <code>Comparison&lt;T&gt;</code>, que recebe dois valores e devolve um <code>int</code> (negativo, zero ou positivo). É o tipo que o <code>Sort((a, b) =&gt; …)</code> da aula de <a href="lambdas.html">Lambdas</a> recebe.</p>
+
+<hr>
+
+<h2>4. Guardar métodos que já existem</h2>
+<p>Como qualquer delegate, <code>Func</code> e <code>Action</code> guardam também métodos com nome, inclusive os do próprio .NET. Escreva o nome <strong>sem parênteses</strong>:</p>
+
+<pre class="file" data-file="grupos.cs">List&lt;string&gt; nomes = ["caderno", "lápis", "mochila"];
+
+Action&lt;string&gt; escrever = Console.WriteLine;
+Func&lt;string, string&gt; gritar = Maiusculas;
+Func&lt;string, int, string&gt; cortar = Cortar;
+
+escrever(gritar("promoção"));
+escrever(cortar("borracha", 4));
+nomes.ForEach(escrever);
+
+static string Maiusculas(string texto) =&gt; texto.ToUpper();
+static string Cortar(string texto, int tamanho) =&gt; texto[..tamanho];
+</pre>
+
+<pre class="term">$ dotnet run grupos.cs
+PROMOÇÃO
+borr
+caderno
+lápis
+mochila</pre>
+
+<ul>
+  <li><code>Action&lt;string&gt; escrever = Console.WriteLine;</code>: o <code>Console.WriteLine</code> tem várias versões (para <code>int</code>, <code>decimal</code>, <code>string</code>…). O tipo <code>Action&lt;string&gt;</code> diz qual delas escolher: a que recebe um <code>string</code>.</li>
+  <li><code>texto[..tamanho]</code> pega os primeiros <code>tamanho</code> caracteres (veja <a href="indices-intervalos.html">Índices e Intervalos</a>).</li>
+  <li><code>nomes.ForEach(escrever)</code> passa o <code>Action</code> para o <code>ForEach</code>, que o chama para cada nome. Também daria para escrever direto <code>nomes.ForEach(Console.WriteLine)</code>.</li>
+</ul>
+
+<hr>
+
+<h2>5. Seus métodos recebendo <code>Func</code> e <code>Action</code></h2>
+<p>A parte mais útil: escrever métodos que recebem um comportamento. O método <code>Filtrar</code> abaixo não sabe <strong>qual</strong> filtro aplicar; quem chama é que diz, com uma lambda. E o <code>ParaCada</code> não sabe <strong>o que fazer</strong> com cada produto:</p>
+
+<pre class="file" data-file="filtrar.cs">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", 18.90m),
+    new("Lápis", 2.50m),
+    new("Mochila", 129.90m),
+    new("Borracha", 1.75m),
+];
+
+ParaCada(Filtrar(produtos, p =&gt; p.Preco &lt; 20m), p =&gt; Console.WriteLine($"{p.Nome}: {p.Preco:C}"));
+Console.WriteLine("---");
+ParaCada(Filtrar(produtos, p =&gt; p.Nome.StartsWith('M')), p =&gt; Console.WriteLine(p.Nome));
+
+List&lt;Produto&gt; Filtrar(List&lt;Produto&gt; lista, Func&lt;Produto, bool&gt; condicao)
+{
+    List&lt;Produto&gt; resultado = [];
+    foreach (Produto p in lista)
+    {
+        if (condicao(p))
+        {
+            resultado.Add(p);
+        }
+    }
+    return resultado;
+}
+
+void ParaCada(List&lt;Produto&gt; lista, Action&lt;Produto&gt; acao)
+{
+    foreach (Produto p in lista)
+    {
+        acao(p);
+    }
+}
+
+record Produto(string Nome, decimal Preco);
+</pre>
+
+<pre class="term">$ dotnet run filtrar.cs
+Caderno: R$ 18,90
+Lápis: R$ 2,50
+Borracha: R$ 1,75
+---
+Mochila</pre>
+
+<dl class="anatomy">
+  <dt>Func&lt;Produto, bool&gt; condicao</dt><dd>O parâmetro recebe "algo que, dado um <code>Produto</code>, responde sim ou não".</dd>
+  <dt>if (condicao(p))</dt><dd>Chama a lambda recebida para cada produto. Se ela disser <code>true</code>, o produto entra no resultado.</dd>
+  <dt>Action&lt;Produto&gt; acao</dt><dd>Recebe "algo que faz alguma coisa com um <code>Produto</code>" e não devolve nada.</dd>
+  <dt>Filtrar(produtos, p =&gt; p.Preco &lt; 20m)</dt><dd>Na chamada, a lambda vira o <code>condicao</code>. O compilador sabe, pelo tipo do parâmetro, que <code>p</code> é um <code>Produto</code>.</dd>
+</dl>
+
+<p>Guarde este <code>Filtrar</code> na memória: ele é, quase linha por linha, o <code>Where</code> do <a href="linq-filtrar.html">LINQ</a>. Você acabou de escrever um pedaço do LINQ à mão.</p>
+
+<hr>
+
+<h2>6. Um método que fabrica lambdas</h2>
+<p>Um <code>Func</code> também pode ser o <strong>retorno</strong> de um método. O <code>CriarDesconto</code> abaixo recebe uma porcentagem e devolve uma regra de preço pronta:</p>
+
+<pre class="file" data-file="fabrica.cs">Func&lt;decimal, decimal&gt; dezPorCento = CriarDesconto(10);
+Func&lt;decimal, decimal&gt; metade = CriarDesconto(50);
+
+Console.WriteLine(dezPorCento(80m));
+Console.WriteLine(metade(80m));
+
+Func&lt;decimal, decimal&gt; CriarDesconto(int porcento)
+{
+    return p =&gt; p - p * porcento / 100;
+}
+</pre>
+
+<pre class="term">$ dotnet run fabrica.cs
+72
+40</pre>
+
+<p>A lambda <code>p =&gt; p - p * porcento / 100</code> <strong>captura</strong> o parâmetro <code>porcento</code> (veja a captura em <a href="lambdas.html">Lambdas</a>). Cada chamada de <code>CriarDesconto</code> cria uma lambda com o seu próprio <code>porcento</code>: a <code>dezPorCento</code> lembra do 10, a <code>metade</code> lembra do 50, mesmo depois de o método ter terminado.</p>
+
+<hr>
+
+<h2>Delegate próprio ou pronto: qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>Um parâmetro ou variável que recebe uma lambda, no dia a dia</td><td><code>Func</code> ou <code>Action</code>. Quem lê já conhece, e não há nada para declarar.</td></tr>
+<tr><td>Uma pergunta de sim ou não para a <code>List&lt;T&gt;</code></td><td><code>Predicate&lt;T&gt;</code> (é o que <code>Find</code>, <code>FindAll</code>, <code>Exists</code> e <code>RemoveAll</code> pedem). Para o LINQ, <code>Func&lt;T, bool&gt;</code>.</td></tr>
+<tr><td>O nome do tipo explica muito (<code>RegraDePreco</code> diz mais que <code>Func&lt;decimal, decimal&gt;</code>)</td><td>Um delegate próprio.</td></tr>
+<tr><td>Parâmetros <code>ref</code>, <code>out</code> ou <code>in</code></td><td>Um delegate próprio: <code>Func</code> e <code>Action</code> não aceitam esses modificadores.</td></tr>
+<tr><td>Eventos</td><td>O delegate pronto <code>EventHandler</code>, assunto da próxima aula, <a href="eventos.html">Eventos</a>.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS0029: <code>Predicate</code> não vira <code>Func</code></strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="predicado.cs">Predicate&lt;decimal&gt; caro = p =&gt; p &gt; 100m;
+Func&lt;decimal, bool&gt; mesmaCoisa = caro;
+Console.WriteLine(mesmaCoisa(150m));
+</pre>
+<pre class="term">$ dotnet run predicado.cs
+/home/ana/cs/predicado.cs(2,34): error CS0029: Não é possível converter implicitamente tipo "System.Predicate&lt;decimal&gt;" em "System.Func&lt;decimal, bool&gt;"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> mesmo com o mesmo formato (recebe <code>decimal</code>, devolve <code>bool</code>), são <strong>tipos diferentes</strong>, como duas classes diferentes com as mesmas propriedades. O C# não converte um no outro sozinho.</p>
+<p><strong>Como consertar:</strong> embrulhe numa lambda, <code>Func&lt;decimal, bool&gt; mesmaCoisa = p =&gt; caro(p);</code>, ou crie o outro tipo a partir dele, <code>new Func&lt;decimal, bool&gt;(caro)</code>. Melhor ainda: escolha um tipo só desde o começo.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0029 + CS1662: a ordem dos tipos do <code>Func</code></strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="ordem.cs">Func&lt;decimal, string&gt; etiqueta = p =&gt; p * 2;
+</pre>
+<pre class="term">$ dotnet run ordem.cs
+/home/ana/cs/ordem.cs(1,39): error CS0029: Não é possível converter implicitamente tipo "decimal" em "string"
+/home/ana/cs/ordem.cs(1,39): error CS1662: Não é possível converter expressão lambda para o tipo delegate pretendido porque alguns dos tipos de retorno no bloco não são implicitamente conversíveis para o tipo de retorno delegate
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> em <code>Func&lt;decimal, string&gt;</code>, o <strong>último</strong> tipo (<code>string</code>) é o retorno. A lambda devolve <code>p * 2</code>, um <code>decimal</code>.</p>
+<p><strong>Como consertar:</strong> se a ideia era "recebe decimal, devolve decimal", escreva <code>Func&lt;decimal, decimal&gt;</code>. Se era uma etiqueta de texto, devolva texto: <code>p =&gt; $"{p * 2:C}"</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0201: um <code>Action</code> não devolve nada</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="acao.cs">Action&lt;string&gt; tamanho = s =&gt; s.Length;
+</pre>
+<pre class="term">$ dotnet run acao.cs
+/home/ana/cs/acao.cs(1,31): error CS0201: Somente as expressões de atribuição, chamada, incremento, diminuição, espera e novo objeto podem ser utilizadas como uma instrução
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> num <code>Action</code>, o corpo da lambda tem de ser uma instrução que <em>faz</em> algo. <code>s.Length</code> só lê um valor, que seria jogado fora.</p>
+<p><strong>Como consertar:</strong> se você quer o valor, use <code>Func&lt;string, int&gt; tamanho = s =&gt; s.Length;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0305: <code>Func</code> sem os tipos</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="semtipos.cs">Func calcular = () =&gt; 10m;
+</pre>
+<pre class="term">$ dotnet run semtipos.cs
+/home/ana/cs/semtipos.cs(1,1): error CS0305: Usar o genérico tipo "Func&lt;TResult&gt;" requer 1 argumentos de tipo
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> "usar o tipo genérico <code>Func&lt;TResult&gt;</code> requer 1 argumento de tipo". Todo <code>Func</code> precisa de pelo menos o tipo do retorno (<code>TResult</code>, "tipo do resultado").</p>
+<p><strong>Como consertar:</strong> <code>Func&lt;decimal&gt; calcular = () =&gt; 10m;</code>. Só o <code>Action</code> existe sem <code>&lt;&gt;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1593: chamar com argumentos que o <code>Func</code> não tem</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="chamada.cs">Func&lt;decimal&gt; preco = () =&gt; 10m;
+Console.WriteLine(preco(5m));
+</pre>
+<pre class="term">$ dotnet run chamada.cs
+/home/ana/cs/chamada.cs(2,19): error CS1593: Delegado "Func&lt;decimal&gt;" não obtém 1 argumentos
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> <code>Func&lt;decimal&gt;</code> tem um tipo só, e ele é o retorno: o delegate não recebe nada. Um erro comum é achar que <code>Func&lt;decimal&gt;</code> "recebe um decimal".</p>
+<p><strong>Como consertar:</strong> chame sem argumentos (<code>preco()</code>) ou, se ele deve receber um preço, declare <code>Func&lt;decimal, decimal&gt;</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>Recebe</th><th>Devolve</th><th>Exemplo</th></tr>
+<tr><td><code>Func&lt;TResult&gt;</code></td><td>nada</td><td><code>TResult</code></td><td><code>Func&lt;string&gt; f = () =&gt; "oi";</code></td></tr>
+<tr><td><code>Func&lt;T, TResult&gt;</code></td><td>um <code>T</code></td><td><code>TResult</code></td><td><code>Func&lt;decimal, decimal&gt; f = p =&gt; p * 0.7m;</code></td></tr>
+<tr><td><code>Func&lt;T1, T2, TResult&gt;</code></td><td><code>T1</code> e <code>T2</code></td><td><code>TResult</code></td><td><code>Func&lt;decimal, int, decimal&gt; f = (p, q) =&gt; p * q;</code></td></tr>
+<tr><td><code>Action</code></td><td>nada</td><td>nada</td><td><code>Action a = () =&gt; Console.WriteLine("oi");</code></td></tr>
+<tr><td><code>Action&lt;T&gt;</code></td><td>um <code>T</code></td><td>nada</td><td><code>Action&lt;string&gt; a = Console.WriteLine;</code></td></tr>
+<tr><td><code>Action&lt;T1, T2&gt;</code></td><td><code>T1</code> e <code>T2</code></td><td>nada</td><td><code>Action&lt;string, int&gt; a = (n, q) =&gt; …;</code></td></tr>
+<tr><td><code>Predicate&lt;T&gt;</code></td><td>um <code>T</code></td><td><code>bool</code></td><td><code>Predicate&lt;Produto&gt; b = p =&gt; p.Preco &lt; 5m;</code></td></tr>
+<tr><td><code>Comparison&lt;T&gt;</code></td><td>dois <code>T</code></td><td><code>int</code></td><td><code>lista.Sort((a, b) =&gt; a.Preco.CompareTo(b.Preco));</code></td></tr>
+</table>
+</div>
+<p><code>Func</code> e <code>Action</code> vão até 16 parâmetros. Se você precisar de mais de 3 ou 4, junte os dados num <a href="records.html">record</a>.</p>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Ler o tipo</h3>
+<p>Qual é o tipo devolvido por um <code>Func&lt;string, int, bool&gt;</code>?</p>
+<div class="ex-code"><input data-answer="bool" aria-label="tipo"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Escolher o tipo</h3>
+<p>Complete o tipo da variável que guarda um método que recebe um <code>Produto</code> e não devolve nada:</p>
+<div class="ex-code"><input data-answer="Action&lt;Produto&gt;" aria-label="tipo"> mostrar = p =&gt; Console.WriteLine(p.Nome);</div>
+</div>
+
+<div class="exercise">
+<h3>3. Recebe dois, devolve um</h3>
+<p>Complete o tipo de <code>total</code>, que recebe um preço (<code>decimal</code>) e uma quantidade (<code>int</code>) e devolve um <code>decimal</code>:</p>
+<div class="ex-code"><input data-answer="Func&lt;decimal, int, decimal&gt;|Func&lt;decimal,int,decimal&gt;" aria-label="tipo"> total = (p, q) =&gt; p * q;</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Qual destes tipos guarda <code>() =&gt; Console.WriteLine("Loja aberta!")</code>?</p>
+<label><input type="radio" name="q4"> <code>Func&lt;string&gt;</code></label>
+<label><input type="radio" name="q4"> <code>Predicate&lt;string&gt;</code></label>
+<label><input type="radio" name="q4"> <code>Action</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. <code>Func&lt;decimal&gt; f = () =&gt; 10m;</code>. Como chamar <code>f</code>?</p>
+<label><input type="radio" name="q5"> <code>f()</code></label>
+<label><input type="radio" name="q5"> <code>f(10m)</code></label>
+<label><input type="radio" name="q5"> <code>f&lt;decimal&gt;()</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">6. Uma variável <code>Predicate&lt;Produto&gt;</code> pode ser passada direto para um parâmetro <code>Func&lt;Produto, bool&gt;</code>?</p>
+<label><input type="radio" name="q6"> Sim, os formatos são iguais.</label>
+<label><input type="radio" name="q6"> Não: são tipos diferentes (<code>CS0029</code>); embrulhe numa lambda, <code>p =&gt; pergunta(p)</code>.</label>
+<label><input type="radio" name="q6"> Só se o <code>Produto</code> for um record.</label>
+</div>
+
+<div class="trycs" data-goal="out:Até R$ 20: 3,out:Começam com M: 1,src:condicao\s*\(">
+<p class="try-task"><strong>Missão final:</strong> o método <code>Contar</code> recebe um <code>Func&lt;Produto, bool&gt; condicao</code>, mas ignora a condição e conta todos os produtos. Conserte para contar só os produtos em que <code>condicao(p)</code> é verdadeira. A saída deve ser <code>Até R$ 20: 3</code> e <code>Começam com M: 1</code>.</p>
+<pre class="script">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", 18.90m),
+    new("Lápis", 2.50m),
+    new("Mochila", 129.90m),
+    new("Borracha", 1.75m),
+];
+
+Console.WriteLine($"Até R$ 20: {Contar(produtos, p =&gt; p.Preco &lt;= 20m)}");
+Console.WriteLine($"Começam com M: {Contar(produtos, p =&gt; p.Nome.StartsWith('M'))}");
+
+int Contar(List&lt;Produto&gt; lista, Func&lt;Produto, bool&gt; condicao)
+{
+    int quantos = 0;
+    foreach (Produto p in lista)
+    {
+        quantos++;
+    }
+    return quantos;
+}
+
+record Produto(string Nome, decimal Preco);
+</pre>
+<pre class="solucao">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", 18.90m),
+    new("Lápis", 2.50m),
+    new("Mochila", 129.90m),
+    new("Borracha", 1.75m),
+];
+
+Console.WriteLine($"Até R$ 20: {Contar(produtos, p =&gt; p.Preco &lt;= 20m)}");
+Console.WriteLine($"Começam com M: {Contar(produtos, p =&gt; p.Nome.StartsWith('M'))}");
+
+int Contar(List&lt;Produto&gt; lista, Func&lt;Produto, bool&gt; condicao)
+{
+    int quantos = 0;
+    foreach (Produto p in lista)
+    {
+        if (condicao(p))
+        {
+            quantos++;
+        }
+    }
+    return quantos;
+}
+
+record Produto(string Nome, decimal Preco);
+</pre>
+</div>
+
+<p>Na saída do código inicial, as duas linhas mostram <code>4</code>: a condição nunca é chamada. No <a href="linq-agregar.html">LINQ</a>, esse método já existe pronto: <code>produtos.Count(p =&gt; p.Preco &lt;= 20m)</code>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>Func&lt;…, TResult&gt;</code> guarda métodos que devolvem um valor: o <strong>último</strong> tipo é o retorno.</li>
+  <li><code>Action&lt;…&gt;</code> guarda métodos <code>void</code>: todos os tipos são parâmetros, e <code>Action</code> sozinho não recebe nada.</li>
+  <li><code>Predicate&lt;T&gt;</code> recebe um <code>T</code> e devolve <code>bool</code>; é o que <code>Find</code>, <code>FindAll</code>, <code>Exists</code> e <code>RemoveAll</code> pedem.</li>
+  <li>Com eles, você quase nunca precisa declarar um <code>delegate</code>: escreva <code>Func&lt;Produto, bool&gt; condicao</code> no parâmetro e passe uma lambda.</li>
+  <li>Um método pode devolver um <code>Func</code> e "fabricar" lambdas que lembram dos parâmetros.</li>
+  <li><code>Predicate&lt;T&gt;</code> e <code>Func&lt;T, bool&gt;</code> são tipos diferentes (<code>CS0029</code>); <code>Func</code> sem tipos dá <code>CS0305</code>.</li>
+</ul>
+
+<p>Próxima aula: <a href="eventos.html">Eventos</a>, os delegates que avisam "aconteceu alguma coisa".</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
