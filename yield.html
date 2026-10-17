@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Iteradores (yield return) — sequências um item por vez | Guia C#</title>
+<meta name="description" content="yield return em C# para quem nunca programou: escrever um método que entrega um item por vez, como ele pausa e continua, laços com yield, yield break, sequências infinitas com break e Take, a execução adiada (a exceção que só aparece no foreach), percorrer duas vezes, GetEnumerator com yield e os erros reais CS1622, CS1624 e CS1626, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Iteradores</span> (yield return)</h1>
+
+<p class="intro">Na aula <a href="ienumerable.html">IEnumerable e foreach</a>, a estante da Ana entrou no <code>foreach</code> porque tinha uma lista para repassar. Mas e quando os itens não estão guardados em lugar nenhum, e sim são <strong>calculados</strong>: os números pares até 100, as senhas de uma fila, a sequência de Fibonacci? Para isso o C# tem o <code>yield return</code>: você escreve um método comum, e ele vira uma sequência que entrega <strong>um item por vez</strong>, só quando alguém pede.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é um <strong>iterador</strong> e como escrever um com <code>yield return</code>.</li>
+  <li>Como o iterador <strong>pausa</strong> a cada item e continua de onde parou.</li>
+  <li>Iteradores com laços, e o <code>yield break</code> para terminar antes.</li>
+  <li>Sequências infinitas, controladas com <code>break</code> ou <code>Take</code>.</li>
+  <li>A execução adiada: por que uma exceção só aparece no <code>foreach</code>.</li>
+  <li>O que acontece ao percorrer a mesma sequência duas vezes.</li>
+  <li><code>GetEnumerator</code> com <code>yield</code> e os erros <code>CS1622</code>, <code>CS1624</code> e <code>CS1626</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> na máquina da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Você pode repetir cada um no editor do guia.</p>
+
+<hr>
+
+<h2>A ideia: a máquina de senhas</h2>
+<p>Na padaria, a máquina de senhas não imprime todas as senhas do dia de manhã. Ela entrega <strong>uma</strong> quando alguém aperta o botão, e fica parada esperando o próximo aperto, lembrando em que número estava.</p>
+
+<p>Um método comum é o contrário: ele roda do começo ao fim e devolve tudo de uma vez (com um <code>return</code>). Um <strong>iterador</strong> é um método que funciona como a máquina de senhas:</p>
+<ul>
+  <li>a cada <code>yield return</code>, ele <strong>entrega</strong> um item e <strong>pausa</strong>;</li>
+  <li>quando o <code>foreach</code> pede o próximo, ele <strong>continua</strong> exatamente de onde parou, com as variáveis do jeito que estavam;</li>
+  <li>quando chega ao fim do método, a sequência acabou.</li>
+</ul>
+<p><em>Yield</em>, em inglês, é "entregar", "ceder a vez". <code>yield return 5;</code> se lê "entregue o 5 e ceda a vez".</p>
+
+<hr>
+
+<h2>1. O primeiro iterador</h2>
+
+<pre class="file" data-file="primeiro.cs">foreach (int n in UmDoisTres())
+{
+    Console.WriteLine(n);
+}
+
+IEnumerable&lt;int&gt; UmDoisTres()
+{
+    yield return 1;
+    yield return 2;
+    yield return 3;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run primeiro.cs
+1
+2
+3</pre>
+
+<dl class="anatomy">
+  <dt>IEnumerable&lt;int&gt; UmDoisTres()</dt><dd>O tipo de retorno é <code>IEnumerable&lt;int&gt;</code>: "uma sequência de <code>int</code> que pode ser percorrida". É ele que permite o <code>yield</code>. (Também vale <code>IEnumerator&lt;T&gt;</code>, como você verá na <a href="#estante">seção 5</a>.)</dd>
+  <dt>yield return 1;</dt><dd>Entrega o 1 para quem está percorrendo e pausa o método.</dd>
+  <dt>sem return no fim</dt><dd>O método não monta lista nenhuma nem tem <code>return</code> com valor. O compilador transforma o método inteiro numa "máquina" que sabe pausar e continuar; o fim do método é o fim da sequência.</dd>
+</dl>
+
+<h3>Vendo a pausa acontecer</h3>
+<p>Para ver a ordem real das coisas, este programa mostra uma mensagem em cada passo, dentro e fora do iterador:</p>
+
+<pre class="file" data-file="pausa.cs">Console.WriteLine("Chamando o método...");
+IEnumerable&lt;int&gt; numeros = UmDoisTres();
+Console.WriteLine("Começando o foreach...");
+
+foreach (int n in numeros)
+{
+    Console.WriteLine($"  o foreach recebeu {n}");
+}
+Console.WriteLine("Fim.");
+
+IEnumerable&lt;int&gt; UmDoisTres()
+{
+    Console.WriteLine("  [iterador] começou");
+    yield return 1;
+    Console.WriteLine("  [iterador] voltou depois do 1");
+    yield return 2;
+    Console.WriteLine("  [iterador] voltou depois do 2");
+    yield return 3;
+    Console.WriteLine("  [iterador] acabou");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pausa.cs
+Chamando o método...
+Começando o foreach...                « chamar o método não rodou nada dele!
+  [iterador] começou                  « o 1º item foi pedido: agora ele começa
+  o foreach recebeu 1
+  [iterador] voltou depois do 1       « continuou de onde tinha parado
+  o foreach recebeu 2
+  [iterador] voltou depois do 2
+  o foreach recebeu 3
+  [iterador] acabou                   « o foreach pediu mais um: não tinha, fim
+Fim.</pre>
+
+<p>Repare em três coisas:</p>
+<ol>
+  <li><strong>Chamar o método não executa o método.</strong> A linha <code>UmDoisTres()</code> só criou a sequência; o "[iterador] começou" apareceu depois do "Começando o foreach...". O código só roda quando alguém pede o primeiro item.</li>
+  <li><strong>As duas partes se revezam.</strong> O iterador entrega um item, o <code>foreach</code> trata esse item, o iterador continua, e assim por diante. Ninguém monta uma lista com os três números.</li>
+  <li><strong>O fim do método é o fim da sequência.</strong> O "[iterador] acabou" aparece quando o <code>foreach</code> pede um quarto item que não existe.</li>
+</ol>
+
+<p>Por dentro, é a conversa da aula anterior: cada <code>MoveNext()</code> do <code>foreach</code> faz o iterador rodar até o próximo <code>yield return</code>; o valor entregue vira o <code>Current</code>.</p>
+
+<hr>
+
+<h2>2. Iteradores com laços</h2>
+<p>O <code>yield return</code> fica ainda mais útil dentro de um laço: com três linhas, você descreve uma sequência inteira.</p>
+
+<pre class="file" data-file="lacos.cs">Console.WriteLine(string.Join(" ", Pares(10)));
+Console.WriteLine(string.Join(" ", Regressiva(5)));
+
+IEnumerable&lt;int&gt; Pares(int limite)
+{
+    for (int i = 0; i &lt;= limite; i += 2)
+        yield return i;
+}
+
+IEnumerable&lt;string&gt; Regressiva(int de)
+{
+    for (int i = de; i &gt;= 1; i--)
+        yield return i.ToString();
+    yield return "Decolar!";
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run lacos.cs
+0 2 4 6 8 10
+5 4 3 2 1 Decolar!</pre>
+
+<dl class="anatomy">
+  <dt>for (int i = 0; i &lt;= limite; i += 2) yield return i;</dt><dd>A cada volta do <code>for</code>, entrega o <code>i</code> atual e pausa. Na volta seguinte, o <code>i</code> continua valendo o que valia: o iterador lembra de tudo.</dd>
+  <dt>yield return "Decolar!";</dt><dd>Depois do laço, mais um item. Um iterador pode ter quantos <code>yield return</code> quiser, em qualquer lugar.</dd>
+  <dt>string.Join(" ", Pares(10))</dt><dd>O <code>string.Join</code> aceita qualquer <code>IEnumerable</code>: ele percorre a sequência e junta os itens.</dd>
+</dl>
+
+<div class="trycs" data-goal="outre:^1 4 9 16 25\n$,src:yield\s+return">
+<p class="try-task"><strong>Missão:</strong> complete o iterador <code>Quadrados</code> para entregar os quadrados de 1 até <code>n</code> (1×1, 2×2, …) com <code>yield return</code>. A saída de <code>Quadrados(5)</code> deve ser <code>1 4 9 16 25</code>.</p>
+<pre class="script">Console.WriteLine(string.Join(" ", Quadrados(5)));
+
+IEnumerable&lt;int&gt; Quadrados(int n)
+{
+    // para cada i de 1 até n, entregue i * i
+    yield break;
+}
+</pre>
+<pre class="solucao">Console.WriteLine(string.Join(" ", Quadrados(5)));
+
+IEnumerable&lt;int&gt; Quadrados(int n)
+{
+    for (int i = 1; i &lt;= n; i++)
+        yield return i * i;
+}
+</pre>
+</div>
+
+<h3><code>yield break</code>: terminar antes</h3>
+<p>O código inicial da missão tinha um <code>yield break</code>, que encerra a sequência na hora, como um <code>return</code> encerra um método comum ("pare de entregar"). Ele é útil para parar no meio de um laço:</p>
+
+<pre class="file" data-file="break.cs">foreach (string linha in LinhasAteFim(["Ana", "Bruno", "FIM", "Carla"]))
+{
+    Console.WriteLine(linha);
+}
+
+IEnumerable&lt;string&gt; LinhasAteFim(string[] linhas)
+{
+    foreach (string linha in linhas)
+    {
+        if (linha == "FIM")
+            yield break;
+        yield return linha;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run break.cs
+Ana
+Bruno                 « ao chegar no "FIM", a sequência acabou: a Carla nem foi vista</pre>
+
+<hr>
+
+<h2>3. Sequências infinitas</h2>
+<p>Como o iterador só calcula quando alguém pede, ele pode descrever uma sequência <strong>sem fim</strong>. Quem percorre é que decide quando parar. A sequência de Fibonacci (cada número é a soma dos dois anteriores) é um exemplo clássico:</p>
+
+<pre class="file" data-file="infinita.cs">foreach (long f in Fibonacci())
+{
+    if (f &gt; 100)
+        break;
+    Console.Write($"{f} ");
+}
+Console.WriteLine();
+Console.WriteLine(string.Join(", ", Fibonacci().Take(12)));
+
+IEnumerable&lt;long&gt; Fibonacci()
+{
+    long a = 0, b = 1;
+    while (true)
+    {
+        yield return a;
+        (a, b) = (b, a + b);
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run infinita.cs
+0 1 1 2 3 5 8 13 21 34 55 89 
+0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89</pre>
+
+<dl class="anatomy">
+  <dt>while (true)</dt><dd>Um laço que nunca termina sozinho. Num método comum, isso travaria o programa. Aqui não: a cada volta, o <code>yield return</code> pausa e espera o próximo pedido.</dd>
+  <dt>(a, b) = (b, a + b);</dt><dd>Troca os dois de uma vez, com uma <a href="tuplas.html">tupla</a>: o novo <code>a</code> é o <code>b</code>, e o novo <code>b</code> é a soma.</dd>
+  <dt>if (f &gt; 100) break;</dt><dd>Quem decide parar é o <code>foreach</code> (veja <a href="break-continue.html">break e continue</a>). Ao sair do laço, o iterador é descartado no meio do <code>while</code>, sem problema nenhum.</dd>
+  <dt>Fibonacci().Take(12)</dt><dd>O <code>Take</code> do <a href="linq.html">LINQ</a> ("pegar") pede só os 12 primeiros e para.</dd>
+</dl>
+
+<div class="warning">
+<strong>Nunca percorra uma sequência infinita até o fim</strong>
+<p><code>Fibonacci().ToList()</code>, <code>Fibonacci().Count()</code> ou um <code>foreach</code> sem <code>break</code> tentam chegar ao fim de algo que não tem fim: o programa fica preso (e, no caso do <code>ToList</code>, enche a memória). Sempre limite com <code>break</code>, <code>Take</code> ou uma condição.</p>
+</div>
+
+<hr>
+
+<h2 id="adiado">4. A execução adiada e suas surpresas</h2>
+<p>"Chamar o método não executa o método" tem consequências que pegam muita gente.</p>
+
+<h3>A exceção que aparece no lugar "errado"</h3>
+<pre class="file" data-file="atrasado.cs">IEnumerable&lt;int&gt; numeros = Contar(-1);
+Console.WriteLine("Chamei Contar(-1) e nada aconteceu.");
+
+foreach (int n in numeros)
+{
+    Console.WriteLine(n);
+}
+
+IEnumerable&lt;int&gt; Contar(int ate)
+{
+    if (ate &lt; 0)
+        throw new ArgumentOutOfRangeException(nameof(ate), "Não dá para contar até um número negativo.");
+    for (int i = 1; i &lt;= ate; i++)
+        yield return i;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run atrasado.cs
+Chamei Contar(-1) e nada aconteceu.
+Unhandled exception. System.ArgumentOutOfRangeException: Não dá para contar até um número negativo. (Parameter 'ate')
+   at Program.&lt;&lt;Main&gt;$&gt;g__Contar|0_0(Int32 ate)+MoveNext() in /home/ana/cs/atrasado.cs:line 12
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/atrasado.cs:line 4
+$ echo $?
+134</pre>
+
+<p>A verificação do <code>ate</code> está na primeira linha do método, mas a exceção (veja <a href="throw.html">throw</a>) só estourou quando o <code>foreach</code> (linha 4) pediu o primeiro item. O rastro conta a história: quem lançou foi o <code>MoveNext()</code> do iterador (o nome estranho <code>&lt;&lt;Main&gt;$&gt;g__Contar|0_0</code> é como o compilador batizou a "máquina" gerada a partir de <code>Contar</code>), chamado pela linha 4. Num programa grande, a chamada e o <code>foreach</code> podem estar em arquivos diferentes, e o erro parece vir do lugar errado.</p>
+
+<p>Quando for importante recusar o argumento <strong>na hora da chamada</strong>, separe em dois métodos: um comum, que confere e depois chama o iterador:</p>
+
+<pre class="file" data-file="separado.cs">IEnumerable&lt;int&gt; Contar(int ate)
+{
+    if (ate &lt; 0)
+        throw new ArgumentOutOfRangeException(nameof(ate), "Não dá para contar até um número negativo.");
+    return ContarDe1(ate);
+}
+
+IEnumerable&lt;int&gt; ContarDe1(int ate)
+{
+    for (int i = 1; i &lt;= ate; i++)
+        yield return i;
+}
+</pre>
+
+<p>Como <code>Contar</code> não tem <code>yield</code>, ele é um método comum e roda inteiro na chamada; quem pausa é só o <code>ContarDe1</code>. Com a mesma primeira linha, <code>IEnumerable&lt;int&gt; numeros = Contar(-1);</code>, agora a exceção sai na própria chamada:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run separado.cs
+Unhandled exception. System.ArgumentOutOfRangeException: Não dá para contar até um número negativo. (Parameter 'ate')
+   at Program.&lt;&lt;Main&gt;$&gt;g__Contar|0_0(Int32 ate) in /home/ana/cs/separado.cs:line 7
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/separado.cs:line 1      « a linha da chamada</pre>
+
+<h3>Percorrer duas vezes roda tudo duas vezes</h3>
+<pre class="file" data-file="duasvezes.cs">IEnumerable&lt;int&gt; dados = Sortear();
+
+Console.WriteLine($"Soma: {dados.Sum()}");
+Console.WriteLine($"Maior: {dados.Max()}");
+
+var lista = dados.ToList();
+Console.WriteLine($"Lista com {lista.Count}");
+Console.WriteLine($"Soma: {lista.Sum()}");
+
+IEnumerable&lt;int&gt; Sortear()
+{
+    Console.WriteLine("  (gerando os números)");
+    yield return 4;
+    yield return 9;
+    yield return 2;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run duasvezes.cs
+  (gerando os números)        « o Sum percorreu: o iterador rodou
+Soma: 15
+  (gerando os números)        « o Max percorreu de novo: rodou de novo
+Maior: 9
+  (gerando os números)        « o ToList percorreu uma última vez
+Lista com 3
+Soma: 15                      « a lista já está pronta: nada roda</pre>
+
+<p>Uma sequência de iterador não guarda nada: cada percurso (cada <code>foreach</code>, <code>Sum</code>, <code>Max</code>…) roda o método <strong>de novo, desde o começo</strong>. Se o iterador faz algo demorado (ler um arquivo, por exemplo) ou que muda a cada vez, isso pesa ou confunde. Quando você vai usar os itens mais de uma vez, guarde-os primeiro com <code>.ToList()</code>.</p>
+
+<hr>
+
+<h2 id="estante">5. <code>GetEnumerator</code> com <code>yield</code></h2>
+<p>Na aula anterior, a estante repassava o <code>GetEnumerator</code> da lista. Com <code>yield</code>, você escreve o seu próprio percurso, por exemplo numerando os livros:</p>
+
+<pre class="file" data-file="estante.cs">using System.Collections;
+
+var estante = new Estante();
+estante.Guardar("Dom Casmurro");
+estante.Guardar("Vidas Secas");
+estante.Guardar("O Cortiço");
+
+foreach (string livro in estante)
+    Console.WriteLine(livro);
+
+class Estante : IEnumerable&lt;string&gt;
+{
+    private readonly List&lt;string&gt; livros = [];
+
+    public void Guardar(string livro) =&gt; livros.Add(livro);
+
+    public IEnumerator&lt;string&gt; GetEnumerator()
+    {
+        for (int i = 0; i &lt; livros.Count; i++)
+            yield return $"{i + 1}. {livros[i]}";
+    }
+
+    IEnumerator IEnumerable.GetEnumerator() =&gt; GetEnumerator();
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run estante.cs
+1. Dom Casmurro
+2. Vidas Secas
+3. O Cortiço</pre>
+
+<p>O <code>GetEnumerator</code> devolve <code>IEnumerator&lt;string&gt;</code>, o "marcador", e o <code>yield return</code> funciona com esse tipo também: o compilador escreve o <code>MoveNext</code> e o <code>Current</code> para você.</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS1622: Não é possível retornar um valor de um iterador. Use a instrução yield return para retornar um valor ou yield break para finalizar a iteração.</code></strong>
+<p><strong>O que significa:</strong> o método tem <code>yield return</code> e também um <code>return x;</code> comum. Num iterador, não dá para misturar:</p>
+<pre class="term" data-cwd="~/cs">$ cat erroReturn.cs
+IEnumerable&lt;int&gt; Numeros()
+{
+    yield return 1;
+    return 2;
+}
+Console.WriteLine(Numeros().First());
+$ dotnet run erroReturn.cs
+/home/ana/cs/erroReturn.cs(4,5): error CS1622: Não é possível retornar um valor de um iterador. Use a instrução yield return para retornar um valor ou yield break para finalizar a iteração.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>Como consertar:</strong> para entregar mais um item, <code>yield return 2;</code>. Para encerrar, <code>yield break;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1624: O corpo de "Numeros()" não pode ser um bloco de iteradores porque "List&lt;int&gt;" não é um tipo de interface de iterador</code></strong>
+<p><strong>O que significa:</strong> o método com <code>yield</code> declara que devolve <code>List&lt;int&gt;</code>. O <code>yield</code> não monta uma lista: ele cria uma sequência.</p>
+<p><strong>Como consertar:</strong> o tipo de retorno tem de ser <code>IEnumerable&lt;T&gt;</code> ou <code>IEnumerator&lt;T&gt;</code>. Se quem chama precisa de uma lista, ele faz <code>Numeros().ToList()</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1626: Não é possível usar a instrução yield no corpo de um bloco try com uma cláusula catch</code></strong>
+<p><strong>O que significa:</strong> há um <code>yield return</code> dentro de um <code>try</code> que tem <code>catch</code>. O C# não permite (com <code>try</code>/<code>finally</code>, sem <code>catch</code>, pode).</p>
+<p><strong>Como consertar:</strong> faça a parte que pode falhar fora do <code>try</code> com <code>yield</code>: calcule o valor dentro de um <code>try</code>/<code>catch</code>, guarde numa variável e dê o <code>yield return</code> depois.</p>
+</div>
+
+<div class="cenario">
+<strong>A exceção aparece no <code>foreach</code>, e não na chamada</strong>
+<p><strong>O que significa:</strong> é a execução adiada (<a href="#adiado">seção 4</a>): o código do iterador, inclusive as verificações, só roda quando o primeiro item é pedido.</p>
+<p><strong>Como consertar:</strong> separe a verificação num método comum que chama o iterador.</p>
+</div>
+
+<div class="cenario">
+<strong>O programa travou (ou a memória encheu)</strong>
+<p><strong>O que significa:</strong> uma sequência infinita foi percorrida até o "fim" com <code>ToList</code>, <code>Count</code> ou um <code>foreach</code> sem <code>break</code>.</p>
+<p><strong>Como consertar:</strong> aperte <strong>Ctrl+C</strong> no terminal para parar o programa e limite a sequência com <code>Take(n)</code> ou <code>break</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>IEnumerable&lt;T&gt; M() { … yield return x; … }</code></td><td>Iterador: entrega itens um por vez</td></tr>
+<tr><td><code>yield return x;</code></td><td>Entrega <code>x</code> e pausa até o próximo pedido</td></tr>
+<tr><td><code>yield break;</code></td><td>Encerra a sequência</td></tr>
+<tr><td><code>public IEnumerator&lt;T&gt; GetEnumerator() { … yield return … }</code></td><td>Percurso próprio de uma classe <code>IEnumerable&lt;T&gt;</code></td></tr>
+<tr><td><code>seq.Take(n)</code></td><td>Só os <code>n</code> primeiros (seguro com sequências infinitas)</td></tr>
+<tr><td><code>seq.ToList()</code></td><td>Roda o iterador uma vez e guarda tudo numa lista</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Entregar um item</h3>
+<p>Complete para o iterador entregar o número 7:</p>
+<div class="ex-code"><input data-answer="yield return" aria-label="palavras"> 7;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Parar</h3>
+<p>Complete para a sequência terminar quando aparecer um número negativo:</p>
+<div class="ex-code">if (n &lt; 0) <input data-answer="yield break" aria-label="palavras">;</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">3. Um iterador começa com <code>Console.WriteLine("oi");</code>. Quando o "oi" aparece?</p>
+<label><input type="radio" name="q3"> Assim que o método é chamado</label>
+<label><input type="radio" name="q3"> Quando alguém pede o primeiro item (no <code>foreach</code>, por exemplo)</label>
+<label><input type="radio" name="q3"> Só no fim do programa</label>
+<label><input type="radio" name="q3"> Nunca: iteradores não podem ter <code>Console.WriteLine</code></label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Qual tipo de retorno <strong>não</strong> pode ter um método com <code>yield return</code>?</p>
+<label><input type="radio" name="q4"> <code>IEnumerable&lt;int&gt;</code></label>
+<label><input type="radio" name="q4"> <code>IEnumerator&lt;int&gt;</code></label>
+<label><input type="radio" name="q4"> <code>List&lt;int&gt;</code></label>
+<label><input type="radio" name="q4"> <code>IEnumerable&lt;string&gt;</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. <code>var s = Sortear();</code> e depois <code>s.Sum()</code> e <code>s.Max()</code>. Quantas vezes o código de <code>Sortear</code> roda?</p>
+<label><input type="radio" name="q5"> Nenhuma</label>
+<label><input type="radio" name="q5"> Uma, na chamada</label>
+<label><input type="radio" name="q5"> Uma, no <code>Sum</code>, e o <code>Max</code> reaproveita</label>
+<label><input type="radio" name="q5"> Duas: uma em cada percurso</label>
+</div>
+
+<h3>Missão final: a máquina de senhas</h3>
+
+<div class="trycs" data-goal="outre:^Senha A001\nSenha A002\nSenha A003\n$,src:yield\s+return">
+<p class="try-task"><strong>Missão:</strong> escreva o iterador <code>Senhas</code>, que entrega senhas sem fim: <code>A001</code>, <code>A002</code>, <code>A003</code>… (dica: um <code>while (true)</code> com um contador e <code>$"A{numero:D3}"</code>, que escreve o número com 3 dígitos). O <code>foreach</code> já está pronto e para depois de 3 senhas.</p>
+<pre class="out">Senha A001
+Senha A002
+Senha A003</pre>
+<pre class="script">int chamadas = 0;
+foreach (string senha in Senhas())
+{
+    Console.WriteLine($"Senha {senha}");
+    chamadas++;
+    if (chamadas == 3)
+        break;
+}
+
+IEnumerable&lt;string&gt; Senhas()
+{
+    // entregue "A001", "A002", "A003"... sem parar
+    yield break;
+}
+</pre>
+<pre class="solucao">int chamadas = 0;
+foreach (string senha in Senhas())
+{
+    Console.WriteLine($"Senha {senha}");
+    chamadas++;
+    if (chamadas == 3)
+        break;
+}
+
+IEnumerable&lt;string&gt; Senhas()
+{
+    int numero = 1;
+    while (true)
+    {
+        yield return $"A{numero:D3}";
+        numero++;
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um <strong>iterador</strong> é um método que devolve <code>IEnumerable&lt;T&gt;</code> (ou <code>IEnumerator&lt;T&gt;</code>) e usa <code>yield return</code> para entregar um item por vez.</li>
+  <li>A cada <code>yield return</code>, o método pausa; no próximo pedido, continua de onde parou, com as variáveis intactas. <code>yield break</code> encerra.</li>
+  <li>Chamar o iterador não roda nada: o código só executa quando alguém percorre (execução adiada). Por isso as exceções aparecem no <code>foreach</code>.</li>
+  <li>Cada percurso roda o iterador de novo desde o começo; para usar várias vezes, guarde com <code>.ToList()</code>.</li>
+  <li>Sequências infinitas são possíveis: limite com <code>break</code> ou <code>Take</code>.</li>
+  <li>Não misture <code>return x;</code> com <code>yield</code> (<code>CS1622</code>), não use <code>List&lt;T&gt;</code> como retorno (<code>CS1624</code>) e não ponha <code>yield</code> num <code>try</code> com <code>catch</code> (<code>CS1626</code>).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
