@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# ++ e -- — incremento e decremento | Guia C#</title>
+<meta name="description" content="Os operadores ++ e -- do C# para quem nunca programou: somar e tirar 1, x++ × ++x (pós e pré-fixado), a fila de senhas, ++ com double, decimal e char, o estouro de int.MaxValue, checked, a armadilha x = x++ e os erros reais CS1059, CS0023 e CS0165 do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">++ e --</span></h1>
+
+<p class="intro">Contar é uma das coisas que os programas mais fazem: mais um ponto no jogo, mais uma visita no site, mais um item no carrinho, uma vida a menos. "Somar 1" e "tirar 1" são tão comuns que o C# tem dois operadores só para isso: <code>++</code> (<strong>incremento</strong>, "aumentar") e <code>--</code> (<strong>decremento</strong>, "diminuir"). Nesta aula você vai ver como eles funcionam, a diferença entre <code>x++</code> e <code>++x</code> (que confunde todo mundo no começo) e as armadilhas.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Que <code>x++</code> soma 1 e <code>x--</code> tira 1 da variável <code>x</code>.</li>
+  <li>As quatro formas de somar 1 e qual usar.</li>
+  <li>A diferença entre <strong>pós-fixado</strong> (<code>x++</code>) e <strong>pré-fixado</strong> (<code>++x</code>) quando o resultado é usado.</li>
+  <li>Que <code>++</code> funciona com <code>int</code>, <code>double</code>, <code>decimal</code> e até <code>char</code>.</li>
+  <li>O que acontece no limite do <code>int</code>, a armadilha <code>x = x++</code> e os erros reais do compilador.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: o contador de pessoas</h2>
+<p>Na porta de um show, o segurança segura um <strong>contador manual</strong>, aquele aparelhinho de metal com um botão. Cada pessoa que entra, ele aperta: <em>clic</em>, mais uma. O contador não sabe fazer contas complicadas; ele só sabe <strong>somar 1</strong> ao número que já está lá.</p>
+<p>O <code>++</code> é esse botão. O <code>--</code> é o botão do contrário, que tira 1 (alguém saiu do show).</p>
+
+<hr>
+
+<h2>1. Somar e tirar 1</h2>
+
+<pre class="file" data-file="inc1.cs">int pontos = 10;
+pontos++;
+Console.WriteLine(pontos);
+pontos++;
+pontos++;
+Console.WriteLine(pontos);
+pontos--;
+Console.WriteLine(pontos);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run inc1.cs
+11      « 10 + 1
+13      « mais dois cliques
+12      « o -- tirou 1</pre>
+
+<dl class="anatomy">
+  <dt>int pontos = 10;</dt><dd>Uma variável comum, com valor inicial 10.</dd>
+  <dt>pontos++;</dt><dd>"Some 1 a <code>pontos</code> e guarde de volta em <code>pontos</code>." Depois desta linha, <code>pontos</code> vale 11. Lê-se "pontos mais mais". Os dois <code>+</code> ficam grudados, sem espaço, e grudados também no nome da variável.</dd>
+  <dt>pontos--;</dt><dd>"Tire 1 de <code>pontos</code>." São dois sinais de menos.</dd>
+</dl>
+
+<p>Repare que o <code>++</code> <strong>muda a variável</strong>. Ele não é como o <code>pontos + 1</code>, que só calcula um valor e não guarda em lugar nenhum.</p>
+
+<h3>Quatro formas de somar 1</h3>
+<p>Todas as linhas abaixo fazem a mesma coisa: somar 1 à variável.</p>
+
+<pre class="file" data-file="formas.cs">int a = 5;
+int b = 5;
+int c = 5;
+int d = 5;
+a = a + 1;
+b += 1;
+c++;
+++d;
+Console.WriteLine(a + " " + b + " " + c + " " + d);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run formas.cs
+6 6 6 6</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Como se lê</th><th>Quando usar</th></tr>
+<tr><td><code>a = a + 1;</code></td><td>"<code>a</code> recebe <code>a</code> mais 1"</td><td>Funciona sempre, mas é longa.</td></tr>
+<tr><td><code>b += 1;</code></td><td>"some 1 a <code>b</code>"</td><td>Quando o número pode mudar: <code>b += 5</code>, <code>saldo += deposito</code> (aula <a href="operadores-atribuicao.html">Operadores de Atribuição</a>).</td></tr>
+<tr><td><code>c++;</code></td><td>"<code>c</code> mais mais"</td><td><strong>A forma mais usada</strong> para somar exatamente 1, numa linha sozinha e nos laços <code>for</code>.</td></tr>
+<tr><td><code>++d;</code></td><td>"mais mais <code>d</code>"</td><td>Numa linha sozinha, é igual ao <code>c++</code>. A diferença aparece na próxima seção.</td></tr>
+</table>
+</div>
+
+<div class="trycs" data-goal="out:Visitas: 3,src:\+\+">
+<p class="try-task"><strong>Missão:</strong> o site da lojinha da Ana recebeu 3 visitas. Use o <code>++</code> (três vezes) para o contador mostrar <code>Visitas: 3</code>. Não mude o valor inicial.</p>
+<pre class="out">Visitas: 3</pre>
+<pre class="script" data-file="visitas.cs">int visitas = 0;
+// some uma visita de cada vez aqui
+
+Console.WriteLine("Visitas: " + visitas);
+</pre>
+<pre class="solucao" data-file="visitas.cs">int visitas = 0;
+visitas++;
+visitas++;
+visitas++;
+Console.WriteLine("Visitas: " + visitas);
+</pre>
+</div>
+
+<hr>
+
+<h2>2. <code>x++</code> × <code>++x</code>: quando o resultado é usado</h2>
+<p>Numa linha sozinha, <code>x++</code> e <code>++x</code> fazem a mesma coisa. A diferença aparece quando o <code>++</code> está <strong>dentro</strong> de outra coisa, como uma atribuição ou um <code>Console.WriteLine</code>. Aí importa: <strong>o valor usado é o de antes ou o de depois de somar?</strong></p>
+
+<pre class="file" data-file="prepos.cs">int x = 5;
+int y = x++;
+Console.WriteLine("x = " + x + ", y = " + y);
+int m = 5;
+int n = ++m;
+Console.WriteLine("m = " + m + ", n = " + n);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run prepos.cs
+x = 6, y = 5     « y recebeu o valor ANTIGO de x
+m = 6, n = 6     « n recebeu o valor NOVO de m</pre>
+
+<dl class="anatomy">
+  <dt>int y = x++;</dt><dd><strong>Pós-fixado</strong> (o <code>++</code> vem <em>depois</em>): "use o valor de <code>x</code> e <strong>depois</strong> some 1". O C# entrega o 5 para o <code>y</code> e só então muda <code>x</code> para 6.</dd>
+  <dt>int n = ++m;</dt><dd><strong>Pré-fixado</strong> (o <code>++</code> vem <em>antes</em>): "some 1 <strong>primeiro</strong> e use o valor novo". O <code>m</code> vira 6, e o 6 vai para o <code>n</code>.</dd>
+</dl>
+
+<p>Um jeito de lembrar: leia da esquerda para a direita. Em <code>x++</code>, você encontra o <code>x</code> primeiro (usa o valor) e o <code>++</code> depois (soma). Em <code>++x</code>, encontra o <code>++</code> primeiro (soma) e o <code>x</code> depois (usa o valor já somado).</p>
+
+<h3>Um exemplo de verdade: a fila de senhas</h3>
+<p>No banco, o painel chama a senha atual e já prepara a próxima. O pós-fixado faz exatamente isso: "mostre a senha e passe para a próxima".</p>
+
+<pre class="file" data-file="fila.cs">int senha = 1;
+Console.WriteLine("Chamando senha " + senha++);
+Console.WriteLine("Chamando senha " + senha++);
+Console.WriteLine("Chamando senha " + senha++);
+Console.WriteLine("Próxima senha: " + senha);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fila.cs
+Chamando senha 1     « mostrou 1, depois senha virou 2
+Chamando senha 2
+Chamando senha 3
+Próxima senha: 4     « depois de três chamadas, senha vale 4</pre>
+
+<p>Se a fila começasse em <code>0</code>, o pré-fixado resolveria: <code>"Chamando senha " + ++senha</code> soma primeiro e mostra 1, depois 2.</p>
+
+<div class="tip">
+<strong>Boa prática: <code>++</code> numa linha sozinha</strong>
+<p>Código como <code>Console.WriteLine(senha++)</code> é curto, mas obriga quem lê a pensar "é o valor de antes ou de depois?". Para quem está começando (e para a maioria dos programadores experientes), é mais claro separar: primeiro <code>Console.WriteLine(senha);</code>, depois <code>senha++;</code>. Guarde a diferença entre <code>x++</code> e <code>++x</code> para <strong>ler</strong> o código dos outros, porque você vai encontrar os dois.</p>
+</div>
+
+<hr>
+
+<h2>3. Com outros tipos</h2>
+<p>O <code>++</code> e o <code>--</code> funcionam com todos os tipos numéricos, e também com <code>char</code>:</p>
+
+<pre class="file" data-file="tipos.cs">double altura = 1.5;
+altura++;
+Console.WriteLine(altura);
+decimal preco = 9.90m;
+preco--;
+Console.WriteLine(preco);
+char letra = 'a';
+letra++;
+Console.WriteLine(letra);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tipos.cs
+2,5      « 1,5 + 1 (a vírgula é da cultura pt-BR)
+8,90     « 9,90 - 1: o decimal guarda as duas casas
+b        « a letra seguinte na tabela Unicode</pre>
+
+<dl class="anatomy">
+  <dt>double e decimal</dt><dd>Soma ou tira exatamente 1, não "um pouquinho". <code>1.5</code> vira <code>2.5</code>, não <code>1.6</code>.</dd>
+  <dt>char</dt><dd>Cada letra tem um número (aula <a href="char-bool.html">char e bool</a>); <code>letra++</code> passa para o número seguinte, que é a letra seguinte: <code>'a'</code> vira <code>'b'</code>.</dd>
+  <dt>string e bool</dt><dd><strong>Não</strong> funcionam: <code>"Ana"++</code> não faz sentido, e o compilador recusa (veja <a href="#erros">Quando dá errado</a>).</dd>
+</dl>
+
+<hr>
+
+<h2>4. No limite do <code>int</code></h2>
+<p>Um <code>int</code> vai até 2.147.483.647 (<code>int.MaxValue</code>, aula <a href="inteiros.html">Inteiros</a>). E se você somar 1 a esse número?</p>
+
+<pre class="file" data-file="estouro.cs">int maior = int.MaxValue;
+Console.WriteLine(maior);
+maior++;
+Console.WriteLine(maior);
+byte b = 255;
+b++;
+Console.WriteLine(b);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run estouro.cs
+2147483647
+-2147483648     « deu a volta: virou o MENOR int possível
+0               « o byte vai de 0 a 255: 255 + 1 deu a volta para 0</pre>
+
+<p>Isso é um <strong>estouro</strong> (<em>overflow</em>). Como o hodômetro de um carro velho que, depois de 99999 km, volta a 00000, o número "dá a volta". O C# não avisa nada, porque, por padrão, ele não confere as contas de inteiros (é mais rápido assim). Quando um estouro seria um erro grave (dinheiro, estoque), peça a conferência com <code>checked</code>:</p>
+
+<pre class="file" data-file="checked.cs">int maior = int.MaxValue;
+checked
+{
+    maior++;
+}
+Console.WriteLine(maior);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run checked.cs
+Unhandled exception. System.OverflowException: Arithmetic operation resulted in an overflow.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/checked.cs:line 4
+$ echo $?
+134</pre>
+
+<p>Dentro do bloco <code>checked</code> ("conferido"), o estouro vira uma <strong>exceção</strong>, <code>OverflowException</code> ("a operação aritmética resultou num estouro"), e o programa para em vez de continuar com um número errado. É melhor parar do que mostrar um saldo de −2 bilhões.</p>
+
+<hr>
+
+<h2>Formas diferentes: quando usar cada uma</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th><th>Por quê</th></tr>
+<tr><td>Somar 1 numa linha sozinha</td><td><code>x++;</code></td><td>É o costume em C#, C, Java e JavaScript.</td></tr>
+<tr><td>Laço que conta de 0 a 9</td><td><code>for (int i = 0; i &lt; 10; i++)</code></td><td>O <code>i++</code> é a forma clássica (aula <a href="for.html">for</a>).</td></tr>
+<tr><td>Somar outro número</td><td><code>x += 5;</code></td><td>Não existe <code>+++++</code>: o <code>++</code> só soma 1.</td></tr>
+<tr><td>Usar o valor e somar na mesma linha</td><td><code>senha++</code> ou <code>++senha</code></td><td>Só se ficar claro. Na dúvida, separe em duas linhas.</td></tr>
+<tr><td>A conta não pode estourar</td><td><code>checked { … }</code></td><td>Transforma o estouro em exceção.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="erros">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>A armadilha <code>x = x++</code>: a variável não muda</strong>
+<pre class="file" data-file="xx.cs">int vidas = 3;
+vidas = vidas++;
+Console.WriteLine(vidas);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run xx.cs
+3      « era para ser 4!</pre>
+<p><strong>O que significa:</strong> o <code>vidas++</code> guarda o valor antigo (3), soma 1 em <code>vidas</code> (que vira 4) e entrega o 3. Aí o <code>vidas =</code> guarda esse 3 de volta, por cima do 4. O compilador não avisa.</p>
+<p><strong>Como consertar:</strong> o <code>++</code> já guarda o resultado; não ponha um <code>=</code> junto. Escreva só <code>vidas++;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1059: O operando de aumento ou diminuição deve ser uma variável, propriedade ou indexador</code></strong>
+<pre class="file" data-file="ei1.cs">int x = 5++;
+Console.WriteLine(x);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ei1.cs
+/home/ana/cs/ei1.cs(1,9): error CS1059: O operando de aumento ou diminuição deve ser uma variável, propriedade ou indexador
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>++</code> precisa de um lugar onde <strong>guardar</strong> o resultado, uma variável. O <code>5</code> é só um número; não dá para mudá-lo. O mesmo erro aparece com <code>(a + b)++</code> e com uma constante: <code>const int Limite = 10; Limite++;</code> (aula <a href="constantes.html">Constantes</a>). Em inglês: <code>The operand of an increment or decrement operator must be a variable, property or indexer</code>.</p>
+<p><strong>Como consertar:</strong> use <code>++</code> só em variáveis: <code>int x = 5; x++;</code>, ou escreva a conta: <code>int x = 5 + 1;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0023: O operador "++" não pode ser aplicado ao operando do tipo "string"</code></strong>
+<pre class="file" data-file="ei3.cs">string nome = "Ana";
+nome++;
+Console.WriteLine(nome);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ei3.cs
+/home/ana/cs/ei3.cs(2,1): error CS0023: O operador "++" não pode ser aplicado ao operando do tipo "string"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> "somar 1 a um texto" não existe. Talvez a ideia fosse colar algo no texto (<code>nome += "!"</code>, aula <a href="strings.html">Strings</a>) ou contar quantos nomes há (um <code>int</code> à parte).</p>
+<p><strong>Como consertar:</strong> use <code>++</code> com números e <code>char</code>; com texto, use <code>+</code> e <code>+=</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0165: Uso de variável local não atribuída "contador"</code></strong>
+<pre class="file" data-file="ei4.cs">int contador;
+contador++;
+Console.WriteLine(contador);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ei4.cs
+/home/ana/cs/ei4.cs(2,1): error CS0165: Uso de variável local não atribuída "contador"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>++</code> soma 1 ao valor que já está na variável. Mas <code>contador</code> nunca recebeu um valor, então não há de onde partir. O C# não deixa usar uma variável local antes de dar um valor a ela (aula <a href="variaveis.html">Variáveis</a>).</p>
+<p><strong>Como consertar:</strong> comece o contador com um valor: <code>int contador = 0;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Um número negativo enorme apareceu do nada</strong>
+<p><strong>O que significa:</strong> um <code>int</code> passou de <code>int.MaxValue</code> e deu a volta para −2.147.483.648 (ou um <code>byte</code> passou de 255 e voltou a 0). Não há erro nem aviso.</p>
+<p><strong>Como consertar:</strong> use um tipo maior (<code>long</code>) se o número pode crescer tanto, e <code>checked</code> para que um estouro pare o programa com <code>OverflowException</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Expressão</th><th>Nome</th><th>Efeito em <code>x</code></th><th>Valor entregue (com <code>x = 5</code>)</th></tr>
+<tr><td><code>x++</code></td><td>pós-incremento</td><td>passa a valer 6</td><td><code>5</code> (o antigo)</td></tr>
+<tr><td><code>++x</code></td><td>pré-incremento</td><td>passa a valer 6</td><td><code>6</code> (o novo)</td></tr>
+<tr><td><code>x--</code></td><td>pós-decremento</td><td>passa a valer 4</td><td><code>5</code> (o antigo)</td></tr>
+<tr><td><code>--x</code></td><td>pré-decremento</td><td>passa a valer 4</td><td><code>4</code> (o novo)</td></tr>
+<tr><td><code>x += 1</code></td><td>atribuição composta</td><td>passa a valer 6</td><td><code>6</code></td></tr>
+</table>
+</div>
+<p>Funcionam com: <code>int</code>, <code>long</code>, <code>short</code>, <code>byte</code>, <code>double</code>, <code>float</code>, <code>decimal</code> e <code>char</code>. Só em variáveis (e propriedades e índices de arrays, que você verá mais tarde).</p>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Uma vida a menos</h3>
+<p>Complete para tirar 1 de <code>vidas</code>:</p>
+<div class="ex-code">vidas<input data-answer="--" aria-label="operador">;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Quanto vale?</h3>
+<p>Depois de <code>int a = 3; int b = a++;</code>, quanto vale <code>b</code>?</p>
+<div class="ex-code">b = <input data-answer="3" aria-label="valor de b"></div>
+</div>
+
+<div class="exercise">
+<h3>3. E agora?</h3>
+<p>Depois de <code>int a = 3; int b = ++a;</code>, quanto vale <code>b</code>?</p>
+<div class="ex-code">b = <input data-answer="4" aria-label="valor de b"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O que <code>char c = 'x'; c++; Console.WriteLine(c);</code> mostra?</p>
+<label><input type="radio" name="q4"> <code>x1</code></label>
+<label><input type="radio" name="q4"> <code>y</code></label>
+<label><input type="radio" name="q4"> <code>121</code></label>
+<label><input type="radio" name="q4"> Um erro de compilação.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Com <code>int n = 7;</code>, o que <code>n = n++;</code> deixa em <code>n</code>?</p>
+<label><input type="radio" name="q5"> 8</label>
+<label><input type="radio" name="q5"> 6</label>
+<label><input type="radio" name="q5"> 7</label>
+<label><input type="radio" name="q5"> Não compila.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que <code>10++</code> não compila?</p>
+<label><input type="radio" name="q6"> Porque o <code>++</code> precisa de uma variável para guardar o resultado (<code>CS1059</code>).</label>
+<label><input type="radio" name="q6"> Porque 10 é grande demais.</label>
+<label><input type="radio" name="q6"> Porque falta o ponto e vírgula.</label>
+<label><input type="radio" name="q6"> Porque o certo é <code>++10</code>.</label>
+</div>
+
+<h3>Missão final: o painel de senhas</h3>
+
+<div class="trycs" data-goal="outre:Chamando senha 1\nChamando senha 2\n,src:int senha = 0;">
+<p class="try-task"><strong>Missão:</strong> o painel do banco começa com <code>senha = 0</code> e deveria chamar as senhas <strong>1</strong> e <strong>2</strong>. Mas ele chama 0 e 1. Sem mudar o valor inicial, troque o tipo de incremento (pós-fixado ou pré-fixado?) para aparecer <code>Chamando senha 1</code> e depois <code>Chamando senha 2</code>.</p>
+<pre class="out">Chamando senha 1
+Chamando senha 2
+Última chamada: 2</pre>
+<pre class="script" data-file="painel.cs">int senha = 0;
+Console.WriteLine("Chamando senha " + senha++);
+Console.WriteLine("Chamando senha " + senha++);
+Console.WriteLine("Última chamada: " + senha);
+</pre>
+<pre class="solucao" data-file="painel.cs">int senha = 0;
+Console.WriteLine("Chamando senha " + ++senha);
+Console.WriteLine("Chamando senha " + ++senha);
+Console.WriteLine("Última chamada: " + senha);
+</pre>
+</div>
+
+<p>Repare na última linha: com o pós-fixado, ela mostrava <code>2</code> mesmo chamando 0 e 1, porque a variável já tinha passado para a próxima. Depois, reescreva o programa no estilo "<code>++</code> numa linha sozinha" e compare qual dos dois é mais fácil de ler.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>x++</code> soma 1 e <code>x--</code> tira 1 de <code>x</code>, e guardam o resultado na própria variável.</li>
+  <li>Numa linha sozinha, <code>x++</code>, <code>++x</code>, <code>x += 1</code> e <code>x = x + 1</code> fazem a mesma coisa. O costume é <code>x++</code>.</li>
+  <li>Dentro de outra expressão: <code>x++</code> entrega o valor <strong>antigo</strong>; <code>++x</code>, o valor <strong>novo</strong>.</li>
+  <li>Funcionam com números e <code>char</code> (<code>'a'</code> vira <code>'b'</code>); com <code>string</code>, dá <code>CS0023</code>.</li>
+  <li>Só em variáveis: <code>5++</code> e <code>Limite++</code> (constante) dão <code>CS1059</code>; variável sem valor dá <code>CS0165</code>.</li>
+  <li><code>int.MaxValue + 1</code> dá a volta para o menor <code>int</code>; <code>checked</code> transforma isso em <code>OverflowException</code>.</li>
+  <li>Nunca escreva <code>x = x++</code>: a variável não muda.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
