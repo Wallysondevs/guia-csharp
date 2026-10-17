@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# null e Tipos Anuláveis — int?, HasValue, Value e GetValueOrDefault | Guia C#</title>
+<meta name="description" content="null em C# para quem nunca programou: o que é a ausência de valor, por que int não aceita null (CS0037), os tipos anuláveis int?, double? e bool?, HasValue, Value, GetValueOrDefault, contas com null, o erro CS0266, a InvalidOperationException e a NullReferenceException reais, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">null e Tipos Anuláveis</span></h1>
+
+<p class="intro">Nem toda informação existe o tempo todo. O aluno que faltou à prova <strong>não tem nota</strong>, e isso é bem diferente de ter tirado zero. A pessoa que não quis dizer a idade não tem idade "0". Em C#, a ausência de valor tem nome: <code>null</code> (lê-se "nul", e quer dizer "nulo", "nada"). Nesta aula você vai ver por que um <code>int</code> comum não aceita <code>null</code>, como o <code>int?</code> resolve isso e quais erros aparecem quando o "nada" é usado como se fosse um valor.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é <code>null</code> e por que <code>int idade = null;</code> não compila (erro <code>CS0037</code>).</li>
+  <li>Os <strong>tipos anuláveis</strong>: <code>int?</code>, <code>double?</code>, <code>bool?</code>, <code>decimal?</code> e o nome completo <code>Nullable&lt;int&gt;</code>.</li>
+  <li>Como perguntar se há valor: <code>HasValue</code>, <code>== null</code>, <code>is null</code>, <code>is not null</code> e <code>is int n</code>.</li>
+  <li>Como pegar o valor: <code>Value</code>, <code>GetValueOrDefault()</code> e o cast <code>(int)</code>, e qual deles nunca quebra.</li>
+  <li>O que acontece numa conta ou comparação com <code>null</code>.</li>
+  <li>Que textos (<code>string</code>) também podem ser <code>null</code>, e a famosa <code>NullReferenceException</code>.</li>
+  <li>Os erros reais: <code>CS0037</code>, <code>CS0266</code>, <code>CS1061</code>, <code>InvalidOperationException</code> e <code>NullReferenceException</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com <code>dotnet run arquivo.cs</code> (veja <a href="dotnet-run.html">Rodar com dotnet run</a>) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), com o .NET 10 SDK, na pasta <code>~/cs</code>. Você pode repetir cada um no editor do guia, que compila C# de verdade no navegador.</p>
+
+<hr>
+
+<h2>A ideia antes do código: o campo em branco</h2>
+<p>Imagine a planilha de notas da professora da Ana. Ao lado do nome da Bia está escrito <strong>0</strong>: ela fez a prova e errou tudo. Ao lado do nome do Caio, o campo está <strong>em branco</strong>: ele faltou e ainda vai fazer a prova de recuperação.</p>
+<p>Se a professora escrevesse 0 para o Caio, a média da turma ficaria errada, e o Caio ficaria com uma nota que nunca tirou. O campo em branco carrega uma informação importante: <strong>"ainda não há valor aqui"</strong>.</p>
+<p>Em C#, esse campo em branco é o <code>null</code>. Ele não é zero, não é texto vazio, não é <code>false</code>: é a falta de qualquer valor.</p>
+
+<hr>
+
+<h2><code>int</code> não aceita <code>null</code></h2>
+<p>Os tipos que você usou até aqui (<code>int</code>, <code>double</code>, <code>decimal</code>, <code>bool</code>, <code>char</code>) são <strong>tipos de valor</strong>: a variável é uma caixa que sempre guarda um número, um <code>true</code>/<code>false</code> ou uma letra. Ela nunca fica "vazia". Por isso, o compilador recusa isto:</p>
+
+<pre class="file" data-file="erro1.cs — com erro de propósito">int idade = null;
+Console.WriteLine(idade);
+</pre>
+
+<pre class="term">$ dotnet run erro1.cs
+/home/ana/cs/erro1.cs(1,13): error CS0037: Não é possível converter o valor nulo em 'int' porque ele não é um tipo de valor não anulável
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A tradução da mensagem é confusa (tem um "não" a mais). Em inglês ela é mais clara: <code>Cannot convert null to 'int' because it is a non-nullable value type</code>, ou seja, "não dá para pôr <code>null</code> num <code>int</code>, porque <code>int</code> é um tipo de valor que <strong>não aceita nulo</strong>". O <code>(1,13)</code> aponta a linha 1, coluna 13: exatamente onde está o <code>null</code>.</p>
+
+<hr>
+
+<h2>O <code>int?</code>: um <code>int</code> que pode ficar em branco</h2>
+<p>Basta um ponto de interrogação depois do tipo. <code>int?</code> (lê-se "int anulável") é um tipo que guarda <strong>ou</strong> um número inteiro <strong>ou</strong> <code>null</code>:</p>
+
+<pre class="file" data-file="nulo.cs">int? idade = null;
+Console.WriteLine($"Idade: [{idade}]");
+Console.WriteLine(idade.HasValue);
+idade = 29;
+Console.WriteLine($"Idade: [{idade}]");
+Console.WriteLine(idade.HasValue);
+Console.WriteLine(idade.Value);
+</pre>
+
+<pre class="term">$ dotnet run nulo.cs
+Idade: []          « null aparece como nada: os colchetes ficaram vazios
+False              « ainda não tem valor
+Idade: [29]
+True               « agora tem
+29</pre>
+
+<dl class="anatomy">
+  <dt>int? idade = null;</dt><dd>Cria a variável <code>idade</code> do tipo <code>int?</code> e começa em branco. O <code>?</code> faz parte do tipo: <code>int?</code> e <code>int</code> são tipos diferentes.</dd>
+  <dt>[{idade}]</dt><dd>Os colchetes são só texto, para você enxergar onde o valor deveria estar. Ao mostrar um <code>null</code>, o C# escreve <strong>nada</strong>: nem "null", nem "0".</dd>
+  <dt>idade.HasValue</dt><dd>"Tem valor?" (<em>has value</em>, em inglês). É uma <strong>propriedade</strong> de todo tipo anulável: vale <code>true</code> quando há um número e <code>false</code> quando é <code>null</code>.</dd>
+  <dt>idade = 29;</dt><dd>Um <code>int</code> comum entra num <code>int?</code> sem cerimônia. A conversão de <code>int</code> para <code>int?</code> é automática, porque nunca perde nada.</dd>
+  <dt>idade.Value</dt><dd>"O valor": devolve o <code>int</code> que está guardado. Só funciona quando há valor; com <code>null</code>, o programa quebra (você verá isso daqui a pouco).</dd>
+</dl>
+
+<h3>Qualquer tipo de valor ganha o seu <code>?</code></h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>Guarda</th><th>Exemplo do dia a dia</th></tr>
+<tr><td><code>int?</code></td><td>um inteiro ou <code>null</code></td><td>a nota de uma prova que talvez ainda não foi feita</td></tr>
+<tr><td><code>double?</code></td><td>um número com vírgula ou <code>null</code></td><td>a altura que a pessoa não informou</td></tr>
+<tr><td><code>decimal?</code></td><td>um valor em dinheiro ou <code>null</code></td><td>o preço de um produto que ainda não foi cadastrado</td></tr>
+<tr><td><code>bool?</code></td><td><code>true</code>, <code>false</code> ou <code>null</code></td><td>"aceitou os termos?": sim, não ou ainda não respondeu</td></tr>
+<tr><td><code>char?</code></td><td>uma letra ou <code>null</code></td><td>a turma ("A", "B"…) de um aluno ainda não matriculado</td></tr>
+</table>
+</div>
+
+<div class="note">
+<strong>O nome completo: <code>Nullable&lt;int&gt;</code></strong>
+<p><code>int?</code> é um apelido curto. O nome de verdade do tipo é <code>Nullable&lt;int&gt;</code> ("anulável de int"). As duas linhas abaixo são idênticas para o compilador:</p>
+<pre class="file" data-file="trecho">int? a = 5;
+Nullable&lt;int&gt; b = 5;
+</pre>
+<p>Use sempre a forma curta, <code>int?</code>. Mas reconheça a longa: ela aparece nas mensagens de exceção, como <code>System.Nullable`1.get_Value()</code>, que você verá mais abaixo. Os sinais <code>&lt; &gt;</code> são assunto de <a href="generics.html">Generics</a>.</p>
+</div>
+
+<h3>Um array de anuláveis começa em branco</h3>
+<p>Um <code>new int[3]</code> nasce cheio de zeros. Um <code>new int?[3]</code> nasce cheio de <code>null</code>: o "valor padrão" de um tipo anulável é <code>null</code>.</p>
+
+<pre class="file" data-file="arr.cs">int?[] notas = new int?[3];
+notas[1] = 9;
+for (int i = 0; i &lt; notas.Length; i++)
+    Console.WriteLine($"notas[{i}] = [{notas[i]}]");
+int[] zeros = new int[3];
+Console.WriteLine(zeros[0]);
+</pre>
+
+<pre class="term">$ dotnet run arr.cs
+notas[0] = []
+notas[1] = [9]
+notas[2] = []
+0                  « o int comum começa em 0</pre>
+
+<hr>
+
+<h2>Perguntar se há valor</h2>
+<p>Antes de usar um anulável, pergunte se ele tem valor. A planilha da professora vira código assim:</p>
+
+<pre class="file" data-file="fichas.cs">int? notaBia = 0;
+int? notaCaio = null;
+
+Console.WriteLine($"Bia:  [{notaBia}]  tem nota? {notaBia.HasValue}");
+Console.WriteLine($"Caio: [{notaCaio}]  tem nota? {notaCaio.HasValue}");
+
+if (notaCaio == null)
+    Console.WriteLine("O Caio ainda não fez a prova.");
+if (notaBia is not null)
+    Console.WriteLine($"A Bia tirou {notaBia.Value}.");
+</pre>
+
+<pre class="term">$ dotnet run fichas.cs
+Bia:  [0]  tem nota? True       « zero É um valor
+Caio: []  tem nota? False
+O Caio ainda não fez a prova.
+A Bia tirou 0.</pre>
+
+<p>Repare na primeira linha da saída: a nota 0 da Bia <strong>tem valor</strong>. É exatamente a diferença da planilha: 0 é uma nota, <code>null</code> é a falta dela. Há quatro jeitos de perguntar, e todos dão a mesma resposta:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Lê-se</th><th>Verdade quando…</th></tr>
+<tr><td><code>nota.HasValue</code></td><td>"nota tem valor"</td><td>há um número</td></tr>
+<tr><td><code>nota != null</code></td><td>"nota é diferente de nulo"</td><td>há um número</td></tr>
+<tr><td><code>nota is not null</code></td><td>"nota não é nulo"</td><td>há um número</td></tr>
+<tr><td><code>nota == null</code> ou <code>nota is null</code></td><td>"nota é nulo"</td><td>está em branco</td></tr>
+</table>
+</div>
+
+<h3 id="is-int"><code>is int n</code>: perguntar e pegar de uma vez</h3>
+<p>Muitas vezes você pergunta "tem valor?" só para, na linha seguinte, pegar o valor. O C# junta as duas coisas:</p>
+
+<pre class="file" data-file="trecho">if (notaBia is int n)
+    Console.WriteLine($"A Bia tirou {n}.");
+</pre>
+
+<p>Leia como: "se <code>notaBia</code> <strong>é um</strong> <code>int</code>, chame esse <code>int</code> de <code>n</code>". Quando há valor, a condição é verdadeira e a variável <code>n</code> (um <code>int</code> comum, sem <code>?</code>) já nasce com o número. Quando é <code>null</code>, a condição é falsa e o bloco não roda. Esse recurso se chama <em>pattern matching</em> e tem uma aula inteira: <a href="pattern-matching.html">Pattern Matching</a>.</p>
+
+<div class="trycs">
+<p class="try-task"><strong>Brinque com o código:</strong> troque a nota do Caio para <code>7</code> e rode de novo. Depois troque a da Bia para <code>null</code>. O que muda em cada linha? Tente também trocar <code>notaBia.Value</code> por <code>notaBia</code> e veja que o resultado é o mesmo dentro do <code>$"…"</code>.</p>
+<pre class="script" data-file="fichas.cs">int? notaBia = 0;
+int? notaCaio = null;
+
+Console.WriteLine($"Bia:  [{notaBia}]  tem nota? {notaBia.HasValue}");
+Console.WriteLine($"Caio: [{notaCaio}]  tem nota? {notaCaio.HasValue}");
+
+if (notaCaio == null)
+    Console.WriteLine("O Caio ainda não fez a prova.");
+if (notaBia is int n)
+    Console.WriteLine($"A Bia tirou {n}.");
+</pre>
+</div>
+
+<hr>
+
+<h2>Pegar o valor: três caminhos</h2>
+<p>Um <code>int?</code> não entra direto numa variável <code>int</code>. O compilador não deixa, porque o <code>int</code> não teria onde pôr o <code>null</code>:</p>
+
+<pre class="file" data-file="erro2.cs — com erro de propósito">int? nota = 7;
+int total = nota;
+Console.WriteLine(total);
+</pre>
+
+<pre class="term">$ dotnet run erro2.cs
+/home/ana/cs/erro2.cs(2,13): error CS0266: Não é possível converter implicitamente tipo "int?" em "int". Existe uma conversão explícita (há uma conversão ausente?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Mesmo que, nesse caso, a nota seja 7: o compilador olha o <strong>tipo</strong>, e o tipo <code>int?</code> pode ser <code>null</code>. Você precisa dizer o que fazer. Os três caminhos:</p>
+
+<pre class="file" data-file="valor.cs">int? bonus = null;
+int? nota = 7;
+
+Console.WriteLine(nota.Value);
+Console.WriteLine((int)nota);
+Console.WriteLine(bonus.GetValueOrDefault());
+Console.WriteLine(bonus.GetValueOrDefault(10));
+Console.WriteLine(nota.GetValueOrDefault(10));
+</pre>
+
+<pre class="term">$ dotnet run valor.cs
+7
+7
+0                  « bonus é null: veio o padrão do int, 0
+10                 « bonus é null: veio o padrão que você escolheu
+7                  « nota tem valor: o 10 foi ignorado</pre>
+
+<dl class="anatomy">
+  <dt>nota.Value</dt><dd>Devolve o <code>int</code> guardado. Se for <code>null</code>, o programa <strong>quebra</strong> com <code>InvalidOperationException</code>.</dd>
+  <dt>(int)nota</dt><dd>Um <a href="conversao-tipos.html">cast</a>: "eu garanto que isto é um <code>int</code>". É o mesmo que <code>.Value</code>, inclusive na quebra. É a "conversão explícita" de que a mensagem do <code>CS0266</code> fala.</dd>
+  <dt>bonus.GetValueOrDefault()</dt><dd>"Pegue o valor ou o padrão". Com valor, devolve o valor; com <code>null</code>, devolve o padrão do tipo (0 para <code>int</code>, <code>false</code> para <code>bool</code>). <strong>Nunca quebra.</strong></dd>
+  <dt>bonus.GetValueOrDefault(10)</dt><dd>O mesmo, mas com o padrão que <strong>você</strong> escolhe entre os parênteses.</dd>
+</dl>
+
+<div class="tip">
+<strong>Qual escolher?</strong>
+<p>Se você <strong>acabou de conferir</strong> que há valor (com <code>if (nota.HasValue)</code>), <code>.Value</code> é seguro. Se não conferiu, prefira <code>GetValueOrDefault(…)</code> ou o operador <code>??</code>, que faz a mesma coisa com menos letras: <code>bonus ?? 10</code>. Ele é o assunto da próxima aula, <a href="operadores-null.html">Operadores ??, ?. e ??=</a>.</p>
+</div>
+
+<div class="trycs" data-goal="out:Total: 50,src:GetValueOrDefault|\?\?">
+<p class="try-task"><strong>Missão:</strong> este programa não compila. Rode e leia o erro: <code>pontos + bonus</code> dá um <code>int?</code>, que não cabe em <code>int total</code>. Conserte a linha 3 usando <code>GetValueOrDefault()</code> no <code>bonus</code>, para que um bônus em branco valha 0. A saída deve ser <code>Total: 50</code>.</p>
+<pre class="script" data-file="pontos.cs">int? bonus = null;
+int pontos = 50;
+int total = pontos + bonus;
+Console.WriteLine($"Total: {total}");
+</pre>
+<pre class="solucao" data-file="pontos.cs">int? bonus = null;
+int pontos = 50;
+int total = pontos + bonus.GetValueOrDefault();
+Console.WriteLine($"Total: {total}");
+</pre>
+</div>
+
+<hr>
+
+<h2>Contas e comparações com <code>null</code></h2>
+<p>O que dá <code>7 + nada</code>? Para o C#, dá <strong>nada</strong>. Se um dos lados de uma conta é <code>null</code>, o resultado também é <code>null</code>. E uma comparação como <code>&gt;</code> ou <code>&lt;</code> com <code>null</code> é sempre <code>false</code>, porque não dá para dizer se "nada" é maior ou menor que 5:</p>
+
+<pre class="file" data-file="contas.cs">int? bonus = null;
+int? nota = 7;
+Console.WriteLine($"[{nota + bonus}]");
+Console.WriteLine($"[{nota + 1}]");
+Console.WriteLine(bonus &gt; 5);
+Console.WriteLine(bonus &lt; 5);
+Console.WriteLine(bonus == null);
+</pre>
+
+<pre class="term">$ dotnet run contas.cs
+[]                 « 7 + null = null
+[8]                « 7 + 1 = 8
+False              « null &gt; 5? não
+False              « null &lt; 5? também não!
+True</pre>
+
+<div class="warning">
+<strong>Cuidado com o "nem maior, nem menor"</strong>
+<p>Com números comuns, se <code>x &gt; 5</code> é falso, você pensa "então <code>x &lt;= 5</code>". Com <code>null</code>, os dois são falsos. Um <code>if (nota &gt;= 6) … else Console.WriteLine("Reprovado");</code> vai dizer "Reprovado" para quem <strong>ainda não fez a prova</strong>. Trate o <code>null</code> antes, com <code>if (nota is null)</code>.</p>
+</div>
+
+<hr>
+
+<h2 id="funcao">Um método que pode não ter resposta</h2>
+<p>Um bom uso do <code>int?</code> é como <a href="retorno.html">retorno</a> de um <a href="metodos.html">método</a> que às vezes não tem o que devolver. Este método tenta transformar um texto em número com <a href="parse.html"><code>int.TryParse</code></a> e devolve <code>null</code> quando o texto não é um número:</p>
+
+<pre class="file" data-file="ler.cs">int? LerNumero(string texto)
+{
+    if (int.TryParse(texto, out int numero))
+        return numero;
+    return null;
+}
+
+int? a = LerNumero("42");
+int? b = LerNumero("quarenta");
+Console.WriteLine($"a = [{a}], tem valor? {a.HasValue}");
+Console.WriteLine($"b = [{b}], tem valor? {b.HasValue}");
+</pre>
+
+<pre class="term">$ dotnet run ler.cs
+a = [42], tem valor? True
+b = [], tem valor? False</pre>
+
+<dl class="anatomy">
+  <dt>int? LerNumero(string texto)</dt><dd>O tipo de retorno é <code>int?</code>: o método promete devolver um número <strong>ou</strong> nada. Quem chama já sabe, pelo tipo, que precisa tratar o "nada".</dd>
+  <dt>return numero;</dt><dd>Um <code>int</code> comum vira <code>int?</code> automaticamente na volta.</dd>
+  <dt>return null;</dt><dd>Só é permitido porque o retorno é <code>int?</code>. Com retorno <code>int</code>, seria o erro <code>CS0037</code>.</dd>
+</dl>
+
+<p>Compare com devolver <code>0</code> ou <code>-1</code> para dizer "não deu": e se a pessoa digitou mesmo <code>0</code>? Com <code>int?</code>, o "não deu" nunca se confunde com um número de verdade.</p>
+
+<hr>
+
+<h2 id="string-null">Textos também podem ser <code>null</code></h2>
+<p>Uma <code>string</code> não é um tipo de valor: é um <strong>tipo de referência</strong> (a diferença está em <a href="valor-referencia.html">Valor × Referência</a>). A variável não guarda o texto em si, e sim o "endereço" de onde ele está. E um endereço pode ficar em branco: uma <code>string</code> pode valer <code>null</code>, que é diferente de <code>""</code> (um texto vazio, mas que existe).</p>
+<p>O perigo aparece quando você pede algo a um texto que não existe, como o tamanho dele:</p>
+
+<pre class="file" data-file="nre2.cs">string? nome = null;
+Console.WriteLine($"Nome: [{nome}]");
+Console.WriteLine(nome.Length);
+</pre>
+
+<pre class="term">$ dotnet run nre2.cs; echo "código: $?"
+/home/ana/cs/nre2.cs(3,19): warning CS8602: Desreferência de uma referência possivelmente nula.
+Nome: []
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/nre2.cs:line 3
+código: 134</pre>
+
+<dl class="anatomy">
+  <dt>warning CS8602</dt><dd>Antes de rodar, o compilador já <strong>avisou</strong>: "na linha 3, coluna 19, você usa algo que pode ser nulo". É um aviso, não um erro, então o programa roda mesmo assim.</dd>
+  <dt>Nome: []</dt><dd>Mostrar um <code>null</code> não quebra nada: sai em branco.</dd>
+  <dt>System.NullReferenceException</dt><dd>"Exceção de referência nula". A mensagem <code>Object reference not set to an instance of an object</code> quer dizer "a referência não aponta para objeto nenhum". Não há texto, logo não há <code>.Length</code>.</dd>
+  <dt>line 3</dt><dd>A linha que quebrou. O programa parou ali.</dd>
+  <dt>código: 134</dt><dd>O código de saída de um programa que morreu por exceção não tratada, no Linux.</dd>
+</dl>
+
+<p>O <code>?</code> em <code>string?</code> e o aviso <code>CS8602</code> fazem parte do sistema de <strong>referências anuláveis</strong>, que ajuda o compilador a encontrar esses erros antes de o programa rodar. Ele tem uma aula própria: <a href="referencias-anulaveis.html">Referências Anuláveis (string?)</a>. Por enquanto, guarde a regra: <strong>nunca use <code>.</code> num valor que pode ser <code>null</code> sem conferir antes</strong>.</p>
+
+<hr>
+
+<h2>Formas diferentes e qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Forma</th><th>Quando usar</th></tr>
+<tr><td>saber se há valor</td><td><code>x.HasValue</code>, <code>x != null</code>, <code>x is not null</code></td><td>As três são iguais. <code>is not null</code> lê como português e também serve para <code>string</code>.</td></tr>
+<tr><td>saber e pegar o valor</td><td><code>if (x is int n)</code></td><td>Quando vai usar o número logo em seguida. O <code>n</code> é um <code>int</code> comum.</td></tr>
+<tr><td>pegar o valor sabendo que existe</td><td><code>x.Value</code> ou <code>(int)x</code></td><td>Só depois de conferir. Sem conferir, pode dar <code>InvalidOperationException</code>.</td></tr>
+<tr><td>pegar o valor ou um padrão</td><td><code>x.GetValueOrDefault(10)</code> ou <code>x ?? 10</code></td><td>Quando o branco tem um substituto óbvio. O <code>??</code> é o mais usado (<a href="operadores-null.html">próxima aula</a>).</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS0037: <code>null</code> num tipo que não aceita</strong>
+<pre class="term">$ dotnet run erro1.cs
+/home/ana/cs/erro1.cs(1,13): error CS0037: Não é possível converter o valor nulo em 'int' porque ele não é um tipo de valor não anulável
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> <code>int idade = null;</code>. Um <code>int</code> sempre tem um número; não há lugar para "nada".</p>
+<p><strong>Como resolver:</strong> se o branco faz sentido, use <code>int? idade = null;</code>. Se não faz, dê um número de verdade.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0266: <code>int?</code> não cabe em <code>int</code></strong>
+<pre class="term">$ dotnet run erro2.cs
+/home/ana/cs/erro2.cs(2,13): error CS0266: Não é possível converter implicitamente tipo "int?" em "int". Existe uma conversão explícita (há uma conversão ausente?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> <code>int total = nota;</code>, com <code>nota</code> do tipo <code>int?</code>. O mesmo erro aparece em <code>int total = pontos + bonus;</code>: a soma com um <code>int?</code> também é <code>int?</code>.</p>
+<p><strong>Como resolver:</strong> decida o que fazer com o branco: <code>nota.GetValueOrDefault()</code> (ou <code>nota ?? 0</code>), ou confira antes e use <code>nota.Value</code>. Mudar <code>total</code> para <code>int?</code> também resolve, se o total puder ficar em branco.</p>
+</div>
+
+<div class="cenario">
+<strong><code>Nullable object must have a value</code></strong>
+<pre class="file" data-file="erro3.cs — com erro de propósito">int? nota = null;
+int total = nota.Value;
+Console.WriteLine(total);
+</pre>
+<pre class="term">$ dotnet run erro3.cs; echo "código: $?"
+/home/ana/cs/erro3.cs(2,13): warning CS8629: O tipo de valor de nulidade pode ser nulo.
+Unhandled exception. System.InvalidOperationException: Nullable object must have a value.
+   at System.Nullable`1.get_Value()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/erro3.cs:line 2
+código: 134</pre>
+<p><strong>O que aconteceu:</strong> o código pediu o <code>.Value</code> de um anulável vazio. A exceção diz "o objeto anulável precisa ter um valor". A linha <code>System.Nullable`1.get_Value()</code> é o nome interno da propriedade <code>Value</code> do <code>Nullable&lt;int&gt;</code>. O cast <code>(int)nota</code> quebra do mesmo jeito. O compilador até avisou antes, com o <code>CS8629</code> ("o tipo de valor anulável pode ser nulo"; a tradução oficial é estranha mesmo).</p>
+<p><strong>Como resolver:</strong> confira antes (<code>if (nota.HasValue)</code> ou <code>if (nota is int n)</code>) ou use <code>nota.GetValueOrDefault()</code>. Leve os avisos a sério: este estava certo.</p>
+</div>
+
+<div class="cenario">
+<strong><code>NullReferenceException</code>: usar um texto que não existe</strong>
+<pre class="term">$ dotnet run nre2.cs; echo "código: $?"
+/home/ana/cs/nre2.cs(3,19): warning CS8602: Desreferência de uma referência possivelmente nula.
+Nome: []
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/nre2.cs:line 3
+código: 134</pre>
+<p><strong>O que aconteceu:</strong> <code>nome.Length</code> com <code>nome</code> valendo <code>null</code>. É a exceção mais comum do C#: qualquer <code>.</code> depois de algo nulo (<code>.Length</code>, <code>.ToUpper()</code>, <code>.Nome</code>…) a provoca.</p>
+<p><strong>Como resolver:</strong> confira antes (<code>if (nome is not null)</code>) ou use os operadores da <a href="operadores-null.html">próxima aula</a>, como <code>nome?.Length</code>. E preste atenção no aviso <code>CS8602</code>: ele apontou a linha exata antes de o programa rodar.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1061: <code>HasValue</code> num <code>int</code> comum</strong>
+<pre class="term">$ dotnet run e4.cs
+/home/ana/cs/e4.cs(2,25): error CS1061: ‘int’ não contém uma definição para "HasValue" e não foi possível encontrar nenhum método de extensão "HasValue" que aceite um primeiro argumento do tipo ‘int’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> <code>int idade = 29; Console.WriteLine(idade.HasValue);</code>. <code>HasValue</code>, <code>Value</code> e <code>GetValueOrDefault</code> só existem nos tipos anuláveis. Um <code>int</code> comum sempre tem valor, então não tem o que perguntar.</p>
+<p><strong>Como resolver:</strong> se a variável pode ficar em branco, declare-a como <code>int?</code>. Se não pode, apague a pergunta.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>null</code></td><td>Nenhum valor. Diferente de <code>0</code>, de <code>""</code> e de <code>false</code>.</td></tr>
+<tr><td><code>int?</code>, <code>double?</code>, <code>bool?</code>…</td><td>Tipo anulável: o tipo de valor ou <code>null</code>. O mesmo que <code>Nullable&lt;int&gt;</code>.</td></tr>
+<tr><td><code>x.HasValue</code></td><td><code>true</code> se há valor</td></tr>
+<tr><td><code>x == null</code>, <code>x is null</code></td><td><code>true</code> se está em branco</td></tr>
+<tr><td><code>x != null</code>, <code>x is not null</code></td><td><code>true</code> se há valor</td></tr>
+<tr><td><code>x is int n</code></td><td><code>true</code> se há valor, e o põe em <code>n</code></td></tr>
+<tr><td><code>x.Value</code>, <code>(int)x</code></td><td>O valor; <code>InvalidOperationException</code> se for <code>null</code></td></tr>
+<tr><td><code>x.GetValueOrDefault()</code></td><td>O valor, ou o padrão do tipo (0, <code>false</code>…)</td></tr>
+<tr><td><code>x.GetValueOrDefault(p)</code></td><td>O valor, ou <code>p</code></td></tr>
+<tr><td><code>x + y</code> com um <code>null</code></td><td><code>null</code></td></tr>
+<tr><td><code>x &gt; y</code>, <code>x &lt; y</code> com um <code>null</code></td><td><code>false</code></td></tr>
+<tr><td><code>new int?[n]</code></td><td>Array com <code>n</code> posições, todas <code>null</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missão final: a média de quem fez a prova</h2>
+<div class="trycs" data-goal="out:Provas feitas: 3,out:Média: 8">
+<p class="try-task"><strong>Missão:</strong> a turma tem 5 alunos, mas 2 faltaram (<code>null</code>). O programa trata o branco como 0 e divide por 5, e a média sai <code>4,8</code>: errada! Mude o laço para somar e contar <strong>só as notas que existem</strong> (use <code>if (nota.HasValue)</code> ou <code>if (nota is int n)</code>). A saída deve ser <code>Provas feitas: 3</code> e <code>Média: 8</code>.</p>
+<pre class="script" data-file="media.cs">int?[] notas = { 8, null, 6, null, 10 };
+double soma = 0;
+int feitas = 0;
+foreach (int? nota in notas)
+{
+    soma += nota.GetValueOrDefault();
+    feitas++;
+}
+Console.WriteLine($"Provas feitas: {feitas}");
+Console.WriteLine($"Média: {soma / feitas}");
+</pre>
+<pre class="solucao" data-file="media.cs">int?[] notas = { 8, null, 6, null, 10 };
+double soma = 0;
+int feitas = 0;
+foreach (int? nota in notas)
+{
+    if (nota.HasValue)
+    {
+        soma += nota.Value;
+        feitas++;
+    }
+}
+Console.WriteLine($"Provas feitas: {feitas}");
+Console.WriteLine($"Média: {soma / feitas}");
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Declarar um anulável</h3>
+<p>Complete para criar a variável <code>altura</code>, um <code>double</code> que pode ficar em branco, começando sem valor:</p>
+<div class="ex-code"><input data-answer="double?" aria-label="tipo"> altura = null;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Tem valor?</h3>
+<p>Complete com a propriedade que diz se <code>nota</code> tem valor:</p>
+<div class="ex-code">if (nota.<input data-answer="HasValue" aria-label="propriedade">)</div>
+</div>
+
+<div class="exercise">
+<h3>3. Valor ou padrão</h3>
+<p>Complete para que <code>total</code> receba o bônus, ou 5 se o bônus estiver em branco, sem nunca quebrar:</p>
+<div class="ex-code">int total = bonus.<input data-answer="GetValueOrDefault(5)" aria-label="método">;</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. O que mostra <code>int? x = null; Console.WriteLine($"[{x}]");</code>?</p>
+<label><input type="radio" name="q4"> <code>[null]</code></label>
+<label><input type="radio" name="q4"> <code>[0]</code></label>
+<label><input type="radio" name="q4"> <code>[]</code></label>
+<label><input type="radio" name="q4"> Uma <code>NullReferenceException</code>.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Com <code>int? nota = null;</code>, quanto vale <code>nota &lt; 6</code>?</p>
+<label><input type="radio" name="q5"> <code>true</code>, porque nada é menor que 6.</label>
+<label><input type="radio" name="q5"> <code>false</code>.</label>
+<label><input type="radio" name="q5"> <code>null</code>.</label>
+<label><input type="radio" name="q5"> Não compila.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Qual destas linhas pode quebrar o programa com <code>InvalidOperationException</code> quando <code>nota</code> é <code>null</code>?</p>
+<label><input type="radio" name="q6"> <code>nota.HasValue</code></label>
+<label><input type="radio" name="q6"> <code>nota.GetValueOrDefault()</code></label>
+<label><input type="radio" name="q6"> <code>nota == null</code></label>
+<label><input type="radio" name="q6"> <code>nota.Value</code></label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>null</code> é a <strong>falta de valor</strong>: não é 0, nem <code>""</code>, nem <code>false</code>.</li>
+  <li>Tipos de valor (<code>int</code>, <code>double</code>, <code>bool</code>…) não aceitam <code>null</code>: erro <code>CS0037</code>. Com <code>?</code> (<code>int?</code>, o mesmo que <code>Nullable&lt;int&gt;</code>), aceitam.</li>
+  <li>Pergunte antes de usar: <code>HasValue</code>, <code>!= null</code>, <code>is not null</code>, ou pergunte e pegue com <code>is int n</code>.</li>
+  <li><code>int?</code> não entra em <code>int</code> (<code>CS0266</code>). Pegue o valor com <code>.Value</code>/<code>(int)</code> (quebram com <code>null</code>: <code>InvalidOperationException</code>) ou com <code>GetValueOrDefault(…)</code>, que nunca quebra.</li>
+  <li>Conta com <code>null</code> dá <code>null</code>; <code>&gt;</code> e <code>&lt;</code> com <code>null</code> dão <code>false</code>.</li>
+  <li><code>string</code> também pode ser <code>null</code>. Usar <code>.</code> num <code>null</code> dá <code>NullReferenceException</code>, código de saída 134. O aviso <code>CS8602</code> avisa antes.</li>
+  <li>Próxima aula: <a href="operadores-null.html"><code>??</code>, <code>?.</code> e <code>??=</code></a>, os atalhos para lidar com <code>null</code> em uma linha.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
