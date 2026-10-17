@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Propriedades — get, set, auto-propriedades e field | Guia C#</title>
+<meta name="description" content="Propriedades em C# para quem nunca programou: o problema dos campos públicos, get e set com campo de apoio, value, auto-propriedades { get; set; }, private set, propriedades calculadas com =>, a palavra-chave field do C# 14 e os erros reais CS0200, CS0272, CS8618, CS9260 e o Stack overflow, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Propriedades (get e set)</span></h1>
+
+<p class="intro">Na aula <a href="campos.html">Campos</a>, um campo <code>public</code> deixava qualquer linha do programa pôr qualquer valor nele, até um preço negativo. Uma <strong>propriedade</strong> resolve isso: por fora, ela se usa igualzinho a um campo (<code>p.Preco = 7.90m;</code>); por dentro, cada leitura passa por um <code>get</code> e cada gravação passa por um <code>set</code>, onde a classe pode conferir o valor. Propriedades estão em todo código C#: <code>texto.Length</code>, <code>lista.Count</code> e <code>nota.HasValue</code> são propriedades.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Por que campos <code>public</code> são perigosos e como uma propriedade os protege.</li>
+  <li>A anatomia de uma propriedade: <code>get</code>, <code>set</code>, a palavra <code>value</code> e o campo de apoio.</li>
+  <li>As <strong>auto-propriedades</strong>: <code>public string Nome { get; set; } = "";</code>.</li>
+  <li>Propriedades só de leitura: <code>{ get; }</code>, <code>{ get; private set; }</code> e as <strong>calculadas</strong>, com <code>=&gt;</code>.</li>
+  <li>A palavra-chave <code>field</code> do <span class="versao">C# 14</span>: validar sem escrever o campo de apoio.</li>
+  <li>Os erros reais: <code>CS0200</code>, <code>CS0272</code>, <code>CS8618</code>, <code>CS9260</code> e o <code>Stack overflow</code> de uma propriedade que chama a si mesma.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com <code>dotnet run arquivo.cs</code> na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), com o .NET 10 SDK (C# 14), na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código: o balcão da farmácia</h2>
+<p>Numa farmácia, você não entra no estoque e pega o remédio da prateleira. Você pede no <strong>balcão</strong>, e o farmacêutico confere a receita antes de entregar. Para quem está do lado de fora, parece simples: "me dá esse remédio". Por dentro, há uma regra sendo cumprida.</p>
+<p>A propriedade é o balcão. O <strong>campo privado</strong> é a prateleira. O <code>get</code> é o farmacêutico entregando; o <code>set</code> é o farmacêutico recebendo uma reposição e conferindo se ela está certa.</p>
+
+<hr>
+
+<h2>O problema: o campo aceita qualquer coisa</h2>
+
+<pre class="file" data-file="p1.cs">Produto p = new Produto();
+p.Nome = "maçã";
+p.Preco = -5m;
+Console.WriteLine($"{p.Nome}: {p.Preco:C}");
+
+class Produto
+{
+    public string Nome = "";
+    public decimal Preco;
+}
+</pre>
+
+<pre class="term">$ dotnet run p1.cs
+maçã: -R$ 5,00</pre>
+
+<p>Uma maçã com preço negativo: a lojinha pagaria o cliente para levar a fruta. Nada impediu, porque um campo <code>public</code> é uma prateleira aberta. A Ana precisa de um lugar para a regra "preço não pode ser negativo".</p>
+
+<hr>
+
+<h2>Uma propriedade completa: <code>get</code> e <code>set</code></h2>
+
+<pre class="file" data-file="p2.cs">Produto p = new Produto();
+p.Preco = 7.90m;
+Console.WriteLine($"Preço: {p.Preco:C}");
+p.Preco = -5m;
+Console.WriteLine($"Preço: {p.Preco:C}");
+
+class Produto
+{
+    private decimal _preco;
+
+    public decimal Preco
+    {
+        get
+        {
+            return _preco;
+        }
+        set
+        {
+            if (value &lt; 0)
+            {
+                Console.WriteLine($"Preço inválido: {value}. Mantido {_preco:C}.");
+                return;
+            }
+            _preco = value;
+        }
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run p2.cs
+Preço: R$ 7,90
+Preço inválido: -5. Mantido R$ 7,90.     « o set recusou o -5
+Preço: R$ 7,90</pre>
+
+<dl class="anatomy">
+  <dt>private decimal _preco;</dt><dd>O <strong>campo de apoio</strong> (<em>backing field</em>): a prateleira, onde o valor fica guardado de verdade. É <code>private</code>, então só a classe mexe nele.</dd>
+  <dt>public decimal Preco { … }</dt><dd>A <strong>propriedade</strong>. Parece a declaração de um campo, mas, em vez de <code>;</code>, tem um bloco com <code>get</code> e <code>set</code>. Sem parênteses: não é um método. O nome é o do campo sem o <code>_</code>, em PascalCase.</dd>
+  <dt>get { return _preco; }</dt><dd>"Pegar". Roda toda vez que alguém <strong>lê</strong> <code>p.Preco</code> (como no <code>$"{p.Preco:C}"</code>). Tem de devolver um valor do tipo da propriedade.</dd>
+  <dt>set { … }</dt><dd>"Definir". Roda toda vez que alguém <strong>grava</strong> <code>p.Preco = …</code>.</dd>
+  <dt>value</dt><dd>Dentro do <code>set</code>, <code>value</code> ("valor") é o que veio do lado direito do <code>=</code>. Em <code>p.Preco = -5m;</code>, <code>value</code> vale <code>-5</code>. Você não declara <code>value</code>: ele já existe em todo <code>set</code>.</dd>
+  <dt>_preco = value;</dt><dd>Só chega aqui se o valor passou na conferência. Aí, sim, ele vai para a prateleira.</dd>
+</dl>
+
+<p>Repare nas linhas 2 e 4: por fora, nada mudou. <code>p.Preco = 7.90m;</code> continua parecendo uma atribuição a um campo. Quem usa a classe nem precisa saber que existe uma regra ali dentro. Essa é a ideia do <a href="encapsulamento.html">encapsulamento</a>.</p>
+
+<div class="tip">
+<strong>Recusar em silêncio, avisar ou lançar uma exceção?</strong>
+<p>Neste exemplo, o <code>set</code> mostra uma mensagem e mantém o preço antigo, para você ver o que aconteceu. Em programas de verdade, o mais comum é <strong>lançar uma exceção</strong> (<code>throw</code>), que interrompe quem tentou gravar o valor errado. Você verá um exemplo na seção do <a href="#field"><code>field</code></a>, e a explicação completa em <a href="throw.html">throw</a>.</p>
+</div>
+
+<h3>Com <code>=&gt;</code>, mais curto</h3>
+<p>Quando um <code>get</code> ou <code>set</code> tem uma linha só, dá para usar a flecha <code>=&gt;</code> (lê-se "vai para"), sem chaves e sem <code>return</code>:</p>
+
+<pre class="file" data-file="trecho">private string _nome = "";
+
+public string Nome
+{
+    get =&gt; _nome;
+    set =&gt; _nome = value.Trim();
+}
+</pre>
+
+<p>Este <code>set</code> tira os espaços do começo e do fim de todo nome gravado (veja <a href="metodos-string.html">Métodos de String</a>). É a mesma propriedade escrita com <code>get { return _nome; }</code> e <code>set { _nome = value.Trim(); }</code>.</p>
+
+<div class="trycs" data-goal="out:Preço: R$ 7\,90,src:\bset\b">
+<p class="try-task"><strong>Missão:</strong> o <code>Preco</code> desta classe ainda é um campo, e o preço termina negativo. Transforme-o numa propriedade com um campo de apoio <code>private decimal _preco;</code>, cujo <code>set</code> só grave o valor se ele for maior ou igual a 0. A saída deve ser <code>Preço: R$ 7,90</code>. Não mude as instruções do topo.</p>
+<pre class="script" data-file="preco.cs">Produto p = new Produto();
+p.Preco = 7.90m;
+p.Preco = -5m;
+Console.WriteLine($"Preço: {p.Preco:C}");
+
+class Produto
+{
+    public decimal Preco;
+}
+</pre>
+<pre class="solucao" data-file="preco.cs">Produto p = new Produto();
+p.Preco = 7.90m;
+p.Preco = -5m;
+Console.WriteLine($"Preço: {p.Preco:C}");
+
+class Produto
+{
+    private decimal _preco;
+
+    public decimal Preco
+    {
+        get =&gt; _preco;
+        set
+        {
+            if (value &gt;= 0)
+                _preco = value;
+        }
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="auto">Auto-propriedades: <code>{ get; set; }</code></h2>
+<p>Muitas propriedades não têm regra nenhuma: o <code>get</code> só devolve o campo, e o <code>set</code> só grava. Para esses casos, o C# escreve o campo de apoio por você. É a <strong>auto-propriedade</strong>, a forma mais comum de todas:</p>
+
+<pre class="file" data-file="p3.cs">Aluno a = new Aluno();
+a.Nome = "Bia";
+a.Nota1 = 8.0;
+a.Nota2 = 9.0;
+Console.WriteLine($"{a.Nome}: média {a.Media}");
+a.Nota2 = 6.0;
+Console.WriteLine($"{a.Nome}: média {a.Media}");
+
+class Aluno
+{
+    public string Nome { get; set; } = "";
+    public double Nota1 { get; set; }
+    public double Nota2 { get; set; }
+    public double Media =&gt; (Nota1 + Nota2) / 2;
+}
+</pre>
+
+<pre class="term">$ dotnet run p3.cs
+Bia: média 8,5
+Bia: média 7         « a Média foi recalculada sozinha depois da troca da nota</pre>
+
+<dl class="anatomy">
+  <dt>public double Nota1 { get; set; }</dt><dd>Uma auto-propriedade: <code>get;</code> e <code>set;</code> sem corpo. O compilador cria um campo de apoio escondido, sem nome que você possa usar. Por fora, é uma propriedade completa.</dd>
+  <dt>{ get; set; } = "";</dt><dd>O valor inicial vem <strong>depois</strong> das chaves, com <code>;</code> no fim. Sem ele, um <code>string</code> nasceria <code>null</code> e geraria o aviso <code>CS8618</code>, igual aos campos.</dd>
+  <dt>public double Media =&gt; (Nota1 + Nota2) / 2;</dt><dd>Uma <strong>propriedade calculada</strong>: não guarda nada; cada leitura de <code>a.Media</code> faz a conta na hora, com as notas atuais. É o mesmo que <code>public double Media { get { return (Nota1 + Nota2) / 2; } }</code>. Ela só tem <code>get</code>, então ninguém consegue gravar nela.</dd>
+</dl>
+
+<div class="note">
+<strong>Por que não um campo <code>public</code>, se a auto-propriedade não tem regra?</strong>
+<p>Porque amanhã ela pode ganhar uma. Se <code>Nota1</code> é uma propriedade, você pode trocar o <code>set;</code> por um <code>set</code> que recusa notas acima de 10, e nenhuma linha que usa <code>a.Nota1</code> precisa mudar. Com um campo, mudar para propriedade depois quebra outras partes de programas maiores. Por isso a regra do C#: <strong>o que é <code>public</code> é propriedade</strong>; campos ficam <code>private</code>.</p>
+</div>
+
+<hr>
+
+<h2 id="leitura">Propriedades só de leitura</h2>
+<p>Às vezes, quem está fora pode <strong>ler</strong> mas não pode <strong>mudar</strong>. Há três jeitos:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Quem pode gravar</th><th>Exemplo de uso</th></tr>
+<tr><td><code>public int Cliques { get; private set; }</code></td><td>Só os métodos da própria classe</td><td>Um contador que só aumenta pelo <code>Somar()</code></td></tr>
+<tr><td><code>public decimal Total =&gt; Preco * Quantidade;</code></td><td>Ninguém: é calculada</td><td>Média, total, idade a partir do ano de nascimento</td></tr>
+<tr><td><code>public string Codigo { get; }</code></td><td>Só o <a href="construtores.html">construtor</a>, ao criar o objeto</td><td>Um código que nunca muda depois de criado</td></tr>
+</table>
+</div>
+
+<p>O <code>private set</code> é o contador da aula de campos, agora sem o método <code>Valor()</code>:</p>
+
+<pre class="file" data-file="p5.cs">Contador c = new Contador();
+c.Somar();
+c.Somar();
+Console.WriteLine($"Cliques: {c.Cliques}");
+
+class Contador
+{
+    public int Cliques { get; private set; }
+
+    public void Somar()
+    {
+        Cliques++;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run p5.cs
+Cliques: 2</pre>
+
+<p>De fora, <code>c.Cliques</code> se lê normalmente. Uma linha <code>c.Cliques = 100;</code> no topo seria recusada com o erro <code>CS0272</code> (veja <a href="#erros">Quando dá errado</a>). Existe ainda o <code>init</code>, que deixa gravar só no momento da criação do objeto: ele está em <a href="readonly.html">readonly e init</a>.</p>
+
+<hr>
+
+<h2 id="field">A palavra-chave <code>field</code> <span class="versao">C# 14</span></h2>
+<p>Até o C# 13, havia um salto grande entre as duas formas: ou a auto-propriedade, sem regra nenhuma, ou a propriedade completa, com o campo de apoio escrito à mão. Bastava querer uma conferência no <code>set</code> para ter de declarar o <code>_preco</code>.</p>
+<p>O C# 14 trouxe a palavra <strong><code>field</code></strong> ("campo"): dentro de um <code>get</code> ou <code>set</code>, ela é o campo de apoio que o compilador cria sozinho. Você escreve só o acessor que tem regra, e deixa o outro como <code>get;</code>:</p>
+
+<pre class="file" data-file="p6.cs">Produto p = new Produto();
+p.Preco = 7.90m;
+Console.WriteLine($"Preço: {p.Preco:C}");
+p.Preco = -5m;
+
+class Produto
+{
+    public decimal Preco
+    {
+        get;
+        set
+        {
+            if (value &lt; 0)
+                throw new ArgumentException("O preço não pode ser negativo.");
+            field = value;
+        }
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run p6.cs; echo "código: $?"
+Preço: R$ 7,90
+Unhandled exception. System.ArgumentException: O preço não pode ser negativo.
+   at Produto.set_Preco(Decimal value) in /home/ana/cs/p6.cs:line 14
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/p6.cs:line 4
+código: 134</pre>
+
+<dl class="anatomy">
+  <dt>get;</dt><dd>Sem corpo, como numa auto-propriedade: devolve o campo de apoio.</dd>
+  <dt>field = value;</dt><dd>Grava no campo de apoio automático. Nenhum <code>private decimal _preco;</code> foi declarado.</dd>
+  <dt>throw new ArgumentException(…)</dt><dd>Lança uma <strong>exceção</strong> com a mensagem escolhida: o programa para ali mesmo, como em todo erro não tratado (código 134). <code>ArgumentException</code> = "argumento inválido". Você vai aprender a lançar e a tratar exceções em <a href="throw.html">throw</a> e <a href="try-catch.html">try e catch</a>.</dd>
+  <dt>at Produto.set_Preco(Decimal value) … line 14</dt><dd>Por dentro, o <code>set</code> de <code>Preco</code> é um método chamado <code>set_Preco</code> (e o <code>get</code>, <code>get_Preco</code>). A pilha mostra: quebrou na linha 14, dentro do <code>set</code>, chamado pela linha 4 (<code>p.Preco = -5m;</code>).</dd>
+</dl>
+
+<p>Também dá para usar <code>field</code> com <code>=&gt;</code>: <code>set =&gt; field = value &lt; 0 ? 0 : value;</code> troca preços negativos por zero (o <code>? :</code> é o <a href="ternario.html">operador ternário</a>).</p>
+
+<p>Em versões antigas, <code>field</code> não existe. Pedindo o C# 13 ao compilador, com a linha <code>#:property LangVersion=13</code> no topo do arquivo:</p>
+
+<pre class="term">$ dotnet run p7.cs
+/home/ana/cs/p7.cs(8,20): error CS9260: O recurso "campo palavra-chave" não está disponível no C# 13.0. Use a versão da linguagem 14.0 ou superior.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O "campo palavra-chave" é a tradução (ao pé da letra) de <em>field keyword</em>. Em código feito antes do .NET 10, você vai encontrar sempre o campo de apoio escrito à mão, como no <code>p2.cs</code>.</p>
+
+<div class="warning">
+<strong>E se a classe já tiver algo chamado <code>field</code>?</strong>
+<p>Dentro de um acessor, <code>field</code> passou a ser a palavra-chave. Se a classe tinha um campo de verdade chamado <code>field</code>, o compilador avisa:</p>
+<pre class="term">$ dotnet run q3.cs
+/home/ana/cs/q3.cs(8,27): warning CS9258: Na versão da linguagem 14.0, a palavra-chave ''field'' é associada a um campo de suporte sintetizado para a propriedade. Para evitar a geração de um campo de suporte sintetizado e para se referir ao membro existente, use 'this.field' ou '@field'.</pre>
+<p>Ou seja: ali, <code>field</code> já não é o seu campo, e sim o campo de apoio automático ("sintetizado"). Para falar do campo antigo, escreva <code>this.field</code> ou <code>@field</code>. É raro, mas pode aparecer ao atualizar um projeto antigo para o C# 14.</p>
+</div>
+
+<hr>
+
+<h2>Formas diferentes e qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Escrita</th></tr>
+<tr><td>um dado simples, sem regra</td><td><code>public string Nome { get; set; } = "";</code></td></tr>
+<tr><td>uma regra ao gravar <span class="versao">C# 14</span></td><td><code>public decimal Preco { get; set { … field = value; } }</code></td></tr>
+<tr><td>uma regra ao gravar (antes do C# 14, ou quando o campo é usado por outros métodos)</td><td><code>private decimal _preco;</code> + <code>get =&gt; _preco; set { … _preco = value; }</code></td></tr>
+<tr><td>só a classe pode mudar</td><td><code>public int Cliques { get; private set; }</code></td></tr>
+<tr><td>um valor que é sempre uma conta</td><td><code>public double Media =&gt; (Nota1 + Nota2) / 2;</code></td></tr>
+<tr><td>gravar só ao criar</td><td><code>{ get; }</code> com construtor, ou <code>{ get; init; }</code> (<a href="readonly.html">readonly e init</a>)</td></tr>
+<tr><td>esconder de todo mundo</td><td>um campo <code>private</code>, sem propriedade</td></tr>
+</table>
+</div>
+
+<p>Propriedade calculada ou método? Use propriedade quando o resultado é uma <strong>característica</strong> rápida de obter (<code>Media</code>, <code>Total</code>, <code>Length</code>). Use método quando é uma <strong>ação</strong> ou dá trabalho (<code>Vender()</code>, <code>CalcularFrete()</code>, <code>SalvarNoArquivo()</code>).</p>
+
+<hr>
+
+<h2 id="erros">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS0200: gravar numa propriedade só de leitura</strong>
+<pre class="file" data-file="p4.cs — com erro de propósito">Aluno a = new Aluno();
+a.Media = 10;
+
+class Aluno
+{
+    public double Nota1 { get; set; }
+    public double Nota2 { get; set; }
+    public double Media =&gt; (Nota1 + Nota2) / 2;
+}
+</pre>
+<pre class="term">$ dotnet run p4.cs
+/home/ana/cs/p4.cs(2,1): error CS0200: A propriedade ou o indexador "Aluno.Media" não pode ser atribuído, pois é somente leitura
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> <code>Media</code> só tem <code>get</code> (é calculada). Não há <code>set</code> para receber o 10.</p>
+<p><strong>Como resolver:</strong> mude o que a média usa: as notas (<code>a.Nota1 = 10; a.Nota2 = 10;</code>). Se a propriedade realmente precisa ser gravada, ela deixa de ser calculada e ganha um <code>set</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0272: o <code>set</code> é <code>private</code></strong>
+<pre class="term">$ dotnet run p5.cs
+/home/ana/cs/p5.cs(5,1): error CS0272: A propriedade ou o indexador "Contador.Cliques" não pode ser usado neste contexto porque o acessador set é inacessível
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> a linha 5 era <code>c.Cliques = 100;</code>, mas <code>Cliques</code> é <code>{ get; private set; }</code>. Ler pode; gravar, só de dentro da classe. "Acessador" é o nome do <code>get</code> e do <code>set</code>.</p>
+<p><strong>Como resolver:</strong> use o método que a classe oferece (<code>c.Somar()</code>). O <code>private set</code> está ali de propósito.</p>
+</div>
+
+<div class="cenario">
+<strong><code>Stack overflow</code>: a propriedade chama a si mesma</strong>
+<pre class="file" data-file="p8.cs — com erro de propósito">Produto p = new Produto();
+p.Preco = 7.90m;
+Console.WriteLine(p.Preco);
+
+class Produto
+{
+    public decimal Preco
+    {
+        get { return Preco; }
+        set { Preco = value; }
+    }
+}
+</pre>
+<pre class="term">$ dotnet run p8.cs; echo "código: $?"
+Stack overflow.
+Repeated 174521 times:
+--------------------------------
+   at Produto.set_Preco(System.Decimal)
+--------------------------------
+   at Program.&lt;Main&gt;$(System.String[])
+código: 134</pre>
+<p><strong>O que aconteceu:</strong> dentro do <code>set</code>, <code>Preco = value;</code> grava <strong>na própria propriedade</strong>, o que chama o <code>set</code> de novo, que grava na propriedade, que chama o <code>set</code>… É uma <a href="recursao.html">recursão</a> sem fim. Cada chamada ocupa um pedaço da memória de chamadas (a "pilha"), até ela transbordar (<em>stack overflow</em>). O .NET mostra quantas vezes o <code>set_Preco</code> se repetiu (o número muda de uma execução para outra) e encerra o programa. O compilador não avisou nada.</p>
+<p><strong>Como resolver:</strong> grave num campo de apoio, que tem outro nome: <code>_preco = value;</code> (com <code>private decimal _preco;</code>), ou <code>field = value;</code> no C# 14. Ou, se não há regra, use a auto-propriedade <code>{ get; set; }</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS8618: auto-propriedade <code>string</code> sem valor</strong>
+<pre class="term">$ dotnet run q2.cs
+/home/ana/cs/q2.cs(5,19): warning CS8618: O propriedade não anulável 'Nome' precisa conter um valor não nulo ao sair do construtor. Considere adicionar o modificador "obrigatório" ou declarar o propriedade como anulável.
+[]</pre>
+<p><strong>O que aconteceu:</strong> <code>public string Nome { get; set; }</code>, sem <code>= ""</code>. É o mesmo aviso dos <a href="campos.html#cs8618">campos</a> (com um "O propriedade" da tradução automática): o campo de apoio escondido nasce <code>null</code>.</p>
+<p><strong>Como resolver:</strong> <code>{ get; set; } = "";</code>, <code>string?</code>, ou um <a href="construtores.html">construtor</a> que exija o nome.</p>
+</div>
+
+<div class="cenario">
+<strong>CS9260: <code>field</code> numa versão antiga</strong>
+<pre class="term">$ dotnet run p7.cs
+/home/ana/cs/p7.cs(8,20): error CS9260: O recurso "campo palavra-chave" não está disponível no C# 13.0. Use a versão da linguagem 14.0 ou superior.</pre>
+<p><strong>O que aconteceu:</strong> o projeto (ou o <code>#:property LangVersion</code>) pede uma versão anterior ao C# 14.</p>
+<p><strong>Como resolver:</strong> use o .NET 10 com a versão padrão, ou escreva o campo de apoio à mão.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>public T Nome { get; set; }</code></td><td>Auto-propriedade: ler e gravar, sem regra</td></tr>
+<tr><td><code>{ get; set; } = valor;</code></td><td>Auto-propriedade com valor inicial</td></tr>
+<tr><td><code>get { return _campo; }</code> / <code>get =&gt; _campo;</code></td><td>O que roda ao ler</td></tr>
+<tr><td><code>set { _campo = value; }</code> / <code>set =&gt; _campo = value;</code></td><td>O que roda ao gravar; <code>value</code> é o valor novo</td></tr>
+<tr><td><code>field</code> <span class="versao">C# 14</span></td><td>Dentro de <code>get</code>/<code>set</code>: o campo de apoio automático</td></tr>
+<tr><td><code>{ get; private set; }</code></td><td>Todos leem; só a classe grava</td></tr>
+<tr><td><code>{ get; }</code></td><td>Só leitura; grava-se no construtor</td></tr>
+<tr><td><code>public T Nome =&gt; expressão;</code></td><td>Propriedade calculada (só <code>get</code>)</td></tr>
+<tr><td><code>get_Nome</code> / <code>set_Nome</code></td><td>Os nomes internos que aparecem nas exceções</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missão final: o boletim calculado</h2>
+<div class="trycs" data-goal="out:Bia: 8\,5 (Aprovada),out:Caio: 5 (Reprovada),compila">
+<p class="try-task"><strong>Missão:</strong> o programa usa <code>a.Media</code> e <code>a.Situacao</code>, que ainda não existem (rode e veja o <code>CS1061</code>). Acrescente à classe duas <strong>propriedades calculadas</strong> com <code>=&gt;</code>: <code>Media</code>, a média das duas notas, e <code>Situacao</code>, que vale <code>"Aprovada"</code> se a média for 6 ou mais e <code>"Reprovada"</code> se não (dica: o ternário <code>Media &gt;= 6 ? "Aprovada" : "Reprovada"</code>).</p>
+<pre class="script" data-file="boletim.cs">Aluno bia = new Aluno();
+bia.Nome = "Bia";
+bia.Nota1 = 8.0;
+bia.Nota2 = 9.0;
+
+Aluno caio = new Aluno();
+caio.Nome = "Caio";
+caio.Nota1 = 4.0;
+caio.Nota2 = 6.0;
+
+foreach (Aluno a in new Aluno[] { bia, caio })
+    Console.WriteLine($"{a.Nome}: {a.Media} ({a.Situacao})");
+
+class Aluno
+{
+    public string Nome { get; set; } = "";
+    public double Nota1 { get; set; }
+    public double Nota2 { get; set; }
+}
+</pre>
+<pre class="solucao" data-file="boletim.cs">Aluno bia = new Aluno();
+bia.Nome = "Bia";
+bia.Nota1 = 8.0;
+bia.Nota2 = 9.0;
+
+Aluno caio = new Aluno();
+caio.Nome = "Caio";
+caio.Nota1 = 4.0;
+caio.Nota2 = 6.0;
+
+foreach (Aluno a in new Aluno[] { bia, caio })
+    Console.WriteLine($"{a.Nome}: {a.Media} ({a.Situacao})");
+
+class Aluno
+{
+    public string Nome { get; set; } = "";
+    public double Nota1 { get; set; }
+    public double Nota2 { get; set; }
+    public double Media =&gt; (Nota1 + Nota2) / 2;
+    public string Situacao =&gt; Media &gt;= 6 ? "Aprovada" : "Reprovada";
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Auto-propriedade</h3>
+<p>Complete a auto-propriedade <code>Idade</code>, que pode ser lida e gravada:</p>
+<div class="ex-code">public int Idade { <input data-answer="get; set;" aria-label="acessores"> }</div>
+</div>
+
+<div class="exercise">
+<h3>2. O valor novo</h3>
+<p>Dentro de um <code>set</code>, qual palavra guarda o valor que está sendo gravado?</p>
+<div class="ex-code"><input data-answer="value" aria-label="palavra"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Só a classe grava</h3>
+<p>Complete para que todos possam ler <code>Pontos</code>, mas só a própria classe possa mudar:</p>
+<div class="ex-code">public int Pontos { get; <input data-answer="private set;" aria-label="set"> }</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Em <code>p.Preco = 9.90m;</code>, sendo <code>Preco</code> uma propriedade, o que roda?</p>
+<label><input type="radio" name="q4"> O <code>get</code>.</label>
+<label><input type="radio" name="q4"> O <code>set</code>, com <code>value</code> valendo <code>9.90</code>.</label>
+<label><input type="radio" name="q4"> Nenhum: o valor vai direto para o campo.</label>
+<label><input type="radio" name="q4"> O construtor.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. O que a palavra <code>field</code> do C# 14 representa dentro de um <code>set</code>?</p>
+<label><input type="radio" name="q5"> O valor que está chegando.</label>
+<label><input type="radio" name="q5"> O objeto inteiro.</label>
+<label><input type="radio" name="q5"> O campo de apoio que o compilador cria sozinho.</label>
+<label><input type="radio" name="q5"> Um campo <code>public</code>.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Por que <code>set { Preco = value; }</code>, dentro da própria propriedade <code>Preco</code>, derruba o programa?</p>
+<label><input type="radio" name="q6"> Porque <code>value</code> não existe.</label>
+<label><input type="radio" name="q6"> Porque falta o <code>get</code>.</label>
+<label><input type="radio" name="q6"> Porque não compila.</label>
+<label><input type="radio" name="q6"> Porque o <code>set</code> chama a si mesmo sem parar, até estourar a pilha (<code>Stack overflow</code>).</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Propriedade = um "campo com porteiro": por fora, <code>p.Preco = 7.90m;</code>; por dentro, <code>get</code> (ler) e <code>set</code> (gravar, com <code>value</code>).</li>
+  <li>O valor fica num <strong>campo de apoio</strong> <code>private</code>: escrito à mão (<code>_preco</code>), automático (auto-propriedade) ou acessado com <code>field</code> <span class="versao">C# 14</span>.</li>
+  <li><code>public string Nome { get; set; } = "";</code> é a forma mais comum. O que é <code>public</code> é propriedade; campos ficam <code>private</code>.</li>
+  <li>Só leitura: <code>{ get; private set; }</code>, <code>{ get; }</code> e as calculadas com <code>=&gt;</code>. Gravar nelas de fora: <code>CS0200</code> ou <code>CS0272</code>.</li>
+  <li>Nunca grave na própria propriedade dentro do <code>set</code>: <code>Stack overflow</code>, código 134.</li>
+  <li>Próxima aula: <a href="construtores.html">Construtores</a>, para cada objeto já nascer com os dados certos.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
