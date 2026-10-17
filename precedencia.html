@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Precedência — a ordem dos operadores | Guia C#</title>
+<meta name="description" content="Precedência e associatividade dos operadores em C# para quem nunca programou: por que 2 + 3 * 4 dá 14, a média sem parênteses, &quot;Total: &quot; + 2 + 3 dá Total: 23, o cast (double)soma / 2, a tabela completa do C# 14 e os erros reais CS0019 e CS1026 do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Precedência</span></h1>
+
+<p class="intro">Quanto é <code>2 + 3 * 4</code>? Se você fizer da esquerda para a direita, dá 20. Se fizer a multiplicação primeiro, dá 14. O C# precisa de uma regra para decidir, e essa regra se chama <strong>precedência</strong>: a ordem em que os operadores são calculados quando aparecem juntos. Nesta aula você vai ver essa ordem, o que acontece quando dois operadores têm a mesma prioridade, os erros clássicos (a média sem parênteses e o texto que "gruda" nos números) e como os parênteses resolvem tudo.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é precedência e por que <code>2 + 3 * 4</code> dá 14.</li>
+  <li>A <strong>associatividade</strong>: por que <code>10 - 4 - 3</code> dá 3 e <code>a = b = 7</code> funciona.</li>
+  <li>Os erros clássicos: a média sem parênteses e <code>"Total: " + 2 + 3</code> mostrando <code>Total: 23</code>.</li>
+  <li>Onde o <code>(double)</code>, o <code>!</code>, as comparações e o <code>&amp;&amp;</code>/<code>||</code> entram na fila.</li>
+  <li>A tabela completa dos operadores do C# e a regra de ouro: <strong>na dúvida, parênteses</strong>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: a fila do caixa preferencial</h2>
+<p>Numa fila de supermercado com atendimento preferencial, quem tem prioridade passa na frente, mesmo tendo chegado depois. Entre duas pessoas com a mesma prioridade, vale a ordem de chegada.</p>
+<p>Numa conta, os operadores são as pessoas da fila. A <strong>precedência</strong> diz quem tem prioridade (a multiplicação passa na frente da soma). A <strong>associatividade</strong> diz o que fazer quando dois têm a mesma prioridade (quase sempre, quem está mais à esquerda vai primeiro). E os <strong>parênteses</strong> são o gerente: o que está dentro deles é atendido antes de tudo.</p>
+
+<hr>
+
+<h2>1. Multiplicação antes da soma</h2>
+<p>O C# segue a mesma ordem da matemática da escola: <code>*</code>, <code>/</code> e <code>%</code> (o resto da divisão) vêm antes de <code>+</code> e <code>-</code>.</p>
+
+<pre class="file" data-file="conta.cs">Console.WriteLine(2 + 3 * 4);
+Console.WriteLine((2 + 3) * 4);
+Console.WriteLine(10 - 2 % 3);
+Console.WriteLine(-2 * -3);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run conta.cs
+14      « 3 * 4 = 12 primeiro; depois 2 + 12
+20      « os parênteses mandaram fazer 2 + 3 primeiro
+8       « 2 % 3 = 2 primeiro (o resto de 2 dividido por 3); depois 10 - 2
+6       « o sinal de menos "grudado" no número vem antes de tudo</pre>
+
+<dl class="anatomy">
+  <dt>2 + 3 * 4</dt><dd>O <code>*</code> tem prioridade maior que o <code>+</code>, então o C# calcula <code>3 * 4</code> mesmo ele estando à direita. Pense assim: o C# coloca parênteses invisíveis, <code>2 + (3 * 4)</code>.</dd>
+  <dt>(2 + 3) * 4</dt><dd>Os parênteses têm a palavra final: o que está dentro deles é calculado primeiro.</dd>
+  <dt>10 - 2 % 3</dt><dd>O <code>%</code> está no mesmo nível do <code>*</code> e do <code>/</code> (aula <a href="operadores-aritmeticos.html">Operadores Aritméticos</a>).</dd>
+  <dt>-2 * -3</dt><dd>Um <code>-</code> na frente de um valor, sem nada à esquerda, é o <strong>menos unário</strong> ("o oposto de"). Ele, o <code>!</code> e o <code>(double)</code> ficam no topo da fila: são feitos antes de qualquer conta.</dd>
+</dl>
+
+<hr>
+
+<h2>2. Mesma prioridade: da esquerda para a direita</h2>
+<p>Quando os operadores têm a mesma prioridade, o C# vai da <strong>esquerda para a direita</strong>. Isso se chama associatividade à esquerda, e muda o resultado da subtração e da divisão:</p>
+
+<pre class="file" data-file="esquerda.cs">Console.WriteLine(10 - 4 - 3);
+Console.WriteLine(100 / 10 / 2);
+Console.WriteLine(10 / 3 * 3);
+Console.WriteLine(10 * 3 / 3);
+int a;
+int b;
+a = b = 7;
+Console.WriteLine(a + " " + b);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run esquerda.cs
+3       « (10 - 4) - 3, e não 10 - (4 - 3) = 9
+5       « (100 / 10) / 2, e não 100 / (10 / 2) = 20
+9       « (10 / 3) * 3 = 3 * 3: a divisão de inteiros já jogou fora o resto
+10      « (10 * 3) / 3 = 30 / 3
+7 7     « a = (b = 7): a atribuição vai da direita para a esquerda</pre>
+
+<p>As linhas 3 e 4 mostram que, com inteiros, até a ordem de <code>*</code> e <code>/</code> faz diferença: <code>10 / 3</code> dá 3 (sem a parte quebrada), e aí não tem volta.</p>
+<p>A exceção é a <strong>atribuição</strong>, que vai da <strong>direita para a esquerda</strong>: em <code>a = b = 7</code>, primeiro <code>b = 7</code> (que dá 7) e depois <code>a = 7</code>. Funciona, mas uma atribuição por linha é mais fácil de ler.</p>
+
+<hr>
+
+<h2>3. O erro clássico: a média</h2>
+<p>A Ana tirou 7 e 8. A média é 7,5. Veja o que acontece sem parênteses:</p>
+
+<pre class="file" data-file="media.cs">double nota1 = 7;
+double nota2 = 8;
+Console.WriteLine(nota1 + nota2 / 2);
+Console.WriteLine((nota1 + nota2) / 2);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run media.cs
+11      « 7 + (8 / 2) = 7 + 4
+7,5     « (7 + 8) / 2 = 15 / 2</pre>
+
+<p>O programa <strong>compila e roda</strong>, sem erro nem aviso, e mostra uma média de 11, maior que as duas notas. Erros de precedência são assim: o compilador não tem como saber o que você queria. Por isso, sempre que uma conta tiver soma e divisão juntas, pergunte-se: "qual parte vem primeiro?" e escreva os parênteses.</p>
+
+<div class="trycs" data-goal="out:Média: 7\,5,src:\(\s*nota1\s*\+\s*nota2\s*\)">
+<p class="try-task"><strong>Missão:</strong> o boletim da Ana mostra a média errada. Ponha os parênteses para a média de 7 e 8 aparecer como <code>Média: 7,5</code>. Depois teste com três notas (lembre de dividir por 3).</p>
+<pre class="out">Média: 7,5</pre>
+<pre class="script" data-file="boletim.cs">double nota1 = 7;
+double nota2 = 8;
+double media = nota1 + nota2 / 2;
+Console.WriteLine("Média: " + media);
+</pre>
+<pre class="solucao" data-file="boletim.cs">double nota1 = 7;
+double nota2 = 8;
+double media = (nota1 + nota2) / 2;
+Console.WriteLine("Média: " + media);
+</pre>
+</div>
+
+<hr>
+
+<h2>4. Quando o <code>+</code> junta textos</h2>
+<p>O <code>+</code> tem dois trabalhos: somar números e <strong>juntar textos</strong> (aula <a href="strings.html">Strings</a>). Quando um dos lados é texto, o outro vira texto e os dois são colados. Junte isso com a regra "da esquerda para a direita" e veja:</p>
+
+<pre class="file" data-file="texto.cs">Console.WriteLine("Total: " + 2 + 3);
+Console.WriteLine(2 + 3 + " itens");
+Console.WriteLine("Total: " + (2 + 3));
+Console.WriteLine("Dobro: " + 2 * 3);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run texto.cs
+Total: 23     « ("Total: " + 2) + 3 = "Total: 2" + 3 = "Total: 23"
+5 itens       « (2 + 3) + " itens" = 5 + " itens"
+Total: 5      « os parênteses fizeram a soma antes
+Dobro: 6      « o * vem antes do +, então 2 * 3 foi feito primeiro</pre>
+
+<ol class="passo">
+  <li><strong>Linha 1:</strong> o primeiro <code>+</code> encontra um texto (<code>"Total: "</code>) e um número (2). Resultado: o texto <code>"Total: 2"</code>. O segundo <code>+</code> encontra outro texto e o 3: cola de novo. Nenhuma soma foi feita.</li>
+  <li><strong>Linha 2:</strong> agora os números vêm primeiro: <code>2 + 3</code> são dois números, então é soma (5). Só depois aparece o texto.</li>
+  <li><strong>Linha 4:</strong> o <code>*</code> tem prioridade sobre o <code>+</code>, então <code>2 * 3</code> é calculado antes de encontrar o texto. Funciona, mas os parênteses deixam mais claro: <code>"Dobro: " + (2 * 3)</code>.</li>
+</ol>
+
+<p>O mesmo vale com as comparações (que ficam <strong>abaixo</strong> do <code>+</code> na fila): <code>"Pode votar? " + idade &gt;= 16</code> não compila, como você viu em <a href="operadores-comparacao.html">Operadores de Comparação</a>. A interpolação, <code>$"Total: {2 + 3}"</code>, evita esse problema de vez (aula <a href="interpolacao.html">Interpolação</a>).</p>
+
+<hr>
+
+<h2>5. O cast vem antes da divisão</h2>
+<p>O <code>(double)</code> (aula <a href="conversao-tipos.html">Conversão de Tipos</a>) está no topo da fila, junto com o menos unário. Ele pega só o valor que vem logo depois dele:</p>
+
+<pre class="file" data-file="cast.cs">int soma = 15;
+Console.WriteLine((double)soma / 2);
+Console.WriteLine((double)(soma / 2));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run cast.cs
+7,5     « ((double)soma) / 2 = 15,0 / 2: divisão de double
+7       « (double)(15 / 2) = (double)7: a divisão de inteiros já tinha jogado fora o ,5</pre>
+
+<p>Na primeira linha, o <code>soma</code> vira <code>15.0</code> <strong>antes</strong> da divisão, e a conta é feita com vírgula. Na segunda, os parênteses mandaram dividir primeiro (entre inteiros, 7) e só depois converter: tarde demais.</p>
+
+<hr>
+
+<h2>6. Comparações, <code>&amp;&amp;</code> e <code>||</code> na fila</h2>
+<p>As contas vêm antes das comparações, que vêm antes do <code>&amp;&amp;</code>, que vem antes do <code>||</code>. Por isso esta linha funciona sem nenhum parêntese:</p>
+
+<pre class="file" data-file="tudo.cs">int idade = 70;
+bool estudante = false;
+decimal total = 80m;
+bool desconto = estudante || idade &gt;= 60 + 5 &amp;&amp; total &gt; 50m;
+Console.WriteLine(desconto);
+Console.WriteLine(!estudante == true);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tudo.cs
+True
+True</pre>
+
+<p>Na linha 4, o C# lê assim, passo a passo:</p>
+<ol class="passo">
+  <li><code>60 + 5</code> → <code>65</code> (conta primeiro).</li>
+  <li><code>idade &gt;= 65</code> → <code>true</code> e <code>total &gt; 50m</code> → <code>true</code> (comparações).</li>
+  <li><code>true &amp;&amp; true</code> → <code>true</code> (o <code>&amp;&amp;</code> antes do <code>||</code>).</li>
+  <li><code>estudante || true</code> → <code>true</code>.</li>
+</ol>
+<p>Na linha 6, o <code>!</code> pega só o <code>estudante</code> (é unário, vem antes de tudo): <code>(!estudante) == true</code>. Funciona, mas ninguém quer fazer esse passo a passo para entender uma linha. Compare com a versão com parênteses: <code>estudante || (idade &gt;= 65 &amp;&amp; total &gt; 50m)</code>. Os detalhes de <code>&amp;&amp;</code> × <code>||</code> estão em <a href="operadores-logicos.html">Operadores Lógicos</a>.</p>
+
+<hr>
+
+<h2>A tabela completa</h2>
+<p>Do que é feito <strong>primeiro</strong> (no topo) para o que é feito <strong>por último</strong>. Os operadores da mesma linha têm a mesma prioridade. Você não precisa decorar: as linhas destacadas em negrito são as que aparecem todo dia.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Nível</th><th>Operadores</th><th>Nome</th><th>Associatividade</th></tr>
+<tr><td>1</td><td><code>x.y</code> <code>f(x)</code> <code>a[i]</code> <code>x?.y</code> <code>x++</code> <code>x--</code> <code>new</code> <code>typeof</code> <code>nameof</code></td><td>primários</td><td>→</td></tr>
+<tr><td><strong>2</strong></td><td><strong><code>-x</code> <code>+x</code> <code>!x</code> <code>++x</code> <code>--x</code> <code>(T)x</code></strong> <code>~x</code> <code>^x</code> <code>await</code></td><td><strong>unários e cast</strong></td><td>—</td></tr>
+<tr><td>3</td><td><code>x..y</code></td><td>intervalo (<a href="indices-intervalos.html">Índices e Intervalos</a>)</td><td>—</td></tr>
+<tr><td>4</td><td><code>switch</code> <code>with</code></td><td>expressões <code>switch</code> e <code>with</code></td><td>—</td></tr>
+<tr><td><strong>5</strong></td><td><strong><code>*</code> <code>/</code> <code>%</code></strong></td><td><strong>multiplicação, divisão, resto</strong></td><td>→</td></tr>
+<tr><td><strong>6</strong></td><td><strong><code>+</code> <code>-</code></strong></td><td><strong>soma, subtração, juntar textos</strong></td><td>→</td></tr>
+<tr><td>7</td><td><code>&lt;&lt;</code> <code>&gt;&gt;</code> <code>&gt;&gt;&gt;</code></td><td>deslocamento de bits</td><td>→</td></tr>
+<tr><td><strong>8</strong></td><td><strong><code>&lt;</code> <code>&gt;</code> <code>&lt;=</code> <code>&gt;=</code></strong> <code>is</code> <code>as</code></td><td><strong>comparação</strong> e teste de tipo</td><td>→</td></tr>
+<tr><td><strong>9</strong></td><td><strong><code>==</code> <code>!=</code></strong></td><td><strong>igualdade</strong></td><td>→</td></tr>
+<tr><td>10</td><td><code>&amp;</code></td><td>E sem curto-circuito / de bits</td><td>→</td></tr>
+<tr><td>11</td><td><code>^</code></td><td>OU exclusivo</td><td>→</td></tr>
+<tr><td>12</td><td><code>|</code></td><td>OU sem curto-circuito / de bits</td><td>→</td></tr>
+<tr><td><strong>13</strong></td><td><strong><code>&amp;&amp;</code></strong></td><td><strong>E</strong></td><td>→</td></tr>
+<tr><td><strong>14</strong></td><td><strong><code>||</code></strong></td><td><strong>OU</strong></td><td>→</td></tr>
+<tr><td>15</td><td><code>??</code></td><td>"se for null, use…" (<a href="operadores-null.html">Operadores ??, ?. e ??=</a>)</td><td>←</td></tr>
+<tr><td>16</td><td><code>c ? a : b</code></td><td>ternário (<a href="ternario.html">Operador Ternário</a>)</td><td>←</td></tr>
+<tr><td><strong>17</strong></td><td><strong><code>=</code> <code>+=</code> <code>-=</code> <code>*=</code> <code>/=</code></strong> <code>%=</code> <code>??=</code> … <code>=&gt;</code></td><td><strong>atribuição</strong> e lambda</td><td>←</td></tr>
+</table>
+</div>
+<p>"→" quer dizer "da esquerda para a direita" (<code>10 - 4 - 3</code> = <code>(10 - 4) - 3</code>); "←", "da direita para a esquerda" (<code>a = b = 7</code> = <code>a = (b = 7)</code>). Os operadores dos níveis 3, 4, 7, 10 a 12 e 15 aparecem mais tarde no guia; eles estão aqui para a tabela ficar completa.</p>
+
+<div class="tip">
+<strong>Um resumo de bolso</strong>
+<p><strong>unários</strong> (<code>- ! (double)</code>) → <strong>contas</strong> (<code>* / %</code>, depois <code>+ -</code>) → <strong>comparações</strong> (<code>&lt; &gt;</code>, depois <code>== !=</code>) → <strong>lógicos</strong> (<code>&amp;&amp;</code>, depois <code>||</code>) → <strong>atribuição</strong> (<code>=</code>). Fora isso, parênteses.</p>
+</div>
+
+<hr>
+
+<h2>Formas diferentes: parênteses que "não precisam"</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Sem parênteses</th><th>Com parênteses</th><th>Qual usar</th></tr>
+<tr><td><code>a + b * c</code></td><td><code>a + (b * c)</code></td><td>Sem: todo mundo conhece a regra da escola.</td></tr>
+<tr><td><code>"Dobro: " + 2 * 3</code></td><td><code>"Dobro: " + (2 * 3)</code></td><td>Com: texto e conta juntos confundem.</td></tr>
+<tr><td><code>x &gt; 0 &amp;&amp; y &gt; 0</code></td><td><code>(x &gt; 0) &amp;&amp; (y &gt; 0)</code></td><td>Sem: as comparações já vêm antes do <code>&amp;&amp;</code>, e o código fica limpo.</td></tr>
+<tr><td><code>a || b &amp;&amp; c</code></td><td><code>a || (b &amp;&amp; c)</code></td><td>Com: pouca gente lembra que <code>&amp;&amp;</code> vem antes, e o compilador do C# não avisa.</td></tr>
+<tr><td><code>(double)soma / n</code></td><td><code>((double)soma) / n</code></td><td>Sem: é a forma que você vai ver em todo lugar.</td></tr>
+</table>
+</div>
+<p>A regra prática: parênteses que deixam a intenção clara são bem-vindos, mesmo quando não mudam o resultado. Parênteses demais, em volta de cada pedaço, atrapalham a leitura. Quando a expressão ficar enorme, divida em variáveis com bons nomes: <code>bool idoso = idade &gt;= 65;</code>.</p>
+
+<hr>
+
+<h2 id="erros">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>O resultado está errado e não há erro nem aviso</strong>
+<p><strong>O que significa:</strong> é o sintoma típico de precedência: <code>nota1 + nota2 / 2</code> no lugar de <code>(nota1 + nota2) / 2</code>, ou <code>"Total: " + 2 + 3</code> no lugar de <code>"Total: " + (2 + 3)</code>.</p>
+<p><strong>Como consertar:</strong> faça a conta à mão, passo a passo, seguindo a tabela; onde o seu passo a passo for diferente do que você queria, ponha parênteses.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0019: O operador "-" não pode ser aplicado a operandos dos tipos "string" e "int"</code></strong>
+<pre class="file" data-file="ep1.cs">int compras = 10;
+int devolvidas = 3;
+Console.WriteLine("Ficaram: " + compras - devolvidas);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ep1.cs
+/home/ana/cs/ep1.cs(3,19): error CS0019: O operador "-" não pode ser aplicado a operandos dos tipos "string" e "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> <code>+</code> e <code>-</code> têm a mesma prioridade e vão da esquerda para a direita. O C# fez <code>"Ficaram: " + compras</code> (o texto <code>"Ficaram: 10"</code>) e depois tentou tirar 3 de um texto. Com <code>+</code> no lugar do <code>-</code>, o erro seria pior, porque não haveria erro: apareceria <code>Ficaram: 103</code>.</p>
+<p><strong>Como consertar:</strong> <code>"Ficaram: " + (compras - devolvidas)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1026: ) esperado</code></strong>
+<pre class="file" data-file="ep2.cs">int x = 5;
+int y = 3;
+Console.WriteLine((x + y) * (x - y);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ep2.cs
+/home/ana/cs/ep2.cs(3,36): error CS1026: ) esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> há mais parênteses abrindo do que fechando. Conte: <code>WriteLine(</code>, <code>(x</code> e <code>(x</code> abrem três; <code>y)</code> e <code>y)</code> fecham dois. A coluna 36 é onde o C# esperava o que faltou, logo antes do <code>;</code>.</p>
+<p><strong>Como consertar:</strong> feche o que abriu: <code>Console.WriteLine((x + y) * (x - y));</code>. Muitos editores pintam o par de cada parêntese quando o cursor está nele.</p>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Faça a conta</h3>
+<p>Quanto vale <code>4 + 6 / 2</code>?</p>
+<div class="ex-code">Resposta: <input data-answer="7" aria-label="resultado"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Da esquerda para a direita</h3>
+<p>Quanto vale <code>20 - 5 - 5</code>?</p>
+<div class="ex-code">Resposta: <input data-answer="10" aria-label="resultado"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Texto e números</h3>
+<p>O que <code>Console.WriteLine(1 + 1 + "1" + 1);</code> mostra?</p>
+<div class="ex-code">Saída: <input data-answer="211" aria-label="saída"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Com <code>int soma = 9;</code>, quanto vale <code>(double)(soma / 2)</code>?</p>
+<label><input type="radio" name="q4"> 4,5</label>
+<label><input type="radio" name="q4"> 4</label>
+<label><input type="radio" name="q4"> 5</label>
+<label><input type="radio" name="q4"> Não compila.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Qual é calculado primeiro em <code>a || b &amp;&amp; c</code>?</p>
+<label><input type="radio" name="q5"> <code>a || b</code>, porque está à esquerda.</label>
+<label><input type="radio" name="q5"> Tanto faz: o resultado é sempre igual.</label>
+<label><input type="radio" name="q5"> <code>b &amp;&amp; c</code>, porque <code>&amp;&amp;</code> tem prioridade sobre <code>||</code>.</label>
+<label><input type="radio" name="q5"> Não compila sem parênteses.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que <code>"Ficaram: " + 10 - 3</code> não compila?</p>
+<label><input type="radio" name="q6"> Porque o <code>+</code> é feito primeiro e dá um texto, e não dá para tirar 3 de um texto.</label>
+<label><input type="radio" name="q6"> Porque o <code>-</code> tem prioridade sobre o <code>+</code>.</label>
+<label><input type="radio" name="q6"> Porque falta um espaço depois dos dois pontos.</label>
+<label><input type="radio" name="q6"> Porque <code>10 - 3</code> é negativo.</label>
+</div>
+
+<h3>Missão final: o total do pedido</h3>
+
+<div class="trycs" data-goal="out:Total: 30\,00,src:\+\s*\(">
+<p class="try-task"><strong>Missão:</strong> o pedido da lojinha tem 2 cadernos de R$ 12,50 e R$ 5,00 de frete. O programa mostra <code>Total: 25,005</code>, um número sem sentido. Descubra o que o C# fez (siga a tabela!) e ponha os parênteses para aparecer <code>Total: 30,00</code>.</p>
+<pre class="out">Total: 30,00</pre>
+<pre class="script" data-file="pedido.cs">decimal preco = 12.50m;
+int quantidade = 2;
+decimal frete = 5m;
+Console.WriteLine("Total: " + preco * quantidade + frete);
+</pre>
+<pre class="solucao" data-file="pedido.cs">decimal preco = 12.50m;
+int quantidade = 2;
+decimal frete = 5m;
+Console.WriteLine("Total: " + (preco * quantidade + frete));
+</pre>
+</div>
+
+<p>A explicação: o <code>*</code> foi feito primeiro (<code>25,00</code>, com as duas casas do <code>12.50m</code>), o primeiro <code>+</code> colou esse número no texto (<code>"Total: 25,00"</code>) e o segundo <code>+</code> colou o frete (<code>5</code>) no fim. Em <a href="formatacao.html">Formatar Números</a> você vai aprender a mostrar <code>R$ 30,00</code> do jeito certo.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><strong>Precedência</strong> é a ordem dos operadores: unários e cast → <code>* / %</code> → <code>+ -</code> → comparações → <code>== !=</code> → <code>&amp;&amp;</code> → <code>||</code> → <code>?:</code> → atribuição.</li>
+  <li><strong>Associatividade:</strong> na mesma prioridade, da esquerda para a direita (<code>10 - 4 - 3</code> = 3). A atribuição vai da direita para a esquerda.</li>
+  <li>A média precisa de parênteses: <code>(nota1 + nota2) / 2</code>.</li>
+  <li>Com texto, o <code>+</code> cola: <code>"Total: " + 2 + 3</code> dá <code>Total: 23</code>. Use <code>"Total: " + (2 + 3)</code> ou a interpolação.</li>
+  <li>O cast pega só o que vem depois: <code>(double)soma / 2</code> dá 7,5; <code>(double)(soma / 2)</code> dá 7.</li>
+  <li>Erros de precedência quase nunca dão erro de compilação: o resultado só fica errado. Na dúvida, parênteses.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
