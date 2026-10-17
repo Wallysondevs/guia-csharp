@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Classes Abstratas — abstract class e membros abstratos | Guia C#</title>
+<meta name="description" content="Classes abstratas em C# para quem está começando: abstract class, métodos e propriedades abstratos sem corpo, override obrigatório, construtor protected, os erros reais CS0144, CS0534, CS0500, CS0513 e CS0418 do dotnet 10 e quando usar classe abstrata ou interface.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Classes Abstratas</span></h1>
+
+<p class="intro">Na aula de <a href="polimorfismo.html">Polimorfismo</a>, a classe <code>Forma</code> tinha um método <code>Area()</code> que devolvia <code>0</code>. Era uma gambiarra: "forma" é uma ideia geral, sem área definida. Só um retângulo ou um círculo de verdade têm área. As <strong>classes abstratas</strong> são o jeito certo de escrever essas ideias gerais: uma classe que serve de modelo para as filhas, que não pode virar objeto sozinha e que pode <strong>obrigar</strong> as filhas a escrever certos métodos.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma classe abstrata (<code>abstract class</code>) e um método abstrato.</li>
+  <li>Por que não dá para criar um objeto de uma classe abstrata (o erro <code>CS0144</code>).</li>
+  <li>Como o compilador obriga as classes filhas a implementar os membros abstratos (<code>CS0534</code>).</li>
+  <li>Propriedades abstratas e o construtor <code>protected</code>.</li>
+  <li>Como misturar membros abstratos e métodos prontos na mesma classe.</li>
+  <li>Quando usar uma classe abstrata e quando usar uma interface.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com <code>dotnet run arquivo.cs</code> (veja <a href="dotnet-run.html">Rodar com dotnet run</a>) no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>. As mensagens do compilador estão em português, como no Ubuntu em pt-BR.</p>
+
+<hr>
+
+<h2>A ideia: "instrumento musical"</h2>
+<p>Numa loja de música, você pode comprar um violão, um piano, uma flauta. Mas não pode comprar "um instrumento musical", genérico. "Instrumento" é uma <strong>categoria</strong>: diz o que todos têm em comum (todo instrumento toca, tem um nome, tem um preço), mas não existe sozinho. E, embora todo instrumento toque, <strong>cada um toca de um jeito</strong>: não dá para escrever o "tocar" de um instrumento genérico.</p>
+
+<p>Em C#:</p>
+<ul>
+  <li>A categoria é uma <strong>classe abstrata</strong>: não se cria objeto dela (<code>new Instrumento()</code> é proibido).</li>
+  <li>O "todo instrumento toca, mas cada um do seu jeito" é um <strong>membro abstrato</strong>: declarado na classe abstrata, <strong>sem corpo</strong>, e escrito por cada classe filha com <code>override</code>.</li>
+</ul>
+
+<p>A palavra <code>abstract</code> ("abstrato") vem do latim <em>abstractus</em>, "separado, retirado": algo pensado em geral, separado dos casos concretos. O oposto é <strong>concreto</strong>: uma classe comum, de que se pode criar objetos.</p>
+
+<hr>
+
+<h2>Uma <code>Forma</code> abstrata</h2>
+
+<pre class="file" data-file="formas.cs">List&lt;Forma&gt; formas = [new Retangulo("Tapete", 2, 3), new Circulo("Mesa", 1)];
+foreach (Forma f in formas)
+{
+    Console.WriteLine(f.Descrever());
+}
+
+abstract class Forma
+{
+    public string Nome { get; }
+
+    protected Forma(string nome)
+    {
+        Nome = nome;
+    }
+
+    public abstract double Area();
+
+    public string Descrever()
+    {
+        return $"{Nome}: área {Area():F2}";
+    }
+}
+
+class Retangulo : Forma
+{
+    public double Largura { get; }
+    public double Altura { get; }
+
+    public Retangulo(string nome, double largura, double altura) : base(nome)
+    {
+        Largura = largura;
+        Altura = altura;
+    }
+
+    public override double Area()
+    {
+        return Largura * Altura;
+    }
+}
+
+class Circulo : Forma
+{
+    public double Raio { get; }
+
+    public Circulo(string nome, double raio) : base(nome)
+    {
+        Raio = raio;
+    }
+
+    public override double Area()
+    {
+        return Math.PI * Raio * Raio;
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>abstract class Forma</dt><dd>Uma classe abstrata. Pode ter campos, propriedades, construtores e métodos como qualquer classe, mas <strong>não pode</strong> ser instanciada com <code>new</code>.</dd>
+  <dt>public string Nome { get; }</dt><dd>Uma propriedade comum (veja <a href="propriedades.html">Propriedades</a>). Toda forma tem nome, e as filhas herdam essa propriedade pronta.</dd>
+  <dt>protected Forma(string nome)</dt><dd>Sim, classe abstrata tem construtor! Ele monta a "parte <code>Forma</code>" de cada objeto e é chamado pelas filhas com <code>: base(nome)</code> (veja <a href="base.html">base</a>). Ele é <code>protected</code> ("protegido"): só as filhas o enxergam. Como ninguém de fora pode fazer <code>new Forma</code>, um construtor <code>public</code> não teria utilidade.</dd>
+  <dt>public abstract double Area();</dt><dd>Um <strong>método abstrato</strong>: só a assinatura, terminada em <code>;</code>, <strong>sem chaves e sem corpo</strong>. Ele diz "toda forma tem área", sem dizer como calcular.</dd>
+  <dt>public string Descrever()</dt><dd>Um método comum (concreto), pronto, que todas as filhas herdam. Repare que ele <strong>usa</strong> <code>Area()</code>, mesmo sem saber como ela é calculada. O <code>:F2</code> mostra 2 casas decimais (veja <a href="formatacao.html">Formatar Números</a>).</dd>
+  <dt>class Retangulo : Forma</dt><dd>O <code>:</code> quer dizer "herda de" (veja <a href="heranca.html">Herança</a>).</dd>
+  <dt>public override double Area()</dt><dd>Em cada filha, a versão concreta. <code>override</code> = "sobrepor, substituir". Escrever um membro abstrato herdado também se chama <strong>implementar</strong> o membro. Em C#, o <code>override</code> é <strong>obrigatório</strong>: sem ele, o compilador não liga o método da filha ao da mãe (você verá o erro mais abaixo).</dd>
+</dl>
+
+<pre class="term">$ dotnet run formas.cs
+Tapete: área 6,00
+Mesa: área 3,14      « π × 1 × 1, com 2 casas</pre>
+
+<p>Veja como as peças se encaixam: o <code>Descrever()</code> foi escrito <strong>uma vez</strong>, em <code>Forma</code>. Ao rodar, ele chama <code>Area()</code>, e o <a href="polimorfismo.html">polimorfismo</a> escolhe a versão do objeto: a do retângulo para o tapete, a do círculo para a mesa. A classe abstrata escreve o "roteiro"; as filhas preenchem a parte que muda.</p>
+
+<p>Um membro abstrato funciona como um <code>virtual</code> (veja <a href="virtual-override.html">virtual e override</a>) <strong>sem</strong> versão padrão: o <code>virtual</code> diz "as filhas <em>podem</em> trocar"; o <code>abstract</code> diz "as filhas <em>têm de</em> escrever".</p>
+
+<div class="trycs" data-goal="out:Azulejo: área 4\,00,src:class\s+Quadrado\s*:\s*Forma">
+<p class="try-task"><strong>Missão:</strong> crie a classe <code>Quadrado</code>, que herda de <code>Forma</code>, recebe <code>nome</code> e <code>lado</code> no construtor (chamando <code>: base(nome)</code>) e implementa <code>Area()</code> como <code>Lado * Lado</code>. Acrescente <code>new Quadrado("Azulejo", 2)</code> à lista. A saída deve ter <code>Azulejo: área 4,00</code>. Para ver a obrigação em ação, rode também uma vez com a classe <code>Quadrado</code> <strong>sem</strong> o método <code>Area()</code>.</p>
+<pre class="script">List&lt;Forma&gt; formas = [new Retangulo("Tapete", 2, 3)];
+foreach (Forma f in formas)
+{
+    Console.WriteLine(f.Descrever());
+}
+
+abstract class Forma
+{
+    public string Nome { get; }
+
+    protected Forma(string nome)
+    {
+        Nome = nome;
+    }
+
+    public abstract double Area();
+
+    public string Descrever()
+    {
+        return $"{Nome}: área {Area():F2}";
+    }
+}
+
+class Retangulo : Forma
+{
+    public double Largura { get; }
+    public double Altura { get; }
+
+    public Retangulo(string nome, double largura, double altura) : base(nome)
+    {
+        Largura = largura;
+        Altura = altura;
+    }
+
+    public override double Area()
+    {
+        return Largura * Altura;
+    }
+}
+
+// crie aqui a classe Quadrado
+</pre>
+<pre class="solucao">List&lt;Forma&gt; formas = [new Retangulo("Tapete", 2, 3), new Quadrado("Azulejo", 2)];
+foreach (Forma f in formas)
+{
+    Console.WriteLine(f.Descrever());
+}
+
+abstract class Forma
+{
+    public string Nome { get; }
+
+    protected Forma(string nome)
+    {
+        Nome = nome;
+    }
+
+    public abstract double Area();
+
+    public string Descrever()
+    {
+        return $"{Nome}: área {Area():F2}";
+    }
+}
+
+class Retangulo : Forma
+{
+    public double Largura { get; }
+    public double Altura { get; }
+
+    public Retangulo(string nome, double largura, double altura) : base(nome)
+    {
+        Largura = largura;
+        Altura = altura;
+    }
+
+    public override double Area()
+    {
+        return Largura * Altura;
+    }
+}
+
+class Quadrado : Forma
+{
+    public double Lado { get; }
+
+    public Quadrado(string nome, double lado) : base(nome)
+    {
+        Lado = lado;
+    }
+
+    public override double Area()
+    {
+        return Lado * Lado;
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Não dá para instanciar</h2>
+<p>Uma forma genérica não tem área. Se fosse possível criar uma, o que <code>Descrever()</code> mostraria? O compilador corta o problema pela raiz. A Ana trocou as primeiras linhas do programa por esta:</p>
+
+<div class="warning">
+<strong>Este código tem um erro de propósito</strong>
+<pre class="file" data-file="instancia.cs">Forma f = new Forma("Coisa");
+
+// … as classes Forma, Retangulo e Circulo de antes
+</pre>
+</div>
+
+<pre class="term">$ dotnet run instancia.cs
+/home/ana/cs/instancia.cs(1,11): error CS0144: Não é possível criar uma instância do tipo abstrato ou da interface 'Forma'
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O <code>(1,11)</code> é a linha 1, coluna 11: exatamente onde começa o <code>new Forma</code>. Em inglês, a mensagem é <em>Cannot create an instance of the abstract type or interface 'Forma'</em> ("instanciar" = criar uma instância, um objeto). Repare que o problema é só o <code>new</code>. A <strong>variável</strong> do tipo <code>Forma</code> é permitida, e é muito útil: <code>Forma f = new Circulo("Mesa", 1);</code> funciona, e é assim que o polimorfismo usa as classes abstratas.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Com <code>abstract class Forma</code></th><th>Pode?</th></tr>
+<tr><td><code>new Forma("x")</code></td><td><strong>Não</strong> (<code>CS0144</code>)</td></tr>
+<tr><td><code>Forma f = new Circulo("Mesa", 1);</code></td><td>Sim</td></tr>
+<tr><td><code>List&lt;Forma&gt;</code>, <code>Forma[]</code>, <code>void Desenhar(Forma f)</code></td><td>Sim</td></tr>
+<tr><td><code>class Circulo : Forma</code></td><td>Sim (é para isso que ela existe)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>A obrigação das filhas</h2>
+<p>O membro abstrato é uma <strong>promessa</strong>: "toda forma concreta terá <code>Area()</code>". Por isso, uma filha concreta que esquece de implementá-lo não compila. A Ana apagou o <code>Area()</code> do <code>Circulo</code>:</p>
+
+<pre class="term">$ dotnet run semarea.cs
+/home/ana/cs/semarea.cs(41,7): error CS0534: "Circulo" não implementa membro abstrato herdado "Forma.Area()"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"<code>Circulo</code> não implementa o membro abstrato herdado <code>Forma.Area()</code>" (em inglês, <em>'Circulo' does not implement inherited abstract member 'Forma.Area()'</em>). A linha 41 é a do <code>class Circulo : Forma</code>. Há duas saídas:</p>
+<ol>
+  <li><strong>Implementar</strong> o método (o caso normal): escrever <code>public override double Area()</code> no <code>Circulo</code>.</li>
+  <li><strong>Declarar a filha também abstrata</strong>: <code>abstract class Poligono : Forma</code> pode deixar <code>Area()</code> para as filhas dela (<code>Triangulo</code>, <code>Hexagono</code>…). A obrigação só é cobrada da primeira classe <strong>concreta</strong> da família.</li>
+</ol>
+
+<p>Essa é a grande vantagem sobre a "gambiarra" do <code>return 0</code> da aula anterior: lá, quem esquecesse de sobrescrever teria uma área zero, em silêncio. Aqui, o programa nem compila.</p>
+
+<h3>Esqueceu o <code>override</code></h3>
+<p>Um erro muito comum de quem vem do Java ou do Python: escrever o método certo, mas sem a palavra <code>override</code>.</p>
+
+<div class="warning">
+<strong>Este código tem um erro de propósito</strong>
+<pre class="file" data-file="semoverride.cs">class Circulo : Forma
+{
+    // …
+    public double Area()      // falta o override
+    {
+        return Math.PI * Raio * Raio;
+    }
+}
+</pre>
+</div>
+
+<pre class="term">$ dotnet run semoverride.cs
+/home/ana/cs/semoverride.cs(50,19): warning CS0114: "Circulo.Area()" oculta o membro herdado "Forma.Area()". Para que o membro atual substitua essa implementação, adicione a palavra-chave override. Caso contrário, adicione a palavra-chave new.
+/home/ana/cs/semoverride.cs(41,7): error CS0534: "Circulo" não implementa membro abstrato herdado "Forma.Area()"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Duas mensagens. O aviso <code>CS0114</code> explica o que houve: sem <code>override</code>, o <code>Area()</code> do círculo é um método <strong>novo</strong>, que só tem o mesmo nome e "esconde" o da mãe. Então o membro abstrato continua sem implementação, e vem o erro <code>CS0534</code>. O conserto está no próprio aviso: "adicione a palavra-chave override".</p>
+
+<hr>
+
+<h2>Propriedades abstratas</h2>
+<p>Não são só métodos: uma <a href="propriedades.html">propriedade</a> também pode ser abstrata. Ela declara o <code>get</code> (e, se quiser, o <code>set</code>) sem corpo, e cada filha diz o valor. Assim fica o exemplo dos instrumentos:</p>
+
+<pre class="file" data-file="instrumentos.cs">Instrumento[] banda = [new Violao(), new Piano()];
+foreach (Instrumento i in banda)
+{
+    i.Tocar();
+}
+
+abstract class Instrumento
+{
+    public abstract string Nome { get; }
+    public abstract string Som { get; }
+
+    public void Tocar()
+    {
+        Console.WriteLine($"O {Nome} faz: {Som}");
+    }
+}
+
+class Violao : Instrumento
+{
+    public override string Nome =&gt; "violão";
+    public override string Som =&gt; "plim plim";
+}
+
+class Piano : Instrumento
+{
+    public override string Nome =&gt; "piano";
+    public override string Som =&gt; "plém";
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>public abstract string Nome { get; }</dt><dd>Uma propriedade abstrata só de leitura: "todo instrumento tem um nome", mas a mãe não sabe qual.</dd>
+  <dt>public override string Nome =&gt; "violão";</dt><dd>A filha implementa a propriedade. O <code>=&gt;</code> é a forma curta de um <code>get</code> que só devolve um valor: o mesmo que <code>get { return "violão"; }</code>.</dd>
+  <dt>public void Tocar()</dt><dd>O método pronto da mãe, que usa as duas propriedades das filhas.</dd>
+</dl>
+
+<pre class="term">$ dotnet run instrumentos.cs
+O violão faz: plim plim
+O piano faz: plém</pre>
+
+<hr>
+
+<h2>As regras dos membros abstratos</h2>
+
+<h3>Membro abstrato não tem corpo</h3>
+<p>Nem chaves vazias. Um <code>abstract</code> com corpo é uma contradição. A Ana escreveu <code>public abstract double Area() { return 0; }</code>:</p>
+
+<pre class="term">$ dotnet run comcorpo.cs
+/home/ana/cs/comcorpo.cs(16,28): error CS0500: "Forma.Area()" não pode declarar um corpo porque não está marcado como abstract
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<div class="warning">
+<strong>Atenção: a tradução está errada</strong>
+<p>A mensagem em português diz "porque <strong>não</strong> está marcado como abstract", mas é o contrário! O original em inglês é <em>'Forma.Area()' cannot declare a body because it is marked abstract</em>: "não pode ter corpo <strong>porque está</strong> marcado como abstract". O código <code>CS0500</code> é o que vale. Troque <code>{ … }</code> por <code>;</code>. Se você quer um comportamento padrão que as filhas podem trocar, use <code>virtual</code> no lugar de <code>abstract</code>.</p>
+</div>
+
+<h3>Membro abstrato só em classe abstrata</h3>
+<p>Se a classe tem um membro abstrato, ela precisa ser abstrata (senão daria para criar um objeto com um método "em branco"). Tirando o <code>abstract</code> da classe <code>Forma</code>:</p>
+
+<pre class="term">$ dotnet run naoabstrata.cs
+/home/ana/cs/naoabstrata.cs(16,28): error CS0513: 'Forma.Area()' é abstrato, mas está contido no tipo não abstrato 'Forma'
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O contrário é permitido: uma classe abstrata <strong>sem nenhum</strong> membro abstrato. Isso serve para impedir que alguém crie objetos de uma classe que só existe para ser herdada.</p>
+
+<h3>Membro abstrato não pode ser <code>private</code></h3>
+<p>Uma filha não enxerga o que é <code>private</code> da mãe (veja <a href="modificadores-acesso.html">public, private e internal</a>), então nunca poderia implementá-lo. Com <code>private abstract double Area();</code>, o primeiro erro é:</p>
+
+<pre class="term">$ dotnet run privado.cs
+/home/ana/cs/privado.cs(16,29): error CS0621: "Forma.Area()": membros virtuais ou abstratos não podem ser privados
+…</pre>
+<p>Use <code>public</code> ou <code>protected</code> (só a família enxerga).</p>
+
+<h3><code>abstract</code> e <code>sealed</code> não combinam</h3>
+<p><code>abstract</code> quer dizer "precisa ser herdada"; <code>sealed</code> ("selada") quer dizer "não pode ser herdada" (veja <a href="sealed.html">sealed</a>). Juntos, em <code>abstract sealed class Forma</code>:</p>
+
+<pre class="term">$ dotnet run selada.cs
+/home/ana/cs/selada.cs(7,23): error CS0418: 'Forma': um tipo abstrato não pode ser selado nem estático
+/home/ana/cs/selada.cs(11,15): warning CS0628: 'Forma.Forma(string)': novo membro protegido declarado no tipo selado
+/home/ana/cs/selada.cs(24,19): error CS0509: "Retangulo": não é possível derivar do tipo sealed "Forma"
+/home/ana/cs/selada.cs(35,28): error CS0115: "Retangulo.Area()": não encontrado nenhum método adequado para substituição
+/home/ana/cs/selada.cs(41,17): error CS0509: "Circulo": não é possível derivar do tipo sealed "Forma"
+/home/ana/cs/selada.cs(50,28): error CS0115: "Circulo.Area()": não encontrado nenhum método adequado para substituição
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Um erro só (<code>CS0418</code>, o primeiro) gera vários outros: com a mãe selada, as filhas não podem herdar (<code>CS0509</code>) e os <code>override</code> ficam sem nada para substituir (<code>CS0115</code>). Regra de ouro dos erros: <strong>conserte o primeiro</strong> e compile de novo. Tirando o <code>sealed</code>, todos somem. A mensagem também cita <code>static</code>: uma <a href="static.html">classe estática</a> não pode ser abstrata pelo mesmo motivo (ninguém herda dela).</p>
+
+<hr>
+
+<h2>Classe abstrata × interface</h2>
+<p>A próxima aula apresenta as <a href="interfaces.html">interfaces</a>, que também declaram membros sem corpo e também não podem ser instanciadas (repare que a mensagem do <code>CS0144</code> já fala em "tipo abstrato <strong>ou interface</strong>"). Então, quando usar cada uma? A diferença principal:</p>
+
+<ul>
+  <li>Uma <strong>classe abstrata</strong> é uma "mãe incompleta": tem <strong>estado</strong> (campos e propriedades como <code>Nome</code>), construtores e código pronto para compartilhar. Uma classe só pode herdar de <strong>uma</strong>.</li>
+  <li>Uma <strong>interface</strong> é um "contrato de habilidade": diz o que uma classe <strong>sabe fazer</strong> (<code>IComparable</code>: "sei me comparar"). Não guarda estado de objeto, e uma classe pode implementar <strong>várias</strong>.</li>
+</ul>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>As classes são da mesma família ("é um") e compartilham dados e código</td><td>Classe abstrata (<code>Forma</code>, <code>Funcionario</code>, <code>Conta</code>)</td></tr>
+<tr><td>Classes sem parentesco precisam de uma mesma habilidade</td><td>Interface (<code>IComparable</code>, <code>IImprimivel</code>, <code>IPagavel</code>)</td></tr>
+<tr><td>A classe precisa de mais de um "tipo pai"</td><td>Interfaces (só há uma classe mãe)</td></tr>
+<tr><td>Há um construtor ou campos que todas as filhas precisam</td><td>Classe abstrata</td></tr>
+</table>
+</div>
+
+<p>Muitas vezes as duas aparecem juntas: uma interface diz <strong>o que</strong> fazer, e uma classe abstrata implementa a parte comum para facilitar a vida das filhas. A comparação completa está em <a href="interfaces.html">Interfaces</a>.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS0144: "Não é possível criar uma instância do tipo abstrato ou da interface"</strong>
+<pre class="term">$ dotnet run instancia.cs
+/home/ana/cs/instancia.cs(1,11): error CS0144: Não é possível criar uma instância do tipo abstrato ou da interface 'Forma'</pre>
+<p><strong>O que aconteceu:</strong> um <code>new</code> numa classe abstrata.</p>
+<p><strong>Como resolver:</strong> crie um objeto de uma filha concreta (<code>new Circulo(…)</code>). A variável pode continuar do tipo <code>Forma</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0534: "… não implementa membro abstrato herdado …"</strong>
+<pre class="term">$ dotnet run semarea.cs
+/home/ana/cs/semarea.cs(41,7): error CS0534: "Circulo" não implementa membro abstrato herdado "Forma.Area()"</pre>
+<p><strong>O que aconteceu:</strong> uma classe concreta herdou um membro abstrato e não o escreveu. Se o método existe, confira: está com <code>override</code>? A assinatura é idêntica (um <code>Area(int x)</code> não conta)? Se houver um aviso <code>CS0114</code> logo antes, faltou o <code>override</code>.</p>
+<p><strong>Como resolver:</strong> implemente o membro com <code>public override …</code>, ou declare a classe como <code>abstract</code> se ela também for uma ideia geral.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0500: "… não pode declarar um corpo …"</strong>
+<pre class="term">$ dotnet run comcorpo.cs
+/home/ana/cs/comcorpo.cs(16,28): error CS0500: "Forma.Area()" não pode declarar um corpo porque não está marcado como abstract</pre>
+<p><strong>O que aconteceu:</strong> o método abstrato ganhou chaves (a tradução troca o sentido; o certo é "porque <strong>está</strong> marcado como abstract").</p>
+<p><strong>Como resolver:</strong> se ele é abstrato, termine com <code>;</code>. Se quer um corpo padrão, troque <code>abstract</code> por <code>virtual</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0513: "… é abstrato, mas está contido no tipo não abstrato …"</strong>
+<pre class="term">$ dotnet run naoabstrata.cs
+/home/ana/cs/naoabstrata.cs(16,28): error CS0513: 'Forma.Area()' é abstrato, mas está contido no tipo não abstrato 'Forma'</pre>
+<p><strong>O que aconteceu:</strong> um membro abstrato numa classe comum.</p>
+<p><strong>Como resolver:</strong> escreva <code>abstract class</code> ou dê um corpo ao membro (e troque <code>abstract</code> por <code>virtual</code>).</p>
+</div>
+
+<div class="trycs" data-goal="erro:CS0534">
+<p class="try-task"><strong>Experimente o erro:</strong> apague o <code>override</code> do <code>Piano</code> (a linha do <code>Som</code>) e clique em Rodar. Veja o erro <code>CS0534</code>: no <code>dotnet</code>, ele diz <code>"Piano" não implementa membro abstrato herdado "Instrumento.Som.get"</code>. O <code>.get</code> é a parte de leitura da propriedade, que ficou faltando. Depois, coloque a linha de volta e tente <code>new Instrumento()</code> no começo do programa para ver o <code>CS0144</code>.</p>
+<pre class="script">Instrumento[] banda = [new Violao(), new Piano()];
+foreach (Instrumento i in banda)
+{
+    i.Tocar();
+}
+
+abstract class Instrumento
+{
+    public abstract string Nome { get; }
+    public abstract string Som { get; }
+
+    public void Tocar()
+    {
+        Console.WriteLine($"O {Nome} faz: {Som}");
+    }
+}
+
+class Violao : Instrumento
+{
+    public override string Nome =&gt; "violão";
+    public override string Som =&gt; "plim plim";
+}
+
+class Piano : Instrumento
+{
+    public override string Nome =&gt; "piano";
+    public override string Som =&gt; "plém";
+}
+</pre>
+<pre class="solucao">Instrumento[] banda = [new Violao(), new Piano()];
+foreach (Instrumento i in banda)
+{
+    i.Tocar();
+}
+
+abstract class Instrumento
+{
+    public abstract string Nome { get; }
+    public abstract string Som { get; }
+
+    public void Tocar()
+    {
+        Console.WriteLine($"O {Nome} faz: {Som}");
+    }
+}
+
+class Violao : Instrumento
+{
+    public override string Nome =&gt; "violão";
+    public override string Som =&gt; "plim plim";
+}
+
+class Piano : Instrumento
+{
+    public override string Nome =&gt; "piano";
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>abstract class Forma { … }</code></td><td>Classe que não pode ser instanciada; serve de modelo</td></tr>
+<tr><td><code>public abstract double Area();</code></td><td>Método sem corpo; as filhas concretas são obrigadas a implementar</td></tr>
+<tr><td><code>public abstract string Nome { get; }</code></td><td>Propriedade abstrata</td></tr>
+<tr><td><code>public override double Area() { … }</code></td><td>A implementação na filha (o <code>override</code> é obrigatório)</td></tr>
+<tr><td>Método concreto em classe abstrata</td><td>Código pronto, herdado por todas as filhas (pode chamar os abstratos)</td></tr>
+<tr><td><code>protected Forma(string nome)</code></td><td>Construtor da classe abstrata, chamado pelas filhas com <code>: base(…)</code></td></tr>
+<tr><td><code>abstract class Poligono : Forma</code></td><td>Filha abstrata: pode deixar os membros abstratos para as netas</td></tr>
+<tr><td><code>abstract</code> + <code>sealed</code>/<code>static</code> na classe; <code>abstract</code> + <code>private</code> no membro</td><td>Combinações proibidas (<code>CS0418</code>, <code>CS0621</code>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A classe-modelo</h3>
+<p>Complete para <code>Instrumento</code> não poder ser instanciado:</p>
+<div class="ex-code"><input data-answer="abstract class|public abstract class" aria-label="declaração"> Instrumento { }</div>
+</div>
+
+<div class="exercise">
+<h3>2. Método sem corpo</h3>
+<p>Complete a declaração do método abstrato público <code>Tocar</code>, que não recebe nada e não devolve nada:</p>
+<div class="ex-code"><input data-answer="public abstract void Tocar();|abstract public void Tocar();" aria-label="declaração"></div>
+</div>
+
+<div class="exercise">
+<h3>3. A implementação na filha</h3>
+<p>Na classe <code>Violao : Instrumento</code>, complete a primeira linha do método que implementa o <code>Tocar</code> do exercício 2:</p>
+<div class="ex-code">public <input data-answer="override" aria-label="palavra-chave"> void Tocar()</div>
+</div>
+
+<div class="exercise">
+<h3>4. Variável de tipo abstrato</h3>
+<p><code>Instrumento</code> é abstrata e <code>Violao</code> herda de <code>Instrumento</code>. Complete com o objeto que pode ser criado:</p>
+<div class="ex-code">Instrumento i = <input data-answer="new Violao()" aria-label="objeto">;</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. O que uma classe abstrata <strong>não</strong> pode ter?</p>
+<label><input type="radio" name="q5"> Propriedades</label>
+<label><input type="radio" name="q5"> Construtores</label>
+<label><input type="radio" name="q5"> Objetos criados com <code>new</code> dela mesma</label>
+<label><input type="radio" name="q5"> Métodos com corpo</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. <code>Circulo : Forma</code>, <code>Forma</code> tem <code>public abstract double Area();</code> e o <code>Circulo</code> não escreve <code>Area()</code>. O que acontece?</p>
+<label><input type="radio" name="q6"> Erro <code>CS0534</code>: <code>"Circulo" não implementa membro abstrato herdado "Forma.Area()"</code></label>
+<label><input type="radio" name="q6"> <code>Area()</code> devolve 0</label>
+<label><input type="radio" name="q6"> Exceção ao chamar <code>Area()</code></label>
+<label><input type="radio" name="q6"> Compila, porque é opcional</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">7. O <code>Circulo</code> tem <code>public double Area()</code>, <strong>sem</strong> <code>override</code>. O que o compilador mostra?</p>
+<label><input type="radio" name="q7"> Nada: compila e funciona</label>
+<label><input type="radio" name="q7"> O aviso <code>CS0114</code> ("oculta o membro herdado") e o erro <code>CS0534</code></label>
+<label><input type="radio" name="q7"> Só o erro <code>CS0144</code></label>
+<label><input type="radio" name="q7"> Uma exceção quando o programa roda</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">8. <code>Cachorro</code>, <code>Gato</code> e <code>Vaca</code> compartilham as propriedades <code>Nome</code> e <code>Idade</code> e o método <code>Comer()</code>. O que é mais adequado para <code>Animal</code>?</p>
+<label><input type="radio" name="q8"> Uma interface</label>
+<label><input type="radio" name="q8"> Uma classe abstrata</label>
+<label><input type="radio" name="q8"> Uma classe <code>sealed</code></label>
+<label><input type="radio" name="q8"> Um <code>enum</code></label>
+</div>
+
+<div class="trycs" data-goal="outre:Caio: R\$\s1\.600\,00,outre:Bia: R\$\s5\.000\,00,src:abstract\s+class\s+Funcionario,src:abstract\s+decimal\s+Salario\(\)\s*;">
+<p class="try-task"><strong>Missão final:</strong> a lojinha da Ana tem funcionários mensalistas (salário fixo) e horistas (horas × valor da hora). Hoje, <code>Funcionario</code> é uma classe comum com <code>Salario()</code> devolvendo 0, e o programa cria um "funcionário genérico" sem sentido. Transforme: (1) <code>Funcionario</code> em classe abstrata; (2) <code>Salario()</code> em método abstrato (sem corpo); (3) apague a linha do <code>generico</code>; (4) implemente <code>Salario()</code> em <code>Horista</code> (<code>Horas * ValorHora</code>). A saída deve ter <code>Caio: R$ 1.600,00</code> e <code>Bia: R$ 5.000,00</code>. Dica: depois do passo 2, rode e leia o erro: ele diz o que falta.</p>
+<pre class="script">Funcionario generico = new Funcionario("Ninguém");
+List&lt;Funcionario&gt; equipe = [new Horista("Caio", 80, 20m), new Mensalista("Bia", 5000m)];
+foreach (Funcionario f in equipe)
+{
+    Console.WriteLine($"{f.Nome}: {f.Salario():C}");
+}
+
+class Funcionario
+{
+    public string Nome { get; }
+
+    public Funcionario(string nome)
+    {
+        Nome = nome;
+    }
+
+    public virtual decimal Salario()
+    {
+        return 0;
+    }
+}
+
+class Mensalista : Funcionario
+{
+    public decimal Fixo { get; }
+
+    public Mensalista(string nome, decimal fixo) : base(nome)
+    {
+        Fixo = fixo;
+    }
+
+    public override decimal Salario() =&gt; Fixo;
+}
+
+class Horista : Funcionario
+{
+    public int Horas { get; }
+    public decimal ValorHora { get; }
+
+    public Horista(string nome, int horas, decimal valorHora) : base(nome)
+    {
+        Horas = horas;
+        ValorHora = valorHora;
+    }
+}
+</pre>
+<pre class="solucao">List&lt;Funcionario&gt; equipe = [new Horista("Caio", 80, 20m), new Mensalista("Bia", 5000m)];
+foreach (Funcionario f in equipe)
+{
+    Console.WriteLine($"{f.Nome}: {f.Salario():C}");
+}
+
+abstract class Funcionario
+{
+    public string Nome { get; }
+
+    protected Funcionario(string nome)
+    {
+        Nome = nome;
+    }
+
+    public abstract decimal Salario();
+}
+
+class Mensalista : Funcionario
+{
+    public decimal Fixo { get; }
+
+    public Mensalista(string nome, decimal fixo) : base(nome)
+    {
+        Fixo = fixo;
+    }
+
+    public override decimal Salario() =&gt; Fixo;
+}
+
+class Horista : Funcionario
+{
+    public int Horas { get; }
+    public decimal ValorHora { get; }
+
+    public Horista(string nome, int horas, decimal valorHora) : base(nome)
+    {
+        Horas = horas;
+        ValorHora = valorHora;
+    }
+
+    public override decimal Salario() =&gt; Horas * ValorHora;
+}
+</pre>
+</div>
+
+<pre class="term">$ dotnet run func.cs      « a solução
+Caio: R$ 1.600,00
+Bia: R$ 5.000,00</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>abstract class</code> = uma ideia geral, que serve de modelo: tem propriedades, construtores e métodos, mas <strong>não</strong> pode ser instanciada (<code>CS0144</code>).</li>
+  <li><code>abstract</code> num método ou propriedade = só a assinatura, terminada em <code>;</code>. Toda filha concreta é obrigada a implementá-lo com <code>override</code> (<code>CS0534</code>). Sem o <code>override</code>, vem o aviso <code>CS0114</code> e o mesmo erro.</li>
+  <li>Métodos concretos da classe abstrata podem chamar os abstratos: a mãe escreve o roteiro, as filhas preenchem as partes que mudam.</li>
+  <li>O construtor de uma classe abstrata costuma ser <code>protected</code>; as filhas o chamam com <code>: base(…)</code>.</li>
+  <li>Variáveis, listas e parâmetros do tipo abstrato são o normal: <code>Forma f = new Circulo(…)</code>.</li>
+  <li>Classe abstrata: família com dados e código em comum (só uma mãe). Interface: habilidade que várias classes, mesmo sem parentesco, podem ter. Próxima aula: <a href="interfaces.html">Interfaces</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
