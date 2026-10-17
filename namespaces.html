@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Namespaces e using — organizar e encontrar tipos | Guia C#</title>
+<meta name="description" content="Namespaces em C# para quem está começando: o nome completo de um tipo, a diretiva using, os usings implícitos (ImplicitUsings) do dotnet run e do dotnet new console, global using, o namespace de arquivo (namespace X;), apelidos, using static e os erros CS0246, CS0104, CS8915 e CS8955, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Namespaces e using</span></h1>
+
+<p class="intro">O .NET traz milhares de tipos prontos: <code>Console</code>, <code>Math</code>, <code>StringBuilder</code>, <code>List&lt;T&gt;</code>, <code>File</code>… E os seus programas vão criar mais um monte: <code>Produto</code>, <code>Cliente</code>, <code>Pedido</code>. Para não virar bagunça, cada tipo mora num <strong>namespace</strong>, uma espécie de "sobrenome". Nesta aula você vai entender por que o <code>Console.WriteLine</code> funciona sem você escrever nada antes, por que o <code>StringBuilder</code> não funciona, o que a linha <code>using</code> faz e como organizar os seus próprios tipos em namespaces.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é um namespace e o que é o <strong>nome completo</strong> de um tipo (<code>System.Text.StringBuilder</code>).</li>
+  <li>Como a diretiva <code>using</code> encurta esses nomes.</li>
+  <li>Quais <code>using</code> o .NET liga sozinho (os <strong>usings implícitos</strong>, <code>ImplicitUsings</code>) e como conferir a lista.</li>
+  <li>Como valer um <code>using</code> para o projeto inteiro com <code>global using</code>.</li>
+  <li>Como colocar os seus tipos num namespace, com chaves ou com o <strong>namespace de arquivo</strong> (<code>namespace Lojinha;</code>).</li>
+  <li>Como resolver dois tipos com o mesmo nome (apelidos) e chamar métodos sem o nome da classe (<code>using static</code>).</li>
+  <li>Os erros <code>CS0246</code>, <code>CS0103</code>, <code>CS0104</code>, <code>CS1529</code>, <code>CS8915</code>, <code>CS8954</code> e <code>CS8955</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram na máquina da Ana (usuária <code>ana</code>, computador <code>notebook</code>), com o <strong>.NET 10 SDK</strong> (C# 14). Os arquivos soltos ficam em <code>~/cs</code> e rodam com <code>dotnet run arquivo.cs</code> (aula <a href="dotnet-run.html">Rodar com dotnet run</a>). Os exemplos com vários arquivos usam um projeto em <code>~/projetos/Lojinha</code> (aula <a href="projetos-console.html">Projetos</a>).</p>
+
+<hr>
+
+<h2>A ideia: o sobrenome dos tipos</h2>
+<p>Na escola da Ana há duas meninas chamadas Júlia. Quando a professora chama "Júlia!", as duas olham. Para não ter confusão, a escola usa o nome completo: "Júlia do 6º A" e "Júlia do 7º B". Na maior parte do tempo, porém, dentro da sala do 6º A, todo mundo diz só "Júlia", porque ali só existe uma.</p>
+<p>Em C# é igual:</p>
+<ul>
+  <li>Um <strong>namespace</strong> (em inglês, "espaço de nomes") é a "turma" do tipo. A classe <code>StringBuilder</code> mora no namespace <code>System.Text</code>.</li>
+  <li>O <strong>nome completo</strong> do tipo junta os dois com ponto: <code>System.Text.StringBuilder</code>. Esse nome nunca é ambíguo.</li>
+  <li>A diretiva <strong><code>using</code></strong> ("usando") é como dizer "estou dentro da sala do 6º A": depois de <code>using System.Text;</code>, basta escrever <code>StringBuilder</code>.</li>
+</ul>
+<p>Namespaces podem ter vários níveis, separados por ponto, como pastas dentro de pastas: <code>System</code>, <code>System.Text</code>, <code>System.Collections.Generic</code>. Mas atenção: eles <strong>não</strong> são pastas de verdade no disco; são só nomes que o compilador usa para achar os tipos.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>Namespace</th><th>Nome completo</th></tr>
+<tr><td><code>Console</code></td><td><code>System</code></td><td><code>System.Console</code></td></tr>
+<tr><td><code>Math</code></td><td><code>System</code></td><td><code>System.Math</code></td></tr>
+<tr><td><code>StringBuilder</code></td><td><code>System.Text</code></td><td><code>System.Text.StringBuilder</code></td></tr>
+<tr><td><code>List&lt;T&gt;</code></td><td><code>System.Collections.Generic</code></td><td><code>System.Collections.Generic.List&lt;T&gt;</code></td></tr>
+<tr><td><code>File</code></td><td><code>System.IO</code></td><td><code>System.IO.File</code></td></tr>
+<tr><td><code>CultureInfo</code></td><td><code>System.Globalization</code></td><td><code>System.Globalization.CultureInfo</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. O nome completo funciona sempre</h2>
+<p>Este programa monta um texto com o <a href="stringbuilder.html">StringBuilder</a> sem nenhum <code>using</code>. Cada tipo é escrito com o nome completo:</p>
+
+<pre class="file" data-file="completo.cs">System.Text.StringBuilder texto = new System.Text.StringBuilder();
+texto.Append("arroz");
+System.Console.WriteLine(texto);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run completo.cs
+arroz</pre>
+
+<dl class="anatomy">
+  <dt>System.Text.StringBuilder</dt><dd>O nome completo: namespace <code>System.Text</code> + tipo <code>StringBuilder</code>. Repare que ele aparece duas vezes na linha: no tipo da variável e depois do <code>new</code>.</dd>
+  <dt>System.Console.WriteLine</dt><dd>O mesmo para o <code>Console</code>: namespace <code>System</code> + tipo <code>Console</code> + método <code>WriteLine</code>.</dd>
+</dl>
+
+<p>Funciona, mas é cansativo de escrever e de ler. É para isso que existe o <code>using</code>.</p>
+
+<hr>
+
+<h2>2. A diretiva <code>using</code></h2>
+<p>Agora sem o nome completo. A Ana escreveu <code>StringBuilder</code> direto:</p>
+
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="sb.cs">var texto = new StringBuilder();
+texto.Append("Lista da Ana: ");
+texto.Append("arroz, feijão");
+Console.WriteLine(texto);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sb.cs
+/home/ana/cs/sb.cs(1,17): error CS0246: O nome do tipo ou do namespace "StringBuilder" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"O nome do tipo ou do namespace <code>StringBuilder</code> não pode ser encontrado." Em inglês, para pesquisar: <em>The type or namespace name 'StringBuilder' could not be found</em>. O compilador procurou um tipo chamado só <code>StringBuilder</code> nos namespaces que ele conhece naquele arquivo e não achou. O próprio erro dá a dica: "está faltando uma diretiva <code>using</code>?". Está:</p>
+
+<pre class="file" data-file="sb.cs">using System.Text;
+
+var texto = new StringBuilder();
+texto.Append("Lista da Ana: ");
+texto.Append("arroz, feijão");
+Console.WriteLine(texto);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sb.cs
+Lista da Ana: arroz, feijão</pre>
+
+<dl class="anatomy">
+  <dt>using</dt><dd>"Usando": avisa o compilador para procurar tipos também neste namespace.</dd>
+  <dt>System.Text</dt><dd>O namespace. É o nome completo <strong>sem</strong> o tipo no fim.</dd>
+  <dt>;</dt><dd>Termina a diretiva.</dd>
+  <dt>(no topo)</dt><dd>As diretivas <code>using</code> ficam no começo do arquivo, antes de qualquer outra coisa. Fora do lugar, dão o erro <code>CS1529</code> (veja <a href="#errado">Quando dá errado</a>).</dd>
+</dl>
+
+<div class="note">
+<strong><code>using</code> não "carrega" nada</strong>
+<p>Quem vem de outras linguagens às vezes acha que o <code>using</code> "importa" ou "inclui" uma biblioteca. Não é isso: ele só <strong>encurta nomes</strong>. O programa com <code>using System.Text;</code> e o programa com <code>System.Text.StringBuilder</code> escrito por extenso são exatamente o mesmo programa depois de compilados. Um <code>using</code> a mais não deixa o programa mais lento nem maior.</p>
+</div>
+
+<h3><code>using System;</code> não liga o <code>System.Text</code></h3>
+<p>Como os nomes parecem pastas, é natural achar que <code>using System;</code> traz tudo o que começa com <code>System</code>. Não traz: cada <code>using</code> vale para <strong>um</strong> namespace, sem os "de dentro". Para usar <code>StringBuilder</code>, é preciso <code>using System.Text;</code>, mesmo que <code>System</code> já esteja ligado.</p>
+
+<p>A palavra <code>using</code> tem outro uso em C#, bem diferente: o <strong>comando</strong> <code>using (…)</code>, que fecha arquivos e conexões. Esse fica para a aula <a href="using-dispose.html">using e IDisposable</a>. Nesta aula, <code>using</code> é sempre a <strong>diretiva</strong> do topo do arquivo.</p>
+
+<div class="trycs" data-goal="out:Lista da Ana: arroz\, feijão,src:^\s*using\s+System\.Text\s*;">
+<p class="try-task"><strong>Missão:</strong> rode e veja o erro <code>CS0246</code>. Depois acrescente, na primeira linha, a diretiva <code>using</code> do namespace do <code>StringBuilder</code> e rode de novo.</p>
+<pre class="script" data-file="sb.cs">var texto = new StringBuilder();
+texto.Append("Lista da Ana: ");
+texto.Append("arroz, feijão");
+Console.WriteLine(texto);
+</pre>
+<pre class="solucao" data-file="sb.cs">using System.Text;
+
+var texto = new StringBuilder();
+texto.Append("Lista da Ana: ");
+texto.Append("arroz, feijão");
+Console.WriteLine(texto);
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Os usings implícitos (<code>ImplicitUsings</code>) <span class="versao">.NET 6+</span></h2>
+<p>Se o <code>StringBuilder</code> precisa de <code>using</code>, por que o <code>Console</code> não precisa? O <code>Console</code> mora em <code>System</code>, e ninguém escreveu <code>using System;</code>…</p>
+<p>A resposta: desde o .NET 6, o próprio <code>dotnet</code> acrescenta alguns <code>using</code> sozinho, sem aparecer no seu arquivo. São os <strong>usings implícitos</strong> (<em>implicit usings</em>). Dá para ver a lista: o <code>dotnet run ola.cs</code> monta um projeto escondido em <code>~/.local/share/dotnet/runfile/</code>, e lá dentro há um arquivo gerado com eles:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ola.cs
+Olá, mundo!
+$ cat ~/.local/share/dotnet/runfile/ola-*/obj/debug/ola.GlobalUsings.g.cs
+// &lt;auto-generated/&gt;
+global using System;
+global using System.Collections.Generic;
+global using System.IO;
+global using System.Linq;
+global using System.Net.Http;
+global using System.Threading;
+global using System.Threading.Tasks;</pre>
+
+<p>São sete namespaces, ligados em todo programa console do .NET 10:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Namespace</th><th>O que traz (exemplos)</th><th>Aula</th></tr>
+<tr><td><code>System</code></td><td><code>Console</code>, <code>Math</code>, <code>Random</code>, <code>DateTime</code>, <code>int.Parse</code>, as exceções básicas</td><td><a href="saida.html">Saída</a></td></tr>
+<tr><td><code>System.Collections.Generic</code></td><td><code>List&lt;T&gt;</code>, <code>Dictionary&lt;TKey, TValue&gt;</code>, <code>HashSet&lt;T&gt;</code></td><td><a href="colecoes.html">Coleções</a></td></tr>
+<tr><td><code>System.IO</code></td><td><code>File</code>, <code>Directory</code>, <code>Path</code>, <code>StreamReader</code></td><td><a href="arquivos.html">Arquivos</a></td></tr>
+<tr><td><code>System.Linq</code></td><td><code>Where</code>, <code>Select</code>, <code>Sum</code>, <code>OrderBy</code></td><td><a href="linq.html">LINQ</a></td></tr>
+<tr><td><code>System.Net.Http</code></td><td><code>HttpClient</code> (baixar páginas da internet)</td><td>—</td></tr>
+<tr><td><code>System.Threading</code></td><td><code>Thread</code>, <code>CancellationToken</code></td><td><a href="threads.html">Threads</a></td></tr>
+<tr><td><code>System.Threading.Tasks</code></td><td><code>Task</code>, <code>Parallel</code></td><td><a href="tasks.html">Task</a></td></tr>
+</table>
+</div>
+
+<p>Tudo o que estiver <strong>fora</strong> dessa lista precisa de <code>using</code>: <code>System.Text</code> (<code>StringBuilder</code>), <code>System.Globalization</code> (<code>CultureInfo</code>), <code>System.Text.Json</code>, <code>System.Text.RegularExpressions</code> (<code>Regex</code>), <code>System.Diagnostics</code> (<code>Stopwatch</code>)…</p>
+
+<h3>De onde vem essa lista</h3>
+<p>Num projeto criado com <code>dotnet new console</code>, a chave fica à vista, no arquivo <code>.csproj</code> (aula <a href="csproj.html">O Arquivo .csproj</a>):</p>
+
+<pre class="term" data-cwd="~/projetos/Lojinha">$ cat Lojinha.csproj
+&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+
+  &lt;PropertyGroup&gt;
+    &lt;OutputType&gt;Exe&lt;/OutputType&gt;
+    &lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;
+    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+    &lt;Nullable&gt;enable&lt;/Nullable&gt;
+  &lt;/PropertyGroup&gt;
+
+&lt;/Project&gt;</pre>
+
+<p><code>&lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;</code> quer dizer "usings implícitos: ligados". O <code>dotnet run arquivo.cs</code> usa a mesma configuração, só que sem mostrar o <code>.csproj</code>. Num projeto, a lista gerada fica em <code>obj/Debug/net10.0/Lojinha.GlobalUsings.g.cs</code>, com os mesmos sete.</p>
+
+<p>Para ver o que acontece sem eles, a Ana desligou a chave no próprio arquivo, com uma diretiva <code>#:property</code> (só existe nos arquivos rodados com <code>dotnet run arquivo.cs</code>):</p>
+
+<pre class="file" data-file="semimp.cs">#:property ImplicitUsings=disable
+Console.WriteLine("Olá");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run semimp.cs
+/home/ana/cs/semimp.cs(2,1): error CS0103: O nome "Console" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Sem o <code>using System;</code> implícito, o compilador não sabe mais quem é <code>Console</code>. É assim que eram todos os programas antes do .NET 6: o arquivo começava com uma fileira de <code>using</code>. Você ainda vai ver muito código assim em livros e na internet:</p>
+
+<pre class="file" data-file="Program.cs (estilo antigo, .NET 5 ou anterior)">using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+namespace Lojinha
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            Console.WriteLine("Olá");
+        }
+    }
+}
+</pre>
+
+<p>Com os usings implícitos ligados, escrever <code>using System;</code> de novo não dá erro nem aviso: é só redundante. A aula <a href="top-level.html">Program.cs e o Main</a> explica o resto desse modelo antigo.</p>
+
+<hr>
+
+<h2>4. <code>global using</code>: um <code>using</code> para o projeto inteiro <span class="versao">C# 10</span></h2>
+<p>Um <code>using</code> normal vale só no arquivo em que foi escrito. Num projeto com dez arquivos que usam <code>StringBuilder</code>, seriam dez <code>using System.Text;</code>. A palavra <code>global</code> resolve isso: <strong><code>global using</code> vale para todos os arquivos do projeto</strong>. Os usings implícitos, aliás, são exatamente isso: as sete linhas <code>global using</code> do arquivo gerado.</p>
+
+<p>A lojinha da Ana virou um projeto com uma pasta <code>Modelos</code>. O arquivo <code>Etiqueta.cs</code> usa <code>StringBuilder</code>:</p>
+
+<pre class="file" data-file="Modelos/Etiqueta.cs">namespace Lojinha.Modelos;
+
+public static class Etiqueta
+{
+    public static string Montar(Produto p)
+    {
+        var sb = new StringBuilder();
+        sb.Append(p.Nome.ToUpper());
+        sb.Append(" ... ");
+        sb.Append(p.Preco.ToString("C"));
+        return sb.ToString();
+    }
+}
+</pre>
+
+<p>(A primeira linha, <code>namespace Lojinha.Modelos;</code>, é explicada na <a href="#proprio">próxima seção</a>.) Sem <code>using System.Text;</code>, o erro já é conhecido; repare que agora ele aponta o arquivo dentro da pasta e, no fim, o projeto entre colchetes:</p>
+
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet run
+/home/ana/projetos/Lojinha/Modelos/Etiqueta.cs(7,22): error CS0246: O nome do tipo ou do namespace "StringBuilder" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?) [/home/ana/projetos/Lojinha/Lojinha.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A Ana criou um arquivo só para os usings globais. O nome <code>GlobalUsings.cs</code> é costume, não obrigação:</p>
+
+<pre class="file" data-file="GlobalUsings.cs">global using System.Text;
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet run
+CADERNO ... R$ 12,50</pre>
+
+<p>Pronto: <code>System.Text</code> passou a valer em <code>Program.cs</code>, em <code>Modelos/Etiqueta.cs</code> e em qualquer arquivo novo.</p>
+
+<h3>A outra forma: no <code>.csproj</code></h3>
+<p>Em vez do arquivo <code>GlobalUsings.cs</code>, dá para pedir o mesmo no <code>.csproj</code>, com um item <code>&lt;Using&gt;</code>:</p>
+
+<pre class="term" data-cwd="~/projetos/Lojinha">$ cat Lojinha.csproj
+&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+
+  &lt;PropertyGroup&gt;
+    &lt;OutputType&gt;Exe&lt;/OutputType&gt;
+    &lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;
+    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+    &lt;Nullable&gt;enable&lt;/Nullable&gt;
+  &lt;/PropertyGroup&gt;
+
+  &lt;ItemGroup&gt;
+    &lt;Using Include="System.Text" /&gt;
+  &lt;/ItemGroup&gt;
+
+&lt;/Project&gt;
+$ dotnet run
+CADERNO ... R$ 12,50
+$ tail -3 obj/Debug/net10.0/Lojinha.GlobalUsings.g.cs
+global using System.Text;
+global using System.Threading;
+global using System.Threading.Tasks;</pre>
+
+<p>O <code>dotnet</code> acrescentou <code>global using System.Text;</code> ao arquivo gerado, junto com os sete de sempre. As duas formas dão o mesmo resultado; escolha uma por projeto e use sempre ela, para ninguém precisar procurar em dois lugares.</p>
+
+<div class="tip">
+<strong>Sem exagero</strong>
+<p><code>global using</code> é bom para o que <strong>quase todo arquivo</strong> usa. Para algo que só um ou dois arquivos usam (<code>System.Text.Json</code>, por exemplo), um <code>using</code> normal no próprio arquivo deixa mais claro de onde vêm os tipos.</p>
+</div>
+
+<div class="trycs" data-goal="out:CADERNO ...,src:global\s+using\s+System\.Text\s*;">
+<p class="try-task"><strong>Missão:</strong> este "projeto" tem três abas. A <code>Etiqueta.cs</code> usa <code>StringBuilder</code> e não compila. Sem mexer nela, escreva na aba <code>GlobalUsings.cs</code> um <code>global using</code> que conserte o projeto inteiro.</p>
+<pre class="script" data-file="Program.cs">using Lojinha.Modelos;
+
+var caderno = new Produto("Caderno", 12.50m);
+Console.WriteLine(Etiqueta.Montar(caderno));
+</pre>
+<pre class="script" data-file="Etiqueta.cs">namespace Lojinha.Modelos;
+
+public record Produto(string Nome, decimal Preco);
+
+public static class Etiqueta
+{
+    public static string Montar(Produto p)
+    {
+        var sb = new StringBuilder();
+        sb.Append(p.Nome.ToUpper());
+        sb.Append(" ... ");
+        sb.Append(p.Preco.ToString("C"));
+        return sb.ToString();
+    }
+}
+</pre>
+<pre class="script" data-file="GlobalUsings.cs">// escreva aqui o global using
+</pre>
+<pre class="solucao" data-file="GlobalUsings.cs">global using System.Text;
+</pre>
+</div>
+
+<hr>
+
+<h2 id="proprio">5. Os seus tipos num namespace</h2>
+<p>Até aqui, os tipos que você criou (<a href="classes-objetos.html">classes</a>, <a href="records.html">records</a>) ficaram sem namespace, no chamado <strong>namespace global</strong>. Para programas de um arquivo, tudo bem. Num projeto de verdade, cada tipo deve morar num namespace com o nome do projeto, como <code>Lojinha</code> ou <code>Lojinha.Modelos</code>. Há duas formas de escrever isso.</p>
+
+<h3>Com chaves: <code>namespace Nome { … }</code></h3>
+<p>A forma clássica abre um bloco, e tudo o que estiver dentro das chaves pertence ao namespace:</p>
+
+<pre class="file" data-file="loja.cs">using Lojinha;
+
+var p = new Produto("Caderno", 12.50m);
+Console.WriteLine($"{p.Nome}: {p.Preco:C}");
+Console.WriteLine(typeof(Produto).FullName);
+Console.WriteLine(typeof(Produto).Namespace);
+
+namespace Lojinha
+{
+    record Produto(string Nome, decimal Preco);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run loja.cs
+Caderno: R$ 12,50
+Lojinha.Produto
+Lojinha</pre>
+
+<dl class="anatomy">
+  <dt>using Lojinha;</dt><dd>O código de cima (as instruções de nível superior) fica no namespace global. Para enxergar <code>Produto</code> só pelo nome curto, ele precisa deste <code>using</code>, como para qualquer namespace do .NET.</dd>
+  <dt>typeof(Produto).FullName</dt><dd><code>typeof</code> dá informações sobre um tipo (aula <a href="reflexao.html">Reflexão</a>). <code>FullName</code> é o nome completo: <code>Lojinha.Produto</code>.</dd>
+  <dt>typeof(Produto).Namespace</dt><dd>Só o namespace: <code>Lojinha</code>.</dd>
+  <dt>namespace Lojinha</dt><dd>Abre o namespace <code>Lojinha</code>.</dd>
+  <dt>{ record Produto(…); }</dt><dd>Tudo dentro das chaves pertence a <code>Lojinha</code>. Pode haver vários tipos ali dentro.</dd>
+</dl>
+
+<p>Num arquivo rodado com <code>dotnet run arquivo.cs</code>, as instruções de nível superior vêm primeiro, e os namespaces com chaves vêm depois delas, no fim do arquivo.</p>
+
+<h3>O namespace de arquivo: <code>namespace Nome;</code> <span class="versao">C# 10</span></h3>
+<p>Quase sempre, um arquivo inteiro pertence a um namespace só. Para isso o C# 10 criou uma forma mais curta, o <strong>namespace de arquivo</strong> (<em>file-scoped namespace</em>): uma linha com ponto e vírgula, sem chaves, e <strong>tudo</strong> o que vem depois no arquivo pertence a ele. É a forma que o guia usa nos projetos, e a que você vai ver em código novo:</p>
+
+<pre class="file" data-file="Modelos/Produto.cs">namespace Lojinha.Modelos;
+
+public record Produto(string Nome, decimal Preco);
+</pre>
+
+<pre class="file" data-file="Program.cs">using Lojinha.Modelos;
+
+var caderno = new Produto("Caderno", 12.50m);
+Console.WriteLine($"{caderno.Nome}: {caderno.Preco:C}");
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Lojinha">$ dotnet run
+Caderno: R$ 12,50</pre>
+
+<dl class="anatomy">
+  <dt>namespace Lojinha.Modelos;</dt><dd>"Daqui até o fim do arquivo, tudo é do namespace <code>Lojinha.Modelos</code>." Economiza um nível de recuo em todo o arquivo.</dd>
+  <dt>public record Produto(…)</dt><dd>O nome completo do tipo passa a ser <code>Lojinha.Modelos.Produto</code>. O <code>public</code> deixa outros projetos usarem o tipo (aula <a href="modificadores-acesso.html">public, private e internal</a>).</dd>
+  <dt>using Lojinha.Modelos;</dt><dd>No <code>Program.cs</code>, que está em outro arquivo, o <code>using</code> faz <code>Produto</code> valer sem o nome completo.</dd>
+</dl>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Com chaves</th><th>De arquivo</th></tr>
+<tr><td>Sintaxe</td><td><code>namespace Lojinha { … }</code></td><td><code>namespace Lojinha;</code></td></tr>
+<tr><td>Vale para</td><td>o que está dentro das chaves</td><td>o arquivo todo, da linha para baixo</td></tr>
+<tr><td>Quantos por arquivo</td><td>vários</td><td>um só (e não se mistura com o de chaves)</td></tr>
+<tr><td>Com instruções de nível superior</td><td>sim, depois delas</td><td>não (o arquivo do <code>Program.cs</code> fica sem namespace)</td></tr>
+<tr><td>Desde</td><td>C# 1</td><td>C# 10 (.NET 6)</td></tr>
+</table>
+</div>
+
+<h3>Os costumes dos programadores C#</h3>
+<ul>
+  <li>O namespace começa com o nome do projeto e segue as pastas: o arquivo <code>Modelos/Produto.cs</code> do projeto <code>Lojinha</code> fica em <code>Lojinha.Modelos</code>. O compilador não obriga, mas todo mundo espera isso.</li>
+  <li>Nomes em PascalCase, como os tipos: <code>Lojinha.Modelos</code>, nunca <code>lojinha.modelos</code>.</li>
+  <li>Um tipo por arquivo, com o mesmo nome do tipo (<code>Produto.cs</code> guarda <code>Produto</code>).</li>
+  <li>Nunca dê ao namespace o mesmo nome de uma classe de dentro dele (<code>Lojinha.Lojinha</code> confunde o compilador e as pessoas).</li>
+</ul>
+
+<p>O editor do guia compila todas as abas juntas, como um projeto. Assim, você pode praticar com um arquivo por tipo:</p>
+
+<div class="trycs" data-goal="out:Etiqueta: Caderno,src:^\s*using\s+Lojinha\.Modelos\s*;">
+<p class="try-task"><strong>Missão:</strong> o <code>Produto</code> está no namespace <code>Lojinha.Modelos</code> (aba <code>Produto.cs</code>), mas o <code>Program.cs</code> não o encontra. Rode, leia o erro e conserte o <code>Program.cs</code> com uma diretiva <code>using</code>.</p>
+<pre class="script" data-file="Program.cs">var caderno = new Produto("Caderno", 12.50m);
+Console.WriteLine($"Etiqueta: {caderno.Nome}");
+</pre>
+<pre class="script" data-file="Produto.cs">namespace Lojinha.Modelos;
+
+public record Produto(string Nome, decimal Preco);
+</pre>
+<pre class="solucao" data-file="Program.cs">using Lojinha.Modelos;
+
+var caderno = new Produto("Caderno", 12.50m);
+Console.WriteLine($"Etiqueta: {caderno.Nome}");
+</pre>
+</div>
+
+<hr>
+
+<h2>6. Dois tipos com o mesmo nome</h2>
+<p>A lojinha cresceu. O controle de estoque tem um <code>Produto</code> com quantidade, e o caixa tem outro <code>Produto</code> com preço. Cada um no seu namespace, sem problema nenhum: os nomes completos são diferentes. O problema aparece quando um arquivo liga os dois:</p>
+
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="ambiguo.cs">using Lojinha.Estoque;
+using Lojinha.Vendas;
+
+var item = new Produto("Caneta");
+Console.WriteLine(item);
+
+namespace Lojinha.Estoque
+{
+    record Produto(string Nome);
+}
+
+namespace Lojinha.Vendas
+{
+    record Produto(string Nome);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ambiguo.cs
+/home/ana/cs/ambiguo.cs(4,16): error CS0104: "Produto" é uma referência ambígua entre "Lojinha.Estoque.Produto" e "Lojinha.Vendas.Produto"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Referência ambígua" (<em>is an ambiguous reference between</em>): são as duas Júlias. O compilador não adivinha qual você quis. Três saídas:</p>
+<ol>
+  <li><strong>Nome completo</strong> na linha que usa: <code>new Lojinha.Estoque.Produto("Caneta")</code>.</li>
+  <li><strong>Tirar um dos <code>using</code></strong>, se o arquivo só precisa de um dos dois.</li>
+  <li><strong>Um apelido</strong> (<em>alias</em>), a forma mais legível quando o arquivo precisa dos dois.</li>
+</ol>
+
+<h3>Apelidos: <code>using Apelido = Namespace;</code></h3>
+
+<pre class="file" data-file="apelido.cs">using Estoque = Lojinha.Estoque;
+using Vendas = Lojinha.Vendas;
+
+var noDeposito = new Estoque.Produto("Caneta", 40);
+var naNota = new Vendas.Produto("Caneta", 2.50m);
+Console.WriteLine(noDeposito);
+Console.WriteLine(naNota);
+
+namespace Lojinha.Estoque
+{
+    record Produto(string Nome, int Quantidade);
+}
+
+namespace Lojinha.Vendas
+{
+    record Produto(string Nome, decimal Preco);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run apelido.cs
+Produto { Nome = Caneta, Quantidade = 40 }
+Produto { Nome = Caneta, Preco = 2,50 }</pre>
+
+<dl class="anatomy">
+  <dt>using Estoque = Lojinha.Estoque;</dt><dd>Cria o apelido <code>Estoque</code> para o namespace <code>Lojinha.Estoque</code>. Repare que ele <strong>não</strong> liga o namespace: <code>Produto</code> sozinho continua desconhecido. Só <code>Estoque.Produto</code> funciona.</dd>
+  <dt>new Estoque.Produto("Caneta", 40)</dt><dd>Lê-se "o <code>Produto</code> do estoque". Fica claro de qual dos dois se trata.</dd>
+  <dt>Console.WriteLine(noDeposito)</dt><dd>Um record mostra o nome do tipo e os valores (aula <a href="records.html">Records</a>). O nome do tipo aparece curto, sem o namespace.</dd>
+</dl>
+
+<p>O apelido também pode ser de um tipo só: <code>using ProdutoDoCaixa = Lojinha.Vendas.Produto;</code>. Desde o C# 12, pode ser de qualquer tipo, até de uma <a href="tuplas.html">tupla</a>:</p>
+
+<pre class="file" data-file="tupla.cs">using Ponto = (int X, int Y);
+
+Ponto p = (3, 4);
+Console.WriteLine(p);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tupla.cs
+(3, 4)</pre>
+
+<p>A marca <span class="versao">C# 12</span> vale para esse último caso (apelido de tupla, de array e de outros tipos sem nome). Apelidos de namespaces e de classes existem desde o C# 1.</p>
+
+<hr>
+
+<h2>7. <code>using static</code>: métodos sem o nome da classe <span class="versao">C# 6</span></h2>
+<p>Há uma terceira forma de diretiva. <code>using static</code> recebe uma <strong>classe</strong> (não um namespace) e deixa você usar os membros <a href="static.html">estáticos</a> dela sem escrever o nome da classe:</p>
+
+<pre class="file" data-file="estatico.cs">using static System.Math;
+using static System.Console;
+
+double raio = 2;
+WriteLine(PI * Pow(raio, 2));
+WriteLine(Max(3, 8));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run estatico.cs
+12,566370614359172
+8</pre>
+
+<dl class="anatomy">
+  <dt>using static System.Math;</dt><dd><code>PI</code>, <code>Pow</code> e <code>Max</code> passam a valer sem o <code>Math.</code> na frente (aula <a href="math.html">Matemática</a>).</dd>
+  <dt>using static System.Console;</dt><dd><code>WriteLine</code> sem o <code>Console.</code>.</dd>
+  <dt>12,566370614359172</dt><dd>A área do círculo de raio 2. A vírgula é a da cultura pt-BR da Ana (aula <a href="cultura.html">Cultura</a>).</dd>
+</dl>
+
+<p>Use com moderação. Numa conta cheia de <code>Math</code>, ajuda. Mas quem lê <code>WriteLine(…)</code> num programa grande fica sem saber de onde ele veio. O guia continua escrevendo <code>Console.WriteLine</code>.</p>
+
+<hr>
+
+<h2>Formas diferentes, qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Forma</th></tr>
+<tr><td>Usar um tipo uma vez, num lugar só</td><td>Nome completo: <code>System.Text.StringBuilder</code></td></tr>
+<tr><td>Usar tipos de um namespace num arquivo</td><td><code>using System.Text;</code> no topo do arquivo</td></tr>
+<tr><td>Um namespace que quase todo arquivo do projeto usa</td><td><code>global using System.Text;</code> num <code>GlobalUsings.cs</code>, ou <code>&lt;Using Include="System.Text" /&gt;</code> no <code>.csproj</code></td></tr>
+<tr><td>Console, listas, arquivos, LINQ</td><td>Nada: já vêm nos usings implícitos</td></tr>
+<tr><td>Os seus tipos num projeto</td><td>Namespace de arquivo: <code>namespace Lojinha.Modelos;</code></td></tr>
+<tr><td>Tipos depois das instruções, num arquivo do <code>dotnet run arquivo.cs</code></td><td>Namespace com chaves: <code>namespace Lojinha { … }</code></td></tr>
+<tr><td>Dois tipos com o mesmo nome no mesmo arquivo</td><td>Apelido: <code>using Estoque = Lojinha.Estoque;</code></td></tr>
+<tr><td>Conta com muitos <code>Math.</code></td><td><code>using static System.Math;</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS0246: "O nome do tipo ou do namespace … não pode ser encontrado"</strong>
+<p>Você já viu este erro com o <code>StringBuilder</code>. Ele também aparece quando o <code>using</code> tem um nome que não existe. A Ana escreveu <code>Modelo</code> em vez de <code>Modelos</code>:</p>
+<pre class="file" data-file="nsinex.cs">using Lojinha.Modelo;
+Console.WriteLine("oi");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run nsinex.cs
+/home/ana/cs/nsinex.cs(1,7): error CS0246: O nome do tipo ou do namespace "Lojinha" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> neste arquivo não existe nenhum namespace <code>Lojinha</code>. Com o tipo certo e o <code>using</code> faltando, o erro aponta o nome do tipo; com o <code>using</code> errado, aponta a própria linha do <code>using</code> (coluna 7).</p>
+<p><strong>Como consertar:</strong> confira a grafia do namespace (maiúsculas contam: <code>lojinha</code> ≠ <code>Lojinha</code>) e se ele existe mesmo. Para tipos do .NET, a documentação de cada tipo diz o namespace. Se for um pacote NuGet que ainda não foi instalado, falta o pacote, não o <code>using</code> (aula <a href="nuget.html">Pacotes NuGet</a>).</p>
+</div>
+
+<div class="cenario">
+<strong>CS0103: "O nome "Console" não existe no contexto atual"</strong>
+<p><strong>O que significa:</strong> o compilador não sabe quem é <code>Console</code>. Num programa normal do .NET 10 isso não acontece, porque <code>System</code> vem nos usings implícitos. Se aconteceu, os usings implícitos estão desligados: <code>&lt;ImplicitUsings&gt;disable&lt;/ImplicitUsings&gt;</code> no <code>.csproj</code>, <code>#:property ImplicitUsings=disable</code> no arquivo, ou um projeto antigo, de antes do .NET 6.</p>
+<p><strong>Como consertar:</strong> escreva <code>using System;</code> no topo, ou ligue de novo os usings implícitos (<code>enable</code>).</p>
+</div>
+
+<div class="cenario">
+<strong>CS0104: "… é uma referência ambígua entre …"</strong>
+<p><strong>O que significa:</strong> dois namespaces ligados por <code>using</code> têm um tipo com o mesmo nome.</p>
+<p><strong>Como consertar:</strong> use o nome completo, tire o <code>using</code> que sobra ou crie um apelido (<code>using Estoque = Lojinha.Estoque;</code>).</p>
+</div>
+
+<div class="cenario">
+<strong>CS1529: <code>using</code> fora do lugar</strong>
+<pre class="file" data-file="ordem.cs">Console.WriteLine("oi");
+using System.Text;
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ordem.cs
+/home/ana/cs/ordem.cs(2,1): error CS1529: Uma cláusula using deve preceder todos os outros elementos definidos no namespace, exceto as declarações de alias externas
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> "uma cláusula <code>using</code> deve vir antes de todos os outros elementos". As diretivas ficam no topo do arquivo, antes das instruções e dos tipos.</p>
+<p><strong>Como consertar:</strong> suba a linha do <code>using</code> para o começo do arquivo.</p>
+</div>
+
+<div class="cenario">
+<strong>CS8915: <code>global using</code> depois de um <code>using</code> normal</strong>
+<pre class="file" data-file="glob.cs">using System.Text;
+global using System.Globalization;
+Console.WriteLine("Olá");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run glob.cs
+/home/ana/cs/glob.cs(2,1): error CS8915: Uma diretiva de uso global deve preceder todas as diretivas de uso não global.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> dentro de um arquivo, os <code>global using</code> vêm primeiro, depois os <code>using</code> normais.</p>
+<p><strong>Como consertar:</strong> inverta as duas linhas ou, melhor ainda, mova os <code>global using</code> para um arquivo só deles (<code>GlobalUsings.cs</code>).</p>
+</div>
+
+<div class="cenario">
+<strong>CS8955 e CS8954: misturando as formas de namespace</strong>
+<pre class="file" data-file="misto.cs">namespace Lojinha;
+
+namespace Outro
+{
+    class A { }
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run misto.cs
+/home/ana/cs/misto.cs(3,11): error CS8955: O arquivo de origem não pode conter declarações de namespace normal e escopo de arquivo.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p>E com dois namespaces de arquivo (<code>namespace Lojinha;</code> e, logo abaixo, <code>namespace Outro;</code>):</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run dois.cs
+/home/ana/cs/dois.cs(2,11): error CS8954: O arquivo de origem só pode conter uma declaração de namespace de escopo de arquivo.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o namespace de arquivo vale para o arquivo inteiro, então não pode haver outro namespace no mesmo arquivo, nem de arquivo nem com chaves.</p>
+<p><strong>Como consertar:</strong> um namespace de arquivo por arquivo. Se precisa de dois namespaces, use dois arquivos, ou use só namespaces com chaves.</p>
+</div>
+
+<div class="cenario">
+<strong>Namespace de arquivo junto com instruções de nível superior</strong>
+<pre class="file" data-file="loja3.cs">namespace Lojinha;
+
+Console.WriteLine("oi");
+
+class Produto { }
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run loja3.cs
+/home/ana/cs/loja3.cs(3,9): error CS0116: Um namespace não pode conter diretamente membros, como campos, métodos ou instruções
+/home/ana/cs/loja3.cs(3,19): error CS1026: ) esperado
+/home/ana/cs/loja3.cs(3,19): error CS1022: Definição de namespace ou tipo, ou final do arquivo esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> três erros para um problema só. Depois de <code>namespace Lojinha;</code>, o arquivo inteiro está "dentro" do namespace, e um namespace só pode conter <strong>tipos</strong> (classes, records, structs…), não instruções soltas como o <code>Console.WriteLine</code>. O compilador se perde a partir dali, e os erros <code>CS1026</code> e <code>CS1022</code> são consequência do primeiro. Lembre a regra da aula <a href="erros-compilacao.html">Lendo Erros do Compilador</a>: conserte o primeiro erro e rode de novo.</p>
+<p><strong>Como consertar:</strong> o arquivo com as instruções de nível superior fica sem namespace. Num projeto, coloque os tipos em outros arquivos, cada um com o seu <code>namespace Lojinha;</code>. Num arquivo só, use o namespace com chaves, no fim.</p>
+</div>
+
+<div class="cenario">
+<strong>Aviso CS0105: o mesmo <code>using</code> duas vezes</strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run dup.cs
+/home/ana/cs/dup.cs(3,7): warning CS0105: A diretiva using para "System.Text" apareceu anteriormente neste namespace
+Olá</pre>
+<p><strong>O que significa:</strong> é só um aviso (o programa rodou): a linha 3 repete um <code>using System.Text;</code> que já estava na linha 2. Apague a repetida.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Sintaxe</th><th>O que faz</th></tr>
+<tr><td><code>System.Text.StringBuilder</code></td><td>Nome completo de um tipo: namespace + tipo</td></tr>
+<tr><td><code>using System.Text;</code></td><td>Liga um namespace neste arquivo: os tipos dele valem pelo nome curto</td></tr>
+<tr><td><code>global using System.Text;</code></td><td>Liga um namespace em todos os arquivos do projeto <span class="versao">C# 10</span></td></tr>
+<tr><td><code>&lt;Using Include="System.Text" /&gt;</code></td><td>O mesmo que o <code>global using</code>, escrito no <code>.csproj</code></td></tr>
+<tr><td><code>&lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;</code></td><td>Liga os 7 usings implícitos (<code>System</code>, <code>System.Collections.Generic</code>, <code>System.IO</code>, <code>System.Linq</code>, <code>System.Net.Http</code>, <code>System.Threading</code>, <code>System.Threading.Tasks</code>)</td></tr>
+<tr><td><code>#:property ImplicitUsings=disable</code></td><td>Desliga os usings implícitos num arquivo do <code>dotnet run arquivo.cs</code></td></tr>
+<tr><td><code>namespace Lojinha { … }</code></td><td>Os tipos dentro das chaves pertencem a <code>Lojinha</code></td></tr>
+<tr><td><code>namespace Lojinha.Modelos;</code></td><td>Namespace de arquivo: o arquivo todo pertence a ele <span class="versao">C# 10</span></td></tr>
+<tr><td><code>using Estoque = Lojinha.Estoque;</code></td><td>Apelido para um namespace ou tipo</td></tr>
+<tr><td><code>using Ponto = (int X, int Y);</code></td><td>Apelido para qualquer tipo, até tupla <span class="versao">C# 12</span></td></tr>
+<tr><td><code>using static System.Math;</code></td><td>Membros estáticos da classe sem o nome dela <span class="versao">C# 6</span></td></tr>
+<tr><td><code>typeof(T).Namespace</code> / <code>.FullName</code></td><td>O namespace / o nome completo de um tipo</td></tr>
+<tr><td><code>CS0246</code></td><td>Tipo ou namespace não encontrado (falta <code>using</code> ou o nome está errado)</td></tr>
+<tr><td><code>CS0103</code></td><td>Nome não existe (com <code>Console</code>: usings implícitos desligados)</td></tr>
+<tr><td><code>CS0104</code></td><td>Referência ambígua: dois tipos com o mesmo nome</td></tr>
+<tr><td><code>CS1529</code></td><td><code>using</code> depois de outro elemento</td></tr>
+<tr><td><code>CS8915</code></td><td><code>global using</code> depois de um <code>using</code> normal</td></tr>
+<tr><td><code>CS8954</code> / <code>CS8955</code></td><td>Dois namespaces de arquivo / namespace de arquivo misturado com o de chaves</td></tr>
+<tr><td><code>CS0105</code> (aviso)</td><td><code>using</code> repetido</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A diretiva</h3>
+<p>Complete para poder escrever <code>StringBuilder</code> sem o nome completo:</p>
+<div class="ex-code"><input data-answer="using" aria-label="palavra-chave"> System.Text;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Para o projeto inteiro</h3>
+<p>Complete para que <code>System.Globalization</code> valha em todos os arquivos do projeto:</p>
+<div class="ex-code"><input data-answer="global" aria-label="palavra-chave"> using System.Globalization;</div>
+</div>
+
+<div class="exercise">
+<h3>3. Namespace de arquivo</h3>
+<p>Complete a primeira linha do arquivo <code>Modelos/Cliente.cs</code> do projeto <code>Lojinha</code>, seguindo o costume:</p>
+<div class="ex-code">namespace <input data-answer="Lojinha.Modelos;" aria-label="namespace"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Num programa do .NET 10 com os usings implícitos ligados, qual destes tipos precisa de um <code>using</code> a mais?</p>
+<label><input type="radio" name="q4"> <code>Console</code></label>
+<label><input type="radio" name="q4"> <code>List&lt;int&gt;</code></label>
+<label><input type="radio" name="q4"> <code>StringBuilder</code></label>
+<label><input type="radio" name="q4"> <code>File</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. O que a diretiva <code>using System.Text;</code> faz?</p>
+<label><input type="radio" name="q5"> Carrega a biblioteca <code>System.Text</code> na memória, deixando o programa maior.</label>
+<label><input type="radio" name="q5"> Deixa usar os tipos de <code>System.Text</code> pelo nome curto, neste arquivo.</label>
+<label><input type="radio" name="q5"> Liga <code>System</code> e todos os namespaces que começam com <code>System</code>.</label>
+<label><input type="radio" name="q5"> Fecha o arquivo de texto no fim do programa.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Um arquivo tem <code>using Lojinha.Estoque;</code> e <code>using Lojinha.Vendas;</code>, e os dois namespaces têm um tipo <code>Produto</code>. O que acontece em <code>new Produto("Caneta")</code>?</p>
+<label><input type="radio" name="q6"> O compilador usa o <code>Produto</code> do primeiro <code>using</code>.</label>
+<label><input type="radio" name="q6"> O compilador usa o <code>Produto</code> do último <code>using</code>.</label>
+<label><input type="radio" name="q6"> O programa compila, mas lança uma exceção ao rodar.</label>
+<label><input type="radio" name="q6"> Erro <code>CS0104</code>: referência ambígua.</label>
+</div>
+
+<div class="trycs" data-goal="out:Quantidade = 40,out:Preco = 2,src:using\s+\w+\s*=\s*Lojinha\.(Estoque|Vendas)">
+<p class="try-task"><strong>Missão final:</strong> o programa não compila por causa do <code>CS0104</code>. Troque as duas diretivas por <strong>apelidos</strong> (<code>using Estoque = …;</code> e <code>using Vendas = …;</code>) e mostre os dois produtos: o do estoque com <code>40</code> unidades e o do caixa com preço <code>2.50m</code>.</p>
+<pre class="script">using Lojinha.Estoque;
+using Lojinha.Vendas;
+
+var noDeposito = new Produto("Caneta", 40);
+var naNota = new Produto("Caneta", 2.50m);
+Console.WriteLine(noDeposito);
+Console.WriteLine(naNota);
+
+namespace Lojinha.Estoque
+{
+    record Produto(string Nome, int Quantidade);
+}
+
+namespace Lojinha.Vendas
+{
+    record Produto(string Nome, decimal Preco);
+}
+</pre>
+<pre class="solucao">using Estoque = Lojinha.Estoque;
+using Vendas = Lojinha.Vendas;
+
+var noDeposito = new Estoque.Produto("Caneta", 40);
+var naNota = new Vendas.Produto("Caneta", 2.50m);
+Console.WriteLine(noDeposito);
+Console.WriteLine(naNota);
+
+namespace Lojinha.Estoque
+{
+    record Produto(string Nome, int Quantidade);
+}
+
+namespace Lojinha.Vendas
+{
+    record Produto(string Nome, decimal Preco);
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Todo tipo mora num <strong>namespace</strong>. O nome completo junta os dois: <code>System.Text.StringBuilder</code>.</li>
+  <li><code>using System.Text;</code>, no topo do arquivo, deixa usar o nome curto. Ele só encurta nomes, não carrega nada, e não liga os namespaces "de dentro".</li>
+  <li>O .NET 10 liga sozinho 7 <strong>usings implícitos</strong> (<code>ImplicitUsings</code>): <code>System</code>, <code>System.Collections.Generic</code>, <code>System.IO</code>, <code>System.Linq</code>, <code>System.Net.Http</code>, <code>System.Threading</code> e <code>System.Threading.Tasks</code>. O resto (como <code>System.Text</code>) precisa de <code>using</code>.</li>
+  <li><code>global using</code> vale para o projeto inteiro. Fica num <code>GlobalUsings.cs</code> ou no <code>.csproj</code> (<code>&lt;Using Include="…" /&gt;</code>), e vem antes dos <code>using</code> normais (<code>CS8915</code>).</li>
+  <li>Os seus tipos: <code>namespace Lojinha.Modelos;</code> (namespace de arquivo, um por arquivo, sem instruções soltas) ou <code>namespace Lojinha { … }</code> (com chaves, depois das instruções de nível superior).</li>
+  <li>Dois tipos com o mesmo nome dão <code>CS0104</code>: use o nome completo ou um apelido (<code>using Estoque = Lojinha.Estoque;</code>).</li>
+  <li><code>using static System.Math;</code> dispensa o nome da classe; use com moderação.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
