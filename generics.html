@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Generics — classes e métodos com &lt;T&gt; | Guia C#</title>
+<meta name="description" content="Generics em C# para quem nunca programou: por que existem (a InvalidCastException real de guardar tudo como object), a primeira classe genérica Caixa<T>, nomes T, TKey e TValue, dois parâmetros de tipo, métodos genéricos e a inferência de tipo, default, generics com int sem perder o tipo, e os erros reais CS1503, CS0305, CS0411 e CS0019, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Generics</span></h1>
+
+<p class="intro">Você já escreveu <code>List&lt;int&gt;</code>, <code>List&lt;string&gt;</code> e <code>Dictionary&lt;string, decimal&gt;</code>. Uma única classe <code>List</code> serve para guardar números, textos, alunos ou qualquer outra coisa, e mesmo assim o compilador sabe exatamente o que está dentro de cada lista. Isso é <strong>generics</strong> (em português, "genéricos"): escrever uma classe ou um método <strong>uma vez</strong>, deixando um tipo "em branco", para ser preenchido por quem for usar. Nesta aula você vai criar as suas próprias classes e métodos genéricos.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Por que generics existem: o problema de guardar tudo como <code>object</code>.</li>
+  <li>Criar uma classe genérica: <code>Caixa&lt;T&gt;</code>.</li>
+  <li>Os nomes dos parâmetros de tipo (<code>T</code>, <code>TKey</code>, <code>TValue</code>…) e classes com dois tipos.</li>
+  <li>Criar métodos genéricos e deixar o compilador <strong>deduzir</strong> o tipo.</li>
+  <li>O <code>default</code>: o valor "vazio" de qualquer tipo.</li>
+  <li>Os erros reais: <code>CS1503</code>, <code>CS0305</code>, <code>CS0411</code> e <code>CS0019</code> (o que <code>T</code> não sabe fazer).</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> na máquina da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Você pode repetir cada um no editor do guia.</p>
+
+<hr>
+
+<h2>A ideia: a caixa com etiqueta</h2>
+<p>Na oficina da Ana há caixas de plástico iguaizinhas. A fábrica fez <strong>um só modelo</strong> de caixa. Quando a Ana compra uma, ela cola uma <strong>etiqueta</strong>: "PARAFUSOS", "PREGOS", "BOTÕES". A partir daí, aquela caixa é de parafusos, e ninguém guarda pregos nela.</p>
+
+<p>Uma classe genérica é o modelo da fábrica, com um espaço para a etiqueta. Esse espaço é o <strong>parâmetro de tipo</strong>, escrito entre <code>&lt; &gt;</code>, normalmente com a letra <code>T</code> (de <em>type</em>, "tipo"):</p>
+
+<pre class="syntax">  class Caixa&lt;T&gt;          « o modelo: T é a etiqueta em branco
+  new Caixa&lt;int&gt;(…)       « uma caixa com a etiqueta "int"
+  new Caixa&lt;string&gt;(…)    « outra caixa, com a etiqueta "string"</pre>
+
+<p>Quando você escreve <code>Caixa&lt;int&gt;</code>, o compilador troca o <code>T</code> por <code>int</code> em toda a classe. É como se você tivesse escrito uma classe só para números, e outra só para textos, sem ter escrito nenhuma das duas.</p>
+
+<hr>
+
+<h2 id="object">1. A vida sem generics</h2>
+<p>Antes dos generics (que chegaram no C# 2, em 2005), o jeito de fazer uma caixa "para qualquer coisa" era usar o tipo <code>object</code>, que aceita qualquer valor (veja <a href="object.html">A Classe object</a>):</p>
+
+<pre class="file" data-file="semgenerics.cs">var caixa = new CaixaDeQualquerCoisa();
+caixa.Guardar("parafusos");
+
+int quantidade = (int)caixa.Abrir();
+Console.WriteLine(quantidade);
+
+class CaixaDeQualquerCoisa
+{
+    private object conteudo = "nada";
+    public void Guardar(object coisa) =&gt; conteudo = coisa;
+    public object Abrir() =&gt; conteudo;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run semgenerics.cs
+Unhandled exception. System.InvalidCastException: Unable to cast object of type 'System.String' to type 'System.Int32'.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/semgenerics.cs:line 4
+$ echo $?
+134</pre>
+
+<p>O programa <strong>compilou</strong>: para o compilador, a caixa guarda <code>object</code>, e um <code>(int)</code> (um <a href="conversao-tipos.html">cast</a>) de <code>object</code> é permitido. Só na hora de rodar o .NET descobriu que dentro havia um texto, e lançou a <code>InvalidCastException</code>: "não é possível converter um objeto do tipo <code>String</code> no tipo <code>Int32</code>". Com <code>object</code>, você:</p>
+<ul>
+  <li>tem de converter (<code>(int)</code>, <code>(string)</code>) toda vez que tira algo da caixa;</li>
+  <li>só descobre o erro quando o programa roda, talvez na máquina do cliente;</li>
+  <li>perde desempenho com números: cada <code>int</code> guardado num <code>object</code> é "embrulhado" num objeto (o <em>boxing</em>).</li>
+</ul>
+
+<hr>
+
+<h2>2. A primeira classe genérica: <code>Caixa&lt;T&gt;</code></h2>
+
+<pre class="file" data-file="caixa.cs">var caixaDeNumero = new Caixa&lt;int&gt;(42);
+int numero = caixaDeNumero.Abrir();
+Console.WriteLine(numero + 1);
+
+var caixaDeTexto = new Caixa&lt;string&gt;("parafusos");
+string texto = caixaDeTexto.Abrir();
+Console.WriteLine(texto.ToUpper());
+
+caixaDeTexto.Guardar("pregos");
+Console.WriteLine(caixaDeNumero);
+Console.WriteLine(caixaDeTexto);
+
+class Caixa&lt;T&gt;
+{
+    private T conteudo;
+
+    public Caixa(T conteudo)
+    {
+        this.conteudo = conteudo;
+    }
+
+    public void Guardar(T coisa) =&gt; conteudo = coisa;
+
+    public T Abrir() =&gt; conteudo;
+
+    public override string ToString() =&gt; $"Caixa&lt;{typeof(T).Name}&gt; com {conteudo}";
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run caixa.cs
+43                               « o Abrir devolveu um int de verdade: dá para somar
+PARAFUSOS                        « e aqui um string: dá para usar ToUpper
+Caixa&lt;Int32&gt; com 42
+Caixa&lt;String&gt; com pregos</pre>
+
+<dl class="anatomy">
+  <dt>class Caixa&lt;T&gt;</dt><dd>"Uma caixa de <code>T</code>". O <code>&lt;T&gt;</code> logo depois do nome declara o parâmetro de tipo. Dentro da classe, <code>T</code> pode ser usado em qualquer lugar onde caberia um tipo.</dd>
+  <dt>private T conteudo;</dt><dd>Um campo do tipo <code>T</code>. Numa <code>Caixa&lt;int&gt;</code>, ele é um <code>int</code>; numa <code>Caixa&lt;string&gt;</code>, um <code>string</code>.</dd>
+  <dt>public Caixa(T conteudo)</dt><dd>O <a href="construtores.html">construtor</a>: a caixa já nasce com algo dentro. Repare que o nome do construtor é só <code>Caixa</code>, sem o <code>&lt;T&gt;</code>.</dd>
+  <dt>public void Guardar(T coisa)</dt><dd>Só aceita <code>T</code>. Numa <code>Caixa&lt;int&gt;</code>, tentar guardar um texto é erro <strong>de compilação</strong> (você vai ver logo abaixo).</dd>
+  <dt>public T Abrir()</dt><dd>Devolve um <code>T</code>. Não precisa de <code>(int)</code> nenhum: o compilador já sabe o tipo.</dd>
+  <dt>typeof(T).Name</dt><dd>O nome do tipo que preencheu o <code>T</code>, já com o programa rodando: <code>Int32</code> é o nome do <code>int</code> no .NET, e <code>String</code>, o do <code>string</code>. No C#, o tipo de verdade continua conhecido durante a execução.</dd>
+</dl>
+
+<h3>O erro agora aparece antes de rodar</h3>
+<p>Com a caixa genérica, a mesma confusão da seção 1 nem chega a virar programa:</p>
+
+<pre class="file" data-file="errado.cs">var caixa = new Caixa&lt;int&gt;(42);
+caixa.Guardar("parafusos");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run errado.cs
+/home/ana/cs/errado.cs(2,15): error CS1503: Argumento 1: não é possível converter de "string" para "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Esse é o grande ganho: o erro que antes era uma exceção na máquina do cliente agora é uma linha vermelha no seu editor, com o lugar exato (linha 2, coluna 15). É a chamada <strong>segurança de tipos</strong>.</p>
+
+<h3>Os nomes dos parâmetros de tipo</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Nome</th><th>Costume</th><th>Exemplo do .NET</th></tr>
+<tr><td><code>T</code></td><td>Um tipo só, sem papel especial</td><td><code>List&lt;T&gt;</code>, <code>HashSet&lt;T&gt;</code></td></tr>
+<tr><td><code>TKey</code>, <code>TValue</code></td><td>"T" + o papel do tipo, quando há mais de um</td><td><code>Dictionary&lt;TKey, TValue&gt;</code></td></tr>
+<tr><td><code>TElement</code>, <code>TPriority</code></td><td>Idem</td><td><code>PriorityQueue&lt;TElement, TPriority&gt;</code></td></tr>
+<tr><td><code>TResult</code></td><td>O tipo do resultado</td><td><code>Func&lt;T, TResult&gt;</code> (aula <a href="func-action.html">Func e Action</a>)</td></tr>
+</table>
+</div>
+<p>Os nomes são só convenção (o compilador aceitaria <code>&lt;Banana&gt;</code>), mas siga-a: quem lê o seu código reconhece na hora que <code>TKey</code> é um tipo, e não uma variável.</p>
+
+<h3>Dois parâmetros de tipo</h3>
+<pre class="file" data-file="par.cs">var produto = new Par&lt;string, decimal&gt;("café", 18.90m);
+var aluno = new Par&lt;string, int&gt;("Ana", 29);
+Console.WriteLine($"{produto.Primeiro}: {produto.Segundo:C}");
+Console.WriteLine($"{aluno.Primeiro} tem {aluno.Segundo} anos");
+Console.WriteLine(produto);
+
+record Par&lt;TPrimeiro, TSegundo&gt;(TPrimeiro Primeiro, TSegundo Segundo);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run par.cs
+café: R$ 18,90
+Ana tem 29 anos
+Par { Primeiro = café, Segundo = 18,90 }</pre>
+
+<p>Os parâmetros de tipo vão separados por vírgula, como no <code>Dictionary</code>. Um <a href="records.html">record</a> também pode ser genérico: aqui, uma linha basta para um par de qualquer coisa com qualquer coisa. (Para pares rápidos, o C# já tem as <a href="tuplas.html">tuplas</a>; o <code>Par</code> é só para ver a ideia.)</p>
+
+<hr>
+
+<h2>3. Métodos genéricos</h2>
+<p>Não é só classe que pode ter <code>&lt;T&gt;</code>: um <strong>método</strong> também. O <code>&lt;T&gt;</code> vem logo depois do nome do método:</p>
+
+<pre class="file" data-file="metodos.cs">int a = 1, b = 2;
+Trocar(ref a, ref b);
+Console.WriteLine($"a = {a}, b = {b}");
+
+string x = "Ana", y = "Bruno";
+Trocar(ref x, ref y);
+Console.WriteLine($"x = {x}, y = {y}");
+
+Console.WriteLine(Primeiro(new List&lt;int&gt; { 7, 8, 9 }));
+Console.WriteLine(Primeiro&lt;string&gt;(["pão", "leite"]));
+
+void Trocar&lt;T&gt;(ref T primeiro, ref T segundo)
+{
+    T guardado = primeiro;
+    primeiro = segundo;
+    segundo = guardado;
+}
+
+T Primeiro&lt;T&gt;(List&lt;T&gt; itens) =&gt; itens[0];
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run metodos.cs
+a = 2, b = 1
+x = Bruno, y = Ana
+7
+pão</pre>
+
+<dl class="anatomy">
+  <dt>void Trocar&lt;T&gt;(ref T primeiro, ref T segundo)</dt><dd>Um método que troca o valor de duas variáveis de <strong>qualquer</strong> tipo, desde que as duas sejam do mesmo tipo <code>T</code>. O <code>ref</code> (veja <a href="ref-out-in.html">ref, out e in</a>) deixa o método mudar as variáveis de quem chamou.</dd>
+  <dt>T guardado = primeiro;</dt><dd>Uma variável local do tipo <code>T</code>, para não perder o primeiro valor no meio da troca.</dd>
+  <dt>Trocar(ref a, ref b)</dt><dd>Repare: <strong>sem</strong> <code>&lt;int&gt;</code>. O compilador olha os argumentos (<code>a</code> e <code>b</code> são <code>int</code>) e deduz que <code>T</code> é <code>int</code>. Isso se chama <strong>inferência de tipo</strong>.</dd>
+  <dt>Primeiro&lt;string&gt;(["pão", "leite"])</dt><dd>Aqui o tipo foi escrito à mão. É preciso quando o compilador não tem como deduzir: os colchetes <code>[ … ]</code> sozinhos não dizem que coleção é (veja o erro <code>CS0411</code> em <a href="#errado">Quando dá errado</a>).</dd>
+</dl>
+
+<p>Você já usou métodos genéricos sem perceber: o <code>Sum</code>, o <code>Max</code> e o <code>ToList</code> do <a href="linq.html">LINQ</a>, o <code>Array.IndexOf</code>, o <code>Comparer&lt;T&gt;.Create</code>… Por isso eles funcionam com qualquer tipo.</p>
+
+<div class="trycs" data-goal="out:Último número: 9,out:Último nome: Carla,exit:0,src:Ultimo\s*&lt;\s*T\s*&gt;">
+<p class="try-task"><strong>Missão:</strong> o método <code>Ultimo</code> só aceita <code>List&lt;int&gt;</code>, por isso a chamada com a lista de nomes não compila. Torne-o genérico (<code>T Ultimo&lt;T&gt;(List&lt;T&gt; itens)</code>) para as duas chamadas funcionarem.</p>
+<pre class="script">List&lt;int&gt; numeros = [3, 5, 9];
+List&lt;string&gt; nomes = ["Ana", "Bruno", "Carla"];
+
+Console.WriteLine($"Último número: {Ultimo(numeros)}");
+Console.WriteLine($"Último nome: {Ultimo(nomes)}");
+
+int Ultimo(List&lt;int&gt; itens) =&gt; itens[itens.Count - 1];
+</pre>
+<pre class="solucao">List&lt;int&gt; numeros = [3, 5, 9];
+List&lt;string&gt; nomes = ["Ana", "Bruno", "Carla"];
+
+Console.WriteLine($"Último número: {Ultimo(numeros)}");
+Console.WriteLine($"Último nome: {Ultimo(nomes)}");
+
+T Ultimo&lt;T&gt;(List&lt;T&gt; itens) =&gt; itens[itens.Count - 1];
+</pre>
+</div>
+
+<hr>
+
+<h2>4. <code>default</code>: o "vazio" de qualquer tipo</h2>
+<p>Às vezes um método genérico precisa devolver "nada". Mas o que é "nada" para um <code>T</code> que pode ser <code>int</code>, <code>string</code> ou <code>bool</code>? Para isso existe o <code>default</code>, o valor padrão do tipo:</p>
+
+<pre class="file" data-file="padrao.cs">Console.WriteLine(PrimeiroOuPadrao(new List&lt;int&gt;()));
+Console.WriteLine(PrimeiroOuPadrao(new List&lt;string&gt;()) is null);
+Console.WriteLine(PrimeiroOuPadrao(new List&lt;decimal&gt; { 2.5m }));
+Console.WriteLine(default(int));
+Console.WriteLine(default(bool));
+
+T? PrimeiroOuPadrao&lt;T&gt;(List&lt;T&gt; itens)
+{
+    if (itens.Count == 0)
+        return default;
+    return itens[0];
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run padrao.cs
+0                « lista de int vazia: default de int é 0
+True             « lista de string vazia: default de string é null
+2,5
+0
+False            « default de bool é false</pre>
+
+<dl class="anatomy">
+  <dt>return default;</dt><dd>"Devolva o valor padrão do <code>T</code>, seja ele qual for": <code>0</code> para números, <code>false</code> para <code>bool</code>, <code>null</code> para classes e <code>string</code>.</dd>
+  <dt>T?</dt><dd>Avisa quem chama que o resultado pode ser o "vazio" (com <code>string</code>, pode ser <code>null</code>). Sem o <code>?</code>, o compilador reclamaria de devolver um possível <code>null</code>.</dd>
+  <dt>default(int)</dt><dd>A forma com o tipo escrito, para pedir o padrão de um tipo específico.</dd>
+</dl>
+<p>É exatamente o que fazem o <code>GetValueOrDefault</code> do <a href="dictionary.html">Dictionary</a> e o <code>FirstOrDefault</code> do LINQ.</p>
+
+<hr>
+
+<h2 id="limites">5. O que o <code>T</code> não sabe fazer</h2>
+<p>Dentro de um método genérico, o compilador não sabe que tipo vai chegar no <code>T</code>. Por isso, ele só deixa você fazer com <code>T</code> o que <strong>qualquer</strong> tipo sabe: guardar, devolver, passar adiante, comparar com <code>null</code>, chamar <code>ToString()</code> e <code>Equals()</code>. Somar ou comparar com <code>&gt;</code>, não:</p>
+
+<pre class="file" data-file="operador.cs">Console.WriteLine(Maior(3, 7));
+
+T Maior&lt;T&gt;(T a, T b)
+{
+    if (a &gt; b)
+        return a;
+    return b;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run operador.cs
+/home/ana/cs/operador.cs(5,9): error CS0019: O operador "&gt;" não pode ser aplicado a operandos dos tipos "T" e "T"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Faz sentido: e se alguém chamasse <code>Maior</code> com dois <code>Aluno</code>? Qual aluno é "maior"? Para dizer ao compilador "este <code>T</code> só pode ser um tipo que sabe se comparar", você põe uma <strong>restrição</strong>: <code>where T : IComparable&lt;T&gt;</code>. Esse é o assunto da próxima aula, <a href="restricoes-genericas.html">Restrições (where)</a>.</p>
+
+<hr>
+
+<h2>Generics no C# × em outras linguagens</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>C#</th><th>Java</th></tr>
+<tr><td>Tipos como <code>int</code></td><td><code>List&lt;int&gt;</code> funciona direto, sem embrulhar cada número</td><td>Só <code>List&lt;Integer&gt;</code>: cada número vira objeto</td></tr>
+<tr><td>O tipo durante a execução</td><td>Conhecido: <code>typeof(T).Name</code> dá <code>Int32</code></td><td>Apagado depois da compilação</td></tr>
+</table>
+</div>
+<p>Se você vem do Java, essa é a principal diferença: no C#, <code>List&lt;int&gt;</code> e <code>List&lt;string&gt;</code> são tipos realmente diferentes também enquanto o programa roda (<code>new List&lt;int&gt;().GetType()</code> mostra <code>System.Collections.Generic.List`1[System.Int32]</code>).</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS1503: Argumento 1: não é possível converter de "string" para "int"</code></strong>
+<p><strong>O que significa:</strong> você passou um valor de outro tipo para um método de uma classe genérica já "etiquetada". Numa <code>Caixa&lt;int&gt;</code>, o <code>Guardar</code> só aceita <code>int</code>.</p>
+<p><strong>Como consertar:</strong> guarde o tipo certo, ou crie a caixa com a etiqueta certa (<code>new Caixa&lt;string&gt;(…)</code>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0305: Usar o genérico tipo "Caixa&lt;T&gt;" requer 1 argumentos de tipo</code></strong>
+<p><strong>O que significa:</strong> você escreveu <code>new Caixa(42)</code>, sem a etiqueta. Diferente dos métodos, uma <strong>classe</strong> genérica não deduz o tipo pelo construtor.</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run semtipo.cs
+/home/ana/cs/semtipo.cs(1,17): error CS0305: Usar o genérico tipo "Caixa&lt;T&gt;" requer 1 argumentos de tipo
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>Como consertar:</strong> escreva o tipo: <code>new Caixa&lt;int&gt;(42)</code>. Ou declare a variável com o tipo e use <code>new(42)</code>: <code>Caixa&lt;int&gt; caixa = new(42);</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0411: Os argumentos de tipo do método "Criar&lt;T&gt;()" não podem ser inferidos com base no uso. Tente especificar explicitamente os argumentos de tipo.</code></strong>
+<p><strong>O que significa:</strong> o compilador não conseguiu deduzir o <code>T</code>. Com <code>var vazio = Criar();</code>, não há argumento nenhum para olhar, e o <code>var</code> também não diz o tipo.</p>
+<p><strong>Como consertar:</strong> escreva o tipo na chamada: <code>Criar&lt;int&gt;()</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0019: O operador "&gt;" não pode ser aplicado a operandos dos tipos "T" e "T"</code></strong>
+<p><strong>O que significa:</strong> você usou com <code>T</code> uma operação que nem todo tipo tem (<code>&gt;</code>, <code>+</code>, <code>&lt;</code>…). Em inglês: <code>Operator '&gt;' cannot be applied to operands of type 'T' and 'T'</code>.</p>
+<p><strong>Como consertar:</strong> restrinja o <code>T</code> (por exemplo, <code>where T : IComparable&lt;T&gt;</code>) e use o método que a restrição garante: <code>a.CompareTo(b) &gt; 0</code>. Veja <a href="restricoes-genericas.html">Restrições (where)</a>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>InvalidCastException: Unable to cast object of type 'System.String' to type 'System.Int32'.</code></strong>
+<p><strong>O que significa:</strong> um código antigo guarda tudo como <code>object</code> e converteu para o tipo errado (<a href="#object">seção 1</a>).</p>
+<p><strong>Como consertar:</strong> troque o <code>object</code> por um parâmetro de tipo <code>T</code>; aí o erro passa a aparecer na compilação.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>class Caixa&lt;T&gt; { … }</code></td><td>Classe genérica com um parâmetro de tipo</td></tr>
+<tr><td><code>class Par&lt;TA, TB&gt;</code> / <code>record Par&lt;TA, TB&gt;(TA A, TB B);</code></td><td>Dois parâmetros de tipo</td></tr>
+<tr><td><code>new Caixa&lt;int&gt;(42)</code></td><td>Usa a classe com <code>T</code> = <code>int</code></td></tr>
+<tr><td><code>T Primeiro&lt;T&gt;(List&lt;T&gt; itens)</code></td><td>Método genérico</td></tr>
+<tr><td><code>Primeiro(lista)</code> / <code>Primeiro&lt;int&gt;(lista)</code></td><td>Tipo deduzido / tipo escrito</td></tr>
+<tr><td><code>default</code> / <code>default(T)</code></td><td>Valor padrão: <code>0</code>, <code>false</code>, <code>null</code>…</td></tr>
+<tr><td><code>typeof(T).Name</code></td><td>Nome do tipo que preencheu o <code>T</code></td></tr>
+<tr><td><code>where T : …</code></td><td>Restrição (próxima aula)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A etiqueta</h3>
+<p>Complete para criar uma caixa que guarda <code>decimal</code>:</p>
+<div class="ex-code">var cofre = new Caixa&lt;<input data-answer="decimal" aria-label="tipo">&gt;(10.50m);</div>
+</div>
+
+<div class="exercise">
+<h3>2. Declarar uma classe genérica</h3>
+<p>Complete a declaração de uma classe <code>Sacola</code> com um parâmetro de tipo:</p>
+<div class="ex-code">class Sacola<input data-answer="&lt;T&gt;" aria-label="parâmetro de tipo"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">3. Qual a principal vantagem de <code>Caixa&lt;T&gt;</code> sobre uma caixa que guarda <code>object</code>?</p>
+<label><input type="radio" name="q3"> Ela guarda mais itens</label>
+<label><input type="radio" name="q3"> Os erros de tipo aparecem na compilação, e não precisa converter ao tirar</label>
+<label><input type="radio" name="q3"> Ela aceita qualquer tipo misturado na mesma caixa</label>
+<label><input type="radio" name="q3"> Nenhuma; é só outro jeito de escrever</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">4. Com <code>T Primeiro&lt;T&gt;(List&lt;T&gt; itens)</code>, o que a chamada <code>Primeiro(new List&lt;double&gt; { 1.5 })</code> faz?</p>
+<label><input type="radio" name="q4"> Erro <code>CS0411</code>: precisa escrever <code>&lt;double&gt;</code></label>
+<label><input type="radio" name="q4"> Devolve um <code>object</code></label>
+<label><input type="radio" name="q4"> Erro <code>CS0305</code></label>
+<label><input type="radio" name="q4"> O compilador deduz <code>T</code> = <code>double</code> e devolve 1,5</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. O que <code>default</code> vale quando <code>T</code> é <code>string</code>?</p>
+<label><input type="radio" name="q5"> <code>null</code></label>
+<label><input type="radio" name="q5"> <code>""</code> (texto vazio)</label>
+<label><input type="radio" name="q5"> <code>0</code></label>
+<label><input type="radio" name="q5"> Dá erro</label>
+</div>
+
+<h3>Missão final: a sacola genérica</h3>
+
+<div class="trycs" data-goal="out:Frutas: 2,out:Tem uva? True,out:Números: 3,out:Tem 8? False,exit:0,src:class\s+Sacola\s*&lt;\s*T\s*&gt;">
+<p class="try-task"><strong>Missão:</strong> a classe <code>SacolaDeTexto</code> só guarda textos, e a Ana quer uma sacola de números também. Transforme-a numa classe genérica <code>Sacola&lt;T&gt;</code> (troque <code>string</code> por <code>T</code> onde for o tipo do item) e ajuste as duas criações para <code>new Sacola&lt;string&gt;()</code> e <code>new Sacola&lt;int&gt;()</code>.</p>
+<pre class="out">Frutas: 2
+Tem uva? True
+Números: 3
+Tem 8? False</pre>
+<pre class="script">var frutas = new SacolaDeTexto();
+frutas.Colocar("uva");
+frutas.Colocar("maçã");
+Console.WriteLine($"Frutas: {frutas.Quantidade}");
+Console.WriteLine($"Tem uva? {frutas.Tem("uva")}");
+
+var numeros = new SacolaDeTexto();
+numeros.Colocar(4);
+numeros.Colocar(7);
+numeros.Colocar(9);
+Console.WriteLine($"Números: {numeros.Quantidade}");
+Console.WriteLine($"Tem 8? {numeros.Tem(8)}");
+
+class SacolaDeTexto
+{
+    private readonly List&lt;string&gt; itens = [];
+
+    public void Colocar(string item) =&gt; itens.Add(item);
+
+    public bool Tem(string item) =&gt; itens.Contains(item);
+
+    public int Quantidade =&gt; itens.Count;
+}
+</pre>
+<pre class="solucao">var frutas = new Sacola&lt;string&gt;();
+frutas.Colocar("uva");
+frutas.Colocar("maçã");
+Console.WriteLine($"Frutas: {frutas.Quantidade}");
+Console.WriteLine($"Tem uva? {frutas.Tem("uva")}");
+
+var numeros = new Sacola&lt;int&gt;();
+numeros.Colocar(4);
+numeros.Colocar(7);
+numeros.Colocar(9);
+Console.WriteLine($"Números: {numeros.Quantidade}");
+Console.WriteLine($"Tem 8? {numeros.Tem(8)}");
+
+class Sacola&lt;T&gt;
+{
+    private readonly List&lt;T&gt; itens = [];
+
+    public void Colocar(T item) =&gt; itens.Add(item);
+
+    public bool Tem(T item) =&gt; itens.Contains(item);
+
+    public int Quantidade =&gt; itens.Count;
+}
+</pre>
+</div>
+
+<p>Repare que dentro da <code>Sacola&lt;T&gt;</code> há uma <code>List&lt;T&gt;</code>: um genérico usando outro. O <code>T</code> da sacola "passa" para a lista. É assim que as coleções do .NET são construídas.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Generics deixam um tipo "em branco" (<code>&lt;T&gt;</code>) numa classe ou método, preenchido por quem usa: <code>Caixa&lt;int&gt;</code>, <code>Caixa&lt;string&gt;</code>.</li>
+  <li>Comparados com <code>object</code>, eles dão segurança de tipos (erro na compilação, e não <code>InvalidCastException</code>), dispensam conversões e não embrulham números.</li>
+  <li>Convenção de nomes: <code>T</code>, ou <code>T</code> + papel (<code>TKey</code>, <code>TValue</code>). Vários parâmetros vão separados por vírgula.</li>
+  <li>Métodos genéricos (<code>T Primeiro&lt;T&gt;(…)</code>) costumam ter o tipo deduzido pelos argumentos; quando não dá, escreva-o (<code>CS0411</code>). Classes genéricas sempre precisam do tipo (<code>CS0305</code>).</li>
+  <li><code>default</code> é o valor padrão de qualquer <code>T</code>: <code>0</code>, <code>false</code>, <code>null</code>.</li>
+  <li>Sem restrições, <code>T</code> não tem operadores como <code>&gt;</code> e <code>+</code> (<code>CS0019</code>); a próxima aula ensina o <code>where</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
