@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# var — inferência de tipo nas variáveis locais | Guia C#</title>
+<meta name="description" content="A palavra var em C# para quem nunca programou: o compilador descobre o tipo pelo valor (inferência), o tipo continua fixo, a armadilha de var preco = 19.90 (double, não decimal), new() com tipo alvo, quando usar e quando evitar, e os erros CS0818, CS0815, CS0819, CS0825 e CS0029, com saídas reais do .NET 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Inferência com var</span></h1>
+
+<p class="intro">Até aqui, toda variável começou com o nome do tipo: <code>int idade = 29;</code>, <code>string nome = "Ana";</code>. Mas repare: o <code>29</code> já diz que é um inteiro, e o <code>"Ana"</code> já diz que é texto. O C# deixa você trocar o tipo pela palavra <code>var</code> e descobre o tipo sozinho, olhando o valor. Isso se chama <strong>inferência de tipo</strong>. Nesta aula você vai ver como o <code>var</code> funciona, o que ele <strong>não</strong> faz (ele não deixa a variável mudar de tipo) e a armadilha do preço com <code>var</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que o <code>var</code> faz: o compilador escolhe o tipo pelo valor do lado direito.</li>
+  <li>Que a variável continua com um tipo fixo, para sempre (<code>CS0029</code>).</li>
+  <li>Como o C# escolhe o tipo de cada valor: <code>19.90</code> é <code>double</code>, <code>19.90m</code> é <code>decimal</code>.</li>
+  <li>As regras do <code>var</code>: precisa de valor (<code>CS0818</code>), não aceita <code>null</code> (<code>CS0815</code>), uma variável por vez (<code>CS0819</code>), só dentro de métodos (<code>CS0825</code>).</li>
+  <li>O <code>new()</code> com tipo alvo, o "contrário" do <code>var</code>.</li>
+  <li>Quando usar <code>var</code> e quando escrever o tipo.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: a etiqueta que se escreve sozinha</h2>
+<p>Imagine uma etiquetadora mágica na cozinha da Ana. Ela coloca açúcar num pote vazio, e a etiqueta "AÇÚCAR" aparece sozinha. Ela não precisou escrever, mas a etiqueta está lá, e o pote continua sendo de açúcar: ninguém vai pôr feijão nele depois.</p>
+<p>O <code>var</code> é essa etiquetadora. Você escreve <code>var</code>, põe um valor, e o compilador "escreve a etiqueta" (o tipo) por você, <strong>na hora de compilar</strong>. Depois disso, a variável é exatamente igual a uma declarada com o tipo escrito.</p>
+
+<hr>
+
+<h2>1. <code>var</code> no lugar do tipo</h2>
+
+<pre class="file" data-file="var1.cs">var nome = "Ana";
+var idade = 29;
+var altura = 1.65;
+var saldo = 1250.75m;
+var inicial = 'A';
+var ativa = true;
+Console.WriteLine(nome.GetType());
+Console.WriteLine(idade.GetType());
+Console.WriteLine(altura.GetType());
+Console.WriteLine(saldo.GetType());
+Console.WriteLine(inicial.GetType());
+Console.WriteLine(ativa.GetType());
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run var1.cs
+System.String
+System.Int32
+System.Double
+System.Decimal
+System.Char
+System.Boolean</pre>
+
+<dl class="anatomy">
+  <dt>var</dt><dd>Abreviação de <em>variable</em>, "variável". Quer dizer: "compilador, descubra o tipo pelo valor". Existe desde o C# 3 (2007) e aparece em quase todo código moderno.</dd>
+  <dt>var nome = "Ana";</dt><dd>Aspas duplas: <code>string</code> (<code>System.String</code>).</dd>
+  <dt>var idade = 29;</dt><dd>Número sem ponto: <code>int</code>.</dd>
+  <dt>var altura = 1.65;</dt><dd>Número com ponto e sem sufixo: <code>double</code>.</dd>
+  <dt>var saldo = 1250.75m;</dt><dd>Com o sufixo <code>m</code>: <code>decimal</code>.</dd>
+  <dt>var inicial = 'A'; · var ativa = true;</dt><dd>Aspas simples: <code>char</code>. <code>true</code>: <code>bool</code>.</dd>
+</dl>
+
+<p>Os tipos são exatamente os da aula <a href="tipos-dados.html">Tipos de Dados</a>, em que cada linha tinha o tipo escrito. O programa gerado é o mesmo: <code>var</code> só poupa você de digitar o tipo. Num editor como o VS Code, passe o mouse em cima do nome da variável para ver o tipo que o compilador escolheu (aula <a href="editores.html">Editores e IDEs</a>).</p>
+
+<hr>
+
+<h2>2. O tipo continua fixo</h2>
+<p>Em JavaScript e Python, uma variável pode guardar um número agora e um texto depois. Com <code>var</code>, o C# <strong>não</strong> vira isso. O tipo é decidido uma vez, pelo primeiro valor, e nunca mais muda:</p>
+
+<pre class="file" data-file="varerro3.cs">var pontos = 10;
+pontos = "dez";
+Console.WriteLine(pontos);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run varerro3.cs
+/home/ana/cs/varerro3.cs(2,10): error CS0029: Não é possível converter implicitamente tipo "string" em "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p><code>pontos</code> nasceu <code>int</code> (por causa do <code>10</code>) e é <code>int</code> para sempre. É o mesmo erro que você teria com <code>int pontos = 10;</code>. O <code>var</code> não deixa o C# "solto"; ele só escreve o tipo por você.</p>
+
+<hr>
+
+<h2>3. O tipo vem do valor: cuidado com o preço</h2>
+<p>Como o <code>var</code> copia o tipo do valor, você precisa saber qual é o tipo de cada valor. A armadilha mais comum é com dinheiro:</p>
+
+<pre class="file" data-file="varpreco.cs">var preco = 19.90;
+Console.WriteLine(preco.GetType());
+Console.WriteLine(preco * 3);
+var precoCerto = 19.90m;
+Console.WriteLine(precoCerto * 3);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run varpreco.cs
+System.Double
+59,699999999999996       « três camisetas de R$ 19,90, em double
+59,70                    « em decimal</pre>
+
+<p>Com o tipo escrito, <code>decimal preco = 19.90;</code> nem compilaria (<code>CS0664</code>, aula <a href="decimais.html">float, double e decimal</a>): o compilador avisaria que faltou o <code>m</code>. Com <code>var</code>, não há o que avisar: <code>19.90</code> é um <code>double</code> válido, e a variável vira <code>double</code> sem reclamar. O erro só aparece no resultado. Moral: com <code>var</code>, <strong>dinheiro precisa do <code>m</code></strong>.</p>
+
+<div class="trycs" data-goal="out:Total: 59\,70,src:var\s+preco\s*=\s*19\.90[mM]\s*;">
+<p class="try-task"><strong>Missão:</strong> o caixa cobra três camisetas e mostra <code>Total: 59,699999999999996</code>. Sem tirar o <code>var</code>, faça <code>preco</code> ser <code>decimal</code> para mostrar <code>Total: 59,70</code>.</p>
+<pre class="script" data-file="camisetas.cs">var preco = 19.90;
+var quantidade = 3;
+Console.WriteLine("Total: " + preco * quantidade);
+</pre>
+<pre class="solucao" data-file="camisetas.cs">var preco = 19.90m;
+var quantidade = 3;
+Console.WriteLine("Total: " + preco * quantidade);
+</pre>
+</div>
+
+<h3>Outras escolhas que você precisa conhecer</h3>
+
+<pre class="file" data-file="vargrande.cs">var pequeno = 100;
+var grande = 3_000_000_000;
+var maior = 8_000_000_000;
+var b = (byte)10;
+Console.WriteLine(pequeno.GetType());
+Console.WriteLine(grande.GetType());
+Console.WriteLine(maior.GetType());
+Console.WriteLine(b.GetType());
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run vargrande.cs
+System.Int32
+System.UInt32      « 3 bilhões não cabe em int: virou uint!
+System.Int64
+System.Byte</pre>
+
+<p>Um número inteiro ganha o primeiro tipo em que cabe: <code>int</code>, <code>uint</code>, <code>long</code>, <code>ulong</code> (aula <a href="inteiros.html">Inteiros</a>). Por isso 3 bilhões virou <code>uint</code> (sem sinal!) e 8 bilhões virou <code>long</code>. Se você quer um <code>long</code>, diga: <code>var grande = 3_000_000_000L;</code> ou <code>long grande = 3_000_000_000;</code>. E para tipos sem literal próprio, como <code>byte</code> e <code>short</code>, o <code>var</code> precisa de uma conversão, <code>(byte)10</code>; aí é mais claro escrever <code>byte b = 10;</code>.</p>
+
+<p>O mesmo vale para contas: o tipo é o do <strong>resultado</strong>.</p>
+
+<pre class="file" data-file="varconta.cs">var notaA = 7;
+var notaB = 8;
+var media = (notaA + notaB) / 2;
+Console.WriteLine(media);
+Console.WriteLine(media.GetType());
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run varconta.cs
+7                « a média de 7 e 8 devia ser 7,5
+System.Int32</pre>
+
+<p><code>int</code> dividido por <code>int</code> dá <code>int</code>, e a parte quebrada some (aula <a href="operadores-aritmeticos.html">Operadores Aritméticos</a>). O <code>var</code> só copiou o tipo do resultado. Com <code>(notaA + notaB) / 2.0</code>, a conta seria <code>double</code> e a variável também.</p>
+
+<hr>
+
+<h2>4. As regras do <code>var</code></h2>
+
+<h3>Precisa de um valor na mesma linha</h3>
+<pre class="file" data-file="varerro1.cs">var total;
+total = 10;
+Console.WriteLine(total);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run varerro1.cs
+/home/ana/cs/varerro1.cs(1,5): error CS0818: Variáveis de tipo implícito devem ser inicializadas
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p>"Tipo implícito" é o tipo que o compilador descobre; "inicializar" é dar o primeiro valor. Sem valor, não há de onde tirar o tipo. Em inglês: <code>Implicitly-typed variables must be initialized</code>.</p>
+
+<h3>Não aceita <code>null</code></h3>
+<pre class="file" data-file="varerro2.cs">var apelido = null;
+Console.WriteLine(apelido);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run varerro2.cs
+/home/ana/cs/varerro2.cs(1,5): error CS0815: Não é possível atribuir &lt;nulo&gt; a uma variável de tipo implícito
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><code>null</code> ("nada") não tem tipo, então não serve de pista. Escreva o tipo: <code>string? apelido = null;</code> (o <code>?</code> é explicado em <a href="referencias-anulaveis.html">Referências Anuláveis</a>).</p>
+
+<h3>Uma variável por declaração</h3>
+<pre class="file" data-file="varerro4.cs">var a = 1, b = 2;
+Console.WriteLine(a + b);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run varerro4.cs
+/home/ana/cs/varerro4.cs(1,1): error CS0819: Variáveis de tipo implícito não podem ter vários declaradores
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p>Com o tipo escrito, <code>int a = 1, b = 2;</code> funciona. Com <code>var</code>, uma linha para cada: <code>var a = 1;</code> e <code>var b = 2;</code>.</p>
+
+<h3>Só para variáveis locais</h3>
+<p>O <code>var</code> funciona para variáveis criadas dentro do programa ou de um método (as <strong>locais</strong>). Nos campos de uma classe, o tipo tem de ser escrito:</p>
+<pre class="file" data-file="varfield.cs">class Loja
+{
+    var nome = "Lojinha";
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run varfield.cs
+/home/ana/cs/varfield.cs(3,5): error CS0825: A palavra-chave contextual "var" pode somente aparecer dentro de uma declaração de variável local ou no código de script
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p>O conserto é <code>string nome = "Lojinha";</code>. Classes e campos começam em <a href="classes-objetos.html">Classes e Objetos</a>. A mensagem diz "palavra-chave <strong>contextual</strong>": o <code>var</code> só é especial no lugar de um tipo. Em outros lugares, ele é um nome comum, e <code>int var = 5;</code> até compila (mas não faça isso).</p>
+
+<hr>
+
+<h2>5. O contrário: <code>new()</code> com tipo alvo</h2>
+<p>O <code>var</code> brilha quando o tipo já aparece do lado direito, como ao criar uma lista com <code>new</code>. E existe o caminho inverso <span class="versao">C# 9</span>: escrever o tipo à esquerda e só <code>new()</code> à direita:</p>
+
+<pre class="file" data-file="varnew.cs">var compras = new List&lt;string&gt;();
+compras.Add("arroz");
+compras.Add("feijão");
+List&lt;string&gt; outras = new();
+outras.Add("café");
+Console.WriteLine(compras.Count);
+Console.WriteLine(outras.Count);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run varnew.cs
+2
+1</pre>
+
+<dl class="anatomy">
+  <dt>var compras = new List&lt;string&gt;();</dt><dd>Cria uma lista de textos (aula <a href="list.html">List&lt;T&gt;</a>). O tipo <code>List&lt;string&gt;</code> já está escrito do lado direito; repetir à esquerda seria cansativo.</dd>
+  <dt>List&lt;string&gt; outras = new();</dt><dd>O "<code>new</code> com tipo alvo": o compilador olha o tipo da variável e sabe o que criar. Dá no mesmo; o tipo aparece uma vez só.</dd>
+  <dt>.Add · .Count</dt><dd>Adiciona um item; conta os itens.</dd>
+</dl>
+
+<p>As duas formas são comuns. O <code>new()</code> é a única opção nos lugares em que <code>var</code> não vale, como os campos de uma classe.</p>
+
+<hr>
+
+<h2>Quando usar <code>var</code></h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Recomendação</th><th>Exemplo</th></tr>
+<tr><td>O tipo aparece do lado direito</td><td><code>var</code></td><td><code>var compras = new List&lt;string&gt;();</code></td></tr>
+<tr><td>O valor é óbvio</td><td>tanto faz; <code>var</code> é comum</td><td><code>var nome = "Ana";</code>, <code>var idade = 29;</code></td></tr>
+<tr><td>Dinheiro</td><td>escreva <code>decimal</code>, ou <code>var</code> com <code>m</code> sem esquecer</td><td><code>decimal preco = 19.90m;</code></td></tr>
+<tr><td>O tipo não está claro pelo valor</td><td>escreva o tipo</td><td><code>long grande = 3_000_000_000;</code>, <code>byte b = 10;</code></td></tr>
+<tr><td>O valor vem de um método de nome vago</td><td>escreva o tipo</td><td><code>int total = Calcular();</code> (o que <code>Calcular</code> devolve?)</td></tr>
+<tr><td>Sem valor inicial, ou <code>null</code></td><td>obrigatório escrever o tipo</td><td><code>string? apelido = null;</code></td></tr>
+<tr><td>Campo de classe</td><td>obrigatório escrever o tipo (ou <code>new()</code>)</td><td><code>string nome = "Lojinha";</code></td></tr>
+</table>
+</div>
+
+<p>A regra prática da Microsoft é: use <code>var</code> quando o tipo for óbvio para quem lê; escreva o tipo quando não for. Neste guia, as primeiras aulas escrevem os tipos (para você aprender cada um), e o <code>var</code> aparece mais a partir das coleções e do LINQ, onde os tipos ficam longos.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0818: Variáveis de tipo implícito devem ser inicializadas</code></strong>
+<p><strong>O que significa:</strong> <code>var x;</code> sem valor. O compilador não tem de onde tirar o tipo.</p>
+<p><strong>Como consertar:</strong> dê o valor na mesma linha (<code>var total = 0;</code>) ou escreva o tipo (<code>int total;</code>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0815: Não é possível atribuir &lt;nulo&gt; a uma variável de tipo implícito</code></strong>
+<p><strong>O que significa:</strong> <code>var x = null;</code>. O <code>null</code> não tem tipo.</p>
+<p><strong>Como consertar:</strong> escreva o tipo: <code>string? x = null;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0819: Variáveis de tipo implícito não podem ter vários declaradores</code></strong>
+<p><strong>O que significa:</strong> <code>var a = 1, b = 2;</code>, duas variáveis num <code>var</code> só.</p>
+<p><strong>Como consertar:</strong> uma declaração por linha.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0825: A palavra-chave contextual "var" pode somente aparecer dentro de uma declaração de variável local…</code></strong>
+<p><strong>O que significa:</strong> <code>var</code> num campo de classe, num parâmetro ou no tipo de retorno de um método.</p>
+<p><strong>Como consertar:</strong> escreva o tipo.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0029</code> numa variável declarada com <code>var</code></strong>
+<p><strong>O que significa:</strong> a variável ganhou um tipo no primeiro valor e você tentou guardar outro tipo depois.</p>
+<p><strong>Como consertar:</strong> use outra variável para o outro valor, ou escolha um primeiro valor do tipo certo.</p>
+</div>
+
+<div class="cenario">
+<strong>O preço saiu <code>59,699999999999996</code>; a média saiu sem vírgula; o número grande virou <code>uint</code></strong>
+<p><strong>O que significa:</strong> nada de errado com o <code>var</code>: ele copiou fielmente o tipo do valor (<code>double</code>, <code>int</code>, <code>uint</code>), que não era o que você queria.</p>
+<p><strong>Como consertar:</strong> mude o valor (<code>19.90m</code>, <code>/ 2.0</code>, <code>3_000_000_000L</code>) ou escreva o tipo.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Valor</th><th><code>var</code> vira</th></tr>
+<tr><td><code>"Ana"</code></td><td><code>string</code></td></tr>
+<tr><td><code>'A'</code></td><td><code>char</code></td></tr>
+<tr><td><code>29</code></td><td><code>int</code> (ou <code>uint</code>, <code>long</code>, <code>ulong</code>, se não couber)</td></tr>
+<tr><td><code>29L</code></td><td><code>long</code></td></tr>
+<tr><td><code>1.65</code></td><td><code>double</code></td></tr>
+<tr><td><code>1.65f</code></td><td><code>float</code></td></tr>
+<tr><td><code>19.90m</code></td><td><code>decimal</code></td></tr>
+<tr><td><code>true</code></td><td><code>bool</code></td></tr>
+<tr><td><code>new List&lt;string&gt;()</code></td><td><code>List&lt;string&gt;</code></td></tr>
+<tr><td><code>7 / 2</code></td><td><code>int</code> (vale 3)</td></tr>
+<tr><td><code>null</code></td><td>não compila (<code>CS0815</code>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A palavra da inferência</h3>
+<p>Complete para o compilador descobrir o tipo sozinho:</p>
+<div class="ex-code"><input data-answer="var" aria-label="palavra"> cidade = "Recife";</div>
+</div>
+
+<div class="exercise">
+<h3>2. Qual tipo?</h3>
+<p>Em <code>var temperatura = 23.5;</code>, qual é o tipo de <code>temperatura</code>? (Escreva a palavra-chave.)</p>
+<div class="ex-code"><input data-answer="double" aria-label="tipo"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Dinheiro com var</h3>
+<p>Complete para <code>salario</code> ser <code>decimal</code>:</p>
+<div class="ex-code">var salario = 3200.00<input data-answer="m|M" aria-label="sufixo">;</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. <code>var x = 10; x = 2.5;</code> O que acontece?</p>
+<label><input type="radio" name="q4"> <code>x</code> passa a ser <code>double</code> e vale 2,5</label>
+<label><input type="radio" name="q4"> <code>x</code> vale 2</label>
+<label><input type="radio" name="q4"> Não compila: <code>x</code> é <code>int</code> para sempre (<code>CS0266</code>)</label>
+<label><input type="radio" name="q4"> Compila com aviso</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. Qual destas linhas compila?</p>
+<label><input type="radio" name="q5"> <code>var nome = "Ana";</code></label>
+<label><input type="radio" name="q5"> <code>var nome;</code></label>
+<label><input type="radio" name="q5"> <code>var nome = null;</code></label>
+<label><input type="radio" name="q5"> <code>var nome = "Ana", sobrenome = "Souza";</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">6. Quando o <code>var</code> descobre o tipo?</p>
+<label><input type="radio" name="q6"> Enquanto o programa roda, e pode mudar depois</label>
+<label><input type="radio" name="q6"> Na compilação, uma vez só; o programa final é igual ao com o tipo escrito</label>
+<label><input type="radio" name="q6"> Só quando a variável é mostrada na tela</label>
+<label><input type="radio" name="q6"> Nunca: <code>var</code> guarda qualquer tipo</label>
+</div>
+
+<h3>Missão final: a ficha com <code>var</code></h3>
+
+<div class="trycs" data-goal="out:Bia tem 31 anos e R$ 250\,50,src:^\s*var\s+nome\s*=,src:^\s*var\s+idade\s*=,src:^\s*var\s+saldo\s*=\s*250\.50[mM]">
+<p class="try-task"><strong>Missão:</strong> reescreva as três declarações usando <code>var</code> no lugar dos tipos, sem mudar a saída: <code>Bia tem 31 anos e R$ 250,50</code>. Cuidado com o saldo: ele tem de continuar <code>decimal</code>.</p>
+<pre class="script" data-file="ficha.cs">string nome = "Bia";
+int idade = 31;
+decimal saldo = 250.50m;
+Console.WriteLine($"{nome} tem {idade} anos e R$ {saldo}");
+</pre>
+<pre class="solucao" data-file="ficha.cs">var nome = "Bia";
+var idade = 31;
+var saldo = 250.50m;
+Console.WriteLine($"{nome} tem {idade} anos e R$ {saldo}");
+</pre>
+</div>
+
+<p>Tente também escrever <code>var saldo = 250.50;</code> (sem o <code>m</code>): a saída muda para <code>R$ 250,5</code>, porque o <code>double</code> não guarda o zero do fim. É o sinal de que o tipo mudou.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>var</code> pede ao compilador para descobrir o tipo pelo valor (inferência). Acontece na compilação; o programa é igual ao com o tipo escrito.</li>
+  <li>O tipo continua fixo: <code>var pontos = 10; pontos = "dez";</code> dá <code>CS0029</code>.</li>
+  <li>O tipo é o do valor: <code>19.90</code> é <code>double</code> (use <code>19.90m</code> para dinheiro), <code>3_000_000_000</code> é <code>uint</code>, <code>7 / 2</code> é <code>int</code>.</li>
+  <li>Regras: precisa de valor (<code>CS0818</code>), não aceita <code>null</code> (<code>CS0815</code>), uma variável por vez (<code>CS0819</code>), só variáveis locais (<code>CS0825</code>).</li>
+  <li><code>List&lt;string&gt; lista = new();</code> é o caminho inverso <span class="versao">C# 9</span>: o tipo à esquerda, só <code>new()</code> à direita.</li>
+  <li>Use <code>var</code> quando o tipo for óbvio; escreva o tipo quando não for.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
