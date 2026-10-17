@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Instalar no Windows e macOS — o .NET 10 SDK com winget, instalador e pkg | Guia C#</title>
+<meta name="description" content="Como instalar o .NET 10 SDK no Windows (winget install Microsoft.DotNet.SDK.10, instalador .exe ou Visual Studio 2026) e no macOS (instalador .pkg Arm64 ou x64, Homebrew, script), abrir o terminal, conferir com dotnet --version e dotnet --info, rodar o primeiro programa e resolver os erros mais comuns, como 'dotnet' não é reconhecido.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Instalar no Windows e macOS</span></h1>
+
+<p class="intro">O .NET é o mesmo nos três sistemas: o programa que a Ana roda no Ubuntu roda igual no Windows e no Mac. Só muda o jeito de instalar. Nesta aula você instala o <strong>.NET 10 SDK</strong> no Windows (pelo <code>winget</code>, pelo instalador ou junto com o Visual Studio) e no macOS (pelo instalador <code>.pkg</code>), abre o terminal, confere a instalação e roda o primeiro programa.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como abrir o terminal no Windows (PowerShell) e no macOS (Terminal).</li>
+  <li>Três formas de instalar no Windows: <code>winget</code>, o instalador <code>.exe</code> e o Visual Studio 2026.</li>
+  <li>Como instalar no macOS, escolhendo entre <strong>Arm64</strong> (chips Apple M1, M2…) e <strong>x64</strong> (Macs com Intel).</li>
+  <li>Como conferir com <code>dotnet --version</code> e <code>dotnet --info</code>.</li>
+  <li>O que muda entre os sistemas: pastas, barras, o <code>.exe</code>.</li>
+  <li>Os erros mais comuns, como <code>'dotnet' não é reconhecido</code>.</li>
+</ul>
+</div>
+
+<div class="warning">
+<strong>Telas ilustrativas</strong>
+<p>A máquina da Ana usa Linux, então as telas de Windows e de macOS desta aula não puderam ser produzidas lá: elas são <strong>ilustrativas</strong>. Os passos seguem a documentação oficial da Microsoft (outubro de 2026), mas os números exatos de versão e os textos dos instaladores podem variar um pouco no seu computador. Já o programa C# do fim da aula é real e foi rodado no Linux e no editor do guia.</p>
+</div>
+
+<hr>
+
+<h2>A ideia: o mesmo motor, carros diferentes</h2>
+<p>Uma montadora usa o mesmo motor em vários modelos de carro. O motor é igual; o que muda é a carroceria, o lugar do painel e onde fica o tanque. O .NET é assim: o compilador, o Runtime e a biblioteca são os mesmos nos três sistemas, e um programa feito num roda nos outros. O que muda é o "encaixe" em cada sistema:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Linux (Ubuntu)</th><th>Windows</th><th>macOS</th></tr>
+<tr><td>Como instalar</td><td><code>sudo apt install dotnet-sdk-10.0</code></td><td><code>winget</code> ou instalador <code>.exe</code></td><td>Instalador <code>.pkg</code></td></tr>
+<tr><td>Onde fica</td><td><code>/usr/lib/dotnet</code></td><td><code>C:\Program Files\dotnet</code></td><td><code>/usr/local/share/dotnet</code></td></tr>
+<tr><td>Terminal</td><td>Terminal (bash)</td><td>Terminal do Windows (PowerShell)</td><td>Terminal (zsh)</td></tr>
+<tr><td>Separador de pastas</td><td><code>/</code></td><td><code>\</code></td><td><code>/</code></td></tr>
+<tr><td>Comando para rodar</td><td colspan="3"><code>dotnet run ola.cs</code>, igual nos três</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Antes de tudo: o terminal</h2>
+<p>O guia usa muito o <strong>terminal</strong>: a janela de texto onde você digita comandos. Não tenha medo dele; você vai usar poucos comandos, e eles são iguais nos três sistemas.</p>
+
+<ul>
+  <li><strong>Windows 10 e 11:</strong> clique com o botão direito no botão Iniciar e escolha <strong>Terminal</strong> (no Windows 10, <strong>Windows PowerShell</strong>). Abre uma janela com algo como <code>PS C:\Users\ana&gt;</code>: o <code>PS</code> é de PowerShell e <code>C:\Users\ana</code> é a sua pasta pessoal.</li>
+  <li><strong>macOS:</strong> aperte <kbd>Cmd</kbd>+<kbd>Espaço</kbd>, digite <code>Terminal</code> e tecle Enter. Abre uma janela com algo como <code>ana@MacBook ~ %</code>.</li>
+</ul>
+
+<p>Antes de instalar, pergunte se o .NET já está aí (ilustrativo):</p>
+
+<pre class="file" data-file="PowerShell ou Terminal (ilustrativo)">dotnet --version</pre>
+
+<p>Se aparecer um número começando com <code>10.</code>, você já tem o .NET 10: pule para <a href="#testando">Testando</a>. Se aparecer uma mensagem de "não reconhecido" ou "not found", siga em frente.</p>
+
+<hr>
+
+<h2>Windows</h2>
+<p>O .NET 10 tem suporte oficial no <strong>Windows 11</strong>, em processadores Intel/AMD (x64) e ARM (Arm64). No Windows 10, o suporte oficial ficou só para as edições Enterprise e LTSC, porque o Windows 10 comum saiu de suporte em outubro de 2025: o .NET pode até funcionar nele, mas sem garantia. Escolha <strong>uma</strong> das três formas abaixo.</p>
+
+<h3>Forma 1: <code>winget</code> (a mais rápida)</h3>
+<p>O <strong>winget</strong> é o gerenciador de pacotes do Windows, o "<code>apt</code> do Windows". Ele já vem no Windows 11 e nas versões atualizadas do Windows 10. No Terminal, digite:</p>
+
+<pre class="file" data-file="PowerShell (ilustrativo)">winget install Microsoft.DotNet.SDK.10</pre>
+
+<dl class="anatomy">
+  <dt>winget</dt><dd>O gerenciador de pacotes do Windows (<em>Windows Package Manager</em>).</dd>
+  <dt>install</dt><dd>A ação: instalar.</dd>
+  <dt>Microsoft.DotNet.SDK.10</dt><dd>O nome do pacote: o SDK do .NET 10, da Microsoft. Para o Runtime sozinho, seria <code>Microsoft.DotNet.Runtime.10</code>; para o .NET 8, <code>Microsoft.DotNet.SDK.8</code>.</dd>
+</dl>
+
+<p>O winget baixa o instalador oficial e o roda. O Windows pergunta se você permite que o programa faça alterações (o "Controle de Conta de Usuário"): clique em <strong>Sim</strong>. No fim, aparece <code>Instalado com êxito</code>. Para ver as versões que o winget conhece:</p>
+
+<pre class="file" data-file="PowerShell (ilustrativo)">winget search Microsoft.DotNet.SDK</pre>
+
+<h3>Forma 2: o instalador do site</h3>
+<ol class="passo">
+  <li>Abra <code>https://dotnet.microsoft.com/download</code> no navegador. Desconfie de outros sites: o .NET é gratuito e só deve ser baixado da Microsoft.</li>
+  <li>Na parte do <strong>.NET 10.0</strong>, clique em <strong>Download .NET SDK x64</strong>. (Se o seu computador tem processador ARM, como alguns notebooks com Snapdragon, escolha a versão <strong>Arm64</strong> na página "Todas as versões do .NET 10".)</li>
+  <li>Rode o arquivo baixado, com um nome como <code>dotnet-sdk-10.0.402-win-x64.exe</code>.</li>
+  <li>Clique em <strong>Instalar</strong>, aceite a pergunta do Windows e espere. No fim, o instalador mostra uma lista do que foi instalado (o SDK, o Runtime, o ASP.NET Core Runtime e o Windows Desktop Runtime) e links para a documentação.</li>
+  <li><strong>Feche o Terminal e abra de novo.</strong> Só os terminais abertos depois da instalação enxergam o comando <code>dotnet</code>.</li>
+</ol>
+
+<h3>Forma 3: junto com o Visual Studio 2026</h3>
+<p>O <strong>Visual Studio</strong> é o ambiente de programação completo da Microsoft, só para Windows (aula <a href="editores.html">Editores e IDEs</a>). O .NET 10 exige o <strong>Visual Studio 2026</strong> (versão 18.0 ou mais nova); a edição <strong>Community</strong> é gratuita para estudantes, pessoas físicas e projetos de código aberto. No instalador do Visual Studio, marque a carga de trabalho <strong>Desenvolvimento para desktop com .NET</strong> (ou <strong>ASP.NET e desenvolvimento Web</strong>): o .NET 10 SDK vem junto.</p>
+
+<p>O download do Visual Studio é bem maior (alguns gigabytes). Se você vai usar o VS Code ou outro editor, as formas 1 e 2 bastam.</p>
+
+<h3>Conferindo no Windows</h3>
+<pre class="file" data-file="PowerShell (ilustrativo)">PS C:\Users\ana&gt; dotnet --version
+10.0.402
+PS C:\Users\ana&gt; dotnet --list-sdks
+10.0.402 [C:\Program Files\dotnet\sdk]</pre>
+
+<p>O número exato depende do mês em que você instalou: o site da Microsoft tem sempre a correção mais nova (em outubro de 2026, a <code>10.0.402</code>). Qualquer <code>10.0.xxx</code> serve para o guia. Repare que o .NET mora em <code>C:\Program Files\dotnet</code>, com a barra invertida <code>\</code> do Windows.</p>
+
+<h3>O primeiro programa no Windows</h3>
+<p>Crie uma pasta, um arquivo e rode, como no Linux. O <code>mkdir</code> e o <code>cd</code> funcionam igual no PowerShell. Para criar o arquivo, use o Bloco de Notas (<code>notepad ola.cs</code> abre o Bloco de Notas já com esse nome) ou o seu editor:</p>
+
+<pre class="file" data-file="PowerShell (ilustrativo)">PS C:\Users\ana&gt; mkdir cs
+PS C:\Users\ana&gt; cd cs
+PS C:\Users\ana\cs&gt; notepad ola.cs
+PS C:\Users\ana\cs&gt; dotnet run ola.cs
+Olá, mundo!</pre>
+
+<p>Na primeira vez, antes do <code>Olá, mundo!</code>, aparece a mensagem de boas-vindas do .NET (a mesma da aula <a href="instalar-linux.html">Instalar no Linux</a>), com um parágrafo a mais sobre <strong>telemetria</strong>: o .NET da Microsoft manda dados anônimos de uso das ferramentas. Para desligar, crie a variável de ambiente <code>DOTNET_CLI_TELEMETRY_OPTOUT</code> com o valor <code>1</code> (no PowerShell: <code>[Environment]::SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "1", "User")</code>, e abra um Terminal novo).</p>
+
+<div class="tip">
+<strong>Cuidado com o Bloco de Notas</strong>
+<p>Na hora de salvar, confira se o nome ficou <code>ola.cs</code>, e não <code>ola.cs.txt</code>. O Windows esconde as extensões por padrão; no Explorador de Arquivos, ative <strong>Exibir › Mostrar › Extensões de nomes de arquivos</strong> para enxergá-las.</p>
+</div>
+
+<hr>
+
+<h2>macOS</h2>
+<p>O .NET 10 funciona no macOS 14 (Sonoma), 15 (Sequoia) e 26 (Tahoe). A primeira coisa é saber qual processador o seu Mac tem: no menu <strong>Apple</strong> (a maçã), clique em <strong>Sobre Este Mac</strong>. Se aparecer <strong>Chip Apple M1</strong>, M2, M3, M4…, o seu Mac é <strong>Arm64</strong>. Se aparecer <strong>Processador Intel</strong>, é <strong>x64</strong>.</p>
+
+<h3>Forma 1: o instalador <code>.pkg</code></h3>
+<ol class="passo">
+  <li>Abra <code>https://dotnet.microsoft.com/download</code>.</li>
+  <li>Na parte do <strong>.NET 10.0</strong>, baixe o <strong>SDK</strong> para macOS na arquitetura certa: <strong>Arm64</strong> para os chips Apple, <strong>x64</strong> para Intel. O arquivo tem um nome como <code>dotnet-sdk-10.0.402-osx-arm64.pkg</code>.</li>
+  <li>Abra o arquivo e siga o instalador: <strong>Continuar</strong>, <strong>Instalar</strong>, digite a senha do Mac.</li>
+  <li><strong>Feche o Terminal e abra de novo.</strong></li>
+</ol>
+
+<p>O .NET vai para <code>/usr/local/share/dotnet</code>, e o instalador cria o arquivo <code>/etc/paths.d/dotnet</code>, que ensina o Terminal a achar o comando <code>dotnet</code>.</p>
+
+<h3>Forma 2: Homebrew ou o script</h3>
+<p>Quem usa o <strong>Homebrew</strong> (um gerenciador de pacotes para Mac, mantido pela comunidade, não pela Microsoft) pode instalar com <code>brew install --cask dotnet-sdk</code>. E o script <code>dotnet-install.sh</code> da aula <a href="instalar-linux.html">Instalar no Linux</a> também funciona no Mac, instalando na sua pasta pessoal, sem senha de administrador. Para quem está começando, o <code>.pkg</code> é o mais simples.</p>
+
+<h3>Conferindo no macOS</h3>
+<pre class="file" data-file="Terminal do macOS (ilustrativo)">ana@MacBook ~ % dotnet --version
+10.0.402
+ana@MacBook ~ % dotnet --info | grep -E "OS Platform|RID|Architecture"
+ OS Platform: Darwin
+ RID:         osx-arm64
+  Architecture: arm64</pre>
+
+<p>O <code>Darwin</code> é o nome do núcleo do macOS, e o RID <code>osx-arm64</code> quer dizer "macOS em processador ARM". Se o seu Mac tem chip Apple e aparece <code>x64</code>, você instalou a versão errada (veja <a href="#quando-errado">Quando dá errado</a>). O primeiro programa é igual ao do Linux: <code>mkdir cs</code>, <code>cd cs</code>, crie o <code>ola.cs</code> e rode <code>dotnet run ola.cs</code>.</p>
+
+<hr>
+
+<h2 id="testando">Testando: o mesmo programa nos três sistemas</h2>
+<p>Este programa pergunta ao .NET em que sistema ele está rodando e mostra a pasta pessoal e o separador de pastas. Os <code>if</code> e <code>else if</code> ("se… senão, se…") são da aula <a href="if-else.html">if e else</a>; por enquanto, leia como "se for Windows, escreva isto; senão, se for macOS…".</p>
+
+<pre class="file" data-file="sistema.cs">if (OperatingSystem.IsWindows()) Console.WriteLine("Estou no Windows");
+else if (OperatingSystem.IsMacOS()) Console.WriteLine("Estou no macOS");
+else if (OperatingSystem.IsLinux()) Console.WriteLine("Estou no Linux");
+else if (OperatingSystem.IsBrowser()) Console.WriteLine("Estou dentro de um navegador");
+
+Console.WriteLine($"Pasta pessoal: {Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}");
+Console.WriteLine($"Separador de pastas: {Path.DirectorySeparatorChar}");
+</pre>
+
+<p>No Linux da Ana (saída real):</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sistema.cs
+Estou no Linux
+Pasta pessoal: /home/ana
+Separador de pastas: /</pre>
+
+<p>No Windows, o mesmo arquivo, sem mudar nada, mostraria <code>Estou no Windows</code>, <code>Pasta pessoal: C:\Users\ana</code> e <code>Separador de pastas: \</code> (ilustrativo). É o mesmo programa; quem se adapta é o .NET. E no editor do guia? Rode e veja:</p>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> rode. O editor responde <code>Estou dentro de um navegador</code>: aqui, o .NET roda em WebAssembly, dentro da página, e não direto no seu Windows, Mac ou Linux. A pasta pessoal que ele mostra é a de um computador de mentirinha, montado para parecer o da Ana.</p>
+<pre class="script" data-file="sistema.cs">if (OperatingSystem.IsWindows()) Console.WriteLine("Estou no Windows");
+else if (OperatingSystem.IsMacOS()) Console.WriteLine("Estou no macOS");
+else if (OperatingSystem.IsLinux()) Console.WriteLine("Estou no Linux");
+else if (OperatingSystem.IsBrowser()) Console.WriteLine("Estou dentro de um navegador");
+
+Console.WriteLine($"Pasta pessoal: {Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}");
+Console.WriteLine($"Separador de pastas: {Path.DirectorySeparatorChar}");
+</pre>
+</div>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>O que muda entre os sistemas</th><th>Linux e macOS</th><th>Windows</th></tr>
+<tr><td>Separador de pastas</td><td><code>/home/ana/cs/ola.cs</code></td><td><code>C:\Users\ana\cs\ola.cs</code></td></tr>
+<tr><td>O "lançador" que o build cria</td><td><code>ola</code></td><td><code>ola.exe</code></td></tr>
+<tr><td>Maiúsculas em nomes de arquivo</td><td><code>Ola.cs</code> e <code>ola.cs</code> são <strong>dois</strong> arquivos (no Linux; no macOS, normalmente o mesmo)</td><td>O mesmo arquivo</td></tr>
+<tr><td>Fim de linha nos arquivos de texto</td><td><code>\n</code></td><td><code>\r\n</code> (o .NET lê os dois)</td></tr>
+<tr><td>O código C#</td><td colspan="2">Igual. Para montar caminhos sem se preocupar com a barra, use <code>Path.Combine</code> (aula <a href="caminhos.html">Pastas e Caminhos</a>).</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="quando-errado">Quando dá errado</h2>
+<p>As telas abaixo são ilustrativas, no formato que o Windows e o macOS usam.</p>
+
+<div class="cenario">
+<strong>Windows: <code>O termo 'dotnet' não é reconhecido</code></strong>
+<pre class="file" data-file="PowerShell (ilustrativo)">PS C:\Users\ana&gt; dotnet --version
+dotnet : O termo 'dotnet' não é reconhecido como nome de cmdlet, função, arquivo de script ou programa operável.</pre>
+<p><strong>O que aconteceu:</strong> o PowerShell não achou nenhum programa chamado <code>dotnet</code>. Quase sempre, o Terminal foi aberto <strong>antes</strong> da instalação e ainda não sabe que o .NET existe. Ou a instalação não terminou.</p>
+<p><strong>Como consertar:</strong> feche todas as janelas do Terminal e abra uma nova. Se continuar, rode o instalador de novo, ou confira se existe a pasta <code>C:\Program Files\dotnet</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>macOS: <code>zsh: command not found: dotnet</code></strong>
+<pre class="file" data-file="Terminal do macOS (ilustrativo)">ana@MacBook ~ % dotnet --version
+zsh: command not found: dotnet</pre>
+<p><strong>O que aconteceu:</strong> o mesmo do Windows: o Terminal foi aberto antes da instalação, ou o .NET foi instalado pelo script numa pasta que o Terminal não conhece.</p>
+<p><strong>Como consertar:</strong> feche o Terminal (<kbd>Cmd</kbd>+<kbd>Q</kbd>) e abra de novo. Se instalou pelo script, acrescente as linhas <code>export DOTNET_ROOT=$HOME/.dotnet</code> e <code>export PATH=$PATH:$DOTNET_ROOT</code> ao arquivo <code>~/.zshrc</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Mac com chip Apple e .NET x64</strong>
+<p><strong>O que aconteceu:</strong> foi baixado o instalador <strong>x64</strong> num Mac com chip M. Ele até funciona (pelo tradutor Rosetta 2 da Apple), mas fica numa pasta separada (<code>/usr/local/share/dotnet/x64</code>), roda mais devagar e confunde editores e ferramentas.</p>
+<p><strong>Como consertar:</strong> desinstale a versão x64 e instale a <strong>Arm64</strong>. Confira com <code>dotnet --info</code>: a linha <code>Architecture</code> tem de dizer <code>arm64</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Instalou o Runtime em vez do SDK</strong>
+<p><strong>O que aconteceu:</strong> na página de download, há vários botões: SDK, ".NET Runtime", "ASP.NET Core Runtime", ".NET Desktop Runtime". Quem baixa um Runtime consegue rodar programas prontos, mas o <code>dotnet run</code> responde <code>No .NET SDKs were found.</code> (aula <a href="dotnet.html">.NET: SDK, Runtime e CLR</a>).</p>
+<p><strong>Como consertar:</strong> baixe e instale o <strong>SDK</strong>, que já traz os Runtimes.</p>
+</div>
+
+<div class="cenario">
+<strong>Windows: <code>ola.cs.txt</code></strong>
+<p><strong>O que aconteceu:</strong> o Bloco de Notas salvou o arquivo como <code>ola.cs.txt</code>, e o Windows escondeu o <code>.txt</code>. O <code>dotnet run ola.cs</code> não acha o arquivo e responde que não encontrou um projeto para executar (a mesma mensagem da aula <a href="dotnet-run.html">Rodar com dotnet run</a>).</p>
+<p><strong>Como consertar:</strong> mostre as extensões no Explorador de Arquivos e renomeie o arquivo para <code>ola.cs</code>. No Bloco de Notas, escolha <strong>Todos os arquivos</strong> no tipo, na hora de salvar.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Sistema</th><th>Instalar o .NET 10 SDK</th><th>Onde fica</th></tr>
+<tr><td>Windows (winget)</td><td><code>winget install Microsoft.DotNet.SDK.10</code></td><td><code>C:\Program Files\dotnet</code></td></tr>
+<tr><td>Windows (instalador)</td><td><code>dotnet-sdk-10.0.xxx-win-x64.exe</code> do site <code>dotnet.microsoft.com</code></td><td><code>C:\Program Files\dotnet</code></td></tr>
+<tr><td>Windows (IDE)</td><td>Visual Studio 2026, com a carga de trabalho de .NET</td><td><code>C:\Program Files\dotnet</code></td></tr>
+<tr><td>macOS (chip Apple)</td><td><code>dotnet-sdk-10.0.xxx-osx-arm64.pkg</code></td><td><code>/usr/local/share/dotnet</code></td></tr>
+<tr><td>macOS (Intel)</td><td><code>dotnet-sdk-10.0.xxx-osx-x64.pkg</code></td><td><code>/usr/local/share/dotnet</code></td></tr>
+<tr><td>Linux</td><td>Aula <a href="instalar-linux.html">Instalar no Linux</a></td><td><code>/usr/lib/dotnet</code> (Ubuntu)</td></tr>
+</table>
+</div>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando (igual nos três sistemas)</th><th>Para quê</th></tr>
+<tr><td><code>dotnet --version</code></td><td>A versão do SDK</td></tr>
+<tr><td><code>dotnet --info</code></td><td>Tudo: SDKs, Runtimes, sistema, arquitetura</td></tr>
+<tr><td><code>dotnet --list-sdks</code></td><td>Os SDKs instalados</td></tr>
+<tr><td><code>dotnet run ola.cs</code></td><td>Compilar e rodar o arquivo</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O winget</h3>
+<p>Complete o comando que instala o .NET 10 SDK no Windows:</p>
+<div class="ex-code">winget install Microsoft.DotNet.<input data-answer="SDK.10" aria-label="pacote"></div>
+</div>
+
+<div class="exercise">
+<h3>2. A arquitetura do Mac</h3>
+<p>Um Mac com chip Apple M3 precisa do instalador de qual arquitetura?</p>
+<div class="ex-code"><input data-answer="Arm64|arm64|ARM64" aria-label="arquitetura"></div>
+</div>
+
+<div class="exercise">
+<h3>3. A pasta do Windows</h3>
+<p>Complete a pasta onde o .NET fica no Windows:</p>
+<div class="ex-code">C:\Program Files\<input data-answer="dotnet" aria-label="pasta"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Você instalou o .NET e, no mesmo Terminal que já estava aberto, o <code>dotnet</code> "não é reconhecido". O que fazer primeiro?</p>
+<label><input type="radio" name="q4"> Formatar o computador.</label>
+<label><input type="radio" name="q4"> Instalar o .NET Framework.</label>
+<label><input type="radio" name="q4"> Fechar o Terminal e abrir um novo.</label>
+<label><input type="radio" name="q4"> Trocar de editor.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Um programa feito pela Ana no Ubuntu precisa de mudanças no código para rodar no Windows?</p>
+<label><input type="radio" name="q5"> Sim, é preciso reescrever tudo.</label>
+<label><input type="radio" name="q5"> Não: o .NET é o mesmo e o código C# roda igual (cuidado só com caminhos de pastas escritos à mão).</label>
+<label><input type="radio" name="q5"> Só se ele usar <code>Console.WriteLine</code>.</label>
+<label><input type="radio" name="q5"> Sim, o C# do Windows é outra linguagem.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Qual Visual Studio é preciso para o .NET 10?</p>
+<label><input type="radio" name="q6"> O Visual Studio 2026 (versão 18.0 ou mais nova).</label>
+<label><input type="radio" name="q6"> Qualquer um, até o 2010.</label>
+<label><input type="radio" name="q6"> O Visual Studio for Mac.</label>
+<label><input type="radio" name="q6"> Nenhum funciona com o .NET 10.</label>
+</div>
+
+<h3>Missão final: o seu sistema</h3>
+<div class="trycs" data-goal="out:Sistema: macOS,out:Instalei com: pkg">
+<p class="try-task"><strong>Missão:</strong> a Bia, amiga da Ana, usa um Mac e instalou o .NET pelo instalador <code>.pkg</code>. Mude o cartão para ela: troque <code>Linux</code> por <code>macOS</code> e <code>apt</code> por <code>pkg</code>, e rode.</p>
+<pre class="script" data-file="cartao.cs">Console.WriteLine("Sistema: Linux");
+Console.WriteLine("Instalei com: apt");
+Console.WriteLine("Comando para rodar: dotnet run ola.cs");
+</pre>
+<pre class="solucao">Console.WriteLine("Sistema: macOS");
+Console.WriteLine("Instalei com: pkg");
+Console.WriteLine("Comando para rodar: dotnet run ola.cs");
+</pre>
+</div>
+
+<p>Repare que a terceira linha não muda: o comando para rodar é o mesmo nos três sistemas.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>O .NET é o mesmo nos três sistemas; só muda o jeito de instalar e a pasta onde ele fica.</li>
+  <li><strong>Windows:</strong> <code>winget install Microsoft.DotNet.SDK.10</code>, o instalador <code>.exe</code> de <code>dotnet.microsoft.com/download</code> ou o Visual Studio 2026. Fica em <code>C:\Program Files\dotnet</code>.</li>
+  <li><strong>macOS:</strong> o instalador <code>.pkg</code>, na arquitetura certa: <strong>Arm64</strong> para chips Apple, <strong>x64</strong> para Intel. Fica em <code>/usr/local/share/dotnet</code>.</li>
+  <li>Instale o <strong>SDK</strong>, não só um Runtime. Depois de instalar, <strong>abra um Terminal novo</strong>.</li>
+  <li>Confira com <code>dotnet --version</code> e <code>dotnet --info</code>; o primeiro programa roda com <code>dotnet run ola.cs</code>, igual no Linux.</li>
+  <li>Próximo passo: escolher onde escrever o código, em <a href="editores.html">Editores e IDEs</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
