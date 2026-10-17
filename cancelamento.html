@@ -324,6 +324,11 @@ Parei depois de 3 s. Arquivo salvo.</pre>
   <dt>cts.Cancel();</dt><dd>Transforma o aperto da tecla num pedido de cancelamento, que chega ao <code>Task.Delay</code>.</dd>
 </dl>
 
+<div class="note">
+<strong>No editor do guia, rode este no terminal</strong>
+<p>O .NET do editor roda dentro do navegador, onde não existem os sinais do Linux (o <code>SIGINT</code>). Lá, a própria linha do <code>Console.CancelKeyPress += …</code> já para o programa, com <code>Unhandled exception. System.PlatformNotSupportedException: Operation is not supported on this platform.</code> e o código 134. O <kbd>Ctrl</kbd>+<kbd>C</kbd> (ou o botão Parar) da caixa só interrompe o programa. Os outros exemplos da aula (<code>CancelAfter</code>, <code>Register</code>, tokens ligados) funcionam igual nos dois lugares.</p>
+</div>
+
 <hr>
 
 <h2>5. <code>Register</code>, <code>CancellationToken.None</code> e tokens ligados</h2>
