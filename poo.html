@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# O que é POO — classes, objetos, estado e comportamento | Guia C#</title>
+<meta name="description" content="Programação orientada a objetos em C# para quem nunca programou: o problema dos dados espalhados, classe como molde e objeto como ficha preenchida, estado e comportamento, os objetos que você já usa (string, Random), os quatro pilares e os primeiros erros reais CS0120, CS1955, CS0122 e CS8803, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">O que é POO</span></h1>
+
+<p class="intro">C# é uma linguagem <strong>orientada a objetos</strong>. Isso quer dizer que os programas são organizados em torno de "coisas" do problema (alunos, contas, produtos, pedidos), cada uma com os seus dados e as suas ações. Esta aula apresenta a ideia, sem pressa; as próximas ensinam cada peça em detalhe.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Que problema a <strong>programação orientada a objetos</strong> (POO) resolve.</li>
+  <li>A diferença entre <strong>classe</strong> (o molde) e <strong>objeto</strong> (cada coisa feita com o molde).</li>
+  <li>O que são <strong>estado</strong> (os dados de um objeto) e <strong>comportamento</strong> (o que ele sabe fazer).</li>
+  <li>Onde a classe fica num arquivo com instruções de nível superior: <strong>depois</strong> delas (senão, erro <code>CS8803</code>).</li>
+  <li>Que você já usa objetos desde o Nível 1 (<code>string</code>, <code>Random</code>).</li>
+  <li>A ideia dos <strong>quatro pilares</strong>: encapsulamento, herança, polimorfismo e abstração.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com <code>dotnet run arquivo.cs</code> na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), com o .NET 10 SDK, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>O problema: dados espalhados</h2>
+<p>A Ana quer guardar, para cada aluno, o nome e duas notas, e calcular a média. Com o que você aprendeu até aqui (<a href="arrays.html">arrays</a> e <a href="metodos.html">métodos</a>), a solução natural é usar um array para cada informação:</p>
+
+<pre class="file" data-file="alunos.cs">string[] nomes = { "Bruno", "Carla", "Davi" };
+double[] notas1 = { 8.0, 9.5, 5.0 };
+double[] notas2 = { 7.0, 9.0, 6.0 };
+
+for (int i = 0; i &lt; nomes.Length; i++)
+{
+    double media = (notas1[i] + notas2[i]) / 2;
+    Console.WriteLine($"{nomes[i]}: média {media}");
+}
+</pre>
+
+<pre class="term">$ dotnet run alunos.cs
+Bruno: média 7,5
+Carla: média 9,25
+Davi: média 5,5</pre>
+
+<p>Funciona. Mas repare como as informações de um aluno estão <strong>espalhadas</strong>: o nome do Bruno está em <code>nomes[0]</code>, as notas dele em <code>notas1[0]</code> e <code>notas2[0]</code>. Nada no código diz que essas três posições formam "o Bruno"; é só um combinado de que o índice 0 de cada array é a mesma pessoa. Agora imagine:</p>
+<ul>
+  <li>A Ana acrescenta e-mail, telefone, turma e faltas: são sete arrays andando juntos.</li>
+  <li>Ela ordena os nomes em ordem alfabética com <code>Array.Sort(nomes)</code>, mas esquece de reordenar as notas: o Bruno fica com as notas da Carla, sem nenhum erro na tela.</li>
+  <li>Ela quer um método <code>MostrarAluno</code>: precisa passar o índice e todos os arrays como parâmetros.</li>
+</ul>
+<p>O que falta é um jeito de dizer ao C#: "um aluno é uma <strong>coisa só</strong>, que tem nome, nota 1 e nota 2, e sabe calcular a própria média". É exatamente isso que a orientação a objetos oferece.</p>
+
+<hr>
+
+<h2>A ideia: classe é o molde, objeto é o que sai dele</h2>
+<p>Pense na secretaria da escola da Ana. Existe uma <strong>ficha de matrícula em branco</strong>, impressa igual para todo mundo, com os campos "Nome", "Nota 1" e "Nota 2". Cada aluno que se matricula recebe <strong>uma ficha preenchida</strong>, com os seus dados.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na secretaria</th><th>Em C#</th><th>No exemplo</th></tr>
+<tr><td>O modelo da ficha (em branco)</td><td><strong>Classe</strong></td><td><code>Aluno</code></td></tr>
+<tr><td>Os campos da ficha</td><td><strong>Campos</strong> e <strong>propriedades</strong></td><td><code>Nome</code>, <code>Nota1</code>, <code>Nota2</code></td></tr>
+<tr><td>Uma ficha preenchida</td><td><strong>Objeto</strong> (ou <strong>instância</strong>)</td><td>o aluno Bruno, a aluna Carla</td></tr>
+<tr><td>"Imprimir uma ficha nova"</td><td>Criar um objeto com <code>new</code></td><td><code>new Aluno()</code></td></tr>
+<tr><td>O que a ficha "sabe fazer" (calcular a média do aluno)</td><td><strong>Métodos</strong></td><td><code>Media()</code></td></tr>
+</table>
+</div>
+
+<p>Outra comparação muito usada: a <strong>forma de biscoito</strong> é a classe; cada <strong>biscoito</strong> é um objeto. A forma define o formato de todos, mas cada biscoito é um biscoito diferente, que pode ter cobertura diferente. E a forma não se come: você não usa a classe diretamente, usa os objetos criados com ela.</p>
+
+<p>Em código, a classe <code>Aluno</code> e dois objetos dela ficam assim:</p>
+
+<pre class="file" data-file="aluno.cs">Aluno bruno = new Aluno();
+bruno.Nome = "Bruno";
+bruno.Nota1 = 8.0;
+bruno.Nota2 = 7.0;
+
+Aluno carla = new Aluno();
+carla.Nome = "Carla";
+carla.Nota1 = 9.5;
+carla.Nota2 = 9.0;
+
+Console.WriteLine($"{bruno.Nome}: média {bruno.Media()}");
+Console.WriteLine($"{carla.Nome}: média {carla.Media()}");
+
+class Aluno
+{
+    public string Nome = "";
+    public double Nota1;
+    public double Nota2;
+
+    public double Media()
+    {
+        return (Nota1 + Nota2) / 2;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run aluno.cs
+Bruno: média 7,5
+Carla: média 9,25</pre>
+
+<p>Você vai estudar cada linha nas próximas aulas. Por enquanto, uma leitura geral:</p>
+
+<dl class="anatomy">
+  <dt>class Aluno { … }</dt><dd>Declara a <strong>classe</strong> <code>Aluno</code>: o molde. Ela fica no <strong>fim</strong> do arquivo, depois das instruções de nível superior (as linhas que o programa executa). Mais abaixo você vê o que acontece se ela vier antes.</dd>
+  <dt>public string Nome = "";</dt><dd>Um <strong>campo</strong>: uma variável que <strong>todo</strong> aluno tem. O <code>public</code> ("público") deixa o resto do programa ler e mudar esse campo; sem ele, o campo fica escondido dentro da classe. O <code>= ""</code> dá um texto inicial vazio. Os campos são o assunto de <a href="campos.html">Campos</a>, e o <code>public</code>, de <a href="modificadores-acesso.html">public, private e internal</a>.</dd>
+  <dt>public double Media() { … }</dt><dd>Um <strong>método</strong> do aluno. Diferente dos métodos que você escreveu em <a href="metodos.html">Métodos</a>, ele usa <code>Nota1</code> e <code>Nota2</code> <strong>do próprio aluno</strong>, sem recebê-los como parâmetros.</dd>
+  <dt>Aluno bruno = new Aluno();</dt><dd>Cria um <strong>objeto</strong> novo da classe <code>Aluno</code> (uma ficha em branco) e o guarda na variável <code>bruno</code>. O tipo da variável é a própria classe: <code>Aluno</code> virou um tipo, como <code>int</code> e <code>string</code>.</dd>
+  <dt>bruno.Nome = "Bruno";</dt><dd>O <strong>ponto</strong> quer dizer "de": "o nome <strong>do</strong> bruno recebe Bruno". Preenche um campo da ficha.</dd>
+  <dt>bruno.Media()</dt><dd>Pede ao objeto <code>bruno</code> que calcule a média <strong>dele</strong>. A mesma chamada em <code>carla</code> usa as notas da Carla.</dd>
+</dl>
+
+<p>Agora tudo o que é do Bruno está junto, dentro de um objeto só. Não há índice para combinar, nem arrays para manter em ordem.</p>
+
+<div class="note">
+<strong>Maiúsculas: <code>Nome</code>, não <code>nome</code></strong>
+<p>Em C#, o que é <code>public</code> numa classe (campos, métodos e, logo mais, propriedades) tem nome em <strong>PascalCase</strong>: começa com maiúscula, como <code>Nome</code>, <code>Nota1</code> e <code>Media</code>. Variáveis locais e parâmetros continuam em camelCase: <code>bruno</code>, <code>carla</code>. É só convenção (o compilador aceitaria <code>nome</code>), mas todo código C# segue esse padrão; veja <a href="identificadores.html">Nomes e Convenções</a>.</p>
+</div>
+
+<div class="trycs" data-goal="out:Davi: média 5\,5,src:new\s+Aluno\s*\(\s*\)[\s\S]*new\s+Aluno\s*\(\s*\)">
+<p class="try-task"><strong>Missão:</strong> crie um segundo aluno, <code>davi</code>, com notas <code>5.0</code> e <code>6.0</code>, e mostre a média dele no mesmo formato: <code>Davi: média 5,5</code>. Siga o modelo do Bruno, e escreva as linhas novas <strong>antes</strong> da classe.</p>
+<pre class="script" data-file="aluno.cs">Aluno bruno = new Aluno();
+bruno.Nome = "Bruno";
+bruno.Nota1 = 8.0;
+bruno.Nota2 = 7.0;
+
+Console.WriteLine($"{bruno.Nome}: média {bruno.Media()}");
+
+class Aluno
+{
+    public string Nome = "";
+    public double Nota1;
+    public double Nota2;
+
+    public double Media()
+    {
+        return (Nota1 + Nota2) / 2;
+    }
+}
+</pre>
+<pre class="solucao" data-file="aluno.cs">Aluno bruno = new Aluno();
+bruno.Nome = "Bruno";
+bruno.Nota1 = 8.0;
+bruno.Nota2 = 7.0;
+
+Aluno davi = new Aluno();
+davi.Nome = "Davi";
+davi.Nota1 = 5.0;
+davi.Nota2 = 6.0;
+
+Console.WriteLine($"{bruno.Nome}: média {bruno.Media()}");
+Console.WriteLine($"{davi.Nome}: média {davi.Media()}");
+
+class Aluno
+{
+    public string Nome = "";
+    public double Nota1;
+    public double Nota2;
+
+    public double Media()
+    {
+        return (Nota1 + Nota2) / 2;
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="ordem">A classe vai no fim do arquivo</h2>
+<p>Com <code>dotnet run arquivo.cs</code>, o arquivo começa direto pelas instruções que o programa executa, sem <code>Main</code> (veja <a href="top-level.html">Program.cs e o Main</a>). As classes podem morar no mesmo arquivo, mas com uma regra: <strong>primeiro as instruções, depois as classes</strong>. Veja o que acontece ao contrário:</p>
+
+<pre class="file" data-file="antes.cs — com erro de propósito">class Aluno
+{
+    public string Nome = "";
+}
+
+Aluno bia = new Aluno();
+bia.Nome = "Bia";
+Console.WriteLine(bia.Nome);
+</pre>
+
+<pre class="term">$ dotnet run antes.cs
+/home/ana/cs/antes.cs(6,1): error CS8803: As instruções de nível superior precisam preceder as declarações de namespace e de tipo.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Preceder" é "vir antes". A mensagem diz: as instruções de nível superior (a linha 6 em diante) precisam vir <strong>antes</strong> das declarações de tipo (a classe). Em inglês: <code>Top-level statements must precede namespace and type declarations</code>. Uma classe é um "tipo", e o compilador aponta a primeira instrução que veio depois dela.</p>
+
+<div class="trycs" data-goal="out:Bia,compila">
+<p class="try-task"><strong>Missão:</strong> rode e leia o erro <code>CS8803</code>. Depois conserte o programa <strong>sem apagar nada</strong>: só mude a classe de lugar, para que ele mostre <code>Bia</code>.</p>
+<pre class="script" data-file="antes.cs">class Aluno
+{
+    public string Nome = "";
+}
+
+Aluno bia = new Aluno();
+bia.Nome = "Bia";
+Console.WriteLine(bia.Nome);
+</pre>
+<pre class="solucao" data-file="antes.cs">Aluno bia = new Aluno();
+bia.Nome = "Bia";
+Console.WriteLine(bia.Nome);
+
+class Aluno
+{
+    public string Nome = "";
+}
+</pre>
+</div>
+
+<p>Em projetos maiores, cada classe costuma ir para o seu próprio arquivo (<code>Aluno.cs</code>). Você verá isso em <a href="classes-objetos.html#arquivos">Classes e Objetos</a>.</p>
+
+<hr>
+
+<h2>Estado e comportamento</h2>
+<p>Todo objeto tem duas coisas:</p>
+<ul>
+  <li><strong>Estado</strong>: o que ele <strong>é</strong> ou <strong>tem</strong> agora. São os valores dos campos. O estado do Bruno é "nome Bruno, nota 1 8,0, nota 2 7,0". Se a Ana corrige uma nota, o estado muda.</li>
+  <li><strong>Comportamento</strong>: o que ele <strong>sabe fazer</strong>. São os métodos. Todo aluno sabe calcular a sua média.</li>
+</ul>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Coisa</th><th>Estado (campos e propriedades)</th><th>Comportamento (métodos)</th></tr>
+<tr><td>Aluno</td><td>nome, notas, turma</td><td>calcular a média, dizer se foi aprovado</td></tr>
+<tr><td>Conta bancária</td><td>titular, saldo</td><td>depositar, sacar, mostrar extrato</td></tr>
+<tr><td>Produto da lojinha da Ana</td><td>nome, preço, estoque</td><td>aplicar desconto, vender uma unidade</td></tr>
+<tr><td>Lâmpada</td><td>ligada ou desligada, potência</td><td>ligar, desligar</td></tr>
+</table>
+</div>
+
+<p>Uma dica para descobrir as classes de um problema: os <strong>substantivos</strong> (aluno, conta, produto) costumam virar classes; as <strong>características</strong> deles viram campos e propriedades; os <strong>verbos</strong> (depositar, vender) viram métodos.</p>
+
+<hr>
+
+<h2>Você já usa objetos</h2>
+<p>Desde o Nível 1, toda <code>string</code> é um objeto. A classe <code>String</code> foi escrita pelos criadores do .NET; cada texto que você cria é um objeto dela, com o seu próprio estado (as letras) e os métodos da classe:</p>
+
+<pre class="file" data-file="objs.cs">string fruta = "banana";
+string outra = "maçã";
+Console.WriteLine(fruta.Length);
+Console.WriteLine(outra.Length);
+Console.WriteLine(fruta.ToUpper());
+</pre>
+
+<pre class="term">$ dotnet run objs.cs
+6          « Length, aplicado ao estado "banana"
+4          « o mesmo membro, outro objeto, outro resultado
+BANANA</pre>
+
+<p>É a mesma estrutura do <code>bruno.Media()</code>: <code>objeto.Membro</code>. O <code>Random</code> de <a href="aleatorios.html">Números Aleatórios</a> também: <code>new Random()</code> cria um objeto, e <code>sorteio.Next(1, 7)</code> chama um método dele. A diferença, a partir de agora, é que você vai escrever as suas próprias classes.</p>
+
+<hr>
+
+<h2>Programar "com procedimentos" × "com objetos"</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Procedural (o que você fez até aqui)</th><th>Orientado a objetos</th></tr>
+<tr><td>Organização</td><td>Dados de um lado (variáveis, arrays), métodos do outro</td><td>Dados e as ações sobre eles juntos, dentro de cada objeto</td></tr>
+<tr><td>Pergunta que guia</td><td>"Quais passos o programa executa?"</td><td>"Quais coisas existem e o que cada uma faz?"</td></tr>
+<tr><td>Chamada típica</td><td><code>Media(notas1[i], notas2[i])</code></td><td><code>aluno.Media()</code></td></tr>
+<tr><td>Bom para</td><td>Programas pequenos, scripts, cálculos</td><td>Sistemas que crescem, com muitas "coisas" diferentes</td></tr>
+</table>
+</div>
+<p>Uma não substitui a outra: dentro dos métodos de um objeto você continua usando <code>if</code>, laços e variáveis do jeito que aprendeu. A POO é uma forma de <strong>organizar</strong> o programa em partes maiores.</p>
+
+<hr>
+
+<h2>Os quatro pilares (só a ideia)</h2>
+<p>Quatro ideias sustentam a orientação a objetos. Você não precisa dominá-las agora: cada uma tem a sua aula. O importante é saber que existem e reconhecer os nomes.</p>
+
+<h3>1. Encapsulamento: esconder os detalhes</h3>
+<p>O objeto protege os seus dados e só deixa mexer neles pelo que ele oferece. Pense no caixa eletrônico: você não abre o cofre e pega o dinheiro; você pede um saque, e a máquina confere o saldo antes. Em C#, isso se faz com <code>private</code> e <strong>propriedades</strong> (<code>get</code> e <code>set</code>). Aulas: <a href="propriedades.html">Propriedades</a> e <a href="encapsulamento.html">Encapsulamento</a>.</p>
+
+<h3>2. Herança: aproveitar uma classe para criar outra</h3>
+<p>Uma classe pode <strong>herdar</strong> tudo de outra e acrescentar o que é seu. Um <code>AlunoBolsista</code> é um <code>Aluno</code> com um campo a mais, o valor da bolsa; não é preciso reescrever nome, notas e média. Aula: <a href="heranca.html">Herança</a>.</p>
+
+<h3>3. Polimorfismo: o mesmo pedido, respostas diferentes</h3>
+<p>"Poli" = muitas, "morfo" = formas. Objetos diferentes podem responder ao mesmo pedido cada um do seu jeito. Se a lojinha da Ana pede <code>CalcularPreco()</code> a um produto vendido por quilo e a um vendido por unidade, cada um calcula à sua maneira, e quem pediu não precisa saber qual é qual. Aula: <a href="polimorfismo.html">Polimorfismo</a>.</p>
+
+<h3>4. Abstração: ficar só com o que importa</h3>
+<p>Um modelo nunca copia a realidade inteira: ele escolhe o que é relevante para o programa. Para a secretaria, um aluno tem nome e notas; a cor do cabelo dele não interessa. A abstração também aparece como "contratos" que dizem <strong>o que</strong> fazer sem dizer <strong>como</strong>. Aulas: <a href="abstratas.html">Classes Abstratas</a> e <a href="interfaces.html">Interfaces</a>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Pilar</th><th>Em uma frase</th><th>Palavras do C#</th><th>Aula</th></tr>
+<tr><td>Encapsulamento</td><td>Esconder os dados e expor ações seguras</td><td><code>private</code>, <code>public</code>, <code>get</code>/<code>set</code></td><td><a href="encapsulamento.html">Encapsulamento</a></td></tr>
+<tr><td>Herança</td><td>Uma classe reaproveita outra e acrescenta</td><td><code>class B : A</code>, <code>base</code></td><td><a href="heranca.html">Herança</a></td></tr>
+<tr><td>Polimorfismo</td><td>Mesmo pedido, comportamento conforme o objeto</td><td><code>virtual</code>, <code>override</code></td><td><a href="polimorfismo.html">Polimorfismo</a></td></tr>
+<tr><td>Abstração</td><td>Modelar só o essencial; contratos sem detalhes</td><td><code>abstract</code>, <code>interface</code></td><td><a href="abstratas.html">Classes Abstratas</a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Vocabulário</h2>
+<p>Você vai ver estes termos em livros, vagas de emprego e na documentação da Microsoft. Vários são sinônimos:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Termo</th><th>Significado</th><th>Também chamado</th></tr>
+<tr><td>Classe</td><td>O molde, a descrição de um tipo de coisa</td><td>tipo (<em>class</em>)</td></tr>
+<tr><td>Objeto</td><td>Uma coisa concreta criada a partir da classe</td><td>instância</td></tr>
+<tr><td>Instanciar</td><td>Criar um objeto (<code>new Aluno()</code>)</td><td>criar uma instância</td></tr>
+<tr><td>Campo</td><td>Variável declarada na classe, que cada objeto tem</td><td>atributo, variável de instância (<em>field</em>)</td></tr>
+<tr><td>Propriedade</td><td>Um "campo com porteiro": parece campo por fora, mas passa por <code>get</code>/<code>set</code></td><td><em>property</em></td></tr>
+<tr><td>Método</td><td>Ação que o objeto sabe fazer</td><td>comportamento, operação</td></tr>
+<tr><td>Membro</td><td>Qualquer coisa declarada dentro da classe (campo, propriedade, método…)</td><td><em>member</em></td></tr>
+<tr><td>Estado</td><td>Os valores atuais dos campos de um objeto</td><td></td></tr>
+<tr><td>Referência</td><td>O "endereço" de um objeto, guardado numa variável</td><td>veja <a href="classes-objetos.html#referencia">Classes e Objetos</a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+<p>Os primeiros erros com objetos quase sempre vêm de confundir a <strong>classe</strong> (o molde) com um <strong>objeto</strong> (uma ficha preenchida).</p>
+
+<div class="cenario">
+<strong>CS0120: usar a classe no lugar do objeto</strong>
+<pre class="file" data-file="e1.cs — com erro de propósito">Aluno.Nome = "Bruno";
+Console.WriteLine(Aluno.Media());
+
+class Aluno
+{
+    public string Nome = "";
+    public double Nota1;
+    public double Nota2;
+
+    public double Media()
+    {
+        return (Nota1 + Nota2) / 2;
+    }
+}
+</pre>
+<pre class="term">$ dotnet run e1.cs
+/home/ana/cs/e1.cs(1,1): error CS0120: Uma referência de objeto é necessária para o campo, o método ou a propriedade "Aluno.Nome" não estática
+/home/ana/cs/e1.cs(2,19): error CS0120: Uma referência de objeto é necessária para o campo, o método ou a propriedade "Aluno.Media()" não estática
+/home/ana/cs/e1.cs(7,19): warning CS0649: Campo "Aluno.Nota1" nunca é atribuído e sempre terá seu valor padrão 0
+/home/ana/cs/e1.cs(8,19): warning CS0649: Campo "Aluno.Nota2" nunca é atribuído e sempre terá seu valor padrão 0
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> <code>Aluno.Nome</code> é como escrever o nome na ficha <strong>em branco</strong>, o modelo. O C# pergunta: o nome de qual aluno? "Uma referência de objeto é necessária": falta dizer <strong>qual</strong> objeto. Campos e métodos sem <code>static</code> ("não estáticos") pertencem a cada objeto, não à classe (o <code>static</code> tem aula própria: <a href="static.html">static</a>). Os avisos <code>CS0649</code> dizem que ninguém nunca preencheu as notas, o que é verdade.</p>
+<p><strong>Como resolver:</strong> crie um objeto e use a variável dele: <code>Aluno bruno = new Aluno(); bruno.Nome = "Bruno";</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1955: esquecer o <code>new</code></strong>
+<pre class="term">$ dotnet run e2.cs
+/home/ana/cs/e2.cs(1,15): error CS1955: O membro não invocável "Aluno" não pode ser usado como um método.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> a linha 1 era <code>Aluno bruno = Aluno();</code>. Sem o <code>new</code>, <code>Aluno()</code> parece a chamada de um <strong>método</strong> chamado <code>Aluno</code>. Mas <code>Aluno</code> é uma classe, e uma classe não se "chama" ("não invocável").</p>
+<p><strong>Como resolver:</strong> <code>Aluno bruno = new Aluno();</code>. O <code>new</code> é o que cria o objeto.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0122: esquecer o <code>public</code></strong>
+<pre class="file" data-file="e3.cs — com erro de propósito">Aluno bruno = new Aluno();
+bruno.Nome = "Bruno";
+Console.WriteLine(bruno.Nome);
+
+class Aluno
+{
+    string Nome = "";
+}
+</pre>
+<pre class="term">$ dotnet run e3.cs
+/home/ana/cs/e3.cs(2,7): error CS0122: "Aluno.Nome" é inacessível devido ao seu nível de proteção
+/home/ana/cs/e3.cs(3,25): error CS0122: "Aluno.Nome" é inacessível devido ao seu nível de proteção
+/home/ana/cs/e3.cs(7,12): warning CS0414: O campo "Aluno.Nome" é atribuído, mas seu valor nunca é usado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> em C#, tudo o que está dentro de uma classe é <strong>privado</strong> por padrão: só a própria classe enxerga. Sem <code>public</code>, o <code>Nome</code> fica escondido, e o resto do programa não pode usá-lo ("inacessível devido ao seu nível de proteção"). Quem vem do Java estranha: lá, o padrão é mais aberto.</p>
+<p><strong>Como resolver:</strong> <code>public string Nome = "";</code>. A aula <a href="modificadores-acesso.html">public, private e internal</a> explica quando esconder de propósito.</p>
+</div>
+
+<div class="cenario">
+<strong>CS8803: a classe veio antes das instruções</strong>
+<pre class="term">$ dotnet run antes.cs
+/home/ana/cs/antes.cs(6,1): error CS8803: As instruções de nível superior precisam preceder as declarações de namespace e de tipo.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> no arquivo, a <code>class Aluno</code> estava em cima e as instruções, embaixo.</p>
+<p><strong>Como resolver:</strong> mova as classes para o fim do arquivo (ou para arquivos próprios, num projeto).</p>
+</div>
+
+<hr>
+
+<h2>Missão final: a lojinha da Ana</h2>
+<div class="trycs" data-goal="out:maçã: R$ 7\,90,out:banana: R$ 3\,50,src:new\s+Produto\s*\(\s*\)[\s\S]*new\s+Produto\s*\(\s*\)">
+<p class="try-task"><strong>Missão:</strong> a classe <code>Produto</code> já está pronta, com os campos <code>Nome</code> e <code>Preco</code> e o método <code>Mostrar()</code>. Nas instruções do topo, crie <strong>dois</strong> objetos: uma maçã de <code>7.90m</code> e uma banana de <code>3.50m</code> (o <code>m</code> marca um <a href="decimais.html"><code>decimal</code></a>, o tipo do dinheiro), e chame <code>Mostrar()</code> em cada um.</p>
+<pre class="script" data-file="loja.cs">Console.WriteLine("Lojinha da Ana");
+// crie a maçã e a banana aqui
+
+class Produto
+{
+    public string Nome = "";
+    public decimal Preco;
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{Nome}: {Preco:C}");
+    }
+}
+</pre>
+<pre class="solucao" data-file="loja.cs">Console.WriteLine("Lojinha da Ana");
+Produto maca = new Produto();
+maca.Nome = "maçã";
+maca.Preco = 7.90m;
+
+Produto banana = new Produto();
+banana.Nome = "banana";
+banana.Preco = 3.50m;
+
+maca.Mostrar();
+banana.Mostrar();
+
+class Produto
+{
+    public string Nome = "";
+    public decimal Preco;
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{Nome}: {Preco:C}");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Molde ou coisa?</h3>
+<p>Como se chama o "molde" que descreve como são todos os alunos?</p>
+<div class="ex-code"><input data-answer="classe|class|a classe|uma classe" aria-label="resposta"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Criar um objeto</h3>
+<p>Complete para criar um objeto da classe <code>Produto</code>:</p>
+<div class="ex-code">Produto p = <input data-answer="new Produto();|new Produto()" aria-label="criação"></div>
+</div>
+
+<div class="exercise">
+<h3>3. O erro da ordem</h3>
+<p>Qual é o código do erro que aparece quando a classe vem antes das instruções de nível superior?</p>
+<div class="ex-code"><input data-answer="CS8803" aria-label="código"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Na frase "a Ana tem 3 contas bancárias, e cada uma tem titular e saldo", o que vira classe?</p>
+<label><input type="radio" name="q4"> Ana</label>
+<label><input type="radio" name="q4"> Conta</label>
+<label><input type="radio" name="q4"> Saldo</label>
+<label><input type="radio" name="q4"> 3</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. O que é o <strong>estado</strong> de um objeto?</p>
+<label><input type="radio" name="q5"> A lista dos seus métodos.</label>
+<label><input type="radio" name="q5"> O nome da sua classe.</label>
+<label><input type="radio" name="q5"> Os valores atuais dos seus campos.</label>
+<label><input type="radio" name="q5"> O arquivo onde ele foi escrito.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que <code>bruno.Nome</code> dá <code>CS0122</code> quando o campo é declarado como <code>string Nome = "";</code>?</p>
+<label><input type="radio" name="q6"> Porque, sem <code>public</code>, o campo é privado: só a própria classe o enxerga.</label>
+<label><input type="radio" name="q6"> Porque o nome deveria ser minúsculo.</label>
+<label><input type="radio" name="q6"> Porque faltou o <code>new</code>.</label>
+<label><input type="radio" name="q6"> Porque a classe está no fim do arquivo.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>A <strong>POO</strong> junta dados e ações numa coisa só, em vez de espalhar arrays paralelos.</li>
+  <li><strong>Classe</strong> é o molde (<code>class Aluno { … }</code>); <strong>objeto</strong> é cada coisa criada com <code>new Aluno()</code>.</li>
+  <li>Todo objeto tem <strong>estado</strong> (campos e propriedades) e <strong>comportamento</strong> (métodos). Use o ponto: <code>bruno.Nome</code>, <code>bruno.Media()</code>.</li>
+  <li>Com instruções de nível superior, as classes vão <strong>no fim</strong> do arquivo; antes, dá <code>CS8803</code>.</li>
+  <li>O que é usado de fora precisa de <code>public</code> (senão, <code>CS0122</code>) e tem nome em PascalCase.</li>
+  <li><code>string</code> e <code>Random</code> já eram objetos. Os quatro pilares: encapsulamento, herança, polimorfismo e abstração.</li>
+  <li>Próxima aula: <a href="classes-objetos.html">Classes e Objetos</a>, linha por linha.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
