@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Operadores de Comparação — == != &gt; &lt; &gt;= &lt;= | Guia C#</title>
+<meta name="description" content="Os operadores de comparação do C# (==, !=, &gt;, &lt;, &gt;=, &lt;=) para quem nunca programou: o resultado bool (True e False), comparar números, char, bool e string, a armadilha do double (0.1 + 0.2 == 0.3), = no lugar de ==, 0 &lt;= nota &lt;= 10 e os erros reais CS0019, CS0029 e CS0665 do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Operadores de Comparação</span></h1>
+
+<p class="intro">Programas tomam decisões o tempo todo: "a nota é suficiente para passar?", "o estoque acabou?", "a senha está certa?". Cada uma dessas perguntas é uma <strong>comparação</strong>, e a resposta é sempre <strong>sim ou não</strong>: <code>true</code> (verdadeiro) ou <code>false</code> (falso). Nesta aula você vai conhecer os seis operadores de comparação do C#, ver o que dá para comparar e o que não dá, e aprender as armadilhas de comparar números com vírgula.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Os seis operadores: <code>==</code>, <code>!=</code>, <code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code> e <code>&lt;=</code>.</li>
+  <li>Que toda comparação produz um <code>bool</code>, que pode ser guardado numa variável, e por que o console mostra <code>True</code> com letra maiúscula.</li>
+  <li>O que dá para comparar: números, <code>char</code>, <code>bool</code> e <code>string</code> (só com <code>==</code> e <code>!=</code>).</li>
+  <li>Por que <code>0.1 + 0.2 == 0.3</code> dá <code>False</code> com <code>double</code> e <code>True</code> com <code>decimal</code>.</li>
+  <li>Os erros mais comuns: <code>=</code> no lugar de <code>==</code>, <code>0 &lt;= nota &lt;= 10</code> e o texto grudado na comparação.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com o comando <code>dotnet run arquivo.cs</code> (aula <a href="dotnet-run.html">Rodar com dotnet run</a>).</p>
+
+<hr>
+
+<h2>A ideia: perguntas de sim ou não</h2>
+<p>Pense numa balança de dois pratos. Você coloca uma coisa de cada lado, e ela só sabe responder uma pergunta: <strong>qual lado pesa mais, ou se estão iguais</strong>. Ela não diz "quanto" pesa; diz só "sim" ou "não" para a pergunta que você fez.</p>
+<p>Os operadores de comparação são essa balança. Você põe um valor de cada lado do operador, e o C# responde <code>true</code> ou <code>false</code>. São os sinais da matemática da escola, escritos com as teclas do teclado:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>Pergunta</th><th>Na matemática</th><th>Exemplo</th><th>Resposta</th></tr>
+<tr><td><code>==</code></td><td>é igual a?</td><td>=</td><td><code>7 == 7</code></td><td><code>true</code></td></tr>
+<tr><td><code>!=</code></td><td>é diferente de?</td><td>≠</td><td><code>7 != 7</code></td><td><code>false</code></td></tr>
+<tr><td><code>&gt;</code></td><td>é maior que?</td><td>&gt;</td><td><code>7 &gt; 5</code></td><td><code>true</code></td></tr>
+<tr><td><code>&lt;</code></td><td>é menor que?</td><td>&lt;</td><td><code>7 &lt; 5</code></td><td><code>false</code></td></tr>
+<tr><td><code>&gt;=</code></td><td>é maior ou igual a?</td><td>≥</td><td><code>7 &gt;= 7</code></td><td><code>true</code></td></tr>
+<tr><td><code>&lt;=</code></td><td>é menor ou igual a?</td><td>≤</td><td><code>8 &lt;= 7</code></td><td><code>false</code></td></tr>
+</table>
+</div>
+
+<p>Três detalhes de escrita que pegam todo iniciante:</p>
+<ul>
+  <li><strong>Igual é com dois sinais:</strong> <code>==</code>. Um sinal só (<code>=</code>) é a <strong>atribuição</strong>, "guarde este valor" (aula <a href="operadores-atribuicao.html">Operadores de Atribuição</a>).</li>
+  <li><strong>Diferente</strong> é <code>!=</code>: o <code>!</code> quer dizer "não", então <code>!=</code> se lê "não igual".</li>
+  <li>Nos operadores de dois símbolos, o <strong><code>=</code> vem sempre por último</strong>: <code>&gt;=</code> e <code>&lt;=</code>, nunca <code>=&gt;</code> nem <code>=&lt;</code>. E não pode haver espaço no meio: <code>&gt; =</code> é erro.</li>
+</ul>
+
+<hr>
+
+<h2>1. A resposta é um <code>bool</code></h2>
+<p>A Ana tem 16 anos. Veja as seis perguntas sobre a idade dela:</p>
+
+<pre class="file" data-file="seis.cs">int idade = 16;
+Console.WriteLine(idade == 16);
+Console.WriteLine(idade != 16);
+Console.WriteLine(idade &gt; 18);
+Console.WriteLine(idade &lt; 18);
+Console.WriteLine(idade &gt;= 16);
+Console.WriteLine(idade &lt;= 15);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run seis.cs
+True       « 16 é igual a 16
+False      « 16 não é diferente de 16
+False      « 16 não é maior que 18
+True       « 16 é menor que 18
+True       « 16 é maior ou igual a 16 (é igual, e isso basta)
+False      « 16 não é menor ou igual a 15</pre>
+
+<p>Cada comparação virou um valor do tipo <code>bool</code> (de <em>boolean</em>, "booleano", em homenagem ao matemático George Boole), o tipo que só tem dois valores (aula <a href="char-bool.html">char e bool</a>). Repare numa diferença:</p>
+<ul>
+  <li><strong>No código</strong>, os valores se escrevem com letra minúscula: <code>true</code> e <code>false</code>.</li>
+  <li><strong>Na tela</strong>, o <code>Console.WriteLine</code> mostra <code>True</code> e <code>False</code>, com maiúscula. É só o jeito como o .NET transforma um <code>bool</code> em texto. O valor é o mesmo.</li>
+</ul>
+
+<h3>Guardar a resposta numa variável</h3>
+<p>Como a resposta é um valor, ela pode ser guardada numa variável <code>bool</code>, com um nome que diga o que ela significa:</p>
+
+<pre class="file" data-file="bool.cs">int idade = 17;
+bool podeVotar = idade &gt;= 16;
+bool podeDirigir = idade &gt;= 18;
+Console.WriteLine("Pode votar? " + podeVotar);
+Console.WriteLine("Pode dirigir? " + podeDirigir);
+Console.WriteLine("Tem 17? " + (idade == 17));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run bool.cs
+Pode votar? True
+Pode dirigir? False
+Tem 17? True</pre>
+
+<dl class="anatomy">
+  <dt>bool podeVotar = idade &gt;= 16;</dt><dd>Lida da direita para a esquerda: o C# primeiro <strong>calcula</strong> <code>idade &gt;= 16</code> (17 é maior ou igual a 16? sim, <code>true</code>) e depois <strong>guarda</strong> o <code>true</code> em <code>podeVotar</code>. O <code>=</code> (um sinal) guarda; o <code>&gt;=</code> pergunta.</dd>
+  <dt>"Pode votar? " + podeVotar</dt><dd>Juntar um texto com um <code>bool</code> com <code>+</code> transforma o <code>bool</code> em texto (<code>"True"</code>) e cola os dois (aula <a href="strings.html">Strings</a>).</dd>
+  <dt>"Tem 17? " + (idade == 17)</dt><dd>Aqui a comparação está <strong>dentro</strong> da linha, e os parênteses são <strong>obrigatórios</strong>. Sem eles, o C# faria o <code>+</code> primeiro e tentaria comparar um texto com um número. Você vai ver esse erro em <a href="#erros">Quando dá errado</a>.</dd>
+  <dt>nomes como podeVotar</dt><dd>Variáveis <code>bool</code> costumam ter nome de pergunta ou de estado: <code>podeVotar</code>, <code>estaAprovado</code>, <code>temEstoque</code>, <code>ehAdmin</code>. Assim, <code>if (podeVotar)</code> se lê quase como português (aula <a href="if-else.html">if e else</a>).</dd>
+</dl>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> mude a nota para 6, 10 e 3 e rode de novo. Depois acrescente uma linha que pergunte se a nota é <strong>diferente de</strong> zero.</p>
+<pre class="script" data-file="notas.cs">int nota = 7;
+Console.WriteLine("Nota: " + nota);
+Console.WriteLine("Passou (6 ou mais)? " + (nota &gt;= 6));
+Console.WriteLine("Tirou 10? " + (nota == 10));
+Console.WriteLine("Ficou abaixo de 5? " + (nota &lt; 5));
+</pre>
+</div>
+
+<hr>
+
+<h2>2. O que dá para comparar</h2>
+<p>Os operadores funcionam com vários tipos, mas cada tipo tem suas regras:</p>
+
+<pre class="file" data-file="tipos.cs">Console.WriteLine(5 == 5.0);
+Console.WriteLine(7 / 2 == 3.5);
+Console.WriteLine('a' &lt; 'b');
+Console.WriteLine('Z' &lt; 'a');
+Console.WriteLine(true == false);
+string nome = "Ana";
+Console.WriteLine(nome == "Ana");
+Console.WriteLine(nome == "ana");
+Console.WriteLine(nome != "Bia");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tipos.cs
+True       « int com double: o 5 vira 5.0 antes de comparar
+False      « 7 / 2 entre inteiros dá 3, e 3 não é 3.5
+True       « 'a' vem antes de 'b'
+True       « surpresa: 'Z' (código 90) é menor que 'a' (código 97)
+False
+True       « mesmo texto
+False      « maiúscula e minúscula contam: "Ana" não é "ana"
+True</pre>
+
+<dl class="anatomy">
+  <dt>Números entre si</dt><dd><code>int</code>, <code>long</code>, <code>double</code> e <code>decimal</code> podem ser comparados entre si. Antes de comparar, o C# converte o menor para o maior (o <code>5</code> vira <code>5.0</code>). Cuidado com a divisão de inteiros: <code>7 / 2</code> é <code>3</code> (aula <a href="operadores-aritmeticos.html">Operadores Aritméticos</a>).</dd>
+  <dt>char</dt><dd>Cada letra tem um <strong>número</strong> na tabela Unicode, e é esse número que se compara. Todas as maiúsculas (A = 65 … Z = 90) vêm antes de todas as minúsculas (a = 97 … z = 122). Por isso <code>'Z' &lt; 'a'</code> é <code>true</code>. Para ordem alfabética "de verdade", use <code>string.Compare</code> (aula <a href="strings.html">Strings</a>).</dd>
+  <dt>bool</dt><dd>Só com <code>==</code> e <code>!=</code>. Não existe "verdadeiro é maior que falso".</dd>
+  <dt>string</dt><dd>Em C#, o <code>==</code> compara o <strong>conteúdo</strong> dos textos, letra por letra. (Quem vem do Java estranha: lá, <code>==</code> em texto é uma armadilha. Em C#, não.) Maiúsculas e minúsculas fazem diferença. Os operadores <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code> e <code>&gt;=</code> <strong>não</strong> funcionam com <code>string</code>: o compilador recusa.</dd>
+</dl>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th><code>==</code> e <code>!=</code></th><th><code>&lt; &gt; &lt;= &gt;=</code></th><th>Observação</th></tr>
+<tr><td><code>int</code>, <code>long</code>, <code>decimal</code></td><td>sim</td><td>sim</td><td>exatos</td></tr>
+<tr><td><code>double</code>, <code>float</code></td><td>sim, mas cuidado</td><td>sim</td><td>veja a próxima seção</td></tr>
+<tr><td><code>char</code></td><td>sim</td><td>sim</td><td>compara o código Unicode</td></tr>
+<tr><td><code>bool</code></td><td>sim</td><td><strong>não</strong></td><td>erro <code>CS0019</code></td></tr>
+<tr><td><code>string</code></td><td>sim (compara o conteúdo)</td><td><strong>não</strong></td><td>erro <code>CS0019</code>; use <code>string.Compare</code></td></tr>
+<tr><td>número com <code>string</code></td><td><strong>não</strong></td><td><strong>não</strong></td><td>erro <code>CS0019</code>; converta antes (aula <a href="parse.html">Parse e TryParse</a>)</td></tr>
+</table>
+</div>
+
+<div class="trycs" data-goal="out:Pode votar? True,src:&gt;=">
+<p class="try-task"><strong>Missão:</strong> no Brasil, pode votar quem tem <strong>16 anos ou mais</strong>. O programa diz que alguém de 16 anos não pode. Corrija o <strong>operador</strong> (não mude a idade) para mostrar <code>Pode votar? True</code>.</p>
+<pre class="out">Pode votar? True</pre>
+<pre class="script" data-file="voto.cs">int idade = 16;
+bool podeVotar = idade &gt; 16;
+Console.WriteLine("Pode votar? " + podeVotar);
+</pre>
+<pre class="solucao" data-file="voto.cs">int idade = 16;
+bool podeVotar = idade &gt;= 16;
+Console.WriteLine("Pode votar? " + podeVotar);
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Cuidado ao comparar <code>double</code></h2>
+<p>O <code>double</code> guarda os números em binário, e muitos números "redondos" para nós, como 0,1, não têm representação exata em binário (aula <a href="decimais.html">float, double e decimal</a>). Um errinho minúsculo basta para o <code>==</code> responder <code>false</code>:</p>
+
+<pre class="file" data-file="double.cs">double a = 0.1 + 0.2;
+Console.WriteLine(a == 0.3);
+Console.WriteLine(a);
+decimal b = 0.1m + 0.2m;
+Console.WriteLine(b == 0.3m);
+Console.WriteLine(Math.Abs(a - 0.3) &lt; 0.000001);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run double.cs
+False                 « para o double, 0,1 + 0,2 não é exatamente 0,3
+0,30000000000000004   « o erro está lá na 17ª casa
+True                  « com decimal, a conta é exata
+True                  « a diferença é menor que 0,000001: "praticamente igual"</pre>
+
+<p>Repare que o console mostra <code>0,30000000000000004</code> com <strong>vírgula</strong>: a máquina da Ana está em português, e o .NET usa a vírgula decimal do Brasil ao mostrar números. No <strong>código</strong>, o separador é sempre o ponto (<code>0.1</code>).</p>
+
+<p>Três jeitos de lidar com isso:</p>
+<ul>
+  <li><strong>Dinheiro e quantidades exatas:</strong> use <code>decimal</code> (o <code>m</code> no fim do número quer dizer <em>money</em>). Com ele, <code>0.1m + 0.2m == 0.3m</code> é <code>true</code>.</li>
+  <li><strong>Medidas (altura, temperatura, distância):</strong> use <code>double</code> e compare com <strong>tolerância</strong>: <code>Math.Abs(a - b) &lt; 0.000001</code> pergunta "a distância entre os dois é menor que um milionésimo?". <code>Math.Abs</code> é o valor absoluto, o número sem o sinal (aula <a href="math.html">Matemática</a>).</li>
+  <li><code>&lt;</code> e <code>&gt;</code> com <code>double</code> são seguros na maioria dos casos ("a temperatura passou de 38?"). O problema é o <code>==</code> exato.</li>
+</ul>
+
+<div class="warning">
+<strong>O caso estranho do <code>NaN</code></strong>
+<p><code>0.0 / 0.0</code> com <code>double</code> não quebra o programa: dá <code>NaN</code> (<em>Not a Number</em>, "não é um número"). E o <code>NaN</code> não é igual a nada, <strong>nem a si mesmo</strong>: <code>nada == nada</code> é <code>False</code>. Para perguntar se um valor é <code>NaN</code>, use <code>double.IsNaN(nada)</code>, que dá <code>True</code>.</p>
+</div>
+
+<hr>
+
+<h2>4. <code>=</code> não é <code>==</code></h2>
+<p>É o erro mais famoso da programação: escrever um sinal de igual só, quando a intenção era perguntar. Em C#, na maioria dos casos o compilador salva você:</p>
+
+<pre class="file" data-file="e3.cs">int x = 5;
+if (x = 5)
+{
+    Console.WriteLine("cinco");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run e3.cs
+/home/ana/cs/e3.cs(2,5): error CS0029: Não é possível converter implicitamente tipo "int" em "bool"
+/home/ana/cs/e3.cs(1,5): warning CS0219: A variável "x" é atribuída, mas seu valor nunca é usado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O <code>if</code> (aula <a href="if-else.html">if e else</a>) exige uma resposta <code>bool</code>. Mas <code>x = 5</code> é uma atribuição, e o resultado de uma atribuição é o valor guardado: o <code>int</code> 5. Daí o erro <code>CS0029</code>: "não dá para transformar um <code>int</code> num <code>bool</code>". O conserto é <code>if (x == 5)</code>. (Em C e em C++ esse código compila e roda errado. O C# não deixa.)</p>
+
+<p>Com uma variável <code>bool</code>, porém, a atribuição <strong>já é</strong> um <code>bool</code>, e o compilador só pode <strong>avisar</strong>:</p>
+
+<pre class="file" data-file="e7.cs">bool aprovado = false;
+if (aprovado = true)
+{
+    Console.WriteLine("Parabéns!");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run e7.cs
+/home/ana/cs/e7.cs(2,5): warning CS0665: Atribuição em expressão condicional é sempre constante. Deseja usar == em vez de = ?
+/home/ana/cs/e7.cs(1,6): warning CS0219: A variável "aprovado" é atribuída, mas seu valor nunca é usado
+Parabéns!     « o aluno reprovado ganhou parabéns!</pre>
+
+<p>O programa <strong>rodou</strong> e deu a resposta errada: <code>aprovado = true</code> guardou <code>true</code> na variável, e o <code>if</code> recebeu esse <code>true</code>. O aviso <code>CS0665</code> pergunta exatamente: "você queria usar <code>==</code> em vez de <code>=</code>?". Avisos não impedem o programa de rodar, mas quase sempre apontam um erro de verdade: leia todos (aula <a href="avisos.html">Avisos do Compilador</a>). Com um <code>bool</code>, nem precisa comparar: escreva só <code>if (aprovado)</code>.</p>
+
+<hr>
+
+<h2>Formas diferentes de fazer a mesma pergunta</h2>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Esta forma…</th><th>…é igual a esta</th><th>Qual usar</th></tr>
+<tr><td><code>idade &gt;= 18</code></td><td><code>idade &gt; 17</code></td><td>Iguais só para <strong>inteiros</strong>. Use a que tem o número da regra: "maior de idade é 18 ou mais" → <code>&gt;= 18</code>. Com <code>double</code>, <code>17.5 &gt; 17</code> é <code>true</code>, e as duas deixam de ser iguais.</td></tr>
+<tr><td><code>a &lt; b</code></td><td><code>b &gt; a</code></td><td>A que se lê mais naturalmente: <code>preco &lt; 100</code> ("o preço é menor que 100") em vez de <code>100 &gt; preco</code>.</td></tr>
+<tr><td><code>aprovado == true</code></td><td><code>aprovado</code></td><td>A forma curta. O <code>bool</code> já é a resposta.</td></tr>
+<tr><td><code>aprovado == false</code></td><td><code>!aprovado</code></td><td>Os dois aparecem bastante. O <code>!</code> ("não") é assunto da próxima aula, <a href="operadores-logicos.html">Operadores Lógicos</a>.</td></tr>
+<tr><td><code>nome == "Ana"</code></td><td><code>nome.Equals("Ana")</code></td><td><code>==</code>. O <code>Equals</code> com opções (como ignorar maiúsculas) aparece em <a href="strings.html">Strings</a>.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="erros">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0019: O operador "&gt;=" não pode ser aplicado a operandos dos tipos "string" e "int"</code></strong>
+<pre class="file" data-file="e1.cs">int idade = 16;
+Console.WriteLine("Pode votar? " + idade &gt;= 16);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run e1.cs
+/home/ana/cs/e1.cs(2,19): error CS0019: O operador "&gt;=" não pode ser aplicado a operandos dos tipos "string" e "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>+</code> é feito <strong>antes</strong> do <code>&gt;=</code> (aula <a href="precedencia.html">Precedência</a>). O C# juntou <code>"Pode votar? " + idade</code>, que deu o texto <code>"Pode votar? 16"</code>, e depois tentou perguntar se esse texto é maior ou igual a 16. Texto com número não se compara. Em inglês: <code>Operator '&gt;=' cannot be applied to operands of type 'string' and 'int'</code>.</p>
+<p><strong>Como consertar:</strong> parênteses em volta da comparação: <code>"Pode votar? " + (idade &gt;= 16)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0019: O operador "&lt;=" não pode ser aplicado a operandos dos tipos "bool" e "int"</code></strong>
+<pre class="file" data-file="e2.cs">int nota = 7;
+Console.WriteLine(0 &lt;= nota &lt;= 10);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run e2.cs
+/home/ana/cs/e2.cs(2,19): error CS0019: O operador "&lt;=" não pode ser aplicado a operandos dos tipos "bool" e "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> na matemática, 0 ≤ nota ≤ 10 é uma frase só. No C#, são duas operações: primeiro <code>0 &lt;= nota</code>, que dá <code>true</code>; depois <code>true &lt;= 10</code>, e um <code>bool</code> não se compara com um número.</p>
+<p><strong>Como consertar:</strong> faça as duas perguntas completas e junte com <code>&amp;&amp;</code> ("e"): <code>nota &gt;= 0 &amp;&amp; nota &lt;= 10</code>. É o assunto da próxima aula, <a href="operadores-logicos.html">Operadores Lógicos</a>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0029: Não é possível converter implicitamente tipo "int" em "bool"</code></strong>
+<p><strong>O que significa:</strong> você escreveu <code>if (x = 5)</code>, com um sinal de igual só. Isso é uma atribuição, que dá um <code>int</code>, e o <code>if</code> precisa de um <code>bool</code>.</p>
+<p><strong>Como consertar:</strong> <code>if (x == 5)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS0665: Atribuição em expressão condicional é sempre constante. Deseja usar == em vez de = ?</code></strong>
+<p><strong>O que significa:</strong> mesmo erro de cima, mas com uma variável <code>bool</code>: o programa compila, roda e <strong>sempre</strong> entra no <code>if</code>.</p>
+<p><strong>Como consertar:</strong> <code>if (aprovado)</code> (ou <code>if (aprovado == true)</code>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1525: Termo de expressão inválido "&lt;"</code></strong>
+<pre class="file" data-file="e4.cs">int x = 5;
+Console.WriteLine(x =&lt; 10);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run e4.cs
+/home/ana/cs/e4.cs(2,22): error CS1525: Termo de expressão inválido "&lt;"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> <code>=&lt;</code> não existe. O C# leu um <code>=</code> (atribuição) e depois encontrou um <code>&lt;</code> solto, onde esperava um valor. A coluna 22 aponta o <code>&lt;</code>.</p>
+<p><strong>Como consertar:</strong> o <code>=</code> vem por último: <code>x &lt;= 10</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0019: O operador "&lt;" não pode ser aplicado a operandos dos tipos "string" e "string"</code></strong>
+<pre class="file" data-file="e5.cs">string a = "Ana";
+string b = "Bia";
+Console.WriteLine(a &lt; b);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run e5.cs
+/home/ana/cs/e5.cs(3,19): error CS0019: O operador "&lt;" não pode ser aplicado a operandos dos tipos "string" e "string"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> textos não têm "maior" e "menor" com <code>&lt;</code> e <code>&gt;</code> no C#.</p>
+<p><strong>Como consertar:</strong> para saber a ordem alfabética, use <code>string.Compare(a, b)</code>, que dá um número negativo quando <code>a</code> vem antes (aula <a href="strings.html">Strings</a>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0019: O operador "==" não pode ser aplicado a operandos dos tipos "int" e "string"</code> e <code>warning CS1718</code></strong>
+<pre class="file" data-file="e6.cs">int idade = 20;
+string texto = "20";
+Console.WriteLine(idade == texto);
+Console.WriteLine(idade == idade);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run e6.cs
+/home/ana/cs/e6.cs(3,19): error CS0019: O operador "==" não pode ser aplicado a operandos dos tipos "int" e "string"
+/home/ana/cs/e6.cs(4,19): warning CS1718: Comparação feita com a mesma variável. Você pretendia comparar com outro elemento?
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o número 20 e o texto <code>"20"</code> são coisas diferentes para o C#: um é quantidade, o outro são dois caracteres. A linha 4 compila, mas o aviso <code>CS1718</code> lembra que comparar uma variável com ela mesma é sempre <code>true</code>: provavelmente você digitou o nome errado.</p>
+<p><strong>Como consertar:</strong> transforme o texto em número antes (<code>int.Parse(texto)</code>, aula <a href="parse.html">Parse e TryParse</a>) e confira os nomes das variáveis.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>Nome</th><th><code>a = 7</code>, <code>b = 5</code></th><th>Funciona com</th></tr>
+<tr><td><code>a == b</code></td><td>igual a</td><td><code>false</code></td><td>todos os tipos (texto compara o conteúdo)</td></tr>
+<tr><td><code>a != b</code></td><td>diferente de</td><td><code>true</code></td><td>todos os tipos</td></tr>
+<tr><td><code>a &gt; b</code></td><td>maior que</td><td><code>true</code></td><td>números e <code>char</code></td></tr>
+<tr><td><code>a &lt; b</code></td><td>menor que</td><td><code>false</code></td><td>números e <code>char</code></td></tr>
+<tr><td><code>a &gt;= b</code></td><td>maior ou igual a</td><td><code>true</code></td><td>números e <code>char</code></td></tr>
+<tr><td><code>a &lt;= b</code></td><td>menor ou igual a</td><td><code>false</code></td><td>números e <code>char</code></td></tr>
+<tr><td><code>Math.Abs(x - y) &lt; 0.000001</code></td><td>"quase igual"</td><td>—</td><td><code>double</code> e <code>float</code></td></tr>
+<tr><td><code>double.IsNaN(x)</code></td><td>é <code>NaN</code>?</td><td>—</td><td><code>double</code> e <code>float</code></td></tr>
+</table>
+</div>
+<p>O resultado de todos é um <code>bool</code>: <code>true</code> ou <code>false</code> no código, <code>True</code> ou <code>False</code> na tela.</p>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Diferente</h3>
+<p>Complete com o operador "diferente de":</p>
+<div class="ex-code">bool mudou = senhaNova <input data-answer="!=" aria-label="operador"> senhaAntiga;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Aprovação</h3>
+<p>Aprova quem tira 6 <strong>ou mais</strong>. Complete:</p>
+<div class="ex-code">bool aprovado = nota <input data-answer="&gt;=" aria-label="operador"> 6;</div>
+</div>
+
+<div class="exercise">
+<h3>3. Os parênteses</h3>
+<p>O que falta para esta linha compilar? Reescreva a parte depois do <code>+</code>:</p>
+<div class="ex-code">Console.WriteLine("Maior de idade? " + <input data-answer="(idade &gt;= 18)|(idade&gt;=18)" aria-label="comparação">);</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O que <code>Console.WriteLine(10 &gt; 3);</code> mostra?</p>
+<label><input type="radio" name="q4"> <code>true</code></label>
+<label><input type="radio" name="q4"> <code>True</code></label>
+<label><input type="radio" name="q4"> <code>1</code></label>
+<label><input type="radio" name="q4"> <code>10</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. O que <code>Console.WriteLine('Z' &lt; 'a');</code> mostra?</p>
+<label><input type="radio" name="q5"> <code>False</code>, porque Z vem depois de A no alfabeto.</label>
+<label><input type="radio" name="q5"> Um erro: não se compara letras.</label>
+<label><input type="radio" name="q5"> <code>Z</code></label>
+<label><input type="radio" name="q5"> <code>True</code>, porque o código de <code>'Z'</code> (90) é menor que o de <code>'a'</code> (97).</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Com <code>string nome = "Ana";</code>, quanto vale <code>nome == "Ana"</code> em C#?</p>
+<label><input type="radio" name="q6"> <code>true</code>: o <code>==</code> compara o conteúdo dos textos.</label>
+<label><input type="radio" name="q6"> <code>false</code>: são dois textos diferentes na memória.</label>
+<label><input type="radio" name="q6"> Não compila: texto se compara só com <code>Equals</code>.</label>
+<label><input type="radio" name="q6"> Depende da cultura do computador.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">7. Por que <code>0 &lt;= nota &lt;= 10</code> não compila?</p>
+<label><input type="radio" name="q7"> Porque falta espaço entre os operadores.</label>
+<label><input type="radio" name="q7"> Porque <code>&lt;=</code> não existe em C#.</label>
+<label><input type="radio" name="q7"> Porque <code>0 &lt;= nota</code> vira um <code>bool</code>, e um <code>bool</code> não se compara com <code>10</code> por <code>&lt;=</code>.</label>
+<label><input type="radio" name="q7"> Porque <code>nota</code> precisa ser <code>double</code>.</label>
+</div>
+
+<h3>Missão final: o troco da lojinha</h3>
+
+<div class="trycs" data-goal="out:Troco certo? True,src:0\.1m">
+<p class="try-task"><strong>Missão:</strong> o caixa da lojinha da Ana soma duas moedas (R$ 0,10 e R$ 0,20) e confere se deu o preço da bala, R$ 0,30. Com <code>double</code>, o programa diz que não deu. Troque os tipos por <code>decimal</code> (lembre do <code>m</code> no fim de cada número) para mostrar <code>Troco certo? True</code>.</p>
+<pre class="out">Troco certo? True</pre>
+<pre class="script" data-file="troco.cs">double pago = 0.1 + 0.2;
+double preco = 0.3;
+Console.WriteLine("Troco certo? " + (pago == preco));
+</pre>
+<pre class="solucao" data-file="troco.cs">decimal pago = 0.1m + 0.2m;
+decimal preco = 0.3m;
+Console.WriteLine("Troco certo? " + (pago == preco));
+</pre>
+</div>
+
+<p>Depois de cumprir a missão, tente tirar o <code>m</code> do <code>0.3m</code> e leia o erro do compilador: <code>error CS0664: Literal do tipo double não pode ser convertido implicitamente no tipo "decimal"; use um sufixo "M" para criar um literal desse tipo</code>. Sem o <code>m</code>, <code>0.3</code> é um <code>double</code>, e o C# não transforma <code>double</code> em <code>decimal</code> sozinho (aula <a href="decimais.html">float, double e decimal</a>).</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Seis operadores: <code>==</code>, <code>!=</code>, <code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code>, <code>&lt;=</code>. Igualdade tem dois sinais; nos compostos, o <code>=</code> vem por último.</li>
+  <li>Toda comparação dá um <code>bool</code>, que pode ser guardado: <code>bool aprovado = nota &gt;= 6;</code>. Na tela ele aparece como <code>True</code> ou <code>False</code>.</li>
+  <li>Dentro de um texto com <code>+</code>, ponha a comparação entre parênteses: <code>"Passou? " + (nota &gt;= 6)</code>.</li>
+  <li>Números se comparam entre si (<code>5 == 5.0</code> é <code>true</code>); <code>char</code> compara códigos Unicode; <code>bool</code> só com <code>==</code> e <code>!=</code>.</li>
+  <li><code>string</code>: <code>==</code> e <code>!=</code> comparam o conteúdo; <code>&lt;</code> e <code>&gt;</code> não existem (<code>CS0019</code>).</li>
+  <li><code>double</code>: <code>==</code> exato é perigoso. Para dinheiro, <code>decimal</code>; para medidas, tolerância com <code>Math.Abs</code>.</li>
+  <li><code>=</code> no lugar de <code>==</code> dá <code>CS0029</code> (com números) ou o aviso <code>CS0665</code> (com <code>bool</code>).</li>
+  <li>"Entre dois valores" são duas comparações: <code>nota &gt;= 0 &amp;&amp; nota &lt;= 10</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
