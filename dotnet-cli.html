@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# O Comando dotnet — new, build, run, clean, watch e format | Guia C#</title>
+<meta name="description" content="O comando dotnet para quem está começando: o formato dotnet comando argumentos opções, --version, --list-sdks, --info, dotnet sdk check, a ajuda (--help), dotnet new list, build -c Release, run com argumentos e --, clean, watch, format e os erros MSB1003, MSB1011 e o comando digitado errado, com saídas reais do .NET 10 SDK.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">O Comando dotnet</span></h1>
+
+<p class="intro">Até aqui você usou o <code>dotnet</code> para duas ou três coisas: <code>dotnet run</code>, <code>dotnet new console</code>, <code>dotnet build</code>. Mas ele faz muito mais: cria projetos de vários tipos, baixa pacotes, roda testes, arruma a formatação do código, recompila sozinho quando você salva um arquivo e prepara o programa para entregar. Tudo pelo mesmo comando. Nesta aula você vai conhecer o <code>dotnet</code> por inteiro: como ele é organizado, como pedir ajuda a ele e os comandos que você vai usar todo dia.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O formato de todo comando: <code>dotnet comando argumentos opções</code>.</li>
+  <li>A descobrir o que está instalado: <code>--version</code>, <code>--list-sdks</code>, <code>--list-runtimes</code>, <code>--info</code> e <code>dotnet sdk check</code>.</li>
+  <li>A pedir ajuda: <code>dotnet --help</code> e <code>dotnet run --help</code>.</li>
+  <li>Os comandos do dia a dia: <code>new</code>, <code>build</code>, <code>run</code> e <code>clean</code>, com as opções mais usadas (<code>-c Release</code>, <code>-v q</code>, <code>--</code>).</li>
+  <li><code>dotnet watch</code> (recompila sozinho) e <code>dotnet format</code> (arruma o código).</li>
+  <li>Os erros mais comuns: o comando digitado errado, <code>MSB1003</code> e <code>MSB1011</code>.</li>
+</ul>
+</div>
+
+<p>Todas as saídas desta aula são reais, feitas na máquina fictícia da Ana, com o <strong>.NET 10 SDK</strong> do próprio Ubuntu (<code>10.0.112</code>) e o Ubuntu em português: por isso a maior parte das mensagens sai traduzida. Na sua máquina, os números de versão e os tempos podem ser outros. Os comandos rodam no terminal, não no editor do guia (veja <a href="instalar-linux.html">Instalar no Linux</a>).</p>
+
+<hr>
+
+<h2>A ideia: um controle remoto universal</h2>
+<p>Imagine um controle remoto que liga a TV, o som e o ar-condicionado. São aparelhos diferentes, mas você usa sempre o mesmo controle: escolhe o aparelho e aperta o botão. O <code>dotnet</code> é esse controle. Ele não compila nada sozinho: ele é um <strong>porteiro</strong> (o nome técnico é <em>driver</em>, "condutor") que recebe o seu pedido e chama a ferramenta certa:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você digita</th><th>O <code>dotnet</code> chama</th></tr>
+<tr><td><code>dotnet build</code></td><td>O <strong>MSBuild</strong>, o "construtor" de projetos, que chama o compilador de C# (o Roslyn).</td></tr>
+<tr><td><code>dotnet new</code></td><td>O sistema de <strong>modelos</strong>, que copia os arquivos de um projeto novo.</td></tr>
+<tr><td><code>dotnet package add</code></td><td>O <strong>NuGet</strong>, que baixa bibliotecas da internet (veja <a href="nuget.html">Pacotes NuGet</a>).</td></tr>
+<tr><td><code>dotnet test</code></td><td>O <strong>executor de testes</strong> (veja <a href="testes.html">Testes</a>).</td></tr>
+<tr><td><code>dotnet Programa.dll</code></td><td>O <strong>runtime</strong>, que roda um programa já compilado (veja <a href="dotnet.html">.NET: SDK, Runtime e CLR</a>).</td></tr>
+</table>
+</div>
+
+<p>Por isso o <code>dotnet</code> também é chamado de <strong>CLI do .NET</strong> (de <em>Command-Line Interface</em>, "interface de linha de comando").</p>
+
+<hr>
+
+<h2>1. O formato de um comando</h2>
+<p>Todo comando do <code>dotnet</code> tem as mesmas partes, sempre nesta ordem:</p>
+
+<pre class="term" data-cwd="~/projetos/Saudacao">$ dotnet build -c Release
+«dotnet = o programa · build = o comando · -c Release = uma opção com o seu valor»</pre>
+
+<dl class="anatomy">
+  <dt>dotnet</dt><dd>O programa (o "controle remoto").</dd>
+  <dt>comando</dt><dd>O que fazer: <code>new</code>, <code>build</code>, <code>run</code>, <code>test</code>… Alguns têm subcomandos: <code>dotnet new list</code>, <code>dotnet package add</code>, <code>dotnet sdk check</code>.</dd>
+  <dt>argumentos</dt><dd>Sobre o que fazer, sem traço na frente: em <code>dotnet new console</code>, o <code>console</code> é o argumento (o modelo).</dd>
+  <dt>opções</dt><dd>Como fazer. Começam com traço: <strong>um traço e uma letra</strong> (<code>-c</code>, <code>-o</code>, <code>-v</code>) ou <strong>dois traços e uma palavra</strong> (<code>--configuration</code>, <code>--output</code>, <code>--verbosity</code>). São a mesma coisa: <code>-c Release</code> = <code>--configuration Release</code>.</dd>
+</dl>
+
+<p>Sem comando, o <code>dotnet</code> só lembra o básico (esta parte não foi traduzida no Ubuntu):</p>
+
+<pre class="term" data-cwd="~">$ dotnet
+
+Usage: dotnet [path-to-application]
+Usage: dotnet [commands]
+
+path-to-application:
+  The path to an application .dll file to execute.
+
+commands:
+  -h|--help                         Display help.
+  --info                            Display .NET information.
+  --list-runtimes [--arch &lt;arch&gt;]   Display the installed runtimes matching the host or specified architecture. Example architectures: arm64, x64, x86.
+  --list-sdks [--arch &lt;arch&gt;]       Display the installed SDKs matching the host or specified architecture. Example architectures: arm64, x64, x86.</pre>
+
+<hr>
+
+<h2>2. O que está instalado</h2>
+<p>Antes de pedir ajuda num fórum, a primeira pergunta é sempre "qual versão você tem?". Quatro comandos respondem:</p>
+
+<pre class="term" data-cwd="~">$ dotnet --version
+10.0.112
+$ dotnet --list-sdks
+10.0.112 [/usr/lib/dotnet/sdk]
+$ dotnet --list-runtimes
+Microsoft.AspNetCore.App 10.0.12 [/usr/lib/dotnet/shared/Microsoft.AspNetCore.App]
+Microsoft.NETCore.App 10.0.12 [/usr/lib/dotnet/shared/Microsoft.NETCore.App]</pre>
+
+<dl class="anatomy">
+  <dt>dotnet --version</dt><dd>A versão do <strong>SDK</strong> em uso: o kit para <em>criar</em> programas (compilador, modelos, MSBuild). <code>10.0.1xx</code> é a primeira "faixa" de SDKs do .NET 10.</dd>
+  <dt>dotnet --list-sdks</dt><dd>Todos os SDKs instalados e a pasta de cada um. Dá para ter vários lado a lado.</dd>
+  <dt>dotnet --list-runtimes</dt><dd>Os <strong>runtimes</strong>: o que é preciso para <em>rodar</em> programas. <code>Microsoft.NETCore.App</code> roda programas de console; <code>Microsoft.AspNetCore.App</code>, sites e APIs. Repare que o runtime é <code>10.0.12</code> e o SDK, <code>10.0.112</code>: são numerações separadas.</dd>
+</dl>
+
+<h3>Tudo de uma vez: <code>dotnet --info</code></h3>
+<pre class="term" data-cwd="~">$ dotnet --info
+.NET SDK:
+ Version:           10.0.112
+ Commit:            95017c711e
+ Workload version:  10.0.100-manifests.63b36e85
+ MSBuild version:   18.0.11+95017c711
+
+Ambiente de runtime:
+ OS Name:     ubuntu
+ OS Version:  26.04
+ OS Platform: Linux
+ RID:         ubuntu.26.04-x64
+ Base Path:   /usr/lib/dotnet/sdk/10.0.112/
+«… as cargas de trabalho e as listas de SDKs e runtimes de novo …»
+Environment variables:
+  DOTNET_CLI_TELEMETRY_OPTOUT              [1]
+
+global.json file:
+  Not found
+«… dois endereços da Microsoft …»</pre>
+
+<dl class="anatomy">
+  <dt>MSBuild version: 18.0.11</dt><dd>A versão do MSBuild, que o <code>dotnet build</code> usa por baixo.</dd>
+  <dt>RID: ubuntu.26.04-x64</dt><dd>O <em>Runtime Identifier</em> ("identificador do ambiente"): o sistema e o processador. Ele volta na aula <a href="publicar.html">Publicar o Programa</a>, onde você escolhe o RID <code>linux-x64</code>.</dd>
+  <dt>DOTNET_CLI_TELEMETRY_OPTOUT [1]</dt><dd>Por padrão, o <code>dotnet</code> manda à Microsoft dados anônimos de uso (a "telemetria"). Com essa variável de ambiente valendo <code>1</code>, ele não manda. Na máquina da Ana, ela já está ligada; para ligá-la na sua, ponha a linha <code>export DOTNET_CLI_TELEMETRY_OPTOUT=1</code> no fim do <code>~/.bashrc</code>.</dd>
+  <dt>global.json file: Not found</dt><dd>Um <code>global.json</code> numa pasta prende o projeto a uma versão de SDK. Aqui não há nenhum, então vale o SDK mais novo instalado.</dd>
+</dl>
+
+<h3>Está atualizado? <code>dotnet sdk check</code></h3>
+<pre class="term" data-cwd="~">$ dotnet sdk check
+SDKs do .NET:
+Versão        Status
+-------------------------
+10.0.112      Atualizado.
+
+Runtimes do .NET:
+Nome                          Versão       Status
+------------------------------------------------------
+Microsoft.AspNetCore.App      10.0.12      Atualizado.
+Microsoft.NETCore.App         10.0.12      Atualizado.
+
+
+As últimas versões do .NET podem ser instaladas de https://aka.ms/dotnet-core-download. Para obter mais informações sobre os ciclos de vida do .NET, confira https://aka.ms/dotnet-core-support.</pre>
+
+<p>Ele consulta a internet e compara com as versões mais novas. No Ubuntu, a atualização vem pelo próprio sistema (<code>sudo apt upgrade</code>), não pelo endereço da mensagem.</p>
+
+<hr>
+
+<h2>3. Pedir ajuda: <code>--help</code></h2>
+<p>Você não precisa decorar nada: o <code>dotnet</code> explica a si mesmo. <code>dotnet --help</code> (ou <code>-h</code>) lista todos os comandos:</p>
+
+<pre class="term" data-cwd="~">$ dotnet --help
+«… as opções para rodar um .dll …»
+Uso: dotnet [sdk-options] [command] [command-options] [arguments]
+
+Execute um comando do SDK do .NET.
+
+sdk-options:
+  -d|--diagnostics  Habilitar saída de diagnóstico.
+  -h|--help         Mostrar a ajuda da linha de comando.
+  --info            Exiba informações do .NET.
+  --list-runtimes   Exiba os runtimes instalados.
+  --list-sdks       Exiba os SDKs instalados.
+  --version         Exiba a versão do SDK do .NET em uso.
+
+Comandos do SDK:
+  build             Criar um projeto do .NET.
+  build-server      Interagir com servidores iniciados por um build.
+  clean             Limpar as saídas do build de um projeto do .NET.
+  format            Aplicar preferências de estilo a um projeto ou solução.
+  help              Abre a página de referência em um navegador para o comando especificado.
+  msbuild           Executar comandos do MSBuild (Microsoft Build Engine).
+  new               Criar um novo projeto ou arquivo do .NET.
+  nuget             Fornece comandos adicionais do NuGet.
+  pack              Criar um pacote do NuGet.
+  package           Pesquise, adicione, remova ou liste PackageReferences para um projeto do .NET.
+  publish           Publicar um projeto do .NET para implantação.
+  reference         Adicione, remova ou liste ProjectReferences para um projeto do .NET.
+  restore           Restaurar as dependências especificadas em um projeto do .NET.
+  run               Criar e executar uma saída de projeto do .NET.
+  sdk               Gerencie a instalação do SDK do .NET.
+  solution          Modificar os arquivos da solução do Visual Studio.
+  store             Armazenar os assemblies especificados no repositório de pacotes do runtime.
+  test              Executar testes de unidade usando o executor de testes especificado em um projeto do .NET.
+  tool              Instalar ou gerenciar ferramentas que ampliam a experiência do .NET.
+  vstest            Executar comandos do VSTest (Microsoft Test Engine).
+  workload          Gerenciar as cargas de trabalho opcionais.
+
+Comandos adicionais de ferramentas em pacote:
+  dev-certs         Crie e gerencie certificados de desenvolvimento.
+  fsi               Iniciar F# Interativo / executar scripts do F#.
+  user-jwts         Gerenciar tokens da Web JSON em desenvolvimento.
+  user-secrets      Gerencie segredos do usuário de desenvolvimento.
+  watch             Inicie um observador de arquivo que executa um comando quando os arquivos são alterados.
+
+Execute 'dotnet [command] --help' para obter mais informações sobre um comando.</pre>
+
+<p>A última linha é a dica mais útil: cada comando tem a sua própria ajuda. Um pedaço da ajuda do <code>run</code>:</p>
+
+<pre class="term" data-cwd="~/projetos/Saudacao">$ dotnet run --help
+Description:
+  Comando Run do .NET
+
+Uso:
+  dotnet run [&lt;applicationArguments&gt;...] [options]
+
+Argumentos:
+  &lt;applicationArguments&gt;  Arguments passed to the application that is being
+                          run. []
+
+Opções:
+  -c, --configuration &lt;CONFIGURATION&gt;     A configuração para a qual a execução
+                                          ocorrerá. O padrão para a maioria dos
+                                          projetos é 'Debug'.
+«…»
+  --project &lt;PROJECT_PATH&gt;                The path to the project file to run
+                                          (defaults to the current directory if
+                                          there is only one project).
+  --file &lt;FILE_PATH&gt;                      O caminho para o aplicativo baseado
+                                          em arquivo a ser executado (também
+                                          pode ser passado como o primeiro
+                                          argumento se não houver nenhum
+                                          projeto no diretório atual).
+«…»
+  --no-build                              Não compile o projeto antes de
+                                          executar. Implica em --no-restore.
+                                          [default: False]
+«…»
+  -v, -verbosity &lt;LEVEL&gt;                  Definir o nível de detalhamento do
+                                          MSBuild. Os valores permitidos são
+                                          q[uiet], m[inimal], n[ormal],
+                                          d[etailed] e diag[nostic].
+«…»
+  -?, -h, --help                          Mostrar a ajuda da linha de comando.</pre>
+
+<p>Leia a ajuda assim: o que está entre <code>&lt; &gt;</code> você troca por um valor seu (<code>&lt;CONFIGURATION&gt;</code> vira <code>Release</code>); o que está entre <code>[ ]</code> é opcional; <code>...</code> quer dizer "pode repetir". A tradução está pela metade (algumas linhas ainda vêm em inglês), o que é normal.</p>
+
+<div class="tip">
+<strong>Mais detalhes:</strong> <code>dotnet help build</code> abre no navegador a página da documentação oficial do comando (em <code>learn.microsoft.com</code>), com exemplos.
+</div>
+
+<hr>
+
+<h2>4. Os comandos do dia a dia</h2>
+<h3><code>dotnet new</code>: criar a partir de um modelo</h3>
+<p>O <code>dotnet new</code> cria projetos (e arquivos soltos) a partir de <strong>modelos</strong> (em inglês, <em>templates</em>). Para ver todos, <code>dotnet new list</code>. A lista do SDK da Ana tem 46 modelos; aqui estão os que este guia usa:</p>
+
+<pre class="term" data-cwd="~">$ dotnet new list
+Esses modelos correspondem à sua entrada:
+
+Nome do modelo                                          Nome Curto                    Idioma      Tags
+------------------------------------------------------  ----------------------------  ----------  ----------------------------------
+«…»
+Aplicativo do Console                                   console                       [C#],F#,VB  Common/Console
+«…»
+Arquivo de Solução                                      sln,solution                              Solution
+«…»
+Biblioteca de Classes                                   classlib                      [C#],F#,VB  Common/Library
+«…»
+arquivo de dotnet gitignore                             gitignore,.gitignore                      Config
+«…»
+Projeto de Teste xUnit                                  xunit                         [C#],F#,VB  Test/xUnit/Desktop/Web
+«…»</pre>
+
+<dl class="anatomy">
+  <dt>Nome do modelo</dt><dd>O nome por extenso, em português.</dd>
+  <dt>Nome Curto</dt><dd>O que você digita: <code>dotnet new console</code>, <code>dotnet new classlib</code>, <code>dotnet new xunit</code>, <code>dotnet new sln</code>.</dd>
+  <dt>Idioma</dt><dd>As linguagens do modelo. A que está entre colchetes, <code>[C#]</code>, é a padrão. O .NET também tem F# e Visual Basic.</dd>
+  <dt>Tags</dt><dd>Etiquetas para procurar: <code>Test</code>, <code>Web</code>, <code>Console</code>.</dd>
+</dl>
+
+<p>A opção <code>-o</code> (<em>output</em>, "saída") escolhe a pasta, e o nome do projeto vem dela (veja <a href="projetos-console.html">Projetos</a>):</p>
+
+<pre class="term" data-cwd="~/projetos">$ dotnet new console -o Saudacao
+O modelo "Aplicativo do Console" foi criado com êxito.
+
+Processando ações pós-criação...
+Restaurando /home/ana/projetos/Saudacao/Saudacao.csproj:
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Saudacao/Saudacao.csproj restaurado (em 105 ms).
+A restauração foi bem-sucedida.</pre>
+
+<p>"Restaurar" é baixar (ou conferir) os pacotes de que o projeto precisa. Os comandos <code>build</code>, <code>run</code> e <code>test</code> já restauram sozinhos; o <code>dotnet restore</code> existe para quando você quer só essa etapa.</p>
+
+<h3><code>dotnet run</code> e os argumentos</h3>
+<p>A Ana trocou o <code>Program.cs</code> do projeto <code>Saudacao</code> para cumprimentar quem for passado na linha de comando (veja <a href="args.html">Argumentos da Linha de Comando</a>):</p>
+
+<pre class="file" data-file="Program.cs">Console.WriteLine($"Recebi {args.Length} argumento(s).");
+foreach (string a in args)
+{
+    Console.WriteLine($"Olá, {a}!");
+}
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Saudacao">$ dotnet run -- Ana Beto
+Recebi 2 argumento(s).
+Olá, Ana!
+Olá, Beto!
+$ dotnet run Ana Beto
+Recebi 2 argumento(s).
+Olá, Ana!
+Olá, Beto!
+$ dotnet run -- --help
+Recebi 1 argumento(s).
+Olá, --help!</pre>
+
+<dl class="anatomy">
+  <dt>dotnet run -- Ana Beto</dt><dd>O <code>--</code> (dois traços sozinhos) é uma <strong>divisória</strong>: o que vem antes é para o <code>dotnet</code>; o que vem depois vai inteiro para o <strong>seu programa</strong>, em <code>args</code>.</dd>
+  <dt>dotnet run Ana Beto</dt><dd>Sem o <code>--</code> também funcionou: o <code>dotnet run</code> passa adiante os argumentos que ele não reconhece.</dd>
+  <dt>dotnet run -- --help</dt><dd>Aqui o <code>--</code> faz diferença. Sem ele, <code>dotnet run --help</code> mostraria a ajuda do <code>dotnet run</code> (seção 3). Com ele, o <code>--help</code> chegou ao programa da Ana. Regra simples: <strong>use sempre o <code>--</code></strong> antes dos argumentos do seu programa.</dd>
+</dl>
+
+<div class="trycs" data-args="Ana Beto Carla" data-goal="out:Olá\, Carla!,out:Recebi 3 argumento(s).">
+<p class="try-task"><strong>Missão:</strong> esta caixa roda o programa como <code>dotnet run -- Ana Beto Carla</code>. Por enquanto ele só conta os argumentos. Acrescente o <code>foreach</code> que mostra <code>Olá, NOME!</code> para cada um, como no <code>Program.cs</code> acima. A saída tem de ter <code>Olá, Carla!</code>.</p>
+<pre class="script">Console.WriteLine($"Recebi {args.Length} argumento(s).");
+</pre>
+<pre class="solucao">Console.WriteLine($"Recebi {args.Length} argumento(s).");
+foreach (string a in args)
+{
+    Console.WriteLine($"Olá, {a}!");
+}
+</pre>
+</div>
+
+<h3><code>dotnet build</code>: Debug, Release e o volume da conversa</h3>
+<p>Por padrão, o <code>dotnet build</code> compila na <strong>configuração Debug</strong>: sem otimizações, bom para depurar (veja <a href="depuracao.html">Depuração</a>). Para a versão final, use <code>-c Release</code>:</p>
+
+<pre class="term" data-cwd="~/projetos/Saudacao">$ dotnet build -c Release
+  Determinando os projetos a serem restaurados...
+  Todos os projetos estão atualizados para restauração.
+  Saudacao -&gt; /home/ana/projetos/Saudacao/bin/Release/net10.0/Saudacao.dll
+
+Compilação com êxito.
+    0 Aviso(s)
+    0 Erro(s)
+
+Tempo Decorrido 00:00:01.43
+$ ls bin
+Debug
+Release</pre>
+
+<p>Cada configuração tem a sua pasta dentro de <code>bin</code>. A opção <code>-v</code> (<em>verbosity</em>, "quanto falar") muda o volume da saída: <code>q</code> (<em>quiet</em>, quieto), <code>m</code> (mínimo, o padrão), <code>n</code> (normal), <code>d</code> (detalhado) e <code>diag</code> (diagnóstico, centenas de linhas):</p>
+
+<pre class="term" data-cwd="~/projetos/Saudacao">$ dotnet build -v q
+
+Compilação com êxito.
+    0 Aviso(s)
+    0 Erro(s)
+
+Tempo Decorrido 00:00:01.25</pre>
+
+<h3><code>dotnet clean</code>: apagar o que foi compilado</h3>
+<pre class="term" data-cwd="~/projetos/Saudacao">$ dotnet clean
+Compilação de 17/10/2026 12:48:34 iniciada.
+     1&gt;Projeto "/home/ana/projetos/Saudacao/Saudacao.csproj" no nó 1 (Clean destino(s)).
+     1&gt;CoreClean:
+         Excluindo o arquivo "/home/ana/projetos/Saudacao/bin/Debug/net10.0/Saudacao".
+         Excluindo o arquivo "/home/ana/projetos/Saudacao/bin/Debug/net10.0/Saudacao.deps.json".
+         Excluindo o arquivo "/home/ana/projetos/Saudacao/bin/Debug/net10.0/Saudacao.runtimeconfig.json".
+         Excluindo o arquivo "/home/ana/projetos/Saudacao/bin/Debug/net10.0/Saudacao.dll".
+         Excluindo o arquivo "/home/ana/projetos/Saudacao/bin/Debug/net10.0/Saudacao.pdb".
+«… mais 9 arquivos dentro de obj/Debug …»
+     1&gt;Projeto de compilação pronto "/home/ana/projetos/Saudacao/Saudacao.csproj" (Clean destino(s)).
+
+Compilação com êxito.
+    0 Aviso(s)
+    0 Erro(s)
+
+Tempo Decorrido 00:00:00.55
+$ ls bin/Debug/net10.0
+«nada: a pasta ficou vazia»</pre>
+
+<p>O <code>clean</code> apaga só os arquivos da configuração Debug (para a Release: <code>dotnet clean -c Release</code>) e deixa as pastas vazias. Use-o quando o projeto se comportar de um jeito estranho depois de muitas mudanças: o próximo <code>build</code> recompila tudo do zero. Para apagar <strong>tudo</strong>, o jeito mais direto é <code>rm -r bin obj</code>.</p>
+
+<hr>
+
+<h2>5. <code>dotnet watch</code>: recompila sozinho</h2>
+<p>Enquanto você está escrevendo, salvar o arquivo e digitar <code>dotnet run</code> de novo cansa. O <code>dotnet watch run</code> ("vigie e rode") fica de olho nos arquivos do projeto e roda o programa de novo a cada vez que você salva. A Ana deixou o <code>watch</code> rodando e, 12 segundos depois, trocou <code>Olá</code> por <code>Oi</code> no <code>Program.cs</code> e salvou:</p>
+
+<pre class="term" data-cwd="~/projetos/Saudacao">$ dotnet watch run -- Ana
+dotnet watch 🔥 Hot reload enabled. For a list of supported edits, see https://aka.ms/dotnet/hot-reload.
+dotnet watch 💡 Press Ctrl+R to restart.
+dotnet watch 🔨 Building /home/ana/projetos/Saudacao/Saudacao.csproj ...
+dotnet watch 🔨 Build succeeded: /home/ana/projetos/Saudacao/Saudacao.csproj
+Recebi 1 argumento(s).
+Olá, Ana!
+dotnet watch ⌚ [Saudacao (net10.0)] Exited
+dotnet watch ⏳ Waiting for a file to change before restarting ...
+«aqui a Ana salvou o Program.cs com "Oi"»
+dotnet watch 🔨 Building /home/ana/projetos/Saudacao/Saudacao.csproj ...
+dotnet watch 🔨 Build succeeded: /home/ana/projetos/Saudacao/Saudacao.csproj
+Recebi 1 argumento(s).
+Oi, Ana!
+dotnet watch ⌚ [Saudacao (net10.0)] Exited
+dotnet watch ⏳ Waiting for a file to change before restarting ...
+«aqui a Ana apertou Ctrl+C»
+dotnet watch 🛑 Shutdown requested. Press Ctrl+C again to force exit.</pre>
+
+<dl class="anatomy">
+  <dt>Hot reload enabled</dt><dd>"Recarga a quente ligada": em programas que ficam abertos (um site, um jogo), o <code>watch</code> aplica algumas mudanças <strong>sem</strong> reiniciar o programa.</dd>
+  <dt>Exited / Waiting for a file to change</dt><dd>O programa da Ana terminou ("saiu"), e o <code>watch</code> ficou esperando uma mudança num arquivo.</dd>
+  <dt>Building … Build succeeded</dt><dd>Ao salvar, ele recompilou e rodou de novo, já com <code>Oi</code>.</dd>
+  <dt>Shutdown requested</dt><dd><kbd>Ctrl</kbd>+<kbd>C</kbd> encerra o <code>watch</code>. As mensagens dele vêm em inglês e com pequenos desenhos (emojis) que o terminal do Ubuntu mostra coloridos.</dd>
+</dl>
+
+<hr>
+
+<h2>6. <code>dotnet format</code>: arrumar o código</h2>
+<p>O <code>dotnet format</code> arruma espaços, recuos e chaves de todos os arquivos do projeto, no estilo padrão do C# (veja <a href="sintaxe.html">Sintaxe</a>). A Ana escreveu um arquivo com pressa:</p>
+
+<pre class="file" data-file="Feio.cs">static class Feio {
+public static int   Dobro( int x ){return x*2;}
+}
+</pre>
+
+<p>Com <code>--verify-no-changes</code> ("confira, sem mudar nada"), ele só aponta o que mudaria:</p>
+
+<pre class="term" data-cwd="~/projetos/Saudacao">$ dotnet format --verify-no-changes; echo "código de saída: $?"
+/home/ana/projetos/Saudacao/Feio.cs(1,18): error WHITESPACE: Corrigir a formatação de espaço em branco. Substituir 1 caracteres por '\n'. [/home/ana/projetos/Saudacao/Saudacao.csproj]
+/home/ana/projetos/Saudacao/Feio.cs(2,1): error WHITESPACE: Corrigir a formatação de espaço em branco. Inserir "\s\s\s\s". [/home/ana/projetos/Saudacao/Saudacao.csproj]
+/home/ana/projetos/Saudacao/Feio.cs(2,19): error WHITESPACE: Corrigir a formatação de espaço em branco. Excluir 2 caracteres. [/home/ana/projetos/Saudacao/Saudacao.csproj]
+«… mais 7 linhas parecidas …»
+código de saída: 2</pre>
+
+<p>Cada linha diz o arquivo, a posição (linha, coluna) e o conserto: "substituir por <code>\n</code>" é quebrar a linha; <code>\s\s\s\s</code> são 4 espaços de recuo. O código de saída 2 quer dizer "há o que arrumar". Sem a opção, ele arruma de verdade, em silêncio:</p>
+
+<pre class="term" data-cwd="~/projetos/Saudacao">$ dotnet format
+$ cat Feio.cs
+static class Feio
+{
+    public static int Dobro(int x) { return x * 2; }
+}
+$ dotnet format --verify-no-changes; echo "código de saída: $?"
+código de saída: 0</pre>
+
+<p>Equipes costumam rodar o <code>dotnet format --verify-no-changes</code> automaticamente antes de aceitar uma mudança no código: se ele sair com código diferente de 0, alguém esqueceu de formatar.</p>
+
+<hr>
+
+<h2>Mapa: qual comando para quê</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Quero…</th><th>Comando</th><th>Aula</th></tr>
+<tr><td>Rodar um arquivo <code>.cs</code> solto</td><td><code>dotnet run ola.cs</code></td><td><a href="dotnet-run.html">Rodar com dotnet run</a></td></tr>
+<tr><td>Criar um projeto</td><td><code>dotnet new console -o Nome</code></td><td><a href="projetos-console.html">Projetos</a></td></tr>
+<tr><td>Compilar / rodar / limpar</td><td><code>dotnet build</code> / <code>dotnet run</code> / <code>dotnet clean</code></td><td>esta aula</td></tr>
+<tr><td>Mudar as configurações do projeto</td><td>editar o <code>.csproj</code></td><td><a href="csproj.html">O Arquivo .csproj</a></td></tr>
+<tr><td>Usar uma biblioteca da internet</td><td><code>dotnet package add Nome</code></td><td><a href="nuget.html">Pacotes NuGet</a></td></tr>
+<tr><td>Juntar vários projetos</td><td><code>dotnet new sln</code>, <code>dotnet sln add</code></td><td><a href="solucoes.html">Soluções</a></td></tr>
+<tr><td>Um projeto usar o outro</td><td><code>dotnet reference add</code></td><td><a href="bibliotecas-classe.html">Bibliotecas de Classes</a></td></tr>
+<tr><td>Rodar os testes</td><td><code>dotnet test</code></td><td><a href="testes.html">Testes</a></td></tr>
+<tr><td>Preparar para entregar</td><td><code>dotnet publish -c Release</code></td><td><a href="publicar.html">Publicar o Programa</a></td></tr>
+</table>
+</div>
+
+<div class="note">
+<strong>Ordem antiga × ordem nova.</strong> No .NET 10, os comandos começam pelo <strong>assunto</strong>: <code>dotnet package add</code>, <code>dotnet reference add</code>. Muitos tutoriais (e o .NET 8) usam a ordem antiga, <code>dotnet add package</code> e <code>dotnet add reference</code>. As duas funcionam no .NET 10.
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>Comando digitado errado: <code>Não foi possível executar porque o comando ou arquivo especificado não foi encontrado.</code></strong>
+<pre class="term" data-cwd="~/projetos/Saudacao">$ dotnet biuld
+Não foi possível executar porque o comando ou arquivo especificado não foi encontrado.
+Os possíveis motivos para isso incluem:
+  * Você digitou incorretamente um comando dotnet interno.
+  * Você pretendia executar um programa .NET, mas dotnet-biuld não existe.
+  * Você pretendia executar uma ferramenta global, mas não foi possível encontrar um executável com prefixo dotnet com esse nome no PATH.</pre>
+<p><strong>O que aconteceu:</strong> <code>biuld</code> não é um comando. Como o <code>dotnet</code> aceita ferramentas extras (instaladas com <code>dotnet tool</code>), ele também procurou um programa chamado <code>dotnet-biuld</code>, e não achou.</p>
+<p><strong>Como resolver:</strong> confira a grafia com <code>dotnet --help</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Modelo digitado errado: <code>Nenhum modelo ou subcomando encontrado correspondente</code></strong>
+<pre class="term" data-cwd="~/projetos">$ dotnet new consle
+Nenhum modelo ou subcomando encontrado correspondente: 'consle'.
+Você quis dizer um dos seguintes modelos?
+   dotnet new console
+
+Para listar modelos instalados semelhantes a 'consle', execute:
+   dotnet new list consle
+Para pesquisar os modelos no NuGet.org, execute:
+   dotnet new search consle
+
+
+Para obter detalhes sobre o código de saída, consulte https://aka.ms/templating-exit-codes#103</pre>
+<p><strong>O que aconteceu e como resolver:</strong> aqui o <code>dotnet</code> é mais esperto e já sugere o certo: <code>dotnet new console</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>Não foi possível localizar um projeto para executar</code> e <code>error MSB1003</code></strong>
+<pre class="term" data-cwd="~">$ dotnet run
+Não foi possível localizar um projeto para executar. Verifique se existe um projeto em /home/ana ou passe o caminho para o projeto usando --project.
+$ dotnet build
+MSBUILD : error MSB1003: Especifique um arquivo de solução ou de projeto. O diretório de trabalho atual não contém um arquivo de solução ou de projeto.</pre>
+<p><strong>O que aconteceu:</strong> a Ana estava na pasta pessoal (<code>~</code>), que não tem nenhum <code>.csproj</code>. Os comandos <code>run</code>, <code>build</code>, <code>test</code> e <code>clean</code> procuram o projeto <strong>na pasta atual</strong>.</p>
+<p><strong>Como resolver:</strong> entre na pasta do projeto (<code>cd ~/projetos/Saudacao</code>) ou diga onde ele está: <code>dotnet run --project ~/projetos/Saudacao</code>. Para um arquivo solto, dê o nome dele: <code>dotnet run ola.cs</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error MSB1011: Especifique o arquivo de solução ou de projeto a usar porque esta pasta contém mais de um arquivo de solução ou de projeto.</code></strong>
+<pre class="term" data-cwd="~/projetos/Saudacao">$ cp Saudacao.csproj Outro.csproj
+$ dotnet build
+MSBUILD : error MSB1011: Especifique o arquivo de solução ou de projeto a usar porque esta pasta contém mais de um arquivo de solução ou de projeto.</pre>
+<p><strong>O que aconteceu:</strong> a pasta tem dois <code>.csproj</code> (ou um <code>.csproj</code> e uma solução <code>.slnx</code>), e o <code>dotnet</code> não sabe qual usar.</p>
+<p><strong>Como resolver:</strong> diga o nome: <code>dotnet build Saudacao.csproj</code>. Melhor ainda: cada projeto na sua própria pasta (veja <a href="solucoes.html">Soluções e Vários Projetos</a>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>A criação deste modelo fará alterações nos arquivos existentes</code></strong>
+<pre class="term" data-cwd="~/projetos/Saudacao">$ dotnet new console -o .
+A criação deste modelo fará alterações nos arquivos existentes:
+  Sobrescrever   Saudacao.csproj
+  Sobrescrever   Program.cs
+
+Para criar o modelo mesmo assim, execute o comando com a opção “--force”:
+   dotnet new console -o . --force
+
+
+Para obter detalhes sobre o código de saída, consulte https://aka.ms/templating-exit-codes#73</pre>
+<p><strong>O que aconteceu:</strong> já existe um projeto ali, e o <code>dotnet new</code> se recusou a apagar o seu <code>Program.cs</code>. Ainda bem.</p>
+<p><strong>Como resolver:</strong> crie o projeto novo numa pasta nova (<code>dotnet new console -o OutroNome</code>). Só use <code>--force</code> se quiser mesmo perder os arquivos.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>O que faz</th></tr>
+<tr><td><code>dotnet --version</code></td><td>Versão do SDK em uso.</td></tr>
+<tr><td><code>dotnet --list-sdks</code> / <code>--list-runtimes</code></td><td>SDKs / runtimes instalados.</td></tr>
+<tr><td><code>dotnet --info</code></td><td>Tudo sobre a instalação (versões, sistema, RID).</td></tr>
+<tr><td><code>dotnet sdk check</code></td><td>Confere se há versão mais nova.</td></tr>
+<tr><td><code>dotnet --help</code> / <code>dotnet COMANDO --help</code></td><td>Lista os comandos / a ajuda de um comando.</td></tr>
+<tr><td><code>dotnet new list</code></td><td>Lista os modelos.</td></tr>
+<tr><td><code>dotnet new console -o Nome</code></td><td>Cria um projeto de console na pasta <code>Nome</code>.</td></tr>
+<tr><td><code>dotnet restore</code></td><td>Só baixa/confere os pacotes.</td></tr>
+<tr><td><code>dotnet build</code> / <code>-c Release</code></td><td>Compila em Debug / em Release.</td></tr>
+<tr><td><code>dotnet build -v q</code></td><td>Compila falando pouco (<code>q</code>, <code>m</code>, <code>n</code>, <code>d</code>, <code>diag</code>).</td></tr>
+<tr><td><code>dotnet run -- arg1 arg2</code></td><td>Compila (se preciso) e roda, passando argumentos ao programa.</td></tr>
+<tr><td><code>dotnet run --project pasta</code></td><td>Roda um projeto de outra pasta.</td></tr>
+<tr><td><code>dotnet clean</code></td><td>Apaga o que foi compilado.</td></tr>
+<tr><td><code>dotnet watch run</code></td><td>Roda de novo a cada arquivo salvo.</td></tr>
+<tr><td><code>dotnet format</code> / <code>--verify-no-changes</code></td><td>Arruma a formatação / só confere.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Qual SDK?</h3>
+<p>Complete o comando que mostra só a versão do SDK em uso:</p>
+<div class="ex-code">dotnet <input data-answer="--version" aria-label="opção"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Compilar para entregar</h3>
+<p>Complete o comando que compila na configuração Release:</p>
+<div class="ex-code">dotnet build <input data-answer="-c Release|--configuration Release" aria-label="opções"></div>
+</div>
+
+<div class="exercise">
+<h3>3. A divisória</h3>
+<p>Complete para que o <code>--help</code> chegue ao programa da Ana, e não ao <code>dotnet run</code>:</p>
+<div class="ex-code">dotnet run <input data-answer="--" aria-label="divisória"> --help</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Na pasta <code>~</code>, a Ana digitou <code>dotnet build</code> e recebeu <code>error MSB1003</code>. O que fazer?</p>
+<label><input type="radio" name="q4"> Reinstalar o .NET.</label>
+<label><input type="radio" name="q4"> Rodar <code>dotnet clean</code> primeiro.</label>
+<label><input type="radio" name="q4"> Entrar na pasta do projeto (ou usar <code>--project</code>).</label>
+<label><input type="radio" name="q4"> Trocar para <code>dotnet build -c Release</code>.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Qual comando roda o programa de novo sozinho a cada vez que você salva um arquivo?</p>
+<label><input type="radio" name="q5"> <code>dotnet run --no-build</code></label>
+<label><input type="radio" name="q5"> <code>dotnet watch run</code></label>
+<label><input type="radio" name="q5"> <code>dotnet format</code></label>
+<label><input type="radio" name="q5"> <code>dotnet restore</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Em <code>dotnet new classlib -o Loja.Dados</code>, o que é <code>classlib</code>?</p>
+<label><input type="radio" name="q6"> O comando.</label>
+<label><input type="radio" name="q6"> Uma opção.</label>
+<label><input type="radio" name="q6"> O nome da pasta.</label>
+<label><input type="radio" name="q6"> O argumento: o nome curto do modelo.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>O <code>dotnet</code> é um porteiro: recebe o pedido e chama a ferramenta certa (MSBuild, modelos, NuGet, testes, runtime).</li>
+  <li>Formato: <code>dotnet comando argumentos opções</code>. Opções curtas (<code>-c</code>) e longas (<code>--configuration</code>) são a mesma coisa.</li>
+  <li><code>--version</code>, <code>--list-sdks</code>, <code>--list-runtimes</code>, <code>--info</code> e <code>sdk check</code> dizem o que está instalado.</li>
+  <li>Na dúvida, <code>dotnet --help</code> e <code>dotnet COMANDO --help</code>.</li>
+  <li><code>build -c Release</code> compila a versão final; <code>run -- argumentos</code> passa argumentos ao programa; <code>clean</code> apaga o que foi compilado.</li>
+  <li><code>watch run</code> roda de novo a cada arquivo salvo; <code>format</code> arruma o código.</li>
+  <li><code>run</code>, <code>build</code> e <code>test</code> procuram o projeto na pasta atual: entre nela ou use <code>--project</code>.</li>
+</ul>
+
+<div class="pager"></div>
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
