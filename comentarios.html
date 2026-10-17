@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Comentários — //, /* */ e os comentários de documentação /// | Guia C#</title>
+<meta name="description" content="Comentários em C# para quem nunca programou: // até o fim da linha, /* */ em bloco, comentar código para desligá-lo, o que não é comentário, e os comentários de documentação /// com summary, param e returns, o arquivo XML e os avisos CS1591, CS1570, CS1572, CS1573 e CS1587, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Comentários</span></h1>
+
+<p class="intro">Um programa é lido muito mais vezes do que é escrito: por você mesma daqui a um mês, por um colega, por quem for consertar um erro. Os <strong>comentários</strong> são anotações que você deixa no código para essas pessoas. O compilador as ignora por completo: elas não mudam em nada o que o programa faz. Nesta aula você aprende os três tipos de comentário do C#: o de linha (<code>//</code>), o de bloco (<code>/* */</code>) e o de documentação (<code>///</code>), que vira a ajuda que aparece no editor quando alguém usa o seu código.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O comentário de linha, <code>//</code>, sozinho na linha ou no fim de uma instrução.</li>
+  <li>O comentário de bloco, <code>/* … */</code>, de várias linhas ou no meio de uma linha.</li>
+  <li>Como "desligar" um pedaço de código comentando-o, e o atalho dos editores.</li>
+  <li>O que <strong>parece</strong> comentário e não é: <code>//</code> dentro de um texto.</li>
+  <li>Os comentários de documentação <code>///</code>: <code>&lt;summary&gt;</code>, <code>&lt;param&gt;</code> e <code>&lt;returns&gt;</code>.</li>
+  <li>O arquivo <code>.xml</code> de documentação e os avisos que conferem os <code>///</code>.</li>
+  <li>O que vale a pena comentar e o que não vale.</li>
+</ul>
+</div>
+
+<p>Os programas desta aula foram rodados na máquina fictícia da Ana com o <strong>.NET 10 SDK</strong> (C# 14), na pasta <code>~/cs/comentarios</code> com <code>dotnet run arquivo.cs</code> e num projeto em <code>~/projetos/Doc</code>. As saídas foram copiadas da tela.</p>
+
+<hr>
+
+<h2>A ideia: os post-its no caderno de receitas</h2>
+<p>A avó da Ana tem um caderno de receitas cheio de <strong>post-its</strong> colados: "usar a forma grande", "a tia gosta com menos açúcar", "não funciona com farinha integral". Os post-its não fazem parte da receita (quem cozinha não "executa" um post-it), mas explicam escolhas e evitam erros.</p>
+
+<p>Um comentário é um post-it no código. O compilador passa por ele sem ler, e o programa gerado é idêntico com ou sem comentários.</p>
+
+<hr>
+
+<h2>1. Comentário de linha: <code>//</code></h2>
+<p>Duas barras, <code>//</code>, começam um comentário que vai <strong>até o fim da linha</strong>. Ele pode ocupar a linha inteira ou vir depois de uma instrução:</p>
+
+<pre class="file" data-file="linha.cs">// Programa da lista de compras da Ana
+Console.WriteLine("Arroz");   // 5 kg
+// Console.WriteLine("Feijão");
+Console.WriteLine("Café");
+Console.WriteLine("// isto não é comentário");
+</pre>
+
+<pre class="term" data-cwd="~/cs/comentarios">$ dotnet run linha.cs
+Arroz
+Café
+// isto não é comentário</pre>
+
+<dl class="anatomy">
+  <dt>// Programa da lista…</dt><dd>Uma linha inteira de comentário: uma explicação para quem lê. Não gera saída nenhuma.</dd>
+  <dt>…("Arroz");   // 5 kg</dt><dd>Comentário no <strong>fim</strong> de uma linha: a instrução antes do <code>//</code> roda normalmente; o resto da linha é ignorado.</dd>
+  <dt>// Console.WriteLine("Feijão");</dt><dd>Uma instrução <strong>comentada</strong>: como começa com <code>//</code>, ela virou comentário e não roda. Repare que o Feijão sumiu da saída.</dd>
+  <dt>"// isto não é comentário"</dt><dd>Dentro de um texto entre aspas, <code>//</code> são só dois caracteres. O texto aparece inteiro na saída, com as barras.</dd>
+</dl>
+
+<p>Esse é o comentário mais usado em C#. Repare no costume: <strong>um espaço</strong> depois do <code>//</code>, e frases curtas.</p>
+
+<hr>
+
+<h2>2. Comentário de bloco: <code>/* … */</code></h2>
+<p>Barra e asterisco, <code>/*</code>, começam um comentário que vai até o asterisco e barra, <code>*/</code>, que pode estar várias linhas abaixo, ou na mesma linha:</p>
+
+<pre class="file" data-file="bloco.cs">/* Lojinha da Ana
+   Versão 1: só mostra o nome da loja.
+   Escrito em outubro. */
+Console.WriteLine("Lojinha da Ana");
+Console.WriteLine(/* o preço */ "R$ 5");
+</pre>
+
+<pre class="term" data-cwd="~/cs/comentarios">$ dotnet run bloco.cs
+Lojinha da Ana
+R$ 5</pre>
+
+<dl class="anatomy">
+  <dt>/* Lojinha da Ana … */</dt><dd>Três linhas de comentário de uma vez. Tudo entre <code>/*</code> e <code>*/</code> é ignorado, inclusive as quebras de linha.</dd>
+  <dt>(/* o preço */ "R$ 5")</dt><dd>Um comentário de bloco pode ficar no <strong>meio</strong> de uma linha, porque tem um fim marcado. Funciona, mas atrapalha a leitura; use pouco.</dd>
+</dl>
+
+<p>Na prática, o código C# usa pouco o <code>/* */</code>. Para várias linhas, o mais comum é uma sequência de <code>//</code>, uma por linha, que os editores criam com um atalho (seção 3).</p>
+
+<h3>O <code>/*</code> precisa do seu <code>*/</code></h3>
+<p>Se o <code>*/</code> for esquecido, o comentário engole o resto do arquivo:</p>
+
+<pre class="file" data-file="aberto.cs · erro de propósito">/* Comentário que esqueceu de fechar
+Console.WriteLine("Olá!");
+</pre>
+
+<pre class="term" data-cwd="~/cs/comentarios">$ dotnet run aberto.cs
+/home/ana/cs/comentarios/aberto.cs(1,1): error CS1035: Final do arquivo encontrado. '*/' esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Final do arquivo encontrado; esperava <code>*/</code>". A posição <code>(1,1)</code> aponta onde o comentário <strong>começou</strong>. Em inglês: <code>End-of-file found, '*/' expected</code>.</p>
+
+<h3>Um <code>/* */</code> não entra dentro de outro</h3>
+<p>Os comentários de bloco não se aninham (não dá para pôr um dentro do outro). O primeiro <code>*/</code> que aparecer fecha o comentário, mesmo que haja dois <code>/*</code> abertos:</p>
+
+<pre class="file" data-file="aninhado.cs · erro de propósito">/* fora
+   /* dentro */
+   ainda fora? */
+Console.WriteLine("Olá!");
+</pre>
+
+<pre class="term" data-cwd="~/cs/comentarios">$ dotnet run aninhado.cs
+/home/ana/cs/comentarios/aninhado.cs(3,14): error CS1003: Erro de sintaxe, "," esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O comentário terminou no <code>*/</code> da linha 2. A linha 3, <code>ainda fora? */</code>, virou código, e o compilador não conseguiu entendê-lo. A mensagem é estranha porque o compilador tentou ler aquelas palavras como C#. É mais um motivo para preferir o <code>//</code>: ele não tem esse problema.</p>
+
+<hr>
+
+<h2>3. Comentar para desligar código</h2>
+<p>Um uso muito comum dos comentários é <strong>desligar</strong> uma instrução por um tempo, sem apagá-la: para testar o programa sem ela, ou para procurar qual linha está causando um erro. É o que a Ana fez com o Feijão na seção 1.</p>
+
+<div class="tip">
+<strong>O atalho dos editores</strong>
+<p>No VS Code (e na maioria dos editores), selecione as linhas e aperte <kbd>Ctrl</kbd>+<kbd>/</kbd>: o editor põe <code>//</code> no começo de cada uma. Apertando de novo, ele tira. Assim você liga e desliga várias linhas de uma vez (aula <a href="editores.html">Editores e IDEs</a>).</p>
+</div>
+
+<div class="trycs" data-goal="outre:^Lista da Ana\nArroz\nCafé\n$,src:^\s*//\s*Console\.WriteLine\(&quot;Feijão">
+<p class="try-task"><strong>Missão:</strong> a Ana já comprou o feijão. <strong>Comente</strong> (não apague) a linha do Feijão, para ela continuar no código mas sair da lista. Depois, se quiser, acrescente um comentário no fim da linha do Arroz, como <code>// 5 kg</code>, e veja que a saída não muda.</p>
+<pre class="script">Console.WriteLine("Lista da Ana");
+Console.WriteLine("Arroz");
+Console.WriteLine("Feijão");
+Console.WriteLine("Café");
+</pre>
+<pre class="solucao">Console.WriteLine("Lista da Ana");
+Console.WriteLine("Arroz");   // 5 kg
+// Console.WriteLine("Feijão");
+Console.WriteLine("Café");
+</pre>
+</div>
+
+<div class="warning">
+<strong>Código comentado não é para ficar</strong>
+<p>Desligar uma linha para testar é ótimo. Mas, quando o teste acabar, decida: ou a linha volta, ou ela é apagada. Código comentado esquecido confunde quem lê ("isso é importante? posso apagar?"). Quando você aprender a usar o Git, ele guarda as versões antigas para você, e não é preciso deixar nada comentado "para garantir".</p>
+</div>
+
+<hr>
+
+<h2>4. Comentários de documentação: <code>///</code></h2>
+<p>Três barras, <code>///</code>, fazem um comentário especial, de <strong>documentação</strong>. Ele fica logo <strong>acima</strong> de uma classe ou de um método e explica, num formato fixo, o que aquilo faz. Os editores leem esse formato: quando alguém usa o método, a explicação aparece numa caixinha ao passar o mouse, e enquanto digita.</p>
+
+<p>Métodos e classes são assunto do Nível 2 (<a href="metodos.html">Métodos</a> e <a href="classes-objetos.html">Classes e Objetos</a>). Aqui, leia o código como uma ferramenta da lojinha: a classe <code>Loja</code> tem um método <code>ComDesconto</code>, que recebe um preço e um desconto e devolve o preço a pagar.</p>
+
+<pre class="file" data-file="doc2.cs">Console.WriteLine(Loja.ComDesconto(50m, 8m));
+
+/// &lt;summary&gt;Ferramentas da lojinha da Ana.&lt;/summary&gt;
+static class Loja
+{
+    /// &lt;summary&gt;
+    /// Calcula o preço com desconto.
+    /// &lt;/summary&gt;
+    /// &lt;param name="preco"&gt;O preço cheio, em reais.&lt;/param&gt;
+    /// &lt;param name="desconto"&gt;O desconto, em reais.&lt;/param&gt;
+    /// &lt;returns&gt;O preço a pagar.&lt;/returns&gt;
+    public static decimal ComDesconto(decimal preco, decimal desconto)
+    {
+        return preco - desconto;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/comentarios">$ dotnet run doc2.cs
+42</pre>
+
+<p>O programa mostra 42 (50 menos 8), e os <code>///</code>, como qualquer comentário, não mudam nada na saída. Dentro deles, o texto vai entre <strong>etiquetas XML</strong>, no mesmo estilo do <code>.csproj</code> (aula <a href="projetos-console.html">Projetos</a>): uma etiqueta abre (<code>&lt;summary&gt;</code>) e outra, com barra, fecha (<code>&lt;/summary&gt;</code>).</p>
+
+<dl class="anatomy">
+  <dt>/// &lt;summary&gt; … &lt;/summary&gt;</dt><dd>O <strong>resumo</strong>: uma ou duas frases dizendo o que a classe ou o método faz. É a etiqueta mais importante, e a que aparece primeiro na caixinha do editor.</dd>
+  <dt>/// &lt;param name="preco"&gt; … &lt;/param&gt;</dt><dd>A explicação de um <strong>parâmetro</strong> (um valor que o método recebe). O <code>name</code> tem de ser <strong>exatamente</strong> o nome do parâmetro. Uma etiqueta <code>param</code> para cada um.</dd>
+  <dt>/// &lt;returns&gt; … &lt;/returns&gt;</dt><dd>O que o método <strong>devolve</strong> (<em>returns</em> = "retorna").</dd>
+  <dt>static class Loja</dt><dd>O elemento documentado vem <strong>logo depois</strong> dos <code>///</code>, sem linha de código no meio.</dd>
+</dl>
+
+<p>Outras etiquetas úteis:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Etiqueta</th><th>Para quê</th></tr>
+<tr><td><code>&lt;summary&gt;</code></td><td>O resumo (sempre)</td></tr>
+<tr><td><code>&lt;param name="x"&gt;</code></td><td>Um parâmetro</td></tr>
+<tr><td><code>&lt;returns&gt;</code></td><td>O valor devolvido</td></tr>
+<tr><td><code>&lt;remarks&gt;</code></td><td>Observações mais longas, além do resumo</td></tr>
+<tr><td><code>&lt;example&gt;</code> e <code>&lt;code&gt;</code></td><td>Um exemplo de uso</td></tr>
+<tr><td><code>&lt;exception cref="…"&gt;</code></td><td>Que erro (exceção) o método pode lançar (aula <a href="throw.html">throw</a>)</td></tr>
+<tr><td><code>&lt;see cref="Loja"/&gt;</code></td><td>Um link para outro elemento do código</td></tr>
+<tr><td><code>&lt;paramref name="preco"/&gt;</code></td><td>Cita um parâmetro no meio do texto</td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>O editor escreve o esqueleto para você</strong>
+<p>No Visual Studio e no VS Code com a extensão C# Dev Kit, digite <code>///</code> na linha de cima de um método: o editor cria sozinho o <code>&lt;summary&gt;</code>, um <code>&lt;param&gt;</code> para cada parâmetro e o <code>&lt;returns&gt;</code>. Você só preenche os textos.</p>
+</div>
+
+<h3>Onde o <code>///</code> pode ficar</h3>
+<p>Os comentários de documentação servem para classes e seus membros (métodos, propriedades…). Uma função solta, escrita junto das instruções de nível superior (aula <a href="top-level.html">Program.cs e o Main</a>), <strong>não</strong> é documentável. Num projeto que gera documentação (logo abaixo), o compilador avisa:</p>
+
+<pre class="file" data-file="Program.cs (projeto Doc)">Console.WriteLine(Dobro(21));
+
+/// &lt;summary&gt;
+/// Calcula o dobro de um número.
+/// &lt;/summary&gt;
+/// &lt;param name="numero"&gt;O número que vai ser dobrado.&lt;/param&gt;
+/// &lt;returns&gt;O número vezes 2.&lt;/returns&gt;
+int Dobro(int numero)
+{
+    return numero * 2;
+}
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Doc">$ dotnet build 2&gt;&amp;1 | grep warning | sort -u
+/home/ana/projetos/Doc/Program.cs(3,1): warning CS1587: O comentário XML não está inserido em um elemento de linguagem válido [/home/ana/projetos/Doc/Doc.csproj]</pre>
+
+<p>"O comentário XML não está num elemento válido" (<code>XML comment is not placed on a valid language element</code>). É só um aviso: o programa funciona (mostra 42), mas o <code>///</code> ali é inútil. Para uma função solta, use <code>//</code>.</p>
+
+<div class="trycs" data-goal="out:Total: R$ 42\,00,src:///.*\n\s*public static decimal ComDesconto,src:&lt;summary&gt;[\s\S]*&lt;summary&gt;,src:&lt;param name=&quot;preco&quot;&gt;,src:&lt;param name=&quot;desconto&quot;&gt;,src:&lt;returns&gt;,compila">
+<p class="try-task"><strong>Missão:</strong> o método <code>ComDesconto</code> está sem documentação. Escreva, logo acima da linha <code>public static decimal ComDesconto</code>, um comentário <code>///</code> com <code>&lt;summary&gt;</code>, um <code>&lt;param&gt;</code> para <code>preco</code>, outro para <code>desconto</code> e um <code>&lt;returns&gt;</code>. Use o comentário da classe como modelo. A saída não muda: <code>Total: R$ 42,00</code>.</p>
+<pre class="script">Console.WriteLine($"Total: {Loja.ComDesconto(50m, 8m):C}");
+
+/// &lt;summary&gt;Ferramentas da lojinha da Ana.&lt;/summary&gt;
+static class Loja
+{
+    public static decimal ComDesconto(decimal preco, decimal desconto)
+    {
+        return preco - desconto;
+    }
+}
+</pre>
+<pre class="solucao">Console.WriteLine($"Total: {Loja.ComDesconto(50m, 8m):C}");
+
+/// &lt;summary&gt;Ferramentas da lojinha da Ana.&lt;/summary&gt;
+static class Loja
+{
+    /// &lt;summary&gt;Calcula o preço com desconto.&lt;/summary&gt;
+    /// &lt;param name="preco"&gt;O preço cheio, em reais.&lt;/param&gt;
+    /// &lt;param name="desconto"&gt;O desconto, em reais.&lt;/param&gt;
+    /// &lt;returns&gt;O preço a pagar.&lt;/returns&gt;
+    public static decimal ComDesconto(decimal preco, decimal desconto)
+    {
+        return preco - desconto;
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>5. O arquivo de documentação e os avisos</h2>
+<p>Por padrão, o compilador trata os <code>///</code> como comentários comuns e nem confere o que está escrito neles. Para que ele <strong>confira</strong> e <strong>gere um arquivo</strong> com a documentação, ligue a opção <code>GenerateDocumentationFile</code> ("gerar arquivo de documentação") no <code>.csproj</code>:</p>
+
+<pre class="term" data-cwd="~/projetos/Doc">$ cat Doc.csproj
+&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+
+  &lt;PropertyGroup&gt;
+    &lt;OutputType&gt;Exe&lt;/OutputType&gt;
+    &lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;
+    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+    &lt;Nullable&gt;enable&lt;/Nullable&gt;
+    &lt;GenerateDocumentationFile&gt;true&lt;/GenerateDocumentationFile&gt;   « a linha nova
+  &lt;/PropertyGroup&gt;
+
+&lt;/Project&gt;</pre>
+
+<p>Depois do <code>dotnet build</code>, aparece um <code>Doc.xml</code> ao lado do <code>Doc.dll</code>, em <code>bin/Debug/net10.0</code>. É ele que os editores leem para mostrar a ajuda de uma biblioteca, e é assim que a ajuda do próprio <code>Console.WriteLine</code> chega até você. (Num arquivo solto, a mesma opção se liga com a linha <code>#:property GenerateDocumentationFile=true</code> no topo do <code>.cs</code>. Linhas com <code>#:</code> não são comentários: são <strong>diretivas</strong> para o <code>dotnet run</code>, explicadas em <a href="dotnet-run.html">Rodar com dotnet run</a>.)</p>
+
+<p>Com a opção ligada, o compilador vira um revisor da documentação. A Ana escreveu mais métodos no arquivo <code>Loja.cs</code> do projeto, cada um com um descuido:</p>
+
+<pre class="file" data-file="Loja.cs (trecho)">    public static decimal Dobro(decimal preco)
+    {
+        return preco * 2;
+    }
+
+    /// &lt;summary&gt;Soma dois preços.
+    public static decimal Soma(decimal a, decimal b) =&gt; a + b;
+
+    /// &lt;summary&gt;Mostra o preço.&lt;/summary&gt;
+    /// &lt;param name="valor"&gt;O valor.&lt;/param&gt;
+    public static void Mostrar(decimal preco) =&gt; Console.WriteLine(preco);
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Doc">$ dotnet build 2&gt;&amp;1 | grep warning | sort -u
+/home/ana/projetos/Doc/Loja.cs(13,27): warning CS1591: Comentário XML ausente para tipo publicamente visível ou membro "Loja.Dobro(decimal)" [/home/ana/projetos/Doc/Doc.csproj]
+/home/ana/projetos/Doc/Loja.cs(19,1): warning CS1570: O comentário XML tem XML com formação incorreta -- "Espera-se uma tag de fim para o elemento "summary"." [/home/ana/projetos/Doc/Doc.csproj]
+/home/ana/projetos/Doc/Loja.cs(22,22): warning CS1572: Comentário XML tem uma tag param para "valor", mas não há parâmetro por esse nome [/home/ana/projetos/Doc/Doc.csproj]
+/home/ana/projetos/Doc/Loja.cs(23,40): warning CS1573: Parâmetro "preco" não tem tag param correspondente no comentário XML para "Loja.Mostrar(decimal)" (mas outros parâmetros têm) [/home/ana/projetos/Doc/Doc.csproj]
+/home/ana/projetos/Doc/Program.cs(3,1): warning CS1587: O comentário XML não está inserido em um elemento de linguagem válido [/home/ana/projetos/Doc/Doc.csproj]</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Aviso</th><th>O que quer dizer</th><th>Conserto</th></tr>
+<tr><td><code>CS1591</code></td><td>Um método <code>public</code> (visível para quem usa a classe) está sem <code>///</code>: o <code>Dobro</code>.</td><td>Escrever o <code>///</code> do <code>Dobro</code>.</td></tr>
+<tr><td><code>CS1570</code></td><td>XML "mal formado": o <code>&lt;summary&gt;</code> do <code>Soma</code> não foi fechado.</td><td>Fechar com <code>&lt;/summary&gt;</code>.</td></tr>
+<tr><td><code>CS1572</code></td><td>Há um <code>&lt;param name="valor"&gt;</code>, mas o parâmetro se chama <code>preco</code>.</td><td>Trocar para <code>name="preco"</code>.</td></tr>
+<tr><td><code>CS1573</code></td><td>O mesmo engano visto pelo outro lado: o parâmetro <code>preco</code> ficou sem <code>&lt;param&gt;</code>.</td><td>O mesmo conserto resolve os dois.</td></tr>
+<tr><td><code>CS1587</code></td><td>O <code>///</code> da função solta do <code>Program.cs</code> (seção 4).</td><td>Trocar por <code>//</code>.</td></tr>
+</table>
+</div>
+
+<p>São só avisos (o programa é gerado), mas vale consertar todos: uma documentação errada engana quem a lê. Avisos em geral são o assunto da aula <a href="avisos.html">Avisos do Compilador</a>. Bibliotecas que outras pessoas vão usar costumam ligar o <code>GenerateDocumentationFile</code>; programas pequenos, como os do Nível 1, não precisam.</p>
+
+<hr>
+
+<h2>6. O que comentar (e o que não)</h2>
+<p>Comentário bom explica <strong>por que</strong>; o código já mostra <strong>o que</strong>. Compare:</p>
+
+<pre class="file" data-file="ruim e bom">// RUIM: repete o que o código já diz
+Console.WriteLine("Arroz");   // escreve Arroz
+
+// BOM: explica uma decisão que o código não mostra
+// A feira só aceita pedidos até 10 itens, por isso a lista para aqui.
+Console.WriteLine("Fim da lista");
+</pre>
+
+<ul>
+  <li><strong>Comente o porquê:</strong> uma regra do negócio, um cuidado, uma escolha que parece estranha.</li>
+  <li><strong>Não comente o óbvio.</strong> Se o código precisa de um comentário para dizer o que faz, talvez os nomes possam ser melhores (aula <a href="identificadores.html">Nomes e Convenções</a>).</li>
+  <li><strong>Mantenha os comentários atualizados.</strong> Um comentário que contradiz o código é pior do que nenhum.</li>
+  <li><strong>Marque pendências com <code>// TODO:</code></strong> ("a fazer"): <code>// TODO: aceitar pagamento com cartão</code>. Os editores listam todos os <code>TODO</code> do projeto.</li>
+  <li><strong>Documente com <code>///</code></strong> o que outras pessoas vão usar: classes e métodos públicos.</li>
+</ul>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS1035: Final do arquivo encontrado. '*/' esperado</code></strong>
+<p><strong>O que significa:</strong> um <code>/*</code> nunca foi fechado, e o comentário engoliu o resto do arquivo. A posição aponta o <code>/*</code>.</p>
+<p><strong>Como consertar:</strong> feche com <code>*/</code> no lugar certo, ou troque o bloco por linhas de <code>//</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Erros estranhos depois de um <code>*/</code></strong>
+<p><strong>O que significa:</strong> um <code>/* */</code> dentro de outro. O primeiro <code>*/</code> fechou o comentário, e o texto depois dele virou código (o <code>aninhado.cs</code> deu <code>CS1003: Erro de sintaxe, "," esperado</code>).</p>
+<p><strong>Como consertar:</strong> não ponha um <code>/* */</code> dentro de outro. Para desligar um trecho que já tem comentários, use <kbd>Ctrl</kbd>+<kbd>/</kbd>, que põe <code>//</code> em cada linha.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1525: Termo de expressão inválido "/"</code></strong>
+<p><strong>O que significa:</strong> o comentário foi escrito com uma barra só (<code>/ Comentário</code>). Uma barra só é o sinal de divisão, e o compilador tentou fazer uma conta:</p>
+<pre class="term" data-cwd="~/cs/comentarios">$ dotnet run barras.cs                  « / Comentário com uma barra só
+/home/ana/cs/comentarios/barras.cs(1,1): error CS1525: Termo de expressão inválido "/"
+/home/ana/cs/comentarios/barras.cs(1,14): error CS1002: ; esperado
+/home/ana/cs/comentarios/barras.cs(1,22): error CS1003: Erro de sintaxe, "," esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>Como consertar:</strong> duas barras: <code>//</code>. Em inglês, a primeira mensagem é <code>Invalid expression term '/'</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>"Comentei a linha, mas o texto continua aparecendo"</strong>
+<p><strong>O que significa:</strong> o <code>//</code> ficou <strong>dentro</strong> das aspas (<code>Console.WriteLine("// Feijão");</code>). Ali ele faz parte do texto.</p>
+<p><strong>Como consertar:</strong> o <code>//</code> vai no começo da linha, antes do <code>Console</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS1591</code>, <code>CS1570</code>, <code>CS1572</code>, <code>CS1573</code>, <code>CS1587</code></strong>
+<p><strong>O que significa:</strong> avisos sobre os comentários <code>///</code>. Só aparecem com o <code>GenerateDocumentationFile</code> ligado (seção 5).</p>
+<p><strong>Como consertar:</strong> veja a tabela da seção 5. O mais comum é o nome do <code>&lt;param&gt;</code> diferente do nome do parâmetro.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que é</th></tr>
+<tr><td><code>// texto</code></td><td>Comentário de linha: até o fim da linha</td></tr>
+<tr><td><code>instrução; // texto</code></td><td>Comentário no fim de uma linha de código</td></tr>
+<tr><td><code>/* texto */</code></td><td>Comentário de bloco: até o <code>*/</code>, em uma ou várias linhas; não aninha</td></tr>
+<tr><td><code>/// &lt;summary&gt;…&lt;/summary&gt;</code></td><td>Comentário de documentação, acima de classes e membros</td></tr>
+<tr><td><code>/// &lt;param name="x"&gt;…&lt;/param&gt;</code></td><td>Documenta o parâmetro <code>x</code></td></tr>
+<tr><td><code>/// &lt;returns&gt;…&lt;/returns&gt;</code></td><td>Documenta o que o método devolve</td></tr>
+<tr><td><code>&lt;GenerateDocumentationFile&gt;true&lt;/GenerateDocumentationFile&gt;</code></td><td>No <code>.csproj</code>: gera o <code>.xml</code> e confere os <code>///</code></td></tr>
+<tr><td><code>// TODO: …</code></td><td>Marca uma pendência</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>/</kbd></td><td>Comenta e descomenta as linhas selecionadas (VS Code)</td></tr>
+<tr><td><code>"// texto"</code></td><td><strong>Não</strong> é comentário: é um texto com duas barras</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Linha</h3>
+<p>Complete para que a linha seja um comentário:</p>
+<div class="ex-code"><input data-answer="//" aria-label="sinal"> Programa da Ana</div>
+</div>
+
+<div class="exercise">
+<h3>2. Bloco</h3>
+<p>Complete o fim do comentário de bloco:</p>
+<div class="ex-code">/* Versão 1 da lojinha <input data-answer="*/" aria-label="fim do bloco"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Documentação</h3>
+<p>Qual etiqueta guarda o resumo de um método num comentário <code>///</code>? (Só o nome, sem os sinais.)</p>
+<div class="ex-code">/// &lt;<input data-answer="summary" aria-label="etiqueta">&gt;Calcula o total.&lt;/…&gt;</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O que mostra este programa? <code>Console.WriteLine("A"); // Console.WriteLine("B");</code></p>
+<label><input type="radio" name="q4"> <code>A</code> e <code>B</code>, em duas linhas</label>
+<label><input type="radio" name="q4"> Só <code>A</code></label>
+<label><input type="radio" name="q4"> Só <code>B</code></label>
+<label><input type="radio" name="q4"> Nada: não compila</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. E este? <code>Console.WriteLine("Preço // promoção");</code></p>
+<label><input type="radio" name="q5"> <code>Preço</code></label>
+<label><input type="radio" name="q5"> Nada: a linha inteira é comentário</label>
+<label><input type="radio" name="q5"> Não compila, porque o comentário não foi fechado</label>
+<label><input type="radio" name="q5"> <code>Preço // promoção</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Um método tem o parâmetro <code>preco</code>, e o comentário diz <code>&lt;param name="valor"&gt;</code>. Com o <code>GenerateDocumentationFile</code> ligado, o que acontece?</p>
+<label><input type="radio" name="q6"> Compila, com o aviso <code>CS1572</code> (não há parâmetro chamado <code>valor</code>).</label>
+<label><input type="radio" name="q6"> Não compila: <code>error CS1572</code>.</label>
+<label><input type="radio" name="q6"> Nada: o compilador ignora o que está nos comentários.</label>
+<label><input type="radio" name="q6"> O parâmetro passa a se chamar <code>valor</code>.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">7. Qual destes comentários é mais útil?</p>
+<label><input type="radio" name="q7"> <code>// soma 1 no contador</code>, acima de uma linha que soma 1 no contador</label>
+<label><input type="radio" name="q7"> <code>// código</code></label>
+<label><input type="radio" name="q7"> <code>// A loja fecha às 18h, por isso pedidos depois disso vão para o dia seguinte.</code></label>
+<label><input type="radio" name="q7"> Uma linha de código antiga, comentada há meses</label>
+</div>
+
+<h3>Missão final: o programa comentado</h3>
+
+<div class="trycs" data-goal="outre:^Lojinha da Ana\nCaderno: R\$ 12\n$,src:^\s*//\s*\S,compila">
+<p class="try-task"><strong>Missão:</strong> este programa não compila, e os comentários são os culpados: um comentário de bloco sem fim e uma linha que deveria estar desligada mas usa uma barra só. Conserte os dois e acrescente, no topo, um comentário de linha seu explicando o que o programa faz. A saída deve ser:</p>
+<pre class="out">Lojinha da Ana
+Caderno: R$ 12</pre>
+<pre class="script">/* Versão 2 da lojinha.
+   Mostra o nome e o preço do caderno.
+Console.WriteLine("Lojinha da Ana");
+Console.WriteLine("Caderno: R$ 12");
+/ Console.WriteLine("Caneta: R$ 3");
+</pre>
+<pre class="solucao">// Mostra a lojinha da Ana e o preço do caderno.
+/* Versão 2 da lojinha.
+   Mostra o nome e o preço do caderno. */
+Console.WriteLine("Lojinha da Ana");
+Console.WriteLine("Caderno: R$ 12");
+// Console.WriteLine("Caneta: R$ 3");
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Comentários são anotações para pessoas. O compilador os ignora, e o programa fica igual com ou sem eles.</li>
+  <li><code>//</code> comenta até o fim da linha, sozinho ou depois de uma instrução. É o mais usado.</li>
+  <li><code>/* … */</code> comenta um bloco, de uma ou várias linhas. Precisa do <code>*/</code> (<code>CS1035</code>) e não aninha.</li>
+  <li>Comentar uma instrução a desliga (<kbd>Ctrl</kbd>+<kbd>/</kbd> no editor). Depois do teste, volte com ela ou apague.</li>
+  <li>Dentro de aspas, <code>//</code> e <code>/*</code> são texto, não comentário.</li>
+  <li><code>///</code> documenta classes e membros com etiquetas XML: <code>&lt;summary&gt;</code>, <code>&lt;param name="…"&gt;</code>, <code>&lt;returns&gt;</code>. Os editores mostram essa ajuda; o <code>GenerateDocumentationFile</code> gera o <code>.xml</code> e liga os avisos <code>CS1591</code>, <code>CS1570</code>, <code>CS1572</code>, <code>CS1573</code> e <code>CS1587</code>.</li>
+  <li>Comente o <strong>porquê</strong>, não o óbvio, e mantenha os comentários em dia.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
