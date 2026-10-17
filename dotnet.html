@@ -153,7 +153,7 @@ $ du -h System.Console.dll System.Private.CoreLib.dll libcoreclr.so libclrjit.so
 <p>Um programa consegue perguntar ao .NET quem ele é. Rode e compare com o terminal da Ana:</p>
 
 <div class="trycs">
-<p class="try-task"><strong>Experimente:</strong> rode e veja a versão do .NET, o sistema e o processador. Se aparecer algo diferente da saída da Ana logo abaixo, não é erro: o programa mostra o .NET e o computador <strong>onde ele está rodando</strong>, e aqui ele roda dentro do seu navegador, não no Ubuntu da Ana.</p>
+<p class="try-task"><strong>Experimente:</strong> rode e veja a versão do .NET, o sistema e o processador. Aqui no editor aparecem <code>Sistema: Browser</code> e <code>Processador: Wasm</code>, diferentes da saída da Ana logo abaixo. Não é erro: o programa mostra o .NET e o computador <strong>onde ele está rodando</strong>, e aqui ele roda dentro do seu navegador (em WebAssembly), não no Ubuntu da Ana. O <code>System.Console</code> é o mesmo nos dois.</p>
 <pre class="script" data-file="info.cs">using System.Runtime.InteropServices;
 
 Console.WriteLine($".NET: {RuntimeInformation.FrameworkDescription}");
