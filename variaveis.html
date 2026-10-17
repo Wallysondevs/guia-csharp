@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Variáveis — declarar, mudar e inicializar | Guia C#</title>
+<meta name="description" content="Variáveis em C# para quem nunca programou: declarar com tipo, nome e valor, mostrar com Console.WriteLine e $&quot;{ }&quot;, mudar o valor, copiar, o tipo que nunca muda (CS0029, CS0266), várias numa linha, a variável sem valor e o erro CS0165, usar antes de declarar (CS0841), declarar duas vezes (CS0128) e o escopo de um bloco, com saídas reais do .NET 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Variáveis</span></h1>
+
+<p class="intro">Todo programa precisa <strong>guardar coisas</strong> enquanto trabalha: o nome de quem está usando, o preço de um caderno, quantas maçãs sobraram na lojinha da Ana. Em C#, cada coisa guardada fica numa <strong>variável</strong>. Nesta aula você vai criar suas primeiras variáveis, mostrar o valor delas, trocar esse valor e conhecer as regras que o compilador do C# cobra com rigor, e que evitam muitos erros: o tipo de uma variável nunca muda, e nenhuma variável pode ser lida antes de receber um valor.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma variável e como criar uma: <code>int idade = 29;</code>.</li>
+  <li>Como mostrar o valor com <code>Console.WriteLine</code> e com <code>$"…{idade}…"</code>.</li>
+  <li>Os tipos mais usados no começo: <code>int</code>, <code>double</code>, <code>decimal</code>, <code>string</code>, <code>bool</code> e <code>char</code>.</li>
+  <li>Como trocar o valor, copiar de uma variável para outra, e por que o <strong>tipo</strong> nunca muda.</li>
+  <li>Como criar várias variáveis numa linha, e a armadilha que mora ali.</li>
+  <li>Por que o C# recusa ler uma variável sem valor (o erro <code>CS0165</code>).</li>
+  <li>Os erros de usar uma variável antes de criá-la, de criar duas com o mesmo nome e de usá-la fora do seu bloco.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados na máquina fictícia da Ana com o <strong>.NET 10 SDK</strong> (C# 14), na pasta <code>~/cs/variaveis</code>, com <code>dotnet run arquivo.cs</code>. A máquina está em português do Brasil, e por isso os números com casas decimais aparecem com vírgula. Você pode repetir cada um no editor do guia, que compila C# de verdade no navegador.</p>
+
+<hr>
+
+<h2>A ideia: uma caixa com etiqueta e formato</h2>
+<p>Pense numa mudança de casa. Você guarda as coisas em caixas e escreve uma <strong>etiqueta</strong> em cada uma: "LIVROS", "PANELAS". Quando quer as panelas, procura pela etiqueta.</p>
+
+<p>Uma variável é isso: um pedacinho da memória do computador com uma etiqueta. A etiqueta é o <strong>nome</strong>; o que está dentro é o <strong>valor</strong>. O nome "variável" vem daí: o que está dentro pode <em>variar</em>.</p>
+
+<p>Em C#, cada caixa tem também um <strong>formato</strong>, escolhido quando você a cria, e que nunca muda. Uma caixa de ovos só guarda ovos; uma caixa de sapatos só guarda sapatos. Esse formato se chama <strong>tipo</strong>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Parte da caixa</th><th>Nome técnico</th><th>Exemplo</th></tr>
+<tr><td>O formato (o que cabe nela)</td><td><strong>tipo</strong></td><td><code>int</code> (número inteiro), <code>string</code> (texto)</td></tr>
+<tr><td>A etiqueta</td><td><strong>nome</strong></td><td><code>idade</code>, <code>nome</code>, <code>preco</code></td></tr>
+<tr><td>O que está guardado agora</td><td><strong>valor</strong></td><td><code>29</code>, <code>"Ana"</code>, <code>12.50m</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. Declarar uma variável</h2>
+<p>Criar uma variável se chama <strong>declarar</strong>. A receita é sempre a mesma: <code>tipo nome = valor;</code>.</p>
+
+<pre class="file" data-file="idade.cs">int idade = 29;
+Console.WriteLine(idade);
+Console.WriteLine($"A Ana tem {idade} anos.");
+</pre>
+
+<dl class="anatomy">
+  <dt>int</dt><dd>O <strong>tipo</strong>: esta caixa guarda um número inteiro. <code>int</code> vem de <em>integer</em>, "inteiro".</dd>
+  <dt>idade</dt><dd>O <strong>nome</strong> da variável. As regras e os costumes de nomes estão em <a href="identificadores.html">Nomes e Convenções</a>: em C#, variáveis começam com letra minúscula.</dd>
+  <dt>=</dt><dd>Leia como "recebe": <em>idade recebe 29</em>. Não é o "igual" da matemática; quem compara valores é o <code>==</code> (aula <a href="operadores-comparacao.html">Operadores de Comparação</a>).</dd>
+  <dt>29</dt><dd>O <strong>valor inicial</strong>. Números não levam aspas.</dd>
+  <dt>;</dt><dd>O ponto e vírgula termina a declaração, como toda instrução (aula <a href="sintaxe.html">Sintaxe</a>).</dd>
+  <dt>Console.WriteLine(idade);</dt><dd>Mostra o <strong>valor</strong> guardado na variável.</dd>
+  <dt>$"A Ana tem {idade} anos."</dt><dd>A <strong>interpolação</strong>: com o <code>$</code> antes das aspas, o que está entre chaves é trocado pelo valor (aula <a href="interpolacao.html">Interpolação</a>). É o jeito mais prático de pôr variáveis no meio de um texto.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs/variaveis">$ dotnet run idade.cs
+29
+A Ana tem 29 anos.</pre>
+
+<p>O programa mostrou o <strong>valor</strong>, e não a palavra "idade": o nome é só a etiqueta, para você e para o compilador. Repare na diferença que as aspas fazem:</p>
+
+<pre class="file" data-file="nomevalor.cs">int idade = 29;
+Console.WriteLine("idade");
+Console.WriteLine(idade);
+</pre>
+
+<pre class="term" data-cwd="~/cs/variaveis">$ dotnet run nomevalor.cs
+idade                    « com aspas: o texto "idade"
+29                       « sem aspas: o valor da variável idade</pre>
+
+<h3>Outros tipos</h3>
+<p>Cada tipo de informação tem o seu tipo de caixa. Estes seis bastam para o Nível 1:</p>
+
+<pre class="file" data-file="tipos.cs">string nome = "Ana";
+int idade = 29;
+double altura = 1.65;
+decimal saldo = 150.75m;
+bool cliente = true;
+char inicial = 'A';
+Console.WriteLine($"{nome} ({inicial}.) tem {idade} anos e {altura} m.");
+Console.WriteLine($"Saldo: {saldo}. Cliente: {cliente}.");
+</pre>
+
+<pre class="term" data-cwd="~/cs/variaveis">$ dotnet run tipos.cs
+Ana (A.) tem 29 anos e 1,65 m.
+Saldo: 150,75. Cliente: True.</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>Guarda</th><th>Como se escreve o valor</th><th>Aula</th></tr>
+<tr><td><code>string</code></td><td>Um texto</td><td>Entre aspas duplas: <code>"Ana"</code></td><td><a href="strings.html">Strings</a></td></tr>
+<tr><td><code>int</code></td><td>Um número inteiro</td><td><code>29</code>, <code>-3</code>, <code>0</code></td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>double</code></td><td>Um número com casas decimais (medidas, contas científicas)</td><td>Com <strong>ponto</strong>: <code>1.65</code></td><td><a href="decimais.html">float, double e decimal</a></td></tr>
+<tr><td><code>decimal</code></td><td>Um número com casas decimais exatas: <strong>dinheiro</strong></td><td>Com ponto e um <code>m</code> no fim: <code>150.75m</code></td><td><a href="decimais.html">float, double e decimal</a></td></tr>
+<tr><td><code>bool</code></td><td>Verdadeiro ou falso</td><td><code>true</code> ou <code>false</code></td><td><a href="char-bool.html">char e bool</a></td></tr>
+<tr><td><code>char</code></td><td>Um caractere só</td><td>Entre aspas simples: <code>'A'</code></td><td><a href="char-bool.html">char e bool</a></td></tr>
+</table>
+</div>
+
+<p>No código, as casas decimais são sempre separadas com <strong>ponto</strong> (<code>1.65</code>), como nos Estados Unidos. Na tela, o .NET usa o costume do país do computador: no Brasil, <strong>vírgula</strong> (<code>1,65</code>). O <code>true</code> aparece como <code>True</code>. A visão geral dos tipos está em <a href="tipos-dados.html">Tipos de Dados</a>.</p>
+
+<div class="trycs" data-goal="out:A Ana comprou 8 maçãs.">
+<p class="try-task"><strong>Experimente:</strong> clique em <strong>Rodar</strong> e veja a frase. Depois troque o valor de <code>quantidade</code> para <code>8</code> e rode de novo. Se quiser ir além, crie <code>string fruta = "peras";</code> e use <code>{fruta}</code> no lugar da palavra "maçãs".</p>
+<pre class="script">int quantidade = 6;
+Console.WriteLine($"A Ana comprou {quantidade} maçãs.");
+</pre>
+<pre class="solucao">int quantidade = 8;
+Console.WriteLine($"A Ana comprou {quantidade} maçãs.");
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Mudar o valor</h2>
+<p>Depois de declarada, a variável é usada só pelo nome, <strong>sem</strong> repetir o tipo. Para trocar o valor, escreva <code>nome = novo valor;</code>. Isso se chama <strong>atribuição</strong>, e o valor antigo é jogado fora:</p>
+
+<pre class="file" data-file="mudar.cs">int macas = 6;
+Console.WriteLine($"Antes: {macas}");
+macas = 4;
+Console.WriteLine($"Depois: {macas}");
+macas = macas + 2;
+Console.WriteLine($"Mais duas: {macas}");
+</pre>
+
+<pre class="term" data-cwd="~/cs/variaveis">$ dotnet run mudar.cs
+Antes: 6
+Depois: 4
+Mais duas: 6</pre>
+
+<p>O programa roda <strong>de cima para baixo</strong>. A linha <code>macas = macas + 2;</code> parece estranha para quem lembra da matemática, mas lembre que <code>=</code> é "recebe":</p>
+<ol class="passo">
+  <li>O C# calcula primeiro o lado <strong>direito</strong>: lê o valor atual de <code>macas</code> (4) e soma 2, dando 6.</li>
+  <li>Depois guarda o resultado na caixa da esquerda, no lugar do 4.</li>
+</ol>
+<p>Esse padrão tem um atalho, <code>macas += 2;</code>, explicado em <a href="operadores-atribuicao.html">Operadores de Atribuição</a>. Com textos é igual:</p>
+
+<pre class="file" data-file="texto.cs">string nome = "Ana";
+Console.WriteLine($"Olá, {nome}!");
+nome = "Bia";
+Console.WriteLine($"Olá, {nome}!");
+nome = nome + " Souza";
+Console.WriteLine(nome);
+</pre>
+
+<pre class="term" data-cwd="~/cs/variaveis">$ dotnet run texto.cs
+Olá, Ana!
+Olá, Bia!
+Bia Souza</pre>
+
+<h3>Declarar, inicializar, atribuir</h3>
+<p>Três palavras aparecem o tempo todo em livros e mensagens de erro:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Palavra</th><th>O que é</th><th>Exemplo</th></tr>
+<tr><td><strong>declarar</strong></td><td>criar a caixa (dizer tipo e nome)</td><td><code>int macas;</code></td></tr>
+<tr><td><strong>inicializar</strong></td><td>dar o primeiro valor <em>na mesma linha</em> da declaração</td><td><code>int macas = 6;</code></td></tr>
+<tr><td><strong>atribuir</strong></td><td>guardar um valor numa caixa que já existe</td><td><code>macas = 4;</code></td></tr>
+</table>
+</div>
+
+<h3>Copiar uma variável para outra</h3>
+<p><code>int b = a;</code> <strong>copia</strong> o valor. Depois disso, as duas caixas são independentes:</p>
+
+<pre class="file" data-file="copia.cs">int a = 1;
+int b = a;
+a = 5;
+Console.WriteLine($"a={a} b={b}");
+</pre>
+
+<pre class="term" data-cwd="~/cs/variaveis">$ dotnet run copia.cs
+a=5 b=1                  « mudar a depois não mexeu em b</pre>
+
+<p>(Isso vale para os tipos desta aula. Com objetos, no Nível 2, a cópia funciona de outro jeito; aula <a href="valor-referencia.html">Valor × Referência</a>.)</p>
+
+<h3>O tipo nunca muda</h3>
+<p>Uma caixa de <code>int</code> continua sendo de <code>int</code> até o fim. Tentar guardar um texto nela é recusado:</p>
+
+<pre class="file" data-file="tipo.cs · erro de propósito">int idade = 29;
+idade = "trinta";
+Console.WriteLine(idade);
+</pre>
+
+<pre class="term" data-cwd="~/cs/variaveis">$ dotnet run tipo.cs
+/home/ana/cs/variaveis/tipo.cs(2,9): error CS0029: Não é possível converter implicitamente tipo "string" em "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Não é possível converter, sozinho, um texto (<code>string</code>) em número inteiro (<code>int</code>)". A coluna 9 aponta o <code>"trinta"</code>. Em inglês: <code>Cannot implicitly convert type 'string' to 'int'</code>. E um número com casas decimais numa caixa de <code>int</code>? O C# também recusa, para não jogar fora o <code>.9</code> sem você perceber:</p>
+
+<pre class="file" data-file="corta.cs · erro de propósito">int idade = 29;
+idade = 29.9;
+Console.WriteLine(idade);
+</pre>
+
+<pre class="term" data-cwd="~/cs/variaveis">$ dotnet run corta.cs
+/home/ana/cs/variaveis/corta.cs(2,9): error CS0266: Não é possível converter implicitamente tipo "double" em "int". Existe uma conversão explícita (há uma conversão ausente?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<dl class="anatomy">
+  <dt>Não é possível converter implicitamente tipo "double" em "int"</dt><dd>O <code>29.9</code> é um <code>double</code>. Guardá-lo num <code>int</code> perderia a parte decimal, e o C# não faz isso escondido.</dd>
+  <dt>Existe uma conversão explícita</dt><dd>"Mas existe um jeito de pedir": a conversão <strong>explícita</strong>, ou <strong>cast</strong>, que é escrever o tipo entre parênteses: <code>(int)29.9</code>.</dd>
+  <dt>(há uma conversão ausente?)</dt><dd>"Faltou um cast?". Em inglês, a mensagem toda é <code>Cannot implicitly convert type 'double' to 'int'. An explicit conversion exists (are you missing a cast?)</code>.</dd>
+</dl>
+
+<p>Com o cast, a decisão fica por sua conta, e escrita no código para todo mundo ver:</p>
+
+<pre class="term" data-cwd="~/cs/variaveis">$ dotnet run cast.cs                    « int idade = (int)29.9;
+29                       « o .9 foi cortado (não arredondado)</pre>
+
+<p>Os detalhes estão em <a href="conversao-tipos.html">Conversão de Tipos</a>. Para transformar um <strong>texto</strong> como <code>"30"</code> em número, o caminho é outro: <a href="parse.html">Parse e TryParse</a>.</p>
+
+<hr>
+
+<h2>3. Várias variáveis numa linha</h2>
+<p>Variáveis do <strong>mesmo tipo</strong> podem ser declaradas juntas, separadas por vírgula. Mas cuidado:</p>
+
+<pre class="file" data-file="linha.cs · erro de propósito">int a = 1, b = 2, c = 3;
+Console.WriteLine($"{a} {b} {c}");
+int x, y = 5;
+Console.WriteLine($"{x} {y}");
+</pre>
+
+<pre class="term" data-cwd="~/cs/variaveis">$ dotnet run linha.cs
+/home/ana/cs/variaveis/linha.cs(4,22): error CS0165: Uso de variável local não atribuída "x"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A linha 1 está certa: três variáveis, cada uma com seu valor. A linha 3 é a <strong>armadilha</strong>: quem lê <code>int x, y = 5;</code> pode achar que as duas valem 5, mas o <code>= 5</code> vale só para o <code>y</code>. O <code>x</code> ficou <strong>sem valor</strong>, e, na linha 4, coluna 22, a Ana tentou mostrá-lo. A seção 4 explica esse erro.</p>
+
+<div class="tip">
+<strong>Uma variável por linha</strong>
+<p>Declarar várias numa linha economiza espaço, mas esconde enganos como esse. As convenções do C# recomendam <strong>uma declaração por linha</strong>, cada uma com seu valor. Variáveis de tipos diferentes (um <code>int</code> e um <code>string</code>) nunca podem ir na mesma declaração.</p>
+</div>
+
+<hr>
+
+<h2>4. Variável sem valor: o erro <code>CS0165</code></h2>
+<p>O C# deixa você declarar uma variável sem valor (<code>int pontos;</code>) e dar o valor depois. O que ele <strong>não</strong> deixa é <strong>ler</strong> a variável antes de ela receber um valor:</p>
+
+<pre class="file" data-file="semvalor.cs · erro de propósito">int pontos;
+pontos = pontos + 10;
+Console.WriteLine($"Pontos: {pontos}");
+</pre>
+
+<pre class="term" data-cwd="~/cs/variaveis">$ dotnet run semvalor.cs
+/home/ana/cs/variaveis/semvalor.cs(2,10): error CS0165: Uso de variável local não atribuída "pontos"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<dl class="anatomy">
+  <dt>Uso de variável local</dt><dd>Você <strong>usou</strong> (leu) a variável. <strong>Local</strong> quer dizer criada ali dentro do programa, e não num campo de uma classe (aula <a href="campos.html">Campos</a>).</dd>
+  <dt>não atribuída</dt><dd>Ela nunca recebeu um valor. A coluna 10 aponta o <code>pontos</code> do lado <strong>direito</strong> do <code>=</code>: para calcular <code>pontos + 10</code>, o C# precisaria saber quanto vale <code>pontos</code> agora.</dd>
+  <dt>"pontos"</dt><dd>O nome da variável. Em inglês: <code>Use of unassigned local variable 'pontos'</code>.</dd>
+</dl>
+
+<p>Em linguagens mais antigas, como o C, esse programa compila e a variável vem com um valor qualquer, o "lixo" que estava na memória. O C# fecha essa porta: é um <code>error</code>, e o programa nem roda. O compilador confere, linha por linha, se toda variável lida já recebeu um valor antes. Ele confere até os caminhos de um <code>if</code> (aula <a href="if-else.html">if e else</a>; por enquanto, leia como uma frase):</p>
+
+<pre class="file" data-file="talvez.cs · erro de propósito">int compras = int.Parse(Console.ReadLine() ?? "0");
+int desconto;
+if (compras &gt; 10)
+{
+    desconto = 5;
+}
+else if (compras &gt; 5)
+{
+    desconto = 2;
+}
+int pagar = 100 - desconto;
+Console.WriteLine($"Você paga: {pagar} reais");
+</pre>
+
+<pre class="term" data-cwd="~/cs/variaveis">$ echo 3 | dotnet run talvez.cs
+/home/ana/cs/variaveis/talvez.cs(11,19): error CS0165: Uso de variável local não atribuída "desconto"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>(A linha 1 lê um número digitado; aula <a href="parse.html">Parse e TryParse</a>.) O <code>desconto</code> só recebe valor se a Ana fez mais de 5 compras. Com 5 ou menos, nenhum dos dois blocos roda, e a linha 11 leria uma caixa vazia. O compilador achou esse caminho sem nem rodar o programa, e não importa o número digitado: o programa não é gerado.</p>
+
+<div class="warning">
+<strong>Regra do guia: toda variável nasce com valor</strong>
+<p>Sempre que puder, dê o valor já na declaração: <code>int pontos = 0;</code>, <code>int desconto = 0;</code>. Se ainda não souber o valor certo, comece com zero (ou <code>""</code> para textos). O código fica mais claro e o <code>CS0165</code> nunca aparece.</p>
+</div>
+
+<div class="trycs" data-goal="out:Pontos: 10,semaviso">
+<p class="try-task"><strong>Missão:</strong> rode e leia o erro: qual variável está sem valor? Conserte <strong>só a linha da declaração</strong> dela, para o programa mostrar <code>Pontos: 10</code>.</p>
+<pre class="script">int pontos;
+int bonus = 10;
+pontos = pontos + bonus;
+Console.WriteLine($"Pontos: {pontos}");
+</pre>
+<pre class="solucao">int pontos = 0;
+int bonus = 10;
+pontos = pontos + bonus;
+Console.WriteLine($"Pontos: {pontos}");
+</pre>
+</div>
+
+<hr>
+
+<h2>5. Antes de declarar, duas vezes, fora do bloco</h2>
+<p>O compilador lê o arquivo de cima para baixo. Uma variável só pode ser usada <strong>da linha da declaração para baixo</strong>:</p>
+
+<pre class="file" data-file="antes.cs · erro de propósito">Console.WriteLine(total);
+int total = 50;
+</pre>
+
+<pre class="term" data-cwd="~/cs/variaveis">$ dotnet run antes.cs
+/home/ana/cs/variaveis/antes.cs(1,19): error CS0841: Não é possível usar a variável local "total" antes de declará-la
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A mensagem é clara: a <code>total</code> existe, mas só a partir da linha 2. Em inglês: <code>Cannot use local variable 'total' before it is declared</code>. Se o nome estivesse escrito errado (<code>totla</code>), o erro seria o <code>CS0103: O nome "totla" não existe no contexto atual</code> (aula <a href="erros-compilacao.html">Lendo Erros do Compilador</a>).</p>
+
+<p>E criar <strong>duas</strong> variáveis com o mesmo nome também é erro:</p>
+
+<pre class="file" data-file="dupla.cs · erro de propósito">int total = 50;
+int total = 80;
+Console.WriteLine(total);
+</pre>
+
+<pre class="term" data-cwd="~/cs/variaveis">$ dotnet run dupla.cs
+/home/ana/cs/variaveis/dupla.cs(2,5): error CS0128: Uma variável de local ou função denominada 'total' já está definida neste escopo
+/home/ana/cs/variaveis/dupla.cs(2,5): warning CS0219: A variável "total" é atribuída, mas seu valor nunca é usado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Uma variável local chamada <code>total</code> já está definida neste <strong>escopo</strong>" (o escopo é a região do código onde um nome vale; aqui, o arquivo todo). Em inglês: <code>A local variable or function named 'total' is already defined in this scope</code>. O aviso <code>CS0219</code> é consequência: a segunda <code>total</code>, que o compilador recusou, nunca é lida. Para mudar o valor, escreva <strong>sem</strong> o tipo: <code>total = 80;</code>. Repetir o <code>int</code> pede uma caixa <strong>nova</strong> com uma etiqueta que já existe.</p>
+
+<div class="trycs" data-goal="out:Total: 80,semaviso">
+<p class="try-task"><strong>Missão:</strong> este programa não compila. Rode, leia o erro e conserte a linha 2 para que ela só <strong>troque o valor</strong> de <code>total</code>. O programa deve mostrar <code>Total: 80</code>, sem avisos.</p>
+<pre class="script">int total = 50;
+int total = 80;
+Console.WriteLine($"Total: {total}");
+</pre>
+<pre class="solucao">int total = 50;
+total = 80;
+Console.WriteLine($"Total: {total}");
+</pre>
+</div>
+
+<h3>Uma variável vive dentro do seu bloco</h3>
+<p>Uma variável criada dentro de um bloco <code>{ }</code> só existe dentro dele. Depois da <code>}</code>, a etiqueta é jogada fora:</p>
+
+<pre class="file" data-file="bloco.cs · erro de propósito">int idade = 20;
+if (idade &gt;= 18)
+{
+    string mensagem = "Pode tirar a carteira.";
+    Console.WriteLine(mensagem);
+}
+Console.WriteLine(mensagem);
+</pre>
+
+<pre class="term" data-cwd="~/cs/variaveis">$ dotnet run bloco.cs
+/home/ana/cs/variaveis/bloco.cs(7,19): error CS0103: O nome "mensagem" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Na linha 7, fora do bloco, a <code>mensagem</code> não existe mais. Se você precisa dela depois do bloco, declare-a antes, do lado de fora. O assunto completo é a aula <a href="escopo.html">Escopo</a>.</p>
+
+<hr>
+
+<h2>6. Deixar o C# descobrir o tipo: <code>var</code></h2>
+<p>Quando o valor deixa o tipo óbvio, você pode escrever <code>var</code> no lugar do tipo, e o compilador descobre sozinho:</p>
+
+<pre class="file" data-file="var.cs · erro de propósito">var cidade = "Recife";
+var habitantes = 1500000;
+Console.WriteLine($"{cidade} tem {habitantes} habitantes.");
+cidade = 42;
+</pre>
+
+<pre class="term" data-cwd="~/cs/variaveis">$ dotnet run var.cs
+/home/ana/cs/variaveis/var.cs(4,10): error CS0029: Não é possível converter implicitamente tipo "int" em "string"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O <code>var</code> não cria uma caixa "de qualquer coisa": <code>cidade</code> virou <code>string</code> na linha 1, para sempre, e por isso o <code>42</code> da linha 4 foi recusado. O <code>var</code> é só um atalho para não escrever o tipo. Quando usar (e quando não) é assunto da aula <a href="var.html">Inferência com var</a>; enquanto você aprende os tipos, o guia escreve o tipo por extenso.</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0165: Uso de variável local não atribuída "x"</code></strong>
+<p><strong>O que significa:</strong> o programa lê uma variável que ainda não recebeu valor, ou que pode não ter recebido, em algum caminho (um <code>if</code> sem <code>else</code>). Também acontece com <code>int x, y = 5;</code>, em que só o <code>y</code> tem valor.</p>
+<p><strong>Como consertar:</strong> dê um valor na declaração: <code>int x = 0;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0841: Não é possível usar a variável local "x" antes de declará-la</code></strong>
+<p><strong>O que significa:</strong> a declaração está <strong>mais abaixo</strong> da linha que usa a variável.</p>
+<p><strong>Como consertar:</strong> mova a declaração para cima da primeira linha que usa a variável.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0103: O nome "x" não existe no contexto atual</code></strong>
+<p><strong>O que significa:</strong> o nome não existe ali: está escrito diferente (maiúscula, acento, letra trocada), ou a variável foi criada dentro de outro bloco <code>{ }</code>, que já terminou.</p>
+<p><strong>Como consertar:</strong> copie o nome da mensagem e compare com a declaração. Se ela está num bloco, declare-a antes do bloco.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0128: Uma variável de local ou função denominada 'x' já está definida neste escopo</code></strong>
+<p><strong>O que significa:</strong> o mesmo nome foi declarado duas vezes.</p>
+<p><strong>Como consertar:</strong> para trocar o valor, tire o tipo da segunda linha (<code>x = 80;</code>). Se são duas coisas diferentes, dê nomes diferentes.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0029</code> / <code>CS0266</code> / <code>CS0664</code>: o valor não cabe no tipo</strong>
+<p><strong>O que significa:</strong> o valor não é do tipo da variável: um texto num <code>int</code> (<code>CS0029</code>), um número com casas decimais num <code>int</code> (<code>CS0266</code>). Com dinheiro, há um parente, o <code>CS0664</code>, quando se esquece o <code>m</code>: <code>decimal preco = 12.50;</code> dá <code>Literal do tipo double não pode ser convertido implicitamente no tipo "decimal"; use um sufixo "M" para criar um literal desse tipo</code> (o <code>12.50</code> sem <code>m</code> é um <code>double</code>).</p>
+<p><strong>Como consertar:</strong> use um valor do tipo certo (<code>29</code>, <code>12.50m</code>), ou mude o tipo da variável. Se a perda é de propósito, use o cast: <code>(int)29.9</code>. Em inglês, o <code>CS0664</code> é <code>Literal of type double cannot be implicitly converted to type 'decimal'; use an 'M' suffix to create a literal of this type</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS0168</code> / <code>CS0219</code>: variável declarada (ou atribuída) e nunca usada</strong>
+<p><strong>O que significa:</strong> a variável foi criada e ninguém leu o valor dela. Muitas vezes é um nome escrito errado na linha que deveria usá-la.</p>
+<p><strong>Como consertar:</strong> use a variável ou apague-a (aula <a href="avisos.html">Avisos do Compilador</a>).</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>int x = 10;</code></td><td>Declara <code>x</code> com valor inicial 10</td></tr>
+<tr><td><code>string nome = "Ana";</code></td><td>Uma variável de texto</td></tr>
+<tr><td><code>decimal preco = 12.50m;</code></td><td>Uma variável de dinheiro (com <code>m</code>)</td></tr>
+<tr><td><code>int x;</code></td><td>Declara sem valor: não pode ser lida até receber um (<code>CS0165</code>)</td></tr>
+<tr><td><code>x = 20;</code></td><td>Atribui: troca o valor (sem repetir o tipo)</td></tr>
+<tr><td><code>x = x + 1;</code></td><td>Calcula com o valor atual e guarda o resultado</td></tr>
+<tr><td><code>int b = a;</code></td><td>Copia o valor de <code>a</code>; as duas ficam independentes</td></tr>
+<tr><td><code>int a = 1, b = 2;</code></td><td>Várias do mesmo tipo numa linha (cada uma com seu valor)</td></tr>
+<tr><td><code>Console.WriteLine(x);</code></td><td>Mostra o valor</td></tr>
+<tr><td><code>Console.WriteLine($"x vale {x}");</code></td><td>Mostra o valor no meio de um texto</td></tr>
+<tr><td><code>(int)29.9</code></td><td>Converte de propósito (cast): dá 29</td></tr>
+<tr><td><code>var cidade = "Recife";</code></td><td>O compilador descobre o tipo (<code>string</code>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Declarar</h3>
+<p>Complete para criar uma variável inteira <code>alunos</code> valendo 32:</p>
+<div class="ex-code"><input data-answer="int" aria-label="tipo"> alunos = 32;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Texto</h3>
+<p>Complete o tipo da variável que guarda o nome da escola:</p>
+<div class="ex-code"><input data-answer="string" aria-label="tipo"> escola = "Escola da Vila";</div>
+</div>
+
+<div class="exercise">
+<h3>3. Mostrar</h3>
+<p>Complete para mostrar <code>Turma com 32 alunos</code>, usando a variável <code>alunos</code>:</p>
+<div class="ex-code">Console.WriteLine($"Turma com <input data-answer="{alunos}" aria-label="valor"> alunos");</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Depois de <code>int x, y = 5;</code>, o que acontece com <code>Console.WriteLine(x);</code>?</p>
+<label><input type="radio" name="q4"> Mostra 5.</label>
+<label><input type="radio" name="q4"> Não compila: <code>CS0165</code>, porque <code>x</code> não tem valor.</label>
+<label><input type="radio" name="q4"> Mostra 0.</label>
+<label><input type="radio" name="q4"> Mostra um número qualquer, o "lixo" da memória.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. O que o programa mostra? <code>int a = 2; int b = a; a = 7; Console.WriteLine(b);</code></p>
+<label><input type="radio" name="q5"> 2</label>
+<label><input type="radio" name="q5"> 7</label>
+<label><input type="radio" name="q5"> 9</label>
+<label><input type="radio" name="q5"> Um erro de compilação</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. O que acontece com <code>int nota = 7.8;</code>?</p>
+<label><input type="radio" name="q6"> A nota vira 8, arredondada.</label>
+<label><input type="radio" name="q6"> A nota vira 7, em silêncio.</label>
+<label><input type="radio" name="q6"> A nota fica 7.8.</label>
+<label><input type="radio" name="q6"> Não compila: <code>CS0266</code>. Para cortar de propósito, use <code>(int)7.8</code>.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">7. A linha 2 tem <code>int total = 80;</code> e a linha 1 já tinha <code>int total = 50;</code>. O que o compilador diz?</p>
+<label><input type="radio" name="q7"> Nada: <code>total</code> passa a valer 80.</label>
+<label><input type="radio" name="q7"> <code>CS0165</code>: variável não atribuída.</label>
+<label><input type="radio" name="q7"> <code>CS0128</code>: já existe uma variável <code>total</code> neste escopo.</label>
+<label><input type="radio" name="q7"> <code>CS0841</code>: usada antes de declarar.</label>
+</div>
+
+<h3>Missão final: o caixa da lojinha</h3>
+
+<div class="trycs" data-goal="out:Total: 16\,50 reais,out:Total: 22\,00 reais,semaviso,src:quantidade\s*=\s*4\s*;,src:quantidade\s*\*\s*preco">
+<p class="try-task"><strong>Missão:</strong> a Ana vendeu 3 cadernos a <code>5.50m</code> cada. Declare <code>quantidade</code> (<code>int</code>, valendo 3) e <code>preco</code> (<code>decimal</code>, valendo <code>5.50m</code>), calcule <code>total</code> (<code>decimal</code>) como <code>quantidade * preco</code> (o <code>*</code> é "vezes") e mostre a primeira linha. Depois a cliente pegou mais um caderno: <strong>mude</strong> <code>quantidade</code> para 4 (sem declarar de novo), calcule o total outra vez e mostre a segunda linha. Sem avisos.</p>
+<pre class="out">Total: 16,50 reais
+Total: 22,00 reais</pre>
+<pre class="script">// declare quantidade, preco e total aqui
+
+// mostre o total
+
+// mude a quantidade, recalcule e mostre de novo
+</pre>
+<pre class="solucao">int quantidade = 3;
+decimal preco = 5.50m;
+decimal total = quantidade * preco;
+Console.WriteLine($"Total: {total} reais");
+
+quantidade = 4;
+total = quantidade * preco;
+Console.WriteLine($"Total: {total} reais");
+</pre>
+</div>
+
+<p>Repare que o <code>total</code> não muda sozinho quando a <code>quantidade</code> muda: a conta <code>quantidade * preco</code> é feita <strong>na hora</strong> em que a linha roda, e o resultado é guardado. Por isso a missão pede para calcular de novo. E o <code>decimal</code> guardou as duas casas do dinheiro: <code>22,00</code>, e não <code>22</code>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Variável = caixa com <strong>tipo</strong> (formato), <strong>nome</strong> (etiqueta) e <strong>valor</strong>. Declare com <code>tipo nome = valor;</code>.</li>
+  <li>Os tipos do começo: <code>string</code> (texto), <code>int</code> (inteiro), <code>double</code> (decimal), <code>decimal</code> (dinheiro, com <code>m</code>), <code>bool</code> (<code>true</code>/<code>false</code>) e <code>char</code> (um caractere).</li>
+  <li>Mostre com <code>Console.WriteLine(x)</code> ou, no meio de um texto, com <code>$"… {x} …"</code>.</li>
+  <li>Para mudar o valor: <code>nome = novo;</code>, sem repetir o tipo. O lado direito é calculado primeiro. Copiar (<code>b = a</code>) cria uma cópia independente.</li>
+  <li>O tipo nunca muda: texto num <code>int</code> dá <code>CS0029</code>; <code>29.9</code> num <code>int</code> dá <code>CS0266</code> (use <code>(int)</code> se quiser cortar de propósito).</li>
+  <li>Em <code>int x, y = 5;</code>, só o <code>y</code> vale 5. Prefira uma declaração por linha.</li>
+  <li>O C# não deixa ler uma variável sem valor (<code>CS0165</code>), nem em algum caminho de um <code>if</code>. Regra: toda variável nasce com valor.</li>
+  <li>A variável só existe da declaração para baixo (<code>CS0841</code>) e dentro do seu bloco (<code>CS0103</code>), e o mesmo nome não pode ser declarado duas vezes (<code>CS0128</code>).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
