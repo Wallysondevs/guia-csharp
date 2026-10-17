@@ -320,7 +320,7 @@ $ dotnet run semwhile.cs
 /home/ana/cs/semwhile.cs(7,26): error CS1026: ) esperado
 
 Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
-<p><strong>O que significa:</strong> o <code>do</code> não pode ficar sozinho: depois da chave de fechamento, o compilador espera o <code>while</code>. Os outros dois erros são consequência (ele tentou usar a linha seguinte como condição). No editor do guia aparece mais um, pelo mesmo motivo: <code>semwhile.cs(7,1): error CS0029: Não é possível converter implicitamente tipo "void" em "bool"</code>.</p>
+<p><strong>O que significa:</strong> o <code>do</code> não pode ficar sozinho: depois da chave de fechamento, o compilador espera o <code>while</code>. Os outros dois erros são consequência (ele tentou usar a linha seguinte como condição). O editor do guia mostra os mesmos três erros.</p>
 <p><strong>Como consertar:</strong> <code>} while (condição);</code> logo depois da chave.</p>
 </div>
 
