@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Métodos — criar, chamar e organizar o código | Guia C#</title>
+<meta name="description" content="Métodos em C# para quem nunca programou: por que usar, como declarar e chamar, o void, a ordem em que as linhas rodam, por que os métodos no fim de um arquivo com instruções de nível superior são funções locais, a forma com static numa classe e os erros reais do dotnet 10 (CS0103, CS1501, CS0029, CS0120, CS8321), com missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Métodos</span></h1>
+
+<p class="intro">Até aqui, todo o seu programa era uma lista de linhas, de cima para baixo. Isso funciona para programas pequenos, mas logo aparecem trechos repetidos, e o arquivo vira uma parede de <code>Console.WriteLine</code>. Um <strong>método</strong> é um pedaço de código com <strong>nome</strong>: você escreve as instruções uma vez e, depois, sempre que precisar, chama o nome. Nesta aula você vai criar seus primeiros métodos, entender em que ordem as linhas rodam e descobrir um detalhe importante do C# moderno: os métodos que você escreve no fim de um arquivo como o <code>ola.cs</code> são, na verdade, <strong>funções locais</strong>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é um método e por que ele deixa o programa mais curto e mais fácil de consertar.</li>
+  <li>Como <strong>declarar</strong> um método (escrever) e como <strong>chamar</strong> (usar).</li>
+  <li>Em que ordem as linhas rodam quando o programa entra e sai de um método.</li>
+  <li>O que quer dizer o <code>void</code> antes do nome.</li>
+  <li>Onde o método fica: no fim do arquivo (uma <strong>função local</strong>) ou dentro de uma classe, com <code>static</code>.</li>
+  <li>Os erros mais comuns: <code>CS0103</code>, <code>CS1501</code>, <code>CS0029</code>, <code>CS0201</code>, <code>CS0128</code>, <code>CS0120</code> e o aviso <code>CS8321</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com o <strong>.NET 10</strong> e o comando que você aprendeu em <a href="dotnet-run.html">Rodar com dotnet run</a>: <code>dotnet run arquivo.cs</code>. Você pode repetir cada um no editor do guia, que compila e roda C# de verdade no navegador.</p>
+
+<hr>
+
+<h2>A ideia: uma receita com nome</h2>
+<p>Pense no caderno de receitas da avó da Ana. Lá está escrito, uma vez só, como fazer a <strong>massa básica</strong>. Depois, a receita de pizza diz apenas "faça a massa básica", e a de pão também. Ninguém copia o passo a passo da massa em cada receita: basta citar o <strong>nome</strong>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>No caderno de receitas</th><th>Em C#</th><th>Nome técnico</th></tr>
+<tr><td>Escrever, uma vez, como se faz a massa básica</td><td>Escrever o nome do método e, entre <code>{ }</code>, as instruções</td><td><strong>declarar</strong> o método</td></tr>
+<tr><td>"Agora, faça a massa básica"</td><td>Escrever o nome do método seguido de <code>()</code></td><td><strong>chamar</strong> o método</td></tr>
+<tr><td>Voltar para a receita da pizza e continuar</td><td>O programa volta para a linha seguinte à chamada</td><td><strong>retornar</strong></td></tr>
+</table>
+</div>
+
+<p>Escrever a receita no caderno não faz pizza nenhuma. Só quando alguém <strong>segue</strong> a receita a massa aparece. Em C# é igual: declarar um método não executa nada; ele só roda quando é chamado.</p>
+
+<p>Você já usa métodos desde a primeira aula, só que escritos por outras pessoas: <code>Console.WriteLine</code> ("escrever linha no console") é um método da biblioteca do .NET, <code>Math.Sqrt</code> é outro, <code>texto.ToUpper()</code> também. Agora você vai escrever os seus.</p>
+
+<hr>
+
+<h2>1. O problema: código repetido</h2>
+<p>A Ana imprime um recibo para cada venda da lojinha. Sem métodos, a linha de <code>=</code> aparece repetida quatro vezes:</p>
+
+<pre class="file" data-file="recibo1.cs">Console.WriteLine("==============================");
+Console.WriteLine("  LOJINHA DA ANA");
+Console.WriteLine("==============================");
+Console.WriteLine("Caderno ......... R$ 12,50");
+Console.WriteLine("Caneta .......... R$  3,00");
+Console.WriteLine("==============================");
+Console.WriteLine("Total ........... R$ 15,50");
+Console.WriteLine("==============================");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run recibo1.cs
+==============================
+  LOJINHA DA ANA
+==============================
+Caderno ......... R$ 12,50
+Caneta .......... R$  3,00
+==============================
+Total ........... R$ 15,50
+==============================</pre>
+
+<p>Funciona, mas a linha de sinais de igual está escrita quatro vezes. Se a Ana quiser trocar <code>=</code> por <code>-</code>, precisa lembrar de corrigir em todos os lugares. Com dez recibos, seriam dezenas de cópias. É aqui que entra o método.</p>
+
+<hr>
+
+<h2>2. Seu primeiro método</h2>
+<p>A Ana coloca a linha num método chamado <code>Linha</code>, no fim do arquivo, e troca cada cópia por uma <strong>chamada</strong>:</p>
+
+<pre class="file" data-file="recibo2.cs">Linha();
+Console.WriteLine("  LOJINHA DA ANA");
+Linha();
+Console.WriteLine("Caderno ......... R$ 12,50");
+Console.WriteLine("Caneta .......... R$  3,00");
+Linha();
+Console.WriteLine("Total ........... R$ 15,50");
+Linha();
+
+void Linha()
+{
+    Console.WriteLine("==============================");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run recibo2.cs
+==============================
+  LOJINHA DA ANA
+==============================
+Caderno ......... R$ 12,50
+Caneta .......... R$  3,00
+==============================
+Total ........... R$ 15,50
+==============================</pre>
+
+<p>A saída é <strong>idêntica</strong> à do <code>recibo1.cs</code>. O que mudou foi o código: a linha está escrita <strong>uma vez só</strong>. Para trocar o desenho, basta editar uma linha.</p>
+
+<h3>Anatomia da declaração</h3>
+<p>Vamos olhar o método parte por parte:</p>
+
+<dl class="anatomy">
+  <dt>void</dt><dd>"Vazio": o método <strong>não devolve</strong> nenhum valor para quem o chamou. Ele só faz uma coisa (aqui, escrever na tela) e termina. Métodos que devolvem um resultado, como um total calculado, ficam para <a href="retorno.html">Valor de Retorno</a>.</dd>
+  <dt>Linha</dt><dd>O <strong>nome</strong>, escolhido por você. Segue as regras dos nomes de variáveis (<a href="identificadores.html">Nomes e Convenções</a>), mas, em C#, nomes de métodos começam com <strong>letra maiúscula</strong> e juntam as palavras com maiúsculas (<em>PascalCase</em>): <code>Linha</code>, <code>MostrarRecibo</code>, <code>CalcularTotal</code>. Use um verbo, ou algo que diga o que o método faz.</dd>
+  <dt>( )</dt><dd>Os <strong>parênteses</strong>, obrigatórios. Aqui estão vazios: o método não recebe nenhuma informação. Quando ele precisar receber dados (um nome, um preço), eles vão aqui dentro: é a aula <a href="parametros.html">Parâmetros</a>.</dd>
+  <dt>{ … }</dt><dd>O <strong>corpo</strong>: as instruções que rodam cada vez que o método é chamado. Podem ser quantas linhas você quiser.</dd>
+</dl>
+
+<p>E a chamada:</p>
+
+<dl class="anatomy">
+  <dt>Linha</dt><dd>O nome do método que você quer executar, escrito igualzinho à declaração. Maiúsculas e minúsculas contam: <code>linha()</code> é outro nome.</dd>
+  <dt>( )</dt><dd>Os parênteses dizem "execute agora". São obrigatórios, mesmo vazios.</dd>
+  <dt>;</dt><dd>Toda chamada é uma instrução e termina com ponto e vírgula, como o <code>Console.WriteLine(…);</code>.</dd>
+</dl>
+
+<div class="tip">
+<strong>Por que o método ficou no fim do arquivo?</strong>
+<p>Porque o programa da Ana é uma lista de instruções que começa na primeira linha. Se o método ficasse no meio, as instruções ficariam espalhadas e o arquivo seria difícil de ler. A regra do guia: <strong>primeiro as instruções do programa, depois os métodos</strong>. Na seção 4 você vai ver o que o compilador faz com eles.</p>
+</div>
+
+<div class="trycs" data-goal="outre:Obrigada e volte sempre!\n$,src:void\s+MostrarRodape\s*\(\s*\)">
+<p class="try-task"><strong>Missão:</strong> crie, no fim do arquivo, um método <code>MostrarRodape()</code> que escreva <code>Obrigada e volte sempre!</code>, e chame-o na última linha do programa (antes dos métodos). Use o <code>Linha</code> como modelo.</p>
+<pre class="script">Linha();
+Console.WriteLine("  LOJINHA DA ANA");
+Linha();
+Console.WriteLine("Caderno ......... R$ 12,50");
+Linha();
+
+void Linha()
+{
+    Console.WriteLine("==============================");
+}
+</pre>
+<pre class="solucao">Linha();
+Console.WriteLine("  LOJINHA DA ANA");
+Linha();
+Console.WriteLine("Caderno ......... R$ 12,50");
+Linha();
+MostrarRodape();
+
+void Linha()
+{
+    Console.WriteLine("==============================");
+}
+
+void MostrarRodape()
+{
+    Console.WriteLine("Obrigada e volte sempre!");
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Em que ordem as linhas rodam</h2>
+<p>O programa sempre começa pela <strong>primeira instrução</strong> do arquivo, de cima para baixo. Quando encontra uma chamada, ele <strong>pula</strong> para dentro do método, executa o corpo inteiro e <strong>volta</strong> para a linha seguinte. Os números deste exemplo mostram a ordem:</p>
+
+<pre class="file" data-file="ordem.cs">Console.WriteLine("1. O programa começou");
+Saudar();
+Console.WriteLine("3. Voltei para o programa");
+Saudar();
+Console.WriteLine("5. Fim");
+
+void Saudar()
+{
+    Console.WriteLine("   Olá! Eu sou o método Saudar.");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ordem.cs
+1. O programa começou
+   Olá! Eu sou o método Saudar.          « passo 2: a primeira chamada
+3. Voltei para o programa
+   Olá! Eu sou o método Saudar.          « passo 4: a segunda chamada
+5. Fim</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Passo</th><th>Onde o programa está</th><th>O que acontece</th></tr>
+<tr><td>1</td><td>linha 1</td><td>Escreve <code>1. O programa começou</code>.</td></tr>
+<tr><td>2</td><td>linha 2 → <code>Saudar</code></td><td>Encontra <code>Saudar();</code>, pula para o método (linha 9) e escreve a saudação. Ao chegar no <code>}</code> do método, volta.</td></tr>
+<tr><td>3</td><td>linha 3</td><td>Continua de onde parou: escreve <code>3. Voltei para o programa</code>.</td></tr>
+<tr><td>4</td><td>linha 4 → <code>Saudar</code></td><td>Pula de novo para o método. A mesma receita, seguida outra vez.</td></tr>
+<tr><td>5</td><td>linha 5</td><td>Escreve <code>5. Fim</code>. Não há mais instruções: o programa termina.</td></tr>
+</table>
+</div>
+
+<p>Repare: quando o programa chega na linha 5, ele <strong>não</strong> continua descendo para dentro de <code>Saudar</code> por conta própria. O método fica parado no fim do arquivo, esperando ser chamado. Se ninguém chamar, ele nunca roda.</p>
+
+<h3>Um método pode chamar outro</h3>
+<p>Qualquer método pode chamar outros. A Ana organizou o dia da lojinha assim:</p>
+
+<pre class="file" data-file="dia.cs">DiaDeTrabalho();
+
+void AbrirLoja()
+{
+    Console.WriteLine("Lojinha da Ana: aberta!");
+}
+
+void MostrarProdutos()
+{
+    Console.WriteLine("Hoje temos: caderno, caneta, borracha");
+}
+
+void FecharLoja()
+{
+    Console.WriteLine("Lojinha da Ana: fechada. Até amanhã!");
+}
+
+void DiaDeTrabalho()
+{
+    AbrirLoja();
+    MostrarProdutos();
+    FecharLoja();
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run dia.cs
+Lojinha da Ana: aberta!
+Hoje temos: caderno, caneta, borracha
+Lojinha da Ana: fechada. Até amanhã!</pre>
+
+<p>O programa tem uma instrução só: <code>DiaDeTrabalho();</code>. Esse método chama os outros três, um de cada vez, e cada um volta para quem o chamou quando termina. Ler o programa agora é como ler um índice: "faça o dia de trabalho"; quem quiser os detalhes abre o método.</p>
+<p>Repare também na ordem: <code>DiaDeTrabalho</code> foi escrito <strong>depois</strong> dos três que ele usa, mas a primeira linha do arquivo o chama antes de ele aparecer. Em C#, a ordem dos métodos <strong>não importa</strong>: o compilador lê o arquivo inteiro antes de montar o programa.</p>
+
+<div class="tip">
+<strong>E se um método chamar a si mesmo?</strong>
+<p>Isso existe e tem nome: <strong>recursão</strong>. É uma técnica poderosa, mas exige cuidado para não virar uma repetição sem fim. Ela tem uma aula só para ela: <a href="recursao.html">Recursão</a>.</p>
+</div>
+
+<hr>
+
+<h2>4. Onde os métodos moram: funções locais</h2>
+<p>Agora o detalhe prometido. Em <a href="top-level.html">Program.cs e o Main</a> você viu que um arquivo como o <code>ola.cs</code>, com as instruções soltas, é um atalho: o compilador embrulha essas instruções num método escondido, o <code>Main</code>, que é por onde todo programa C# começa. As instruções soltas se chamam <strong>instruções de nível superior</strong> (<em>top-level statements</em>) <span class="versao">C# 9</span>.</p>
+
+<p>E os métodos que você escreveu no fim do arquivo? Eles também vão para <strong>dentro</strong> desse <code>Main</code> escondido. Um método declarado dentro de outro método se chama <strong>função local</strong> (<em>local function</em>) <span class="versao">C# 7</span>. Para o compilador, o <code>recibo2.cs</code> é mais ou menos isto:</p>
+
+<pre class="file" data-file="o que o compilador monta (simplificado)">class Program
+{
+    static void Main(string[] args)
+    {
+        Linha();
+        Console.WriteLine("  LOJINHA DA ANA");
+        // ... as outras instruções ...
+
+        void Linha()        // função local: mora dentro do Main
+        {
+            Console.WriteLine("==============================");
+        }
+    }
+}
+</pre>
+
+<p>Dá para ver isso com os próprios olhos. Quando um programa quebra, o .NET mostra o caminho das chamadas até o erro. Este método tenta ler a posição 5 de um array que só tem 2 posições (o erro de <a href="arrays.html">Arrays</a>):</p>
+
+<pre class="file" data-file="prova.cs">Console.WriteLine("Antes da chamada");
+Quebrar();
+
+void Quebrar()
+{
+    int[] notas = { 7, 8 };
+    Console.WriteLine(notas[5]);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run prova.cs
+Antes da chamada
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Program.&lt;&lt;Main&gt;$&gt;g__Quebrar|0_0() in /home/ana/cs/prova.cs:line 7
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/prova.cs:line 2</pre>
+
+<dl class="anatomy">
+  <dt>at Program.&lt;Main&gt;$(String[] args) … line 2</dt><dd>"Em <code>Program.&lt;Main&gt;$</code>": é o <code>Main</code> escondido, com o nome estranho que o compilador dá a ele. A chamada <code>Quebrar();</code> está na linha 2.</dd>
+  <dt>at Program.&lt;&lt;Main&gt;$&gt;g__Quebrar|0_0() … line 7</dt><dd>O seu método. O nome completo, montado pelo compilador, diz "a função <code>Quebrar</code>, <strong>dentro</strong> de <code>&lt;Main&gt;$</code>". Esse <code>g__</code> é a marca que o compilador põe nas funções locais. O erro aconteceu na linha 7.</dd>
+</dl>
+
+<p>Você não precisa decorar esses nomes. O que importa é saber que, num arquivo com instruções de nível superior, <strong>os seus métodos são funções locais do <code>Main</code></strong>. Na prática, isso traz quatro consequências que você vai encontrar:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Consequência</th><th>O que você vê</th></tr>
+<tr><td>A ordem não importa: dá para chamar antes de declarar</td><td>O <code>DiaDeTrabalho();</code> da primeira linha funcionou</td></tr>
+<tr><td>As mensagens do compilador falam em <strong>função local</strong></td><td><code>warning CS8321: A função local 'Linha' está declarada, mas nunca é usada</code> (veja em "Quando dá errado")</td></tr>
+<tr><td>Uma função local enxerga as variáveis do programa</td><td>Útil, mas pode confundir; a aula <a href="escopo.html">Escopo</a> mostra quando isso morde</td></tr>
+<tr><td>Classes vêm depois de tudo</td><td>Se você declarar uma <code>class</code> e escrever instruções depois dela, dá <code>CS8803</code></td></tr>
+</table>
+</div>
+
+<p>A última linha da tabela, com o erro real:</p>
+
+<pre class="file" data-file="depoisclasse.cs">Linha();
+
+class Loja
+{
+}
+
+Console.WriteLine("Fim");
+
+void Linha()
+{
+    Console.WriteLine("==========");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run depoisclasse.cs
+/home/ana/cs/depoisclasse.cs(7,1): error CS8803: As instruções de nível superior precisam preceder as declarações de namespace e de tipo.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p><em>Precisam preceder</em> = "precisam vir antes". As instruções e as funções locais formam um bloco só, o <code>Main</code>; uma <code>class</code> (um "tipo") no meio corta esse bloco. Conserto: mova a <code>class Loja</code> para o fim do arquivo. Classes são assunto de <a href="classes-objetos.html">Classes e Objetos</a>.</p>
+
+<hr>
+
+<h2>5. A forma com <code>static</code> numa classe</h2>
+<p>Quase todo código C# escrito antes do .NET 6, e muito código de hoje, não usa instruções de nível superior. Ele escreve a classe e o <code>Main</code> por extenso, e os métodos ficam <strong>dentro da classe</strong>, ao lado do <code>Main</code>, com a palavra <code>static</code>:</p>
+
+<pre class="file" data-file="classe.cs">class Program
+{
+    static void Main()
+    {
+        Linha();
+        Console.WriteLine("  LOJINHA DA ANA");
+        Linha();
+    }
+
+    static void Linha()
+    {
+        Console.WriteLine("==============================");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run classe.cs
+==============================
+  LOJINHA DA ANA
+==============================</pre>
+
+<dl class="anatomy">
+  <dt>class Program { … }</dt><dd>A <strong>classe</strong>, a "caixa" onde mora o código. Por enquanto, ela só serve de casa para os métodos (o que mais uma classe faz é o assunto do Nível 2, em <a href="classes-objetos.html">Classes e Objetos</a>).</dd>
+  <dt>static void Main()</dt><dd>O método por onde o programa começa, agora escrito por você. Ele é <code>static</code> porque o .NET o chama logo no início, quando ainda não existe nada criado.</dd>
+  <dt>static void Linha()</dt><dd>O seu método. Ele fica <strong>dentro da classe</strong> e <strong>fora do <code>Main</code></strong>, como irmão do <code>Main</code>. Isso <strong>não</strong> é uma função local: é um <strong>método da classe</strong>. O <code>static</code> ("estático", "da classe") permite que o <code>Main</code>, que também é <code>static</code>, o chame direto.</dd>
+</dl>
+
+<p>Os dois arquivos (<code>recibo2.cs</code> e <code>classe.cs</code>) fazem a mesma coisa. Aqui também a ordem não importa: <code>Linha</code> poderia vir antes do <code>Main</code>. E o que acontece se você esquecer o <code>static</code>?</p>
+
+<pre class="file" data-file="semstatic.cs">class Program
+{
+    static void Main()
+    {
+        Linha();
+    }
+
+    void Linha()
+    {
+        Console.WriteLine("==============================");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run semstatic.cs
+/home/ana/cs/semstatic.cs(5,9): error CS0120: Uma referência de objeto é necessária para o campo, o método ou a propriedade "Program.Linha()" não estática
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Em inglês, <em>An object reference is required for the non-static field, method, or property</em>. Um método sem <code>static</code> pertence a um <strong>objeto</strong>, uma "coisa" criada a partir da classe, e o <code>Main</code> não tem objeto nenhum na mão. Enquanto você não aprende objetos, a regra é simples: <strong>dentro de uma classe, ao lado do <code>Main</code>, escreva <code>static</code></strong>. A aula <a href="static.html">static</a> explica o assunto por inteiro.</p>
+
+<div class="trycs" data-goal="out:==========,src:static\s+void\s+Linha\s*\(">
+<p class="try-task"><strong>Missão:</strong> este programa não compila: dá <code>CS0120</code>. Conserte com uma palavra, sem mudar mais nada, e rode.</p>
+<pre class="script">class Program
+{
+    static void Main()
+    {
+        Linha();
+        Console.WriteLine("Recibo da lojinha");
+        Linha();
+    }
+
+    void Linha()
+    {
+        Console.WriteLine("==========");
+    }
+}
+</pre>
+<pre class="solucao">class Program
+{
+    static void Main()
+    {
+        Linha();
+        Console.WriteLine("Recibo da lojinha");
+        Linha();
+    }
+
+    static void Linha()
+    {
+        Console.WriteLine("==========");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Formas diferentes de escrever métodos</h2>
+<p>Você vai encontrar três jeitos, e os três compilam no .NET 10:</p>
+
+<h3>1. No fim de um arquivo com instruções de nível superior (a forma do guia)</h3>
+<p>É o que você fez nesta aula: <code>void Linha() { … }</code> depois das instruções. São funções locais do <code>Main</code> escondido.</p>
+
+<h3>2. O mesmo, com <code>static</code></h3>
+<p>Muitos exemplos da internet (e da própria Microsoft) escrevem <code>static</code> também no fim de um arquivo com instruções de nível superior:</p>
+
+<pre class="file" data-file="estatico.cs">Linha();
+Console.WriteLine("  LOJINHA DA ANA");
+Linha();
+
+static void Linha()
+{
+    Console.WriteLine("==============================");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run estatico.cs
+==============================
+  LOJINHA DA ANA
+==============================</pre>
+
+<p>Continua sendo uma função local. O <code>static</code>, aqui, tem outro sentido: "esta função <strong>não usa</strong> as variáveis do programa" <span class="versao">C# 8</span>. Se ela tentar usar, o compilador reclama. A diferença só aparece quando há variáveis no meio, e é explicada em <a href="funcoes-locais.html">Funções Locais</a>.</p>
+
+<h3>3. Numa classe, com <code>static</code></h3>
+<p>A forma da seção 5. É a que você vai ver em projetos grandes, em livros e em código antigo, e a que o guia usa quando o programa passa a ter vários arquivos (<a href="projetos-console.html">Projetos</a>).</p>
+
+<h3>Qual usar?</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Forma</th></tr>
+<tr><td>Exercícios deste guia, programas de um arquivo (<code>dotnet run arquivo.cs</code>)</td><td>Instruções no topo, <code>void Nome() { … }</code> no fim</td></tr>
+<tr><td>Quer garantir que o método não mexe nas variáveis do programa</td><td>A mesma, com <code>static void Nome()</code></td></tr>
+<tr><td>Projetos com vários arquivos, código que outras classes vão usar, código anterior ao .NET 6</td><td><code>class</code> + <code>static void Nome()</code> ao lado do <code>Main</code></td></tr>
+</table>
+</div>
+
+<div class="note">
+<strong>Método ou função?</strong>
+<p>Em outras linguagens (C, Python, JavaScript) você vai ouvir "função". Em C#, todo bloco de código com nome mora numa classe e se chama <strong>método</strong> (do inglês <em>method</em>, "modo de fazer"). A função local é um caso especial: um método que mora dentro de outro método. No dia a dia, quase todo mundo chama tudo de "método", e o guia também; o nome "função local" importa quando ele aparece numa mensagem do compilador.</p>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0103: O nome "Linah" não existe no contexto atual</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run digitou.cs
+/home/ana/cs/digitou.cs(1,1): error CS0103: O nome "Linah" não existe no contexto atual
+/home/ana/cs/digitou.cs(3,6): warning CS8321: A função local 'Linha' está declarada, mas nunca é usada
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> a linha 1 chama <code>Linah()</code>, mas o método se chama <code>Linha</code>. Em inglês: <em>The name 'Linah' does not exist in the current context</em>. O aviso que vem junto é consequência: como ninguém chamou o <code>Linha</code> de verdade, ele ficou sem uso. O mesmo erro aparece com <code>linha()</code> (minúscula).</p>
+<p><strong>Como consertar:</strong> confira o nome letra por letra, com maiúsculas e minúsculas. Conserte o erro e o aviso some junto.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1501: Nenhuma sobrecarga para o método "Linha" leva 1 argumentos</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run argumento.cs
+/home/ana/cs/argumento.cs(1,1): error CS1501: Nenhuma sobrecarga para o método "Linha" leva 1 argumentos
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> a chamada foi <code>Linha(5);</code>, mas o método não recebe nada. <strong>Argumento</strong> é o valor entre os parênteses da chamada; <strong>sobrecarga</strong> é uma versão do método (um método pode ter várias, veja <a href="sobrecarga.html">Sobrecarga</a>). Em inglês: <em>No overload for method 'Linha' takes 1 arguments</em>.</p>
+<p><strong>Como consertar:</strong> tire o valor (<code>Linha();</code>) ou, se o método deveria mesmo receber um número, acrescente um parâmetro (<a href="parametros.html">Parâmetros</a>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0029: Não é possível converter implicitamente tipo "void" em "int"</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run usarvoid.cs
+/home/ana/cs/usarvoid.cs(1,9): error CS0029: Não é possível converter implicitamente tipo "void" em "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> a linha <code>int x = Linha();</code> tenta guardar o "resultado" de um método <code>void</code>, que não devolve nada. Não há o que guardar em <code>x</code>.</p>
+<p><strong>Como consertar:</strong> chame o método sozinho na linha (<code>Linha();</code>). Se você precisa de um resultado, o método tem de devolver um, com outro tipo no lugar do <code>void</code> e um <code>return</code> (<a href="retorno.html">Valor de Retorno</a>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0201: Somente as expressões de atribuição, chamada, incremento, diminuição, espera e novo objeto podem ser utilizadas como uma instrução</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run semparen.cs
+/home/ana/cs/semparen.cs(1,1): error CS0201: Somente as expressões de atribuição, chamada, incremento, diminuição, espera e novo objeto podem ser utilizadas como uma instrução
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> a linha foi <code>Linha;</code>, sem parênteses. Sem eles, você só cita o nome do método, e citar um nome não é uma instrução: o compilador lista o que pode ficar sozinho numa linha, e "chamada" é uma delas.</p>
+<p><strong>Como consertar:</strong> escreva <code>Linha();</code>. Toda chamada leva parênteses, mesmo vazios.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0128: Uma variável de local ou função denominada 'Linha' já está definida neste escopo</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run duplo.cs
+/home/ana/cs/duplo.cs(8,6): error CS0128: Uma variável de local ou função denominada 'Linha' já está definida neste escopo
+/home/ana/cs/duplo.cs(8,6): warning CS8321: A função local 'Linha' está declarada, mas nunca é usada
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> há dois <code>void Linha()</code> no arquivo, e a linha 8 é o segundo. Repare na palavra <strong>função</strong> (local): a mensagem vem do fato de os seus métodos morarem dentro do <code>Main</code>.</p>
+<p><strong>Como consertar:</strong> apague um deles ou dê outro nome (<code>LinhaDupla</code>, por exemplo).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8112: A função local 'Linha()' deve declarar um corpo porque não está marcado como 'static extern'.</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run pontovirg.cs
+/home/ana/cs/pontovirg.cs(3,6): error CS8112: A função local 'Linha()' deve declarar um corpo porque não está marcado como 'static extern'.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> sobrou um <code>;</code> no fim da declaração: <code>void Linha();</code> seguido de <code>{</code>. Com o <code>;</code>, a declaração termina ali, sem corpo, e as chaves da linha de baixo viram um bloco solto. Ignore o <code>static extern</code>: é um recurso avançado que você não vai usar.</p>
+<p><strong>Como consertar:</strong> na <strong>declaração</strong>, nada de <code>;</code> entre o <code>)</code> e a <code>{</code>. O <code>;</code> vai na <strong>chamada</strong>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS8321: A função local 'Linha' está declarada, mas nunca é usada</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run naousado.cs
+/home/ana/cs/naousado.cs(3,6): warning CS8321: A função local 'Linha' está declarada, mas nunca é usada
+Bom dia!</pre>
+<p><strong>O que significa:</strong> é um <strong>aviso</strong>, não um erro: o programa rodou e mostrou <code>Bom dia!</code>. O compilador só está dizendo que você escreveu o método <code>Linha</code> e ninguém o chama. Em geral é esquecimento, ou um nome digitado errado na chamada.</p>
+<p><strong>Como consertar:</strong> chame o método onde ele deveria rodar, ou apague-o se não precisa mais dele.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0120: Uma referência de objeto é necessária…</code></strong>
+<p><strong>O que significa:</strong> numa classe, você chamou do <code>Main</code> um método escrito sem <code>static</code> (seção 5).</p>
+<p><strong>Como consertar:</strong> escreva <code>static void Linha()</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>void Nome() { … }</code></td><td>Declara um método que não recebe nada e não devolve nada</td></tr>
+<tr><td><code>Nome();</code></td><td>Chama o método: roda o corpo e volta para a linha seguinte</td></tr>
+<tr><td><code>void</code> antes do nome</td><td>O método não devolve valor</td></tr>
+<tr><td><code>()</code> vazio na declaração</td><td>O método não recebe valores</td></tr>
+<tr><td>Método no fim de um arquivo com instruções de nível superior</td><td>Função local do <code>Main</code> escondido; pode ser chamado de qualquer linha do programa</td></tr>
+<tr><td><code>static void Nome()</code> no fim desse arquivo</td><td>Função local que não usa as variáveis do programa</td></tr>
+<tr><td><code>static void Nome()</code> dentro de <code>class Program</code></td><td>Método da classe, chamado direto pelo <code>static void Main()</code></td></tr>
+<tr><td>PascalCase: <code>MostrarRecibo</code></td><td>A convenção do C# para nomes de métodos</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Chamar o método</h3>
+<p>Complete a linha que chama o método <code>Apitar</code>, declarado como <code>void Apitar()</code>:</p>
+<div class="ex-code"><input data-answer="Apitar();" aria-label="chamada"></div>
+</div>
+
+<div class="exercise">
+<h3>2. O tipo que não devolve nada</h3>
+<p>Complete a declaração de um método que só mostra um texto e não devolve valor:</p>
+<div class="ex-code"><input data-answer="void" aria-label="tipo de retorno"> Avisar()</div>
+</div>
+
+<div class="exercise">
+<h3>3. Dentro da classe</h3>
+<p>Dentro de <code>class Program</code>, ao lado do <code>static void Main()</code>, qual palavra vem antes de <code>void Menu()</code> para o <code>Main</code> poder chamá-lo?</p>
+<div class="ex-code"><input data-answer="static" aria-label="palavra"> void Menu()</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Um programa declara <code>void Ola()</code> no fim do arquivo, mas nenhuma linha chama <code>Ola()</code>. O que acontece?</p>
+<label><input type="radio" name="q4"> O texto de <code>Ola</code> aparece no fim do programa</label>
+<label><input type="radio" name="q4"> O texto não aparece, e o compilador avisa <code>CS8321</code>: a função local nunca é usada</label>
+<label><input type="radio" name="q4"> O programa não compila</label>
+<label><input type="radio" name="q4"> O texto aparece no começo do programa</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Num arquivo com instruções de nível superior, o que são os métodos escritos no fim do arquivo?</p>
+<label><input type="radio" name="q5"> Métodos de uma classe chamada <code>Metodos</code></label>
+<label><input type="radio" name="q5"> Instruções que rodam depois das outras</label>
+<label><input type="radio" name="q5"> Funções locais do <code>Main</code> que o compilador monta</label>
+<label><input type="radio" name="q5"> Erro: métodos só podem existir dentro de uma classe</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. A primeira linha do arquivo chama <code>Fechar();</code>, e o método <code>Fechar</code> está escrito na última linha. O que acontece?</p>
+<label><input type="radio" name="q6"> Funciona: em C#, a ordem dos métodos não importa</label>
+<label><input type="radio" name="q6"> Erro <code>CS0103</code>: o método tem de vir antes da chamada</label>
+<label><input type="radio" name="q6"> O método roda duas vezes</label>
+<label><input type="radio" name="q6"> Aviso <code>CS8321</code></label>
+</div>
+
+<h3>Missão final: o recibo da lojinha</h3>
+
+<div class="trycs" data-goal="outre:^==========\n  LOJINHA DA ANA\n==========\nCaderno   R\$ 12\,50\n==========\nObrigada e volte sempre!\n$,src:void\s+Linha\s*\(\s*\),src:void\s+Cabecalho\s*\(\s*\),src:void\s+Rodape\s*\(\s*\),semaviso">
+<p class="try-task"><strong>Missão:</strong> monte o recibo com três métodos, todos <code>void</code> e sem parâmetros, escritos no fim do arquivo:</p>
+<ul class="try-task">
+  <li><code>Linha</code>: mostra <code>==========</code> (dez sinais de igual);</li>
+  <li><code>Cabecalho</code>: chama <code>Linha</code>, mostra <code>  LOJINHA DA ANA</code> (com dois espaços na frente) e chama <code>Linha</code> de novo;</li>
+  <li><code>Rodape</code>: chama <code>Linha</code> e mostra <code>Obrigada e volte sempre!</code>.</li>
+</ul>
+<p class="try-task">As três instruções do programa já estão prontas. A saída tem de ser exatamente esta, sem avisos:</p>
+<pre class="out">==========
+  LOJINHA DA ANA
+==========
+Caderno   R$ 12,50
+==========
+Obrigada e volte sempre!</pre>
+<pre class="script">Cabecalho();
+Console.WriteLine("Caderno   R$ 12,50");
+Rodape();
+
+// escreva aqui os métodos Linha, Cabecalho e Rodape
+</pre>
+<pre class="solucao">Cabecalho();
+Console.WriteLine("Caderno   R$ 12,50");
+Rodape();
+
+void Linha()
+{
+    Console.WriteLine("==========");
+}
+
+void Cabecalho()
+{
+    Linha();
+    Console.WriteLine("  LOJINHA DA ANA");
+    Linha();
+}
+
+void Rodape()
+{
+    Linha();
+    Console.WriteLine("Obrigada e volte sempre!");
+}
+</pre>
+</div>
+
+<p>Se você esqueceu de escrever um dos métodos, o compilador reclamou com <code>CS0103</code>. Se escreveu um método a mais e não o chamou, apareceu o aviso <code>CS8321</code>, e a meta "sem avisos" ficou de fora.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Método = pedaço de código com nome. <strong>Declarar</strong> escreve a receita; <strong>chamar</strong> (<code>Nome();</code>) executa. O programa pula para o método e volta para a linha seguinte.</li>
+  <li>Métodos evitam código repetido: conserta-se num lugar só, e o programa fica mais fácil de ler e de dividir.</li>
+  <li><code>void</code> antes do nome: não devolve nada. Parênteses vazios: não recebe nada. Nomes em PascalCase.</li>
+  <li>Num arquivo com instruções de nível superior, os métodos do fim do arquivo são <strong>funções locais</strong> do <code>Main</code> escondido: podem ser chamados de qualquer linha, e as mensagens do compilador falam em "função local".</li>
+  <li>Na forma com classe, os métodos ficam dentro de <code>class Program</code>, ao lado do <code>Main</code>, com <code>static</code>. Sem o <code>static</code>, dá <code>CS0120</code>.</li>
+  <li>Erros típicos: <code>CS0103</code> (nome errado), <code>CS1501</code> (argumento a mais), <code>CS0029</code> (usar o resultado de um <code>void</code>), <code>CS0201</code> (faltou o <code>()</code>), <code>CS0128</code> (nome repetido), <code>CS8112</code> (<code>;</code> antes da <code>{</code>) e o aviso <code>CS8321</code> (método nunca usado).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
