@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Tipos de Dados — int, double, decimal, char, bool e string | Guia C#</title>
+<meta name="description" content="Tipos de dados em C# para quem nunca programou: int, double, decimal, char, bool e string, o que cada um guarda, quantos bytes ocupa (sizeof), o nome .NET de cada palavra-chave (int = System.Int32), GetType, valores padrão e os erros CS0029, CS0266 e CS0165, com saídas reais do .NET 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Tipos de Dados</span></h1>
+
+<p class="intro">Na aula <a href="variaveis.html">Variáveis</a> você criou caixas com nome para guardar valores. Mas cada caixa do C# só aceita <strong>um tipo</strong> de valor: uma guarda números inteiros, outra guarda números com vírgula, outra guarda texto. Esse "tipo" é o <strong>tipo de dado</strong>. Nesta aula você vai conhecer os tipos que vai usar todos os dias, ver o que cada um guarda e entender por que o compilador reclama quando você tenta pôr um texto numa caixa de número.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Os seis tipos do dia a dia: <code>int</code>, <code>double</code>, <code>decimal</code>, <code>char</code>, <code>bool</code> e <code>string</code>.</li>
+  <li>Qual tipo escolher para cada informação (idade, altura, preço, letra, sim/não, nome).</li>
+  <li>Quantos bytes cada tipo ocupa, com <code>sizeof</code>.</li>
+  <li>Que <code>int</code> é um apelido de <code>System.Int32</code>, e como descobrir o tipo de um valor com <code>GetType()</code>.</li>
+  <li>O valor padrão de cada tipo (<code>default</code>).</li>
+  <li>Os erros que aparecem quando o tipo não combina: <code>CS0029</code>, <code>CS0266</code> e <code>CS0165</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>, Ubuntu em português), na pasta <code>~/cs</code>, com o comando <code>dotnet run arquivo.cs</code> (aula <a href="dotnet-run.html">Rodar com dotnet run</a>).</p>
+
+<hr>
+
+<h2>A ideia: potes para cada coisa</h2>
+<p>Na cozinha da Ana, cada coisa vai num recipiente próprio: o açúcar no pote, o leite na garrafa, os ovos na caixinha. Ninguém põe leite na caixinha de ovos: não cabe, e vazaria.</p>
+<p>No C# é igual. Antes de guardar um valor, você diz <strong>que tipo de pote</strong> a variável é. Esse tipo decide três coisas:</p>
+<ul>
+  <li><strong>o que</strong> cabe nela (número inteiro, número com vírgula, texto…);</li>
+  <li><strong>quanto</strong> espaço ela ocupa na memória;</li>
+  <li><strong>o que dá para fazer</strong> com ela (somar dois números faz sentido; "somar" duas letras, nem tanto).</li>
+</ul>
+<p>E o C# confere tudo isso <strong>antes</strong> de o programa rodar, na compilação. Por isso se diz que o C# é uma linguagem de <strong>tipagem estática e forte</strong>: o tipo de cada variável é decidido no código e nunca muda.</p>
+
+<hr>
+
+<h2>1. Os seis tipos do dia a dia</h2>
+<p>A ficha de cadastro da Ana na lojinha tem seis informações, e cada uma pede um tipo diferente:</p>
+
+<pre class="file" data-file="tipos.cs">int idade = 29;
+double altura = 1.65;
+decimal saldo = 1250.75m;
+char inicial = 'A';
+bool cadastrada = true;
+string nome = "Ana";
+
+Console.WriteLine(nome);
+Console.WriteLine(idade);
+Console.WriteLine(altura);
+Console.WriteLine(saldo);
+Console.WriteLine(inicial);
+Console.WriteLine(cadastrada);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tipos.cs
+Ana
+29
+1,65
+1250,75
+A
+True</pre>
+
+<dl class="anatomy">
+  <dt>int idade = 29;</dt><dd><code>int</code> vem de <em>integer</em>, "inteiro": números sem vírgula, positivos ou negativos. É o tipo padrão para contar coisas: idade, quantidade, pontos. Aula <a href="inteiros.html">Inteiros</a>.</dd>
+  <dt>double altura = 1.65;</dt><dd><code>double</code> ("duplo", de "precisão dupla"): números com vírgula, para medidas como altura, peso e distância. No código, a vírgula se escreve com <strong>ponto</strong>: <code>1.65</code>. Aula <a href="decimais.html">float, double e decimal</a>.</dd>
+  <dt>decimal saldo = 1250.75m;</dt><dd><code>decimal</code>: números com vírgula <strong>exatos</strong>, feitos para dinheiro. O <code>m</code> no fim do número diz "este número é <code>decimal</code>" (de <em>money</em>, "dinheiro"). Sem ele, o C# acha que <code>1250.75</code> é <code>double</code>.</dd>
+  <dt>char inicial = 'A';</dt><dd><code>char</code> vem de <em>character</em>, "caractere": <strong>um</strong> caractere só, entre aspas simples. Aula <a href="char-bool.html">char e bool</a>.</dd>
+  <dt>bool cadastrada = true;</dt><dd><code>bool</code> (de <em>boolean</em>, "booleano"): só dois valores, <code>true</code> (verdadeiro) e <code>false</code> (falso). Serve para respostas de sim ou não.</dd>
+  <dt>string nome = "Ana";</dt><dd><code>string</code> ("cadeia", de letras): um texto de qualquer tamanho, entre aspas duplas. Aula <a href="strings.html">Strings</a>.</dd>
+</dl>
+
+<p>Repare em duas coisas na saída:</p>
+<ul>
+  <li>No código você escreveu <code>1.65</code>, com ponto, mas a saída mostra <code>1,65</code>, com vírgula. O código C# é sempre em "inglês" (ponto decimal), mas o <code>Console.WriteLine</code> mostra os números do jeito do país do computador, e o Ubuntu da Ana está em português do Brasil. Isso se chama <strong>cultura</strong> e tem aula própria: <a href="cultura.html">Cultura (pt-BR × en-US)</a>.</li>
+  <li>O <code>true</code> virou <code>True</code>, com T maiúsculo. No código é sempre minúsculo; na hora de mostrar, o .NET escreve <code>True</code> e <code>False</code> (e não traduz para "Verdadeiro").</li>
+</ul>
+
+<h3>Qual tipo usar para cada informação</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>A informação é…</th><th>Exemplo</th><th>Tipo</th><th>Valor no código</th></tr>
+<tr><td>Uma contagem, sem vírgula</td><td>idade, quantidade, pontos</td><td><code>int</code></td><td><code>29</code></td></tr>
+<tr><td>Uma medida, com vírgula</td><td>altura, peso, temperatura</td><td><code>double</code></td><td><code>1.65</code></td></tr>
+<tr><td>Dinheiro</td><td>preço, saldo, salário</td><td><code>decimal</code></td><td><code>19.90m</code></td></tr>
+<tr><td>Uma letra ou símbolo</td><td>inicial, sexo na ficha, tecla</td><td><code>char</code></td><td><code>'A'</code></td></tr>
+<tr><td>Sim ou não</td><td>está logado? é maior de idade?</td><td><code>bool</code></td><td><code>true</code> / <code>false</code></td></tr>
+<tr><td>Um texto</td><td>nome, e-mail, endereço</td><td><code>string</code></td><td><code>"Ana"</code></td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>CPF, CEP e telefone são texto</strong>
+<p>Eles são feitos de dígitos, mas não são números: ninguém soma dois CEPs, e o zero da frente importa (<code>01310-100</code>). Guarde-os em <code>string</code>: <code>string cep = "01310-100";</code>.</p>
+</div>
+
+<div class="trycs" data-goal="out:Idade: 29,semaviso,src:\bint\s+idade\s*=\s*29\s*;">
+<p class="try-task"><strong>Missão:</strong> o programa não compila: a caixa <code>idade</code> é <code>int</code>, mas recebeu um texto (<code>"29"</code>, entre aspas). Clique em Rodar para ver o erro <code>CS0029</code> e depois conserte, guardando o <strong>número</strong> 29, para mostrar <code>Idade: 29</code>.</p>
+<pre class="script" data-file="ficha.cs">int idade = "29";
+Console.WriteLine("Idade: " + idade);
+</pre>
+<pre class="solucao" data-file="ficha.cs">int idade = 29;
+Console.WriteLine("Idade: " + idade);
+</pre>
+</div>
+
+<p>O <code>+</code> entre <code>"Idade: "</code> e <code>idade</code> junta o texto com o número (veja <a href="strings.html">Strings</a>; a forma moderna, <code>$"Idade: {idade}"</code>, está em <a href="interpolacao.html">Interpolação</a>).</p>
+
+<hr>
+
+<h2>2. Cada tipo ocupa um espaço: <code>sizeof</code></h2>
+<p>A memória do computador é medida em <strong>bytes</strong>. Cada tipo de número ocupa um número fixo deles, e o operador <code>sizeof</code> ("tamanho de") diz quantos:</p>
+
+<pre class="file" data-file="tamanhos.cs">Console.WriteLine($"bool:    {sizeof(bool)} byte");
+Console.WriteLine($"byte:    {sizeof(byte)} byte");
+Console.WriteLine($"char:    {sizeof(char)} bytes");
+Console.WriteLine($"short:   {sizeof(short)} bytes");
+Console.WriteLine($"int:     {sizeof(int)} bytes");
+Console.WriteLine($"long:    {sizeof(long)} bytes");
+Console.WriteLine($"float:   {sizeof(float)} bytes");
+Console.WriteLine($"double:  {sizeof(double)} bytes");
+Console.WriteLine($"decimal: {sizeof(decimal)} bytes");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tamanhos.cs
+bool:    1 byte
+byte:    1 byte
+char:    2 bytes
+short:   2 bytes
+int:     4 bytes
+long:    8 bytes
+float:   4 bytes
+double:  8 bytes
+decimal: 16 bytes</pre>
+
+<dl class="anatomy">
+  <dt>$"… {sizeof(int)} …"</dt><dd>O <code>$</code> antes das aspas permite pôr um valor dentro do texto, entre chaves. É a <a href="interpolacao.html">interpolação</a>; aqui ela só serve para montar cada linha.</dd>
+  <dt>sizeof(int)</dt><dd>Quantos bytes um <code>int</code> ocupa: <strong>4</strong>. No C# esses tamanhos são <strong>fixos</strong>: um <code>int</code> tem 4 bytes no Linux, no Windows, no Mac, no celular e no editor do guia.</dd>
+</dl>
+
+<p>Quanto mais bytes, maiores (ou mais precisos) os números que cabem. Um <code>byte</code> vai só de 0 a 255; um <code>long</code> passa de 9 quintilhões. Os tipos <code>byte</code>, <code>short</code>, <code>long</code> e <code>float</code> aparecem nas próximas aulas. O <code>string</code> não está na lista porque não tem tamanho fixo: um texto pode ter 3 letras ou 3 milhões (<code>sizeof(string)</code> nem compila: <code>CS0233</code>, "<code>string</code> não tem um tamanho predefinido").</p>
+
+<hr>
+
+<h2>3. Palavra-chave e nome .NET: <code>int</code> = <code>System.Int32</code></h2>
+<p>As palavras <code>int</code>, <code>double</code>, <code>string</code> etc. são <strong>apelidos</strong> que o C# dá a tipos que vêm do .NET. Cada uma tem um nome "completo". O método <code>GetType()</code> ("obter o tipo") mostra esse nome:</p>
+
+<pre class="file" data-file="gettype.cs">int idade = 29;
+double altura = 1.65;
+decimal saldo = 1250.75m;
+char inicial = 'A';
+bool cadastrada = true;
+string nome = "Ana";
+
+Console.WriteLine(idade.GetType());
+Console.WriteLine(altura.GetType());
+Console.WriteLine(saldo.GetType());
+Console.WriteLine(inicial.GetType());
+Console.WriteLine(cadastrada.GetType());
+Console.WriteLine(nome.GetType());
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run gettype.cs
+System.Int32
+System.Double
+System.Decimal
+System.Char
+System.Boolean
+System.String</pre>
+
+<p><code>System</code> é o "sobrenome" (o <em>namespace</em>, aula <a href="namespaces.html">Namespaces e using</a>), e <code>Int32</code> quer dizer "inteiro de 32 bits" (4 bytes × 8 bits = 32). Escrever <code>int</code> ou <code>Int32</code> dá exatamente o mesmo tipo:</p>
+
+<pre class="file" data-file="alias.cs">int a = 10;
+System.Int32 b = 20;
+Int32 c = 30;
+Console.WriteLine(a + b + c);
+Console.WriteLine(typeof(int) == typeof(Int32));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run alias.cs
+60
+True</pre>
+
+<p><code>typeof(int)</code> ("tipo de <code>int</code>") devolve o tipo em si, e o <code>==</code> compara os dois: <code>True</code>, são o mesmo. No dia a dia, use sempre a palavra-chave (<code>int</code>, <code>string</code>): é o que a Microsoft recomenda e o que você vai ver em quase todo código. O nome .NET aparece em mensagens de erro e em métodos como <code>Int32.Parse</code> (igual a <code>int.Parse</code>, aula <a href="parse.html">Texto → Número</a>).</p>
+
+<h3>A tabela completa</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Palavra-chave</th><th>Tipo .NET</th><th>Bytes</th><th>Guarda</th></tr>
+<tr><td><code>bool</code></td><td><code>System.Boolean</code></td><td>1</td><td><code>true</code> ou <code>false</code></td></tr>
+<tr><td><code>byte</code></td><td><code>System.Byte</code></td><td>1</td><td>inteiro de 0 a 255</td></tr>
+<tr><td><code>sbyte</code></td><td><code>System.SByte</code></td><td>1</td><td>inteiro de -128 a 127</td></tr>
+<tr><td><code>short</code></td><td><code>System.Int16</code></td><td>2</td><td>inteiro de -32 768 a 32 767</td></tr>
+<tr><td><code>ushort</code></td><td><code>System.UInt16</code></td><td>2</td><td>inteiro de 0 a 65 535</td></tr>
+<tr><td><code>int</code></td><td><code>System.Int32</code></td><td>4</td><td>inteiro de uns -2,1 a 2,1 bilhões</td></tr>
+<tr><td><code>uint</code></td><td><code>System.UInt32</code></td><td>4</td><td>inteiro de 0 a uns 4,2 bilhões</td></tr>
+<tr><td><code>long</code></td><td><code>System.Int64</code></td><td>8</td><td>inteiro de uns -9,2 a 9,2 quintilhões</td></tr>
+<tr><td><code>ulong</code></td><td><code>System.UInt64</code></td><td>8</td><td>inteiro de 0 a uns 18 quintilhões</td></tr>
+<tr><td><code>float</code></td><td><code>System.Single</code></td><td>4</td><td>número com vírgula, uns 7 dígitos certos</td></tr>
+<tr><td><code>double</code></td><td><code>System.Double</code></td><td>8</td><td>número com vírgula, uns 15 a 17 dígitos certos</td></tr>
+<tr><td><code>decimal</code></td><td><code>System.Decimal</code></td><td>16</td><td>número com vírgula exato, 28 a 29 dígitos</td></tr>
+<tr><td><code>char</code></td><td><code>System.Char</code></td><td>2</td><td>um caractere (UTF-16)</td></tr>
+<tr><td><code>string</code></td><td><code>System.String</code></td><td>varia</td><td>texto</td></tr>
+<tr><td><code>object</code></td><td><code>System.Object</code></td><td>varia</td><td>qualquer coisa (aula <a href="object.html">A Classe object</a>)</td></tr>
+</table>
+</div>
+<p>Os limites exatos de cada tipo estão em <a href="ref-tipos.html">Tipos e Limites</a>.</p>
+
+<hr>
+
+<h2>4. Tipos de valor e tipos de referência</h2>
+<p>Os tipos da tabela se dividem em duas famílias, e por enquanto basta saber os nomes:</p>
+<ul>
+  <li><strong>Tipos de valor</strong>: <code>int</code>, <code>double</code>, <code>decimal</code>, <code>char</code>, <code>bool</code> e os outros números. A caixa guarda o próprio valor. Copiar a variável copia o valor.</li>
+  <li><strong>Tipos de referência</strong>: <code>string</code>, <code>object</code>, os arrays e as classes que você vai criar. A caixa guarda o <strong>endereço</strong> de onde o valor está. Uma referência pode valer <code>null</code> ("nada").</li>
+</ul>
+<p>A diferença só começa a importar quando você criar seus próprios tipos, e é o assunto de <a href="valor-referencia.html">Valor × Referência</a>. O <code>null</code> tem aula própria: <a href="null.html">null e Tipos Anuláveis</a>.</p>
+
+<hr>
+
+<h2>5. O valor padrão: <code>default</code></h2>
+<p>Todo tipo tem um <strong>valor padrão</strong>, o "zero" daquele tipo. A palavra <code>default</code> mostra qual é:</p>
+
+<pre class="file" data-file="padrao.cs">Console.WriteLine(default(int));
+Console.WriteLine(default(double));
+Console.WriteLine(default(bool));
+Console.WriteLine(default(char) == '\0');
+Console.WriteLine(default(string) == null);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run padrao.cs
+0
+0
+False
+True
+True</pre>
+
+<dl class="anatomy">
+  <dt>default(int) … default(double)</dt><dd>Números valem <code>0</code>.</dd>
+  <dt>default(bool)</dt><dd><code>false</code> (mostrado como <code>False</code>).</dd>
+  <dt>default(char) == '\0'</dt><dd>O <code>char</code> padrão é o caractere de código zero, <code>'\0'</code>, que não aparece na tela. Por isso o programa compara em vez de mostrar.</dd>
+  <dt>default(string) == null</dt><dd>Tipos de referência valem <code>null</code>.</dd>
+</dl>
+
+<p>Esses valores padrão aparecem nos campos de classes e nos arrays (<code>new int[3]</code> nasce com três zeros, aula <a href="arrays.html">Arrays</a>). Mas uma <strong>variável local</strong>, criada dentro do programa, <strong>não</strong> ganha valor padrão: o C# obriga você a dar um valor antes de usar. Veja em "Quando dá errado", abaixo.</p>
+
+<hr>
+
+<h2>6. O tipo decide o que dá para fazer</h2>
+<p>Multiplicar um <code>int</code> por um <code>decimal</code> funciona, e o resultado é <code>decimal</code>. Juntar um texto com um número, com <code>+</code>, dá um texto:</p>
+
+<pre class="file" data-file="misturar.cs">int quantidade = 3;
+decimal preco = 2.50m;
+decimal total = quantidade * preco;
+Console.WriteLine(total);
+string texto = "Total: " + total;
+Console.WriteLine(texto);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run misturar.cs
+7,50
+Total: 7,50</pre>
+
+<p>O <code>int</code> 3 virou <code>decimal</code> sozinho para a conta, porque um inteiro sempre cabe num <code>decimal</code> sem perder nada. Essas conversões automáticas (e as que você precisa pedir) estão em <a href="conversao-tipos.html">Conversão de Tipos</a>. Repare também que o <code>decimal</code> guarda as casas que você escreveu: <code>2.50m</code> vezes 3 dá <code>7,50</code>, com o zero no fim.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0029: Não é possível converter implicitamente tipo "string" em "int"</code></strong>
+<pre class="file" data-file="errotipo.cs">int idade = "29";
+Console.WriteLine(idade);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run errotipo.cs
+/home/ana/cs/errotipo.cs(1,13): error CS0029: Não é possível converter implicitamente tipo "string" em "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o valor é de um tipo (<code>"29"</code>, entre aspas, é um texto) e a caixa é de outro (<code>int</code>). <code>(1,13)</code> é a linha 1, coluna 13: o lugar do <code>"29"</code>. Em inglês, para pesquisar: <code>Cannot implicitly convert type 'string' to 'int'</code>. Como ler essas mensagens: <a href="erros-compilacao.html">Lendo Erros do Compilador</a>.</p>
+<p><strong>Como consertar:</strong> tire as aspas (<code>int idade = 29;</code>). Se o número realmente vem num texto (do teclado, de um arquivo), converta com <code>int.Parse</code> ou <code>int.TryParse</code>: aula <a href="parse.html">Texto → Número</a>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0266: Não é possível converter implicitamente tipo "double" em "int". Existe uma conversão explícita…</code></strong>
+<pre class="file" data-file="errotipo2.cs">int idade = 29;
+idade = 29.5;
+Console.WriteLine(idade);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run errotipo2.cs
+/home/ana/cs/errotipo2.cs(2,9): error CS0266: Não é possível converter implicitamente tipo "double" em "int". Existe uma conversão explícita (há uma conversão ausente?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> a variável nasceu <code>int</code> e continua <code>int</code> para sempre. Guardar <code>29.5</code> nela perderia o <code>,5</code>, e o C# não perde dados sem você pedir. "Existe uma conversão explícita" quer dizer: dá para forçar, se você quiser (o <em>cast</em>, <code>(int)29.5</code>, aula <a href="conversao-tipos.html">Conversão de Tipos</a>).</p>
+<p><strong>Como consertar:</strong> se a informação pode ter vírgula, a variável tem de ser <code>double</code> (ou <code>decimal</code>) desde o começo: <code>double idade = 29;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0165: Uso de variável local não atribuída "pontos"</code></strong>
+<pre class="file" data-file="semvalor.cs">int pontos;
+Console.WriteLine(pontos);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run semvalor.cs
+/home/ana/cs/semvalor.cs(2,19): error CS0165: Uso de variável local não atribuída "pontos"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> a caixa <code>pontos</code> foi criada, mas nunca recebeu valor, e o programa tentou ler. Em outras linguagens isso mostraria "lixo" da memória; o C# simplesmente não deixa. Em inglês: <code>Use of unassigned local variable 'pontos'</code>.</p>
+<p><strong>Como consertar:</strong> dê um valor antes de usar: <code>int pontos = 0;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>O número saiu com vírgula, mas eu escrevi ponto</strong>
+<p><strong>O que significa:</strong> não é erro. O código usa ponto (<code>1.65</code>); a saída usa o jeito do país do computador, e o Ubuntu da Ana está em pt-BR (<code>1,65</code>). Num computador em inglês, o mesmo programa mostraria <code>1.65</code>.</p>
+<p><strong>Como consertar:</strong> se você precisa de uma saída igual em qualquer computador (um arquivo para outro programa ler, por exemplo), use <code>CultureInfo.InvariantCulture</code>: aula <a href="cultura.html">Cultura</a>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>Para</th><th>Exemplo</th><th>Mostra</th><th>Padrão</th></tr>
+<tr><td><code>int</code></td><td>contagens</td><td><code>int idade = 29;</code></td><td><code>29</code></td><td><code>0</code></td></tr>
+<tr><td><code>double</code></td><td>medidas</td><td><code>double altura = 1.65;</code></td><td><code>1,65</code></td><td><code>0</code></td></tr>
+<tr><td><code>decimal</code></td><td>dinheiro</td><td><code>decimal preco = 19.90m;</code></td><td><code>19,90</code></td><td><code>0</code></td></tr>
+<tr><td><code>char</code></td><td>um caractere</td><td><code>char letra = 'A';</code></td><td><code>A</code></td><td><code>'\0'</code></td></tr>
+<tr><td><code>bool</code></td><td>sim/não</td><td><code>bool ativo = true;</code></td><td><code>True</code></td><td><code>false</code></td></tr>
+<tr><td><code>string</code></td><td>texto</td><td><code>string nome = "Ana";</code></td><td><code>Ana</code></td><td><code>null</code></td></tr>
+<tr><td colspan="5"><code>sizeof(tipo)</code>: bytes do tipo · <code>valor.GetType()</code>: o tipo .NET (<code>System.Int32</code>) · <code>typeof(tipo)</code>: o tipo em si · <code>default(tipo)</code>: o valor padrão.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O tipo do preço</h3>
+<p>Complete com o tipo certo para guardar o preço de um caderno:</p>
+<div class="ex-code"><input data-answer="decimal" aria-label="tipo"> preco = 12.90m;</div>
+</div>
+
+<div class="exercise">
+<h3>2. O nome .NET</h3>
+<p>Qual é o nome .NET (com <code>System.</code>) do tipo <code>int</code>?</p>
+<div class="ex-code"><input data-answer="System.Int32|Int32" aria-label="nome .NET"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Quantos bytes?</h3>
+<p>O que <code>Console.WriteLine(sizeof(long));</code> mostra?</p>
+<div class="ex-code"><input data-answer="8" aria-label="bytes"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Qual tipo serve para guardar um CEP como <code>01310-100</code>?</p>
+<label><input type="radio" name="q4"> <code>int</code></label>
+<label><input type="radio" name="q4"> <code>double</code></label>
+<label><input type="radio" name="q4"> <code>string</code>: tem traço, o zero da frente importa e ninguém faz conta com CEP</label>
+<label><input type="radio" name="q4"> <code>char</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. O que <code>Console.WriteLine(false);</code> mostra?</p>
+<label><input type="radio" name="q5"> <code>false</code></label>
+<label><input type="radio" name="q5"> <code>False</code></label>
+<label><input type="radio" name="q5"> <code>Falso</code></label>
+<label><input type="radio" name="q5"> <code>0</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. <code>int x; Console.WriteLine(x);</code> dentro do programa. O que acontece?</p>
+<label><input type="radio" name="q6"> Não compila: <code>CS0165</code>, variável local não atribuída</label>
+<label><input type="radio" name="q6"> Mostra <code>0</code></label>
+<label><input type="radio" name="q6"> Mostra um número qualquer da memória</label>
+<label><input type="radio" name="q6"> Mostra uma linha vazia</label>
+</div>
+
+<h3>Missão final: a ficha do caderno</h3>
+
+<div class="trycs" data-goal="out:Total: 54\,00,src:\bstring\s+produto\b,src:\bint\s+quantidade\b,src:\bdecimal\s+preco\b,src:\bbool\s+emEstoque\b">
+<p class="try-task"><strong>Missão:</strong> a lojinha da Ana cadastrou 12 cadernos de R$ 4,50. Troque cada <code>TIPO</code> pelo tipo certo (um texto, uma contagem, um preço e um sim/não). Enquanto houver um <code>TIPO</code>, o compilador reclama que não conhece esse tipo (<code>CS0246</code>). Quando todos estiverem certos, o programa vai compilar e mostrar <code>Total: 54,00</code> na última linha.</p>
+<pre class="script" data-file="caderno.cs">TIPO produto = "Caderno";
+TIPO quantidade = 12;
+TIPO preco = 4.50m;
+TIPO emEstoque = true;
+
+Console.WriteLine("Produto: " + produto);
+Console.WriteLine("Em estoque: " + emEstoque);
+Console.WriteLine("Total: " + quantidade * preco);
+</pre>
+<pre class="solucao" data-file="caderno.cs">string produto = "Caderno";
+int quantidade = 12;
+decimal preco = 4.50m;
+bool emEstoque = true;
+
+Console.WriteLine("Produto: " + produto);
+Console.WriteLine("Em estoque: " + emEstoque);
+Console.WriteLine("Total: " + quantidade * preco);
+</pre>
+</div>
+
+<p>Na solução, a saída é:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run caderno.cs
+Produto: Caderno
+Em estoque: True
+Total: 54,00</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Toda variável tem um <strong>tipo</strong>, decidido no código e conferido na compilação. Ele nunca muda.</li>
+  <li>Os seis do dia a dia: <code>int</code> (contagens), <code>double</code> (medidas), <code>decimal</code> (dinheiro, com <code>m</code>), <code>char</code> (<code>'A'</code>), <code>bool</code> (<code>true</code>/<code>false</code>) e <code>string</code> (<code>"Ana"</code>).</li>
+  <li>No código, a vírgula é ponto (<code>1.65</code>); na saída em pt-BR, vírgula (<code>1,65</code>). <code>true</code> aparece como <code>True</code>.</li>
+  <li>Os tamanhos são fixos em qualquer computador: <code>int</code> 4 bytes, <code>long</code> 8, <code>double</code> 8, <code>decimal</code> 16, <code>char</code> 2 (<code>sizeof</code>).</li>
+  <li>As palavras-chave são apelidos de tipos .NET: <code>int</code> = <code>System.Int32</code>, <code>string</code> = <code>System.String</code> (<code>GetType()</code>).</li>
+  <li><code>default</code>: números 0, <code>bool</code> <code>false</code>, referências <code>null</code>. Variáveis locais precisam de valor antes do uso (<code>CS0165</code>).</li>
+  <li>Tipo errado na caixa: <code>CS0029</code> (não existe conversão) ou <code>CS0266</code> (existe, mas você precisa pedir).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
