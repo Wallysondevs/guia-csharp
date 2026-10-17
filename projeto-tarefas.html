@@ -1,0 +1,1581 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Projeto Lista de Tarefas — classes, List e arquivo de texto | Guia C#</title>
+<meta name="description" content="Projeto passo a passo em C#: a lista de tarefas da Ana. A classe Tarefa com propriedades, construtor, private set e ToString; a classe ListaDeTarefas que esconde a List; um menu com adicionar, concluir, remover e limpar as feitas; e a lista guardada em tarefas.txt com StreamWriter e using. Quatro versões, num projeto com vários arquivos, com saídas reais do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Projeto <span class="hl">Lista de Tarefas</span></h1>
+
+<p class="intro">A Ana anota o que tem de fazer em papeizinhos colados na geladeira: "comprar pão", "estudar C#", "pagar a conta de luz". Os papéis caem, se perdem, e ela nunca sabe quantos ainda faltam. Neste projeto, ela escreve um programa de lista de tarefas: anota, marca como feita, apaga, e a lista continua lá no dia seguinte. É o primeiro projeto do guia com <strong>várias classes em vários arquivos</strong>, do jeito que os programas de verdade são organizados.</p>
+
+<div class="note">
+<strong>Você vai praticar</strong>
+<ul>
+  <li>Escrever uma <a href="classes-objetos.html">classe</a> com <a href="propriedades.html">propriedades</a>, <a href="construtores.html">construtor</a> e métodos, num arquivo próprio.</li>
+  <li>Proteger os dados com <code>private set</code> e <code>private</code> (<a href="encapsulamento.html">Encapsulamento</a>) e validar no construtor com <a href="throw.html"><code>throw</code></a>.</li>
+  <li>Sobrescrever o <code>ToString</code> (aula <a href="object.html">A Classe object</a>).</li>
+  <li>Usar uma <a href="list.html"><code>List&lt;T&gt;</code></a> por dentro de outra classe: <code>Add</code>, <code>Find</code>, <code>RemoveAll</code>.</li>
+  <li>Fazer um menu com <code>switch</code> e <code>int.TryParse</code>.</li>
+  <li>Guardar a lista num arquivo de texto com <a href="streams.html"><code>StreamWriter</code></a>, <a href="using-dispose.html"><code>using</code></a> e <code>File.ReadAllLines</code>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2 id="construir">O que vamos construir</h2>
+<p>O programa pronto, num dia comum. Ontem, a Ana anotou três tarefas e fez uma. Hoje, ela abre o programa, vê a lista, anota mais uma, conclui outra, limpa as feitas e sai:</p>
+
+<pre class="term" data-cwd="~/projetos/Tarefas">$ dotnet run
+
+=== Lista de Tarefas ===
+3 tarefas no caderno, 2 por fazer.
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 1
+[ ] 1. Comprar pão
+[x] 2. Estudar C#
+[ ] 3. Pagar a conta de luz
+2 de 3 por fazer.
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 2
+Título: Ligar para a vó
+Anotado: [ ] 4. Ligar para a vó
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 3
+Número da tarefa: 1
+Feito: [x] 1. Comprar pão
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 5
+Apaguei 2 tarefas feitas.
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 1
+[ ] 3. Pagar a conta de luz
+[ ] 4. Ligar para a vó
+2 de 2 por fazer.
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 0
+Até logo! Por fazer: 2.</pre>
+
+<ol class="passo">
+  <li><a href="#versao1">A classe Tarefa</a> (propriedades, construtor, <code>ToString</code>).</li>
+  <li><a href="#versao2">A classe ListaDeTarefas e o menu</a> (adicionar e concluir).</li>
+  <li><a href="#versao3">Remover e limpar as feitas</a> (<code>RemoveAll</code>, e o número que não é a posição).</li>
+  <li><a href="#versao4">A lista guardada em tarefas.txt</a> (<code>StreamWriter</code> e <code>using</code>).</li>
+</ol>
+
+<h3>Antes de começar</h3>
+<p>Você precisa ter visto <a href="classes-objetos.html">Classes e Objetos</a>, <a href="propriedades.html">Propriedades</a>, <a href="construtores.html">Construtores</a> e <a href="list.html">List&lt;T&gt;</a>. Com várias classes, cada uma no seu arquivo, o programa precisa de um projeto (aula <a href="projetos-console.html">Projetos</a>): o <code>dotnet</code> compila juntos todos os <code>.cs</code> da pasta.</p>
+
+<pre class="term">$ cd projetos
+$ dotnet new console -o Tarefas
+O modelo "Aplicativo do Console" foi criado com êxito.
+
+Processando ações pós-criação...
+Restaurando /home/ana/projetos/Tarefas/Tarefas.csproj:
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Tarefas/Tarefas.csproj restaurado (em 108 ms).
+A restauração foi bem-sucedida.
+
+$ cd Tarefas</pre>
+
+<p>No fim, a pasta terá três arquivos de código e o arquivo da lista:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Arquivo</th><th>O que tem</th><th>Desde</th></tr>
+<tr><td><code>Tarefa.cs</code></td><td>A classe <code>Tarefa</code>: uma tarefa só.</td><td>versão 1</td></tr>
+<tr><td><code>ListaDeTarefas.cs</code></td><td>A classe <code>ListaDeTarefas</code>: todas as tarefas, e as regras de adicionar, concluir, apagar e salvar.</td><td>versão 2</td></tr>
+<tr><td><code>Program.cs</code></td><td>O menu: conversa com a Ana e chama a lista.</td><td>versão 1</td></tr>
+<tr><td><code>tarefas.txt</code></td><td>A lista guardada, que o próprio programa cria.</td><td>versão 4</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="versao1">Versão 1 · A classe Tarefa</h2>
+<p>Um papelzinho da geladeira tem três coisas: um número (para a Ana dizer "fiz a 2"), o texto, e um risco quando a tarefa está feita. A classe <code>Tarefa</code> é o molde desse papel. Ela fica no arquivo <code>Tarefa.cs</code>:</p>
+
+<pre class="file" data-file="Tarefa.cs">// Tarefa.cs — uma tarefa da lista
+public class Tarefa
+{
+    public int Id { get; }
+    public string Titulo { get; }
+    public bool Feita { get; private set; }
+
+    public Tarefa(int id, string titulo)
+    {
+        if (string.IsNullOrWhiteSpace(titulo))
+        {
+            throw new ArgumentException("A tarefa precisa de um título.", nameof(titulo));
+        }
+        Id = id;
+        Titulo = titulo.Trim();
+    }
+
+    public void Concluir()
+    {
+        Feita = true;
+    }
+
+    public override string ToString() =&gt; $"[{(Feita ? "x" : " ")}] {Id}. {Titulo}";
+}
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>public class Tarefa</code></td><td>Declara a classe. <code>public</code>: qualquer parte do programa pode usá-la.</td></tr>
+<tr><td><code>public int Id { get; }</code></td><td>Uma propriedade só de leitura: o número da tarefa. Só o construtor pode dar valor a ela; depois, ninguém muda (aula <a href="propriedades.html">Propriedades</a>).</td></tr>
+<tr><td><code>public string Titulo { get; }</code></td><td>O texto da tarefa, também só de leitura.</td></tr>
+<tr><td><code>public bool Feita { get; private set; }</code></td><td>Todo mundo pode <strong>ler</strong> se está feita, mas só a própria classe pode <strong>mudar</strong> (o <code>set</code> é <code>private</code>). Começa com <code>false</code>, o valor padrão do <code>bool</code>.</td></tr>
+<tr><td><code>public Tarefa(int id, string titulo)</code></td><td>O <a href="construtores.html">construtor</a>: roda no <code>new Tarefa(…)</code> e preenche o papel.</td></tr>
+<tr><td><code>if (string.IsNullOrWhiteSpace(titulo))</code></td><td>Recusa título vazio ou só com espaços. Uma tarefa sem texto não serve para nada, e é melhor recusar na porta do que descobrir depois.</td></tr>
+<tr><td><code>throw new ArgumentException("…", nameof(titulo));</code></td><td>Lança uma exceção: "argumento inválido". O <code>nameof(titulo)</code> vira o texto <code>"titulo"</code>, o nome do parâmetro culpado (aula <a href="throw.html">throw</a>).</td></tr>
+<tr><td><code>Titulo = titulo.Trim();</code></td><td>Guarda o título sem os espaços do começo e do fim.</td></tr>
+<tr><td><code>public void Concluir()</code></td><td>O único jeito de marcar como feita. Quem está fora da classe pede "conclua", em vez de mexer no <code>Feita</code> direto.</td></tr>
+<tr><td><code>public override string ToString() =&gt; …</code></td><td>Diz como a tarefa vira texto. É ele que o <code>Console.WriteLine(t)</code> usa. Sem ele, sairia só o nome da classe, <code>Tarefa</code> (aula <a href="object.html">A Classe object</a>).</td></tr>
+<tr><td><code>$"[{(Feita ? "x" : " ")}] {Id}. {Titulo}"</code></td><td>Monta <code>[x] 2. Estudar C#</code> ou <code>[ ] 1. Comprar pão</code>. O <a href="ternario.html">ternário</a> fica entre parênteses porque, dentro de <code>{ }</code>, o <code>:</code> sozinho seria lido como início de um formato.</td></tr>
+</table>
+</div>
+
+<p>O <code>Program.cs</code> cria três tarefas, guarda numa lista, conclui uma e mostra:</p>
+
+<pre class="file" data-file="Program.cs">// Program.cs — versão 1: a classe Tarefa e uma List
+List&lt;Tarefa&gt; tarefas = [];
+tarefas.Add(new Tarefa(1, "Comprar pão"));
+tarefas.Add(new Tarefa(2, "Estudar C#"));
+tarefas.Add(new Tarefa(3, "Pagar a conta de luz"));
+
+tarefas[1].Concluir();          // a posição 1 é a segunda tarefa
+
+foreach (Tarefa t in tarefas)
+{
+    Console.WriteLine(t);
+}
+int pendentes = tarefas.Count(t =&gt; !t.Feita);
+Console.WriteLine($"{pendentes} de {tarefas.Count} por fazer.");
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Tarefas">$ ls
+obj  Program.cs  Tarefa.cs  Tarefas.csproj
+$ dotnet run
+[ ] 1. Comprar pão
+[x] 2. Estudar C#
+[ ] 3. Pagar a conta de luz
+2 de 3 por fazer.</pre>
+
+<p>O <code>dotnet run</code> compilou os dois arquivos juntos: o <code>Program.cs</code> usa a classe <code>Tarefa</code> sem nenhum <code>using</code> ou <code>#include</code>, porque os dois estão no mesmo projeto. Repare também no <code>tarefas[1]</code>: a posição 1 é a <strong>segunda</strong> tarefa, porque as listas contam a partir do 0. Guarde isso: vai dar problema na versão 3.</p>
+
+<div class="cenario">
+<strong>CS0272: o <code>set</code> é privado</strong>
+<p>A Ana tentou marcar a tarefa como feita "na mão", pelo <code>Program.cs</code>:</p>
+<pre class="file" data-file="Program.cs">List&lt;Tarefa&gt; tarefas = [];
+tarefas.Add(new Tarefa(1, "Comprar pão"));
+tarefas[0].Feita = true;
+Console.WriteLine(tarefas[0]);
+</pre>
+<pre class="term" data-cwd="~/projetos/Tarefas">$ dotnet run
+/home/ana/projetos/Tarefas/Program.cs(3,1): error CS0272: A propriedade ou o indexador "Tarefa.Feita" não pode ser usado neste contexto porque o acessador set é inacessível [/home/ana/projetos/Tarefas/Tarefas.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>Feita</code> tem <code>private set</code>; fora da classe, ele pode ser lido, mas não mudado. Em inglês: <code>The property or indexer 'Tarefa.Feita' cannot be used in this context because the set accessor is inaccessible</code>.</p>
+<p><strong>Como consertar:</strong> peça para a tarefa se concluir: <code>tarefas[0].Concluir();</code>. Esse é o motivo de existir o <code>private set</code>: se amanhã concluir uma tarefa também tiver de guardar a data, a mudança é feita num lugar só, o <code>Concluir</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>ArgumentException: a tarefa sem título</strong>
+<pre class="file" data-file="Program.cs">List&lt;Tarefa&gt; tarefas = [];
+tarefas.Add(new Tarefa(1, "Comprar pão"));
+tarefas.Add(new Tarefa(2, "   "));
+Console.WriteLine(tarefas.Count);
+</pre>
+<pre class="term" data-cwd="~/projetos/Tarefas">$ dotnet run
+Unhandled exception. System.ArgumentException: A tarefa precisa de um título. (Parameter 'titulo')
+   at Tarefa..ctor(Int32 id, String titulo) in /home/ana/projetos/Tarefas/Tarefa.cs:line 12
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/projetos/Tarefas/Program.cs:line 3
+$ echo $?
+134</pre>
+<p><strong>O que significa:</strong> o construtor recusou o título <code>"   "</code>. A mensagem é a que a Ana escreveu, com o nome do parâmetro em inglês no fim (<code>(Parameter 'titulo')</code>). O rastro mostra o caminho: <code>Tarefa..ctor</code> (o construtor, "constructor"), na linha 12 de <code>Tarefa.cs</code>, chamado pela linha 3 de <code>Program.cs</code>.</p>
+<p><strong>Como consertar:</strong> aqui, a exceção é o comportamento <strong>certo</strong>: a classe se protegeu. Quem chama é que deve conferir antes. Na versão 2, o menu confere o título digitado e avisa a Ana sem derrubar o programa.</p>
+</div>
+
+<div class="trycs" data-goal="out:[x] 2. Estudar C#,out:2 de 3 por fazer.">
+<p class="try-task"><strong>Missão (versão 1):</strong> nesta caixa, o método <code>Concluir</code> da aba <code>Tarefa.cs</code> está vazio, e nenhuma tarefa fica marcada. Escreva a linha que falta (uma só) e rode: a segunda tarefa deve sair <code>[x] 2. Estudar C#</code>.</p>
+<pre class="script" data-file="Program.cs">// Program.cs — versão 1: a classe Tarefa e uma List
+List&lt;Tarefa&gt; tarefas = [];
+tarefas.Add(new Tarefa(1, "Comprar pão"));
+tarefas.Add(new Tarefa(2, "Estudar C#"));
+tarefas.Add(new Tarefa(3, "Pagar a conta de luz"));
+
+tarefas[1].Concluir();          // a posição 1 é a segunda tarefa
+
+foreach (Tarefa t in tarefas)
+{
+    Console.WriteLine(t);
+}
+int pendentes = tarefas.Count(t =&gt; !t.Feita);
+Console.WriteLine($"{pendentes} de {tarefas.Count} por fazer.");
+</pre>
+<pre class="script" data-file="Tarefa.cs">// Tarefa.cs — uma tarefa da lista
+public class Tarefa
+{
+    public int Id { get; }
+    public string Titulo { get; }
+    public bool Feita { get; private set; }
+
+    public Tarefa(int id, string titulo)
+    {
+        if (string.IsNullOrWhiteSpace(titulo))
+        {
+            throw new ArgumentException("A tarefa precisa de um título.", nameof(titulo));
+        }
+        Id = id;
+        Titulo = titulo.Trim();
+    }
+
+    public void Concluir()
+    {
+        // FALTA AQUI: marcar a tarefa como feita
+    }
+
+    public override string ToString() =&gt; $"[{(Feita ? "x" : " ")}] {Id}. {Titulo}";
+}
+</pre>
+<pre class="solucao" data-file="Tarefa.cs">// Tarefa.cs — uma tarefa da lista
+public class Tarefa
+{
+    public int Id { get; }
+    public string Titulo { get; }
+    public bool Feita { get; private set; }
+
+    public Tarefa(int id, string titulo)
+    {
+        if (string.IsNullOrWhiteSpace(titulo))
+        {
+            throw new ArgumentException("A tarefa precisa de um título.", nameof(titulo));
+        }
+        Id = id;
+        Titulo = titulo.Trim();
+    }
+
+    public void Concluir()
+    {
+        Feita = true;
+    }
+
+    public override string ToString() =&gt; $"[{(Feita ? "x" : " ")}] {Id}. {Titulo}";
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao2">Versão 2 · A classe ListaDeTarefas e o menu</h2>
+<p>Na versão 1, o <code>Program.cs</code> mexia direto na <code>List</code>: escolhia o número de cada tarefa, contava as pendentes. Com o menu, essas regras iriam se espalhar pelo programa. A solução é uma segunda classe, que <strong>guarda</strong> a lista e é a única que mexe nela. Pense numa secretária que cuida do quadro de avisos: a Ana diz "anota isso" ou "risca a 2", e a secretária escolhe o número e cola o papel.</p>
+
+<pre class="file" data-file="ListaDeTarefas.cs">// ListaDeTarefas.cs — guarda as tarefas e dá os números
+public class ListaDeTarefas
+{
+    private readonly List&lt;Tarefa&gt; _tarefas = [];
+    private int _proximoId = 1;
+
+    public int Total =&gt; _tarefas.Count;
+    public int Pendentes =&gt; _tarefas.Count(t =&gt; !t.Feita);
+
+    public Tarefa Adicionar(string titulo)
+    {
+        Tarefa nova = new(_proximoId, titulo);
+        _tarefas.Add(nova);
+        _proximoId++;
+        return nova;
+    }
+
+    public Tarefa? Buscar(int id) =&gt; _tarefas.Find(t =&gt; t.Id == id);
+
+    public void Mostrar()
+    {
+        if (Total == 0)
+        {
+            Console.WriteLine("Nenhuma tarefa. Aproveite o dia!");
+            return;
+        }
+        foreach (Tarefa t in _tarefas)
+        {
+            Console.WriteLine(t);
+        }
+        Console.WriteLine($"{Pendentes} de {Total} por fazer.");
+    }
+}
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>private readonly List&lt;Tarefa&gt; _tarefas = [];</code></td><td>A lista de verdade, escondida (<code>private</code>). O <code>readonly</code> impede trocar a lista inteira por outra; mexer no conteúdo (<code>Add</code>, <code>Remove</code>) continua valendo. O <code>_</code> no começo é a convenção do C# para campos privados (aula <a href="campos.html">Campos</a>).</td></tr>
+<tr><td><code>private int _proximoId = 1;</code></td><td>O número que a próxima tarefa vai receber. Só a lista sabe; a Ana não precisa escolher.</td></tr>
+<tr><td><code>public int Total =&gt; _tarefas.Count;</code></td><td>Uma propriedade calculada: a cada leitura, conta de novo. Não tem <code>set</code>.</td></tr>
+<tr><td><code>public int Pendentes =&gt; _tarefas.Count(t =&gt; !t.Feita);</code></td><td>Quantas não estão feitas. O <code>Count(…)</code> com uma condição é do <a href="linq-agregar.html">LINQ</a>; o <code>!</code> é o "não".</td></tr>
+<tr><td><code>public Tarefa Adicionar(string titulo)</code></td><td>Cria a tarefa com o próximo número, guarda e devolve a tarefa nova, para quem chamou poder mostrá-la.</td></tr>
+<tr><td><code>Tarefa nova = new(_proximoId, titulo);</code></td><td>O <code>new(…)</code> sem o nome da classe funciona porque o tipo já está escrito à esquerda <span class="versao">C# 9</span>.</td></tr>
+<tr><td><code>public Tarefa? Buscar(int id) =&gt; _tarefas.Find(t =&gt; t.Id == id);</code></td><td><code>Find</code> é da própria <code>List</code>: devolve a primeira tarefa com aquele número, ou <code>null</code> se não houver. O <code>Tarefa?</code> avisa quem chama que pode vir <code>null</code> (aula <a href="referencias-anulaveis.html">Referências Anuláveis</a>).</td></tr>
+<tr><td><code>public void Mostrar()</code></td><td>Mostra a lista, ou um aviso quando está vazia.</td></tr>
+</table>
+</div>
+
+<p>O <code>Program.cs</code> agora só conversa com a Ana. Toda regra fica na lista:</p>
+
+<pre class="file" data-file="Program.cs">// Program.cs — versão 2: o menu
+ListaDeTarefas lista = new();
+
+Console.WriteLine("=== Lista de Tarefas ===");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1) Listar  2) Adicionar  3) Concluir  0) Sair");
+    Console.Write("Opção: ");
+    string? opcao = Console.ReadLine();
+    if (opcao is null || opcao == "0")
+    {
+        break;
+    }
+    switch (opcao)
+    {
+        case "1":
+            lista.Mostrar();
+            break;
+        case "2":
+            Console.Write("Título: ");
+            string titulo = Console.ReadLine() ?? "";
+            if (string.IsNullOrWhiteSpace(titulo))
+            {
+                Console.WriteLine("O título não pode ficar vazio.");
+                break;
+            }
+            Tarefa nova = lista.Adicionar(titulo);
+            Console.WriteLine($"Anotado: {nova}");
+            break;
+        case "3":
+            Console.Write("Número da tarefa: ");
+            if (!int.TryParse(Console.ReadLine(), out int id))
+            {
+                Console.WriteLine("Digite o número que aparece na lista.");
+                break;
+            }
+            Tarefa? t = lista.Buscar(id);
+            if (t is null)
+            {
+                Console.WriteLine($"Não há tarefa {id}.");
+            }
+            else if (t.Feita)
+            {
+                Console.WriteLine($"A tarefa {id} já estava feita.");
+            }
+            else
+            {
+                t.Concluir();
+                Console.WriteLine($"Feito: {t}");
+            }
+            break;
+        default:
+            Console.WriteLine("Opção inválida.");
+            break;
+    }
+}
+Console.WriteLine($"Até logo! Por fazer: {lista.Pendentes}.");
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>ListaDeTarefas lista = new();</code></td><td>Cria a lista vazia.</td></tr>
+<tr><td><code>string? opcao = Console.ReadLine();</code></td><td>Lê a opção. O <code>ReadLine</code> devolve <code>null</code> quando a entrada acaba (<kbd>Ctrl</kbd>+<kbd>D</kbd>), por isso o <code>string?</code>; o <code>if</code> trata <code>null</code> como "sair" (aula <a href="readline.html">Ler do Teclado</a>).</td></tr>
+<tr><td><code>Console.ReadLine() ?? ""</code></td><td>Se vier <code>null</code>, usa o texto vazio, e o <code>IsNullOrWhiteSpace</code> logo abaixo recusa.</td></tr>
+<tr><td><code>if (string.IsNullOrWhiteSpace(titulo)) { … break; }</code></td><td>Confere <strong>antes</strong> de chamar o <code>Adicionar</code>, para a exceção do construtor nunca acontecer. Aqui o <code>break</code> sai do <code>switch</code>, não do <code>while</code>.</td></tr>
+<tr><td><code>int.TryParse(Console.ReadLine(), out int id)</code></td><td>Converte o número digitado. Com <code>abc</code>, devolve <code>false</code> e o programa explica, em vez de cair (aula <a href="parse.html">Parse e TryParse</a>).</td></tr>
+<tr><td><code>Tarefa? t = lista.Buscar(id);</code></td><td>Pede a tarefa à lista e trata os três casos: não existe, já estava feita, ou conclui.</td></tr>
+</table>
+</div>
+
+<p>A Ana rodou e anotou as tarefas da semana. Ela também apertou Enter sem digitar o título (uma vez) e pediu a tarefa 9, que não existe:</p>
+
+<pre class="term" data-cwd="~/projetos/Tarefas">$ dotnet run
+
+=== Lista de Tarefas ===
+
+1) Listar  2) Adicionar  3) Concluir  0) Sair
+Opção: 1
+Nenhuma tarefa. Aproveite o dia!
+
+1) Listar  2) Adicionar  3) Concluir  0) Sair
+Opção: 2
+Título: Comprar pão
+Anotado: [ ] 1. Comprar pão
+
+1) Listar  2) Adicionar  3) Concluir  0) Sair
+Opção: 2
+Título: Estudar C#
+Anotado: [ ] 2. Estudar C#
+
+1) Listar  2) Adicionar  3) Concluir  0) Sair
+Opção: 2
+Título: 
+O título não pode ficar vazio.
+
+1) Listar  2) Adicionar  3) Concluir  0) Sair
+Opção: 2
+Título: Pagar a conta de luz
+Anotado: [ ] 3. Pagar a conta de luz
+
+1) Listar  2) Adicionar  3) Concluir  0) Sair
+Opção: 3
+Número da tarefa: 2
+Feito: [x] 2. Estudar C#
+
+1) Listar  2) Adicionar  3) Concluir  0) Sair
+Opção: 3
+Número da tarefa: 2
+A tarefa 2 já estava feita.
+
+1) Listar  2) Adicionar  3) Concluir  0) Sair
+Opção: 3
+Número da tarefa: 9
+Não há tarefa 9.
+
+1) Listar  2) Adicionar  3) Concluir  0) Sair
+Opção: 1
+[ ] 1. Comprar pão
+[x] 2. Estudar C#
+[ ] 3. Pagar a conta de luz
+2 de 3 por fazer.
+
+1) Listar  2) Adicionar  3) Concluir  0) Sair
+Opção: 0
+Até logo! Por fazer: 2.</pre>
+
+<div class="cenario">
+<strong>CS0122: o campo é privado</strong>
+<p>Para apagar tudo de uma vez, a Ana tentou usar a <code>List</code> que está dentro da <code>ListaDeTarefas</code>:</p>
+<pre class="file" data-file="Program.cs">ListaDeTarefas lista = new();
+lista.Adicionar("Comprar pão");
+lista._tarefas.Clear();
+lista.Mostrar();
+</pre>
+<pre class="term" data-cwd="~/projetos/Tarefas">$ dotnet run
+/home/ana/projetos/Tarefas/Program.cs(3,7): error CS0122: "ListaDeTarefas._tarefas" é inacessível devido ao seu nível de proteção [/home/ana/projetos/Tarefas/Tarefas.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>_tarefas</code> é <code>private</code>: só o código dentro da classe <code>ListaDeTarefas</code> o enxerga. Em inglês: <code>'ListaDeTarefas._tarefas' is inaccessible due to its protection level</code>. Aula: <a href="modificadores-acesso.html">public, private e internal</a>.</p>
+<p><strong>Como consertar:</strong> não troque para <code>public</code>. Se a Ana precisa de "apagar tudo", a lista ganha um método para isso (por exemplo, <code>public void LimparTudo() =&gt; _tarefas.Clear();</code>). É assim que a versão 3 vai ganhar o <code>Remover</code> e o <code>LimparFeitas</code>.</p>
+</div>
+
+<div class="trycs" data-stdin="2\nComprar pão\n2\nEstudar C#\n3\n1\n1\n0" data-goal="out:1 de 2 por fazer.,out:Por fazer: 1.">
+<p class="try-task"><strong>Missão (versão 2):</strong> a propriedade <code>Pendentes</code>, na aba <code>ListaDeTarefas.cs</code>, sempre devolve 0. Troque o <code>0</code> por uma conta das tarefas que <strong>não</strong> estão feitas. A entrada já vem pronta: anota "Comprar pão" e "Estudar C#", conclui a 1, lista e sai. O certo é <code>1 de 2 por fazer.</code></p>
+<pre class="script" data-file="Program.cs">// Program.cs — versão 2: o menu
+ListaDeTarefas lista = new();
+
+Console.WriteLine("=== Lista de Tarefas ===");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1) Listar  2) Adicionar  3) Concluir  0) Sair");
+    Console.Write("Opção: ");
+    string? opcao = Console.ReadLine();
+    if (opcao is null || opcao == "0")
+    {
+        break;
+    }
+    switch (opcao)
+    {
+        case "1":
+            lista.Mostrar();
+            break;
+        case "2":
+            Console.Write("Título: ");
+            string titulo = Console.ReadLine() ?? "";
+            if (string.IsNullOrWhiteSpace(titulo))
+            {
+                Console.WriteLine("O título não pode ficar vazio.");
+                break;
+            }
+            Tarefa nova = lista.Adicionar(titulo);
+            Console.WriteLine($"Anotado: {nova}");
+            break;
+        case "3":
+            Console.Write("Número da tarefa: ");
+            if (!int.TryParse(Console.ReadLine(), out int id))
+            {
+                Console.WriteLine("Digite o número que aparece na lista.");
+                break;
+            }
+            Tarefa? t = lista.Buscar(id);
+            if (t is null)
+            {
+                Console.WriteLine($"Não há tarefa {id}.");
+            }
+            else if (t.Feita)
+            {
+                Console.WriteLine($"A tarefa {id} já estava feita.");
+            }
+            else
+            {
+                t.Concluir();
+                Console.WriteLine($"Feito: {t}");
+            }
+            break;
+        default:
+            Console.WriteLine("Opção inválida.");
+            break;
+    }
+}
+Console.WriteLine($"Até logo! Por fazer: {lista.Pendentes}.");
+</pre>
+<pre class="script" data-file="ListaDeTarefas.cs">// ListaDeTarefas.cs — guarda as tarefas e dá os números
+public class ListaDeTarefas
+{
+    private readonly List&lt;Tarefa&gt; _tarefas = [];
+    private int _proximoId = 1;
+
+    public int Total =&gt; _tarefas.Count;
+    public int Pendentes =&gt; 0;      // FALTA AQUI: contar as que não estão feitas
+
+    public Tarefa Adicionar(string titulo)
+    {
+        Tarefa nova = new(_proximoId, titulo);
+        _tarefas.Add(nova);
+        _proximoId++;
+        return nova;
+    }
+
+    public Tarefa? Buscar(int id) =&gt; _tarefas.Find(t =&gt; t.Id == id);
+
+    public void Mostrar()
+    {
+        if (Total == 0)
+        {
+            Console.WriteLine("Nenhuma tarefa. Aproveite o dia!");
+            return;
+        }
+        foreach (Tarefa t in _tarefas)
+        {
+            Console.WriteLine(t);
+        }
+        Console.WriteLine($"{Pendentes} de {Total} por fazer.");
+    }
+}
+</pre>
+<pre class="script" data-file="Tarefa.cs">// Tarefa.cs — uma tarefa da lista
+public class Tarefa
+{
+    public int Id { get; }
+    public string Titulo { get; }
+    public bool Feita { get; private set; }
+
+    public Tarefa(int id, string titulo)
+    {
+        if (string.IsNullOrWhiteSpace(titulo))
+        {
+            throw new ArgumentException("A tarefa precisa de um título.", nameof(titulo));
+        }
+        Id = id;
+        Titulo = titulo.Trim();
+    }
+
+    public void Concluir()
+    {
+        Feita = true;
+    }
+
+    public override string ToString() =&gt; $"[{(Feita ? "x" : " ")}] {Id}. {Titulo}";
+}
+</pre>
+<pre class="solucao" data-file="ListaDeTarefas.cs">// ListaDeTarefas.cs — guarda as tarefas e dá os números
+public class ListaDeTarefas
+{
+    private readonly List&lt;Tarefa&gt; _tarefas = [];
+    private int _proximoId = 1;
+
+    public int Total =&gt; _tarefas.Count;
+    public int Pendentes =&gt; _tarefas.Count(t =&gt; !t.Feita);
+
+    public Tarefa Adicionar(string titulo)
+    {
+        Tarefa nova = new(_proximoId, titulo);
+        _tarefas.Add(nova);
+        _proximoId++;
+        return nova;
+    }
+
+    public Tarefa? Buscar(int id) =&gt; _tarefas.Find(t =&gt; t.Id == id);
+
+    public void Mostrar()
+    {
+        if (Total == 0)
+        {
+            Console.WriteLine("Nenhuma tarefa. Aproveite o dia!");
+            return;
+        }
+        foreach (Tarefa t in _tarefas)
+        {
+            Console.WriteLine(t);
+        }
+        Console.WriteLine($"{Pendentes} de {Total} por fazer.");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao3">Versão 3 · Remover e limpar as feitas</h2>
+<p>A lista cresce, e as tarefas feitas viram entulho. A versão 3 ganha duas opções: apagar uma tarefa pelo número e limpar todas as feitas de uma vez.</p>
+
+<h3>Primeiro, o jeito que parece certo</h3>
+<p>A Ana pensou assim: "a tarefa 1 está na posição 0, a 2 na posição 1… então a tarefa <code>id</code> está na posição <code>id - 1</code>". E escreveu:</p>
+
+<div class="cenario">
+<strong>O número da tarefa não é a posição na lista</strong>
+<pre class="file" data-file="ListaDeTarefas.cs">    public bool Remover(int id)
+    {
+        _tarefas.RemoveAt(id - 1);      // a tarefa 1 está na posição 0... será?
+        return true;
+    }
+</pre>
+<p>Para testar, ela anotou quatro tarefas e apagou a 1, depois a 3, depois a 4:</p>
+<pre class="file" data-file="Program.cs">ListaDeTarefas lista = new();
+lista.Adicionar("Comprar pão");
+lista.Adicionar("Estudar C#");
+lista.Adicionar("Pagar a conta de luz");
+lista.Adicionar("Ligar para a vó");
+
+lista.Remover(1);           // apaga "Comprar pão"
+lista.Mostrar();
+Console.WriteLine("--- apagando a tarefa 3");
+lista.Remover(3);
+lista.Mostrar();
+Console.WriteLine("--- apagando a tarefa 4");
+lista.Remover(4);
+lista.Mostrar();
+</pre>
+<pre class="term" data-cwd="~/projetos/Tarefas">$ dotnet run
+[ ] 2. Estudar C#
+[ ] 3. Pagar a conta de luz
+[ ] 4. Ligar para a vó
+3 de 3 por fazer.
+--- apagando a tarefa 3
+[ ] 2. Estudar C#
+[ ] 3. Pagar a conta de luz          « a 3 continua aí
+2 de 2 por fazer.                    « e a 4 sumiu!
+--- apagando a tarefa 4
+Unhandled exception. System.ArgumentOutOfRangeException: Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')
+   at System.Collections.Generic.List`1.RemoveAt(Int32 index)
+   at ListaDeTarefas.Remover(Int32 id) in /home/ana/projetos/Tarefas/ListaDeTarefas.cs:line 23
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/projetos/Tarefas/Program.cs:line 13</pre>
+<p><strong>O que aconteceu:</strong> a primeira remoção funcionou. Mas, ao apagar a tarefa 1, as outras <strong>andaram uma casa</strong> para trás: a tarefa 3 foi para a posição 1, e a 4 para a posição 2. O <code>RemoveAt(3 - 1)</code> apagou a posição 2, que agora era a tarefa 4: a errada, e <strong>sem erro nenhum</strong>. Depois, o <code>RemoveAt(4 - 1)</code> pediu a posição 3 de uma lista com 2 itens, e aí sim veio a exceção: "o índice estava fora do intervalo; tem de ser não negativo e menor que o tamanho da coleção".</p>
+<p><strong>Como consertar:</strong> o número é uma <strong>etiqueta</strong> da tarefa, não o lugar dela na fila. Procure pela etiqueta: <code>_tarefas.RemoveAll(t =&gt; t.Id == id)</code>. É também por isso que os números nunca são reaproveitados: depois de apagar a 4, a próxima tarefa é a 5, e "a tarefa 4" nunca vai querer dizer outra coisa.</p>
+</div>
+
+<p>O <code>ListaDeTarefas.cs</code> da versão 3 ganha dois métodos de uma linha, logo depois do <code>Buscar</code>:</p>
+
+<pre class="file" data-file="ListaDeTarefas.cs">    // Devolve true se achou e apagou a tarefa com esse número.
+    public bool Remover(int id) =&gt; _tarefas.RemoveAll(t =&gt; t.Id == id) &gt; 0;
+
+    // Apaga todas as feitas e devolve quantas apagou.
+    public int LimparFeitas() =&gt; _tarefas.RemoveAll(t =&gt; t.Feita);
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>_tarefas.RemoveAll(t =&gt; t.Id == id)</code></td><td>Apaga <strong>todas</strong> as tarefas em que a condição é verdadeira e devolve quantas apagou. Como os números não se repetem, aqui é 0 ou 1. É o jeito seguro de apagar com condição (veja o cenário "Collection was modified" no <a href="projeto-estoque.html#versao4">projeto Estoque</a>).</td></tr>
+<tr><td><code>… &gt; 0</code></td><td>Vira <code>bool</code>: <code>true</code> se apagou alguma coisa.</td></tr>
+<tr><td><code>_tarefas.RemoveAll(t =&gt; t.Feita)</code></td><td>Apaga todas as feitas, de uma vez.</td></tr>
+</table>
+</div>
+
+<p>No <code>Program.cs</code>, o menu ganha as opções 4 e 5 (o resto é igual à versão 2):</p>
+
+<pre class="file" data-file="Program.cs">        case "4":
+            Console.Write("Número da tarefa: ");
+            if (int.TryParse(Console.ReadLine(), out int apagar) &amp;&amp; lista.Remover(apagar))
+            {
+                Console.WriteLine($"Tarefa {apagar} apagada.");
+            }
+            else
+            {
+                Console.WriteLine("Não achei essa tarefa.");
+            }
+            break;
+        case "5":
+            int quantas = lista.LimparFeitas();
+            Console.WriteLine($"Apaguei {quantas} tarefas feitas.");
+            break;
+</pre>
+
+<p>O <code>&amp;&amp;</code> só chama o <code>Remover</code> se o <code>TryParse</code> deu certo (aula <a href="operadores-logicos.html">Operadores Lógicos</a>). Com o mesmo teste de antes, agora pelo número:</p>
+
+<pre class="term" data-cwd="~/projetos/Tarefas">$ dotnet run
+[ ] 2. Estudar C#
+[ ] 3. Pagar a conta de luz
+[ ] 4. Ligar para a vó
+3 de 3 por fazer.
+--- apagando a tarefa 3
+[ ] 2. Estudar C#
+[ ] 4. Ligar para a vó
+2 de 2 por fazer.
+--- apagando a tarefa 4
+[ ] 2. Estudar C#
+1 de 1 por fazer.</pre>
+
+<p>E pelo menu, numa tarde inteira (a Ana conclui a 2 e a 4, apaga a 1, limpa as feitas e anota uma nova, que recebe o número 5):</p>
+
+<pre class="term" data-cwd="~/projetos/Tarefas">$ dotnet run
+
+=== Lista de Tarefas ===
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 2
+Título: Comprar pão
+Anotado: [ ] 1. Comprar pão
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 2
+Título: Estudar C#
+Anotado: [ ] 2. Estudar C#
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 2
+Título: Pagar a conta de luz
+Anotado: [ ] 3. Pagar a conta de luz
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 2
+Título: Ligar para a vó
+Anotado: [ ] 4. Ligar para a vó
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 3
+Número da tarefa: 2
+Feito: [x] 2. Estudar C#
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 3
+Número da tarefa: 4
+Feito: [x] 4. Ligar para a vó
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 4
+Número da tarefa: 1
+Tarefa 1 apagada.
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 1
+[x] 2. Estudar C#
+[ ] 3. Pagar a conta de luz
+[x] 4. Ligar para a vó
+1 de 3 por fazer.
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 5
+Apaguei 2 tarefas feitas.
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 2
+Título: Regar as plantas
+Anotado: [ ] 5. Regar as plantas
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 1
+[ ] 3. Pagar a conta de luz
+[ ] 5. Regar as plantas
+2 de 2 por fazer.
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 0
+Até logo! Por fazer: 2.</pre>
+
+<div class="trycs" data-stdin="2\nComprar pão\n2\nEstudar C#\n2\nPagar a conta de luz\n3\n1\n3\n3\n5\n1\n0" data-goal="out:Apaguei 2 tarefas feitas.,out:[ ] 2. Estudar C#">
+<p class="try-task"><strong>Missão (versão 3):</strong> o <code>LimparFeitas</code> da aba <code>ListaDeTarefas.cs</code> não apaga nada. Escreva-o com <code>RemoveAll</code>. A entrada anota três tarefas, conclui a 1 e a 3, limpa (opção 5), lista e sai. O certo é <code>Apaguei 2 tarefas feitas.</code> e sobrar só a tarefa 2.</p>
+<pre class="script" data-file="Program.cs">// Program.cs — versão 3: remover e limpar as feitas
+ListaDeTarefas lista = new();
+
+Console.WriteLine("=== Lista de Tarefas ===");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair");
+    Console.Write("Opção: ");
+    string? opcao = Console.ReadLine();
+    if (opcao is null || opcao == "0")
+    {
+        break;
+    }
+    switch (opcao)
+    {
+        case "1":
+            lista.Mostrar();
+            break;
+        case "2":
+            Console.Write("Título: ");
+            string titulo = Console.ReadLine() ?? "";
+            if (string.IsNullOrWhiteSpace(titulo))
+            {
+                Console.WriteLine("O título não pode ficar vazio.");
+                break;
+            }
+            Tarefa nova = lista.Adicionar(titulo);
+            Console.WriteLine($"Anotado: {nova}");
+            break;
+        case "3":
+            Console.Write("Número da tarefa: ");
+            if (!int.TryParse(Console.ReadLine(), out int id))
+            {
+                Console.WriteLine("Digite o número que aparece na lista.");
+                break;
+            }
+            Tarefa? t = lista.Buscar(id);
+            if (t is null)
+            {
+                Console.WriteLine($"Não há tarefa {id}.");
+            }
+            else if (t.Feita)
+            {
+                Console.WriteLine($"A tarefa {id} já estava feita.");
+            }
+            else
+            {
+                t.Concluir();
+                Console.WriteLine($"Feito: {t}");
+            }
+            break;
+        case "4":
+            Console.Write("Número da tarefa: ");
+            if (int.TryParse(Console.ReadLine(), out int apagar) &amp;&amp; lista.Remover(apagar))
+            {
+                Console.WriteLine($"Tarefa {apagar} apagada.");
+            }
+            else
+            {
+                Console.WriteLine("Não achei essa tarefa.");
+            }
+            break;
+        case "5":
+            int quantas = lista.LimparFeitas();
+            Console.WriteLine($"Apaguei {quantas} tarefas feitas.");
+            break;
+        default:
+            Console.WriteLine("Opção inválida.");
+            break;
+    }
+}
+Console.WriteLine($"Até logo! Por fazer: {lista.Pendentes}.");
+</pre>
+<pre class="script" data-file="ListaDeTarefas.cs">// ListaDeTarefas.cs — guarda as tarefas e dá os números
+public class ListaDeTarefas
+{
+    private readonly List&lt;Tarefa&gt; _tarefas = [];
+    private int _proximoId = 1;
+
+    public int Total =&gt; _tarefas.Count;
+    public int Pendentes =&gt; _tarefas.Count(t =&gt; !t.Feita);
+
+    public Tarefa Adicionar(string titulo)
+    {
+        Tarefa nova = new(_proximoId, titulo);
+        _tarefas.Add(nova);
+        _proximoId++;
+        return nova;
+    }
+
+    public Tarefa? Buscar(int id) =&gt; _tarefas.Find(t =&gt; t.Id == id);
+
+    // Devolve true se achou e apagou a tarefa com esse número.
+    public bool Remover(int id) =&gt; _tarefas.RemoveAll(t =&gt; t.Id == id) &gt; 0;
+
+    // Apaga todas as feitas e devolve quantas apagou.
+    public int LimparFeitas() =&gt; 0;     // FALTA AQUI: RemoveAll das feitas
+
+    public void Mostrar()
+    {
+        if (Total == 0)
+        {
+            Console.WriteLine("Nenhuma tarefa. Aproveite o dia!");
+            return;
+        }
+        foreach (Tarefa t in _tarefas)
+        {
+            Console.WriteLine(t);
+        }
+        Console.WriteLine($"{Pendentes} de {Total} por fazer.");
+    }
+}
+</pre>
+<pre class="script" data-file="Tarefa.cs">// Tarefa.cs — uma tarefa da lista
+public class Tarefa
+{
+    public int Id { get; }
+    public string Titulo { get; }
+    public bool Feita { get; private set; }
+
+    public Tarefa(int id, string titulo)
+    {
+        if (string.IsNullOrWhiteSpace(titulo))
+        {
+            throw new ArgumentException("A tarefa precisa de um título.", nameof(titulo));
+        }
+        Id = id;
+        Titulo = titulo.Trim();
+    }
+
+    public void Concluir()
+    {
+        Feita = true;
+    }
+
+    public override string ToString() =&gt; $"[{(Feita ? "x" : " ")}] {Id}. {Titulo}";
+}
+</pre>
+<pre class="solucao" data-file="ListaDeTarefas.cs">// ListaDeTarefas.cs — guarda as tarefas e dá os números
+public class ListaDeTarefas
+{
+    private readonly List&lt;Tarefa&gt; _tarefas = [];
+    private int _proximoId = 1;
+
+    public int Total =&gt; _tarefas.Count;
+    public int Pendentes =&gt; _tarefas.Count(t =&gt; !t.Feita);
+
+    public Tarefa Adicionar(string titulo)
+    {
+        Tarefa nova = new(_proximoId, titulo);
+        _tarefas.Add(nova);
+        _proximoId++;
+        return nova;
+    }
+
+    public Tarefa? Buscar(int id) =&gt; _tarefas.Find(t =&gt; t.Id == id);
+
+    // Devolve true se achou e apagou a tarefa com esse número.
+    public bool Remover(int id) =&gt; _tarefas.RemoveAll(t =&gt; t.Id == id) &gt; 0;
+
+    // Apaga todas as feitas e devolve quantas apagou.
+    public int LimparFeitas() =&gt; _tarefas.RemoveAll(t =&gt; t.Feita);
+
+    public void Mostrar()
+    {
+        if (Total == 0)
+        {
+            Console.WriteLine("Nenhuma tarefa. Aproveite o dia!");
+            return;
+        }
+        foreach (Tarefa t in _tarefas)
+        {
+            Console.WriteLine(t);
+        }
+        Console.WriteLine($"{Pendentes} de {Total} por fazer.");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao4">Versão 4 · A lista guardada em tarefas.txt</h2>
+<p>Falta o principal: ao sair, a lista some. A versão 4 grava as tarefas num arquivo de texto, uma por linha, e lê de volta quando o programa abre. Cada linha tem três campos separados por <code>|</code>: o número, <code>1</code> ou <code>0</code> (feita ou não) e o título.</p>
+<pre class="file" data-file="tarefas.txt">1|0|Comprar pão
+2|1|Estudar C#
+3|0|Pagar a conta de luz
+</pre>
+<p>O título fica por último de propósito: se a Ana escrever uma tarefa com <code>|</code> no texto ("Feira: pão|leite"), o programa corta só nos dois primeiros <code>|</code> e o resto inteiro é o título.</p>
+
+<p>A <code>Tarefa</code> ganha um parâmetro opcional no construtor, para criar uma tarefa que já vem feita do arquivo (aula <a href="parametros-opcionais.html">Parâmetros Opcionais</a>):</p>
+
+<pre class="file" data-file="Tarefa.cs">// Tarefa.cs — uma tarefa da lista
+public class Tarefa
+{
+    public int Id { get; }
+    public string Titulo { get; }
+    public bool Feita { get; private set; }
+
+    public Tarefa(int id, string titulo, bool feita = false)
+    {
+        if (string.IsNullOrWhiteSpace(titulo))
+        {
+            throw new ArgumentException("A tarefa precisa de um título.", nameof(titulo));
+        }
+        Id = id;
+        Titulo = titulo.Trim();
+        Feita = feita;
+    }
+
+    public void Concluir()
+    {
+        Feita = true;
+    }
+
+    public override string ToString() =&gt; $"[{(Feita ? "x" : " ")}] {Id}. {Titulo}";
+}
+</pre>
+
+<p>A <code>ListaDeTarefas</code> ganha um construtor que recebe o nome do arquivo e carrega, e os métodos <code>Salvar</code> e <code>Carregar</code>:</p>
+
+<pre class="file" data-file="ListaDeTarefas.cs">// ListaDeTarefas.cs — guarda as tarefas, num arquivo também
+public class ListaDeTarefas
+{
+    private readonly List&lt;Tarefa&gt; _tarefas = [];
+    private int _proximoId = 1;
+    private readonly string _arquivo;
+
+    public ListaDeTarefas(string arquivo)
+    {
+        _arquivo = arquivo;
+        Carregar();
+    }
+
+    public int Total =&gt; _tarefas.Count;
+    public int Pendentes =&gt; _tarefas.Count(t =&gt; !t.Feita);
+
+    public Tarefa Adicionar(string titulo)
+    {
+        Tarefa nova = new(_proximoId, titulo);
+        _tarefas.Add(nova);
+        _proximoId++;
+        return nova;
+    }
+
+    public Tarefa? Buscar(int id) =&gt; _tarefas.Find(t =&gt; t.Id == id);
+
+    // Devolve true se achou e apagou a tarefa com esse número.
+    public bool Remover(int id) =&gt; _tarefas.RemoveAll(t =&gt; t.Id == id) &gt; 0;
+
+    // Apaga todas as feitas e devolve quantas apagou.
+    public int LimparFeitas() =&gt; _tarefas.RemoveAll(t =&gt; t.Feita);
+
+    public void Mostrar()
+    {
+        if (Total == 0)
+        {
+            Console.WriteLine("Nenhuma tarefa. Aproveite o dia!");
+            return;
+        }
+        foreach (Tarefa t in _tarefas)
+        {
+            Console.WriteLine(t);
+        }
+        Console.WriteLine($"{Pendentes} de {Total} por fazer.");
+    }
+
+    // Uma linha por tarefa: número|feita (1 ou 0)|título
+    public void Salvar()
+    {
+        using StreamWriter escritor = new(_arquivo);
+        foreach (Tarefa t in _tarefas)
+        {
+            escritor.WriteLine($"{t.Id}|{(t.Feita ? 1 : 0)}|{t.Titulo}");
+        }
+    }
+
+    private void Carregar()
+    {
+        if (!File.Exists(_arquivo))
+        {
+            return;                     // primeira vez: lista vazia
+        }
+        foreach (string linha in File.ReadAllLines(_arquivo))
+        {
+            string[] partes = linha.Split('|', 3);
+            if (partes.Length != 3 || !int.TryParse(partes[0], out int id))
+            {
+                continue;               // linha estragada: pula
+            }
+            _tarefas.Add(new Tarefa(id, partes[2], partes[1] == "1"));
+        }
+        if (_tarefas.Count &gt; 0)
+        {
+            _proximoId = _tarefas.Max(t =&gt; t.Id) + 1;
+        }
+    }
+}
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>bool feita = false</code></td><td>Parâmetro opcional: <code>new Tarefa(1, "Comprar pão")</code> continua valendo (feita = <code>false</code>), e o <code>Carregar</code> passa o terceiro valor.</td></tr>
+<tr><td><code>public ListaDeTarefas(string arquivo)</code></td><td>O construtor guarda o nome do arquivo e já carrega o que houver nele.</td></tr>
+<tr><td><code>using StreamWriter escritor = new(_arquivo);</code></td><td>Abre o arquivo para escrever (cria, ou apaga o que havia). O <code>using</code> garante que ele será <strong>fechado</strong> no fim do método, mesmo se der erro no meio, e fechar é o que grava de verdade (veja o cenário abaixo; aula <a href="using-dispose.html">using e IDisposable</a>). <span class="versao">C# 8</span></td></tr>
+<tr><td><code>escritor.WriteLine($"{t.Id}|{(t.Feita ? 1 : 0)}|{t.Titulo}");</code></td><td>Uma linha por tarefa: <code>2|1|Estudar C#</code>.</td></tr>
+<tr><td><code>if (!File.Exists(_arquivo)) { return; }</code></td><td>Na primeira vez, o arquivo não existe: a lista começa vazia, sem erro.</td></tr>
+<tr><td><code>File.ReadAllLines(_arquivo)</code></td><td>Lê o arquivo inteiro e devolve um array com uma <code>string</code> por linha (aula <a href="arquivos.html">Arquivos</a>).</td></tr>
+<tr><td><code>linha.Split('|', 3)</code></td><td>Corta no <code>|</code>, em no máximo <strong>3</strong> pedaços: o terceiro fica com todo o resto da linha, mesmo que tenha <code>|</code>.</td></tr>
+<tr><td><code>if (partes.Length != 3 || !int.TryParse(…)) { continue; }</code></td><td>Uma linha estragada (vazia, ou com o número errado) é pulada em vez de derrubar o programa.</td></tr>
+<tr><td><code>partes[1] == "1"</code></td><td>Vira <code>true</code> se o campo do meio é <code>1</code>.</td></tr>
+<tr><td><code>_proximoId = _tarefas.Max(t =&gt; t.Id) + 1;</code></td><td>Continua a numeração de onde parou: se a maior tarefa do arquivo é a 3, a próxima é a 4.</td></tr>
+</table>
+</div>
+
+<p>No <code>Program.cs</code>, mudam três coisas: a lista é criada com o nome do arquivo, a primeira linha mostra o que foi carregado, e o programa salva logo depois de cada mudança (opções 2 a 5). Assim, mesmo se a Ana fechar o terminal sem digitar <code>0</code>, nada se perde:</p>
+
+<pre class="file" data-file="Program.cs">// Program.cs — versão 4: a lista guardada em tarefas.txt
+ListaDeTarefas lista = new("tarefas.txt");
+
+Console.WriteLine("=== Lista de Tarefas ===");
+Console.WriteLine($"{lista.Total} tarefas no caderno, {lista.Pendentes} por fazer.");
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair");
+    Console.Write("Opção: ");
+    string? opcao = Console.ReadLine();
+    if (opcao is null || opcao == "0")
+    {
+        break;
+    }
+    switch (opcao)
+    {
+        case "1":
+            lista.Mostrar();
+            break;
+        case "2":
+            Console.Write("Título: ");
+            string titulo = Console.ReadLine() ?? "";
+            if (string.IsNullOrWhiteSpace(titulo))
+            {
+                Console.WriteLine("O título não pode ficar vazio.");
+                break;
+            }
+            Tarefa nova = lista.Adicionar(titulo);
+            Console.WriteLine($"Anotado: {nova}");
+            break;
+        case "3":
+            Console.Write("Número da tarefa: ");
+            if (!int.TryParse(Console.ReadLine(), out int id))
+            {
+                Console.WriteLine("Digite o número que aparece na lista.");
+                break;
+            }
+            Tarefa? t = lista.Buscar(id);
+            if (t is null)
+            {
+                Console.WriteLine($"Não há tarefa {id}.");
+            }
+            else if (t.Feita)
+            {
+                Console.WriteLine($"A tarefa {id} já estava feita.");
+            }
+            else
+            {
+                t.Concluir();
+                Console.WriteLine($"Feito: {t}");
+            }
+            break;
+        case "4":
+            Console.Write("Número da tarefa: ");
+            if (int.TryParse(Console.ReadLine(), out int apagar) &amp;&amp; lista.Remover(apagar))
+            {
+                Console.WriteLine($"Tarefa {apagar} apagada.");
+            }
+            else
+            {
+                Console.WriteLine("Não achei essa tarefa.");
+            }
+            break;
+        case "5":
+            int quantas = lista.LimparFeitas();
+            Console.WriteLine($"Apaguei {quantas} tarefas feitas.");
+            break;
+        default:
+            Console.WriteLine("Opção inválida.");
+            break;
+    }
+    if (opcao is "2" or "3" or "4" or "5")
+    {
+        lista.Salvar();                 // guarda a cada mudança
+    }
+}
+Console.WriteLine($"Até logo! Por fazer: {lista.Pendentes}.");
+</pre>
+
+<p>O <code>opcao is "2" or "3" or "4" or "5"</code> é um <a href="pattern-matching.html">padrão</a>: "a opção é 2, ou 3, ou 4, ou 5" <span class="versao">C# 9</span>. No primeiro dia, ainda não há arquivo:</p>
+
+<pre class="term" data-cwd="~/projetos/Tarefas">$ dotnet run
+
+=== Lista de Tarefas ===
+0 tarefas no caderno, 0 por fazer.
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 2
+Título: Comprar pão
+Anotado: [ ] 1. Comprar pão
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 2
+Título: Estudar C#
+Anotado: [ ] 2. Estudar C#
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 2
+Título: Pagar a conta de luz
+Anotado: [ ] 3. Pagar a conta de luz
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 3
+Número da tarefa: 2
+Feito: [x] 2. Estudar C#
+
+1) Listar  2) Adicionar  3) Concluir  4) Remover  5) Limpar feitas  0) Sair
+Opção: 0
+Até logo! Por fazer: 2.
+$ cat tarefas.txt
+1|0|Comprar pão
+2|1|Estudar C#
+3|0|Pagar a conta de luz</pre>
+
+<p>No dia seguinte, o programa começa com <code>3 tarefas no caderno, 2 por fazer.</code>: é a sessão do começo da página (<a href="#construir">O que vamos construir</a>). Depois dela, o arquivo ficou assim, com a tarefa 4 nova e sem a 1 e a 2, que foram limpas:</p>
+
+<pre class="term" data-cwd="~/projetos/Tarefas">$ cat tarefas.txt
+3|0|Pagar a conta de luz
+4|0|Ligar para a vó</pre>
+
+<div class="cenario">
+<strong>Primeira vez: FileNotFoundException</strong>
+<p>Na primeira versão do <code>Carregar</code>, a Ana não tinha o <code>File.Exists</code>. No primeiro dia, ainda sem arquivo:</p>
+<pre class="term" data-cwd="~/projetos/Tarefas">$ dotnet run
+Unhandled exception. System.IO.FileNotFoundException: Could not find file '/home/ana/projetos/Tarefas/tarefas.txt'.
+File name: '/home/ana/projetos/Tarefas/tarefas.txt'
+   at Interop.ThrowExceptionForIoErrno(ErrorInfo errorInfo, String path, Boolean isDirError)
+   …                                                     « 5 linhas de dentro do .NET
+   at System.IO.File.ReadAllLines(String path, Encoding encoding)
+   at ListaDeTarefas.Carregar() in /home/ana/projetos/Tarefas/ListaDeTarefas.cs:line 59
+   at ListaDeTarefas..ctor(String arquivo) in /home/ana/projetos/Tarefas/ListaDeTarefas.cs:line 11
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/projetos/Tarefas/Program.cs:line 2</pre>
+<p><strong>O que significa:</strong> "não achei o arquivo". O rastro é comprido, mas leia de baixo para cima até achar um arquivo seu: <code>Program.cs</code> linha 2 criou a lista, o construtor chamou o <code>Carregar</code>, e a linha 59 chamou o <code>File.ReadAllLines</code>. O caminho completo mostra <strong>onde</strong> o programa procurou: na pasta em que a Ana rodou o <code>dotnet run</code>.</p>
+<p><strong>Como consertar:</strong> não existir é normal na primeira vez. Confira com <code>File.Exists</code> e comece vazio. Para outros problemas de arquivo (sem permissão, disco cheio), o caminho é o <a href="try-catch.html">try e catch</a>.</p>
+</div>
+
+<div class="cenario">
+<strong>Sem o <code>using</code>, o arquivo fica vazio</strong>
+<p>Numa das tentativas, a Ana escreveu o <code>Salvar</code> sem o <code>using</code> (só <code>StreamWriter escritor = new(_arquivo);</code>). O programa compilou, rodou e disse que salvou. Este <code>Program.cs</code> de teste anota duas tarefas e salva:</p>
+<pre class="file" data-file="Program.cs">ListaDeTarefas lista = new("tarefas.txt");
+lista.Adicionar("Comprar pão");
+lista.Adicionar("Estudar C#");
+lista.Salvar();
+Console.WriteLine($"Salvei {lista.Total} tarefas.");
+</pre>
+<pre class="term" data-cwd="~/projetos/Tarefas">$ dotnet run
+Salvei 2 tarefas.
+$ ls -l tarefas.txt
+-rw-rw-r-- 1 ana ana 0 out 17 12:59 tarefas.txt
+$ cat tarefas.txt</pre>
+<p><strong>O que aconteceu:</strong> o arquivo tem <strong>0 bytes</strong>. O <code>StreamWriter</code> não escreve no disco a cada <code>WriteLine</code>: ele junta o texto num "balde" na memória e esvazia o balde de uma vez, quando enche ou quando é fechado. Sem o <code>using</code>, ninguém fechou o arquivo; o programa terminou com o balde cheio, e o texto foi embora com ele. Não houve erro nem aviso.</p>
+<p><strong>Como consertar:</strong> todo <code>StreamWriter</code> (e todo objeto que abre um arquivo) vai com <code>using</code>. Com o <code>using</code> de volta, o mesmo teste grava as duas linhas (32 bytes):</p>
+<pre class="term" data-cwd="~/projetos/Tarefas">$ dotnet run
+Salvei 2 tarefas.
+$ cat tarefas.txt
+1|0|Comprar pão
+2|0|Estudar C#</pre>
+</div>
+
+<div class="trycs" data-goal="out:3|0|Regar as plantas,out:2|1|Estudar C#">
+<p class="try-task"><strong>Missão (versão 4):</strong> a aba <code>tarefas.txt</code> já tem duas tarefas. O programa carrega, anota "Regar as plantas", salva e mostra o arquivo. Mas o <code>Salvar</code> da aba <code>ListaDeTarefas.cs</code> está sem o <code>using</code>, e o arquivo sai vazio. Conserte para o arquivo mostrar as três tarefas, com <code>3|0|Regar as plantas</code> no fim.</p>
+<pre class="script" data-file="Program.cs">ListaDeTarefas lista = new("tarefas.txt");
+Console.WriteLine($"Carreguei {lista.Total} tarefas.");
+
+lista.Adicionar("Regar as plantas");
+lista.Salvar();
+
+Console.WriteLine("--- tarefas.txt agora:");
+Console.Write(File.ReadAllText("tarefas.txt"));
+Console.WriteLine("--- fim do arquivo");
+</pre>
+<pre class="script" data-file="ListaDeTarefas.cs">// ListaDeTarefas.cs — guarda as tarefas, num arquivo também
+public class ListaDeTarefas
+{
+    private readonly List&lt;Tarefa&gt; _tarefas = [];
+    private int _proximoId = 1;
+    private readonly string _arquivo;
+
+    public ListaDeTarefas(string arquivo)
+    {
+        _arquivo = arquivo;
+        Carregar();
+    }
+
+    public int Total =&gt; _tarefas.Count;
+    public int Pendentes =&gt; _tarefas.Count(t =&gt; !t.Feita);
+
+    public Tarefa Adicionar(string titulo)
+    {
+        Tarefa nova = new(_proximoId, titulo);
+        _tarefas.Add(nova);
+        _proximoId++;
+        return nova;
+    }
+
+    public Tarefa? Buscar(int id) =&gt; _tarefas.Find(t =&gt; t.Id == id);
+
+    // Devolve true se achou e apagou a tarefa com esse número.
+    public bool Remover(int id) =&gt; _tarefas.RemoveAll(t =&gt; t.Id == id) &gt; 0;
+
+    // Apaga todas as feitas e devolve quantas apagou.
+    public int LimparFeitas() =&gt; _tarefas.RemoveAll(t =&gt; t.Feita);
+
+    public void Mostrar()
+    {
+        if (Total == 0)
+        {
+            Console.WriteLine("Nenhuma tarefa. Aproveite o dia!");
+            return;
+        }
+        foreach (Tarefa t in _tarefas)
+        {
+            Console.WriteLine(t);
+        }
+        Console.WriteLine($"{Pendentes} de {Total} por fazer.");
+    }
+
+    // Uma linha por tarefa: número|feita (1 ou 0)|título
+    public void Salvar()
+    {
+        StreamWriter escritor = new(_arquivo);
+        foreach (Tarefa t in _tarefas)
+        {
+            escritor.WriteLine($"{t.Id}|{(t.Feita ? 1 : 0)}|{t.Titulo}");
+        }
+    }
+
+    private void Carregar()
+    {
+        if (!File.Exists(_arquivo))
+        {
+            return;                     // primeira vez: lista vazia
+        }
+        foreach (string linha in File.ReadAllLines(_arquivo))
+        {
+            string[] partes = linha.Split('|', 3);
+            if (partes.Length != 3 || !int.TryParse(partes[0], out int id))
+            {
+                continue;               // linha estragada: pula
+            }
+            _tarefas.Add(new Tarefa(id, partes[2], partes[1] == "1"));
+        }
+        if (_tarefas.Count &gt; 0)
+        {
+            _proximoId = _tarefas.Max(t =&gt; t.Id) + 1;
+        }
+    }
+}
+</pre>
+<pre class="script" data-file="Tarefa.cs">// Tarefa.cs — uma tarefa da lista
+public class Tarefa
+{
+    public int Id { get; }
+    public string Titulo { get; }
+    public bool Feita { get; private set; }
+
+    public Tarefa(int id, string titulo, bool feita = false)
+    {
+        if (string.IsNullOrWhiteSpace(titulo))
+        {
+            throw new ArgumentException("A tarefa precisa de um título.", nameof(titulo));
+        }
+        Id = id;
+        Titulo = titulo.Trim();
+        Feita = feita;
+    }
+
+    public void Concluir()
+    {
+        Feita = true;
+    }
+
+    public override string ToString() =&gt; $"[{(Feita ? "x" : " ")}] {Id}. {Titulo}";
+}
+</pre>
+<pre class="script" data-file="tarefas.txt">1|0|Comprar pão
+2|1|Estudar C#
+</pre>
+<pre class="solucao" data-file="ListaDeTarefas.cs">// ListaDeTarefas.cs — guarda as tarefas, num arquivo também
+public class ListaDeTarefas
+{
+    private readonly List&lt;Tarefa&gt; _tarefas = [];
+    private int _proximoId = 1;
+    private readonly string _arquivo;
+
+    public ListaDeTarefas(string arquivo)
+    {
+        _arquivo = arquivo;
+        Carregar();
+    }
+
+    public int Total =&gt; _tarefas.Count;
+    public int Pendentes =&gt; _tarefas.Count(t =&gt; !t.Feita);
+
+    public Tarefa Adicionar(string titulo)
+    {
+        Tarefa nova = new(_proximoId, titulo);
+        _tarefas.Add(nova);
+        _proximoId++;
+        return nova;
+    }
+
+    public Tarefa? Buscar(int id) =&gt; _tarefas.Find(t =&gt; t.Id == id);
+
+    // Devolve true se achou e apagou a tarefa com esse número.
+    public bool Remover(int id) =&gt; _tarefas.RemoveAll(t =&gt; t.Id == id) &gt; 0;
+
+    // Apaga todas as feitas e devolve quantas apagou.
+    public int LimparFeitas() =&gt; _tarefas.RemoveAll(t =&gt; t.Feita);
+
+    public void Mostrar()
+    {
+        if (Total == 0)
+        {
+            Console.WriteLine("Nenhuma tarefa. Aproveite o dia!");
+            return;
+        }
+        foreach (Tarefa t in _tarefas)
+        {
+            Console.WriteLine(t);
+        }
+        Console.WriteLine($"{Pendentes} de {Total} por fazer.");
+    }
+
+    // Uma linha por tarefa: número|feita (1 ou 0)|título
+    public void Salvar()
+    {
+        using StreamWriter escritor = new(_arquivo);
+        foreach (Tarefa t in _tarefas)
+        {
+            escritor.WriteLine($"{t.Id}|{(t.Feita ? 1 : 0)}|{t.Titulo}");
+        }
+    }
+
+    private void Carregar()
+    {
+        if (!File.Exists(_arquivo))
+        {
+            return;                     // primeira vez: lista vazia
+        }
+        foreach (string linha in File.ReadAllLines(_arquivo))
+        {
+            string[] partes = linha.Split('|', 3);
+            if (partes.Length != 3 || !int.TryParse(partes[0], out int id))
+            {
+                continue;               // linha estragada: pula
+            }
+            _tarefas.Add(new Tarefa(id, partes[2], partes[1] == "1"));
+        }
+        if (_tarefas.Count &gt; 0)
+        {
+            _proximoId = _tarefas.Max(t =&gt; t.Id) + 1;
+        }
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="formas">Formas diferentes</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Em vez de…</th><th>Daria para…</th><th>Qual usar</th></tr>
+<tr><td><code>class Tarefa</code> com <code>private set</code></td><td><code>record Tarefa(int Id, string Titulo, bool Feita)</code> e <code>with { Feita = true }</code></td><td>O record é ótimo para dados que só se leem (o <a href="projeto-estoque.html">projeto Estoque</a> usa). Aqui a tarefa tem regra (o título não pode ser vazio) e uma ação (<code>Concluir</code>): a classe deixa isso mais claro.</td></tr>
+<tr><td>Uma <code>ListaDeTarefas</code> que esconde a <code>List</code></td><td>Uma <code>List&lt;Tarefa&gt;</code> solta no <code>Program.cs</code></td><td>Funciona para programas pequenos (a versão 1 fez assim). Quando as regras crescem (números, salvar a cada mudança), uma classe que guarda a lista evita repetir código e erros como o do <code>RemoveAt</code>.</td></tr>
+<tr><td><code>tarefas.txt</code> com <code>|</code></td><td><code>tarefas.json</code> com <code>JsonSerializer</code></td><td>O JSON lida sozinho com textos que têm <code>|</code>, quebras de linha e aspas (aula <a href="json.html">JSON</a>; o <a href="projeto-agenda.html">projeto Agenda</a> usa). O texto com <code>|</code> se lê e se conserta à mão, num editor.</td></tr>
+<tr><td><code>using StreamWriter escritor = new(…);</code></td><td><code>File.WriteAllLines(_arquivo, linhas)</code></td><td>Também fecha o arquivo sozinho e é mais curto. O <code>StreamWriter</code> foi usado para mostrar o <code>using</code>, que você vai precisar com qualquer arquivo aberto aos poucos.</td></tr>
+<tr><td>As classes sem <code>namespace</code></td><td><code>namespace Tarefas;</code> no topo de cada arquivo</td><td>Num projeto maior, use o namespace (aula <a href="namespaces.html">Namespaces e using</a>). Num projeto de três arquivos, ele não muda nada.</td></tr>
+</table>
+</div>
+
+<h2>Desafios extras</h2>
+<ul>
+  <li><strong>Editar:</strong> uma opção que troca o título de uma tarefa. Como o <code>Titulo</code> só tem <code>get</code>, crie na <code>Tarefa</code> um método <code>Renomear(string novo)</code> que valida como o construtor (troque o <code>{ get; }</code> por <code>{ get; private set; }</code>).</li>
+  <li><strong>Data de conclusão:</strong> uma propriedade <code>DateTime? FeitaEm</code>, preenchida no <code>Concluir</code> (aula <a href="datas.html">Datas e Horas</a>). Grave no arquivo como um quarto campo… e pense em onde ele deve ficar, por causa do <code>Split('|', 3)</code>.</li>
+  <li><strong>Desfazer:</strong> uma opção que volta uma tarefa feita para pendente.</li>
+  <li><strong>Ordem:</strong> listar primeiro as pendentes, depois as feitas, com <code>OrderBy(t =&gt; t.Feita)</code> (o <code>false</code> vem antes do <code>true</code>).</li>
+</ul>
+
+<h2>Exercícios</h2>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">1. Para que serve o <code>private set</code> em <code>public bool Feita { get; private set; }</code>?</p>
+<label><input type="radio" name="q1"> Para ninguém conseguir ler se a tarefa está feita.</label>
+<label><input type="radio" name="q1"> Para todos lerem, mas só a própria classe mudar (pelo <code>Concluir</code>).</label>
+<label><input type="radio" name="q1"> Para a propriedade não ocupar memória.</label>
+<label><input type="radio" name="q1"> Para o <code>Feita</code> começar com <code>true</code>.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">2. Depois de apagar a tarefa 1 de uma lista com as tarefas 1, 2, 3 e 4, em que posição da <code>List</code> está a tarefa 3?</p>
+<label><input type="radio" name="q2"> 3</label>
+<label><input type="radio" name="q2"> 2</label>
+<label><input type="radio" name="q2"> 1</label>
+<label><input type="radio" name="q2"> 0</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">3. O <code>Salvar</code> sem <code>using</code> deixou o <code>tarefas.txt</code> com 0 bytes. Por quê?</p>
+<label><input type="radio" name="q3"> Porque o <code>WriteLine</code> do <code>StreamWriter</code> não aceita acentos.</label>
+<label><input type="radio" name="q3"> Porque o arquivo foi aberto só para leitura.</label>
+<label><input type="radio" name="q3"> Porque o compilador apagou as linhas.</label>
+<label><input type="radio" name="q3"> Porque o texto ficou no buffer da memória, e só é gravado quando o arquivo é fechado, o que o <code>using</code> faz.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">4. O que <code>"5|0|Feira: pão|leite".Split('|', 3)</code> devolve?</p>
+<label><input type="radio" name="q4"> <code>"5"</code>, <code>"0"</code> e <code>"Feira: pão|leite"</code></label>
+<label><input type="radio" name="q4"> <code>"5"</code>, <code>"0"</code>, <code>"Feira: pão"</code> e <code>"leite"</code></label>
+<label><input type="radio" name="q4"> <code>"5"</code>, <code>"0"</code> e <code>"Feira: pão"</code></label>
+<label><input type="radio" name="q4"> Uma exceção, porque há mais de dois <code>|</code>.</label>
+</div>
+
+<div class="exercise">
+<p>5. Complete a propriedade que todos podem ler e só a classe pode mudar:</p>
+<div class="ex-code">public bool Feita { get; <input data-answer="private set"> }</div>
+</div>
+
+<div class="exercise">
+<p>6. Complete para apagar todas as tarefas feitas e saber quantas foram:</p>
+<div class="ex-code">int quantas = _tarefas.<input data-answer="RemoveAll">(t =&gt; t.Feita);</div>
+</div>
+
+<div class="exercise">
+<p>7. Complete para o arquivo ser fechado (e gravado) no fim do método:</p>
+<div class="ex-code"><input data-answer="using"> StreamWriter escritor = new("tarefas.txt");</div>
+</div>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Cada classe no seu arquivo; o projeto compila todos os <code>.cs</code> da pasta juntos.</li>
+  <li><code>{ get; }</code> só de leitura, <code>{ get; private set; }</code> lida por todos e mudada só pela classe. Ações viram métodos (<code>Concluir</code>).</li>
+  <li>O construtor valida e recusa dados ruins com <code>throw new ArgumentException(…)</code>; quem chama confere antes.</li>
+  <li><code>override ToString()</code> decide como o objeto aparece no <code>Console.WriteLine</code>.</li>
+  <li>Uma classe que guarda a <code>List</code> como <code>private</code> concentra as regras; quem está fora pede por métodos.</li>
+  <li>O número de uma tarefa é uma etiqueta, não a posição: procure com <code>Find</code> e apague com <code>RemoveAll</code>.</li>
+  <li>Arquivo: confira <code>File.Exists</code>, leia com <code>File.ReadAllLines</code>, grave com <code>StreamWriter</code> <strong>sempre com <code>using</code></strong>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
