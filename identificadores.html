@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Nomes e Convenções — identificadores, PascalCase, camelCase, palavras-chave e @ | Guia C#</title>
+<meta name="description" content="Como dar nomes em C#: as regras dos identificadores (letras, dígitos, _ e acentos), maiúsculas e minúsculas, as palavras-chave reservadas e contextuais, o @ para usar uma palavra-chave como nome, e as convenções do .NET: camelCase para variáveis, PascalCase para métodos, classes e projetos, _camelCase para campos, com os erros reais CS1001, CS1003, CS1056 e CS0103 do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Nomes e Convenções</span></h1>
+
+<p class="intro">Na aula anterior você deu nomes às suas variáveis: <code>idade</code>, <code>preco</code>, <code>quantidade</code>. Os nomes que você inventa no código se chamam <strong>identificadores</strong>, e o C# tem dois tipos de regra para eles. As <strong>regras da linguagem</strong> são obrigatórias: quebre uma, e o programa não compila. As <strong>convenções</strong> são combinados da comunidade C#: o programa compila sem elas, mas todo programador espera que você as siga, como espera que um texto em português comece com maiúscula. Nesta aula você aprende as duas, conhece as palavras que não podem ser nomes e o truque do <code>@</code> para quando você realmente precisa de uma delas.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é um <strong>identificador</strong> e o que ele pode (e não pode) ter: letras, dígitos, <code>_</code>, acentos.</li>
+  <li>Por que <code>idade</code> e <code>Idade</code> são duas coisas diferentes.</li>
+  <li>As <strong>palavras-chave</strong>: as reservadas, que nunca podem ser nomes, e as contextuais, que às vezes podem.</li>
+  <li>O <code>@</code> na frente de um nome: <code>@class</code>.</li>
+  <li>As convenções do C#: <strong>camelCase</strong>, <strong>PascalCase</strong> e <code>_camelCase</code>, e onde cada uma vai.</li>
+  <li>Como escolher um bom nome, e em que língua.</li>
+  <li>Os erros de nome inválido, com a mensagem real e o conserto.</li>
+</ul>
+</div>
+
+<p>Os programas desta aula foram rodados na máquina fictícia da Ana com o <strong>.NET 10 SDK</strong> (C# 14), na pasta <code>~/cs/nomes</code>, com <code>dotnet run arquivo.cs</code>. As saídas foram copiadas da tela.</p>
+
+<hr>
+
+<h2>A ideia: o nome na chamada da escola</h2>
+<p>Numa sala de aula, cada aluno tem um nome, e a professora chama pelo nome. Há regras que ninguém discute: o nome vai no registro do jeito que está escrito, e "Ana Clara" e "ana clara" são, para o sistema da escola, cadastros diferentes. E há costumes: o nome começa com maiúscula, o sobrenome vem depois.</p>
+
+<p>No C#, é igual. Algumas regras são da linguagem (o compilador confere), outras são costumes (as pessoas conferem). E, como na escola, há nomes que já estão "ocupados": ninguém pode se chamar "Diretoria". No C#, são as <strong>palavras-chave</strong>.</p>
+
+<hr>
+
+<h2>1. As regras: o que um nome pode ter</h2>
+<p>Um identificador do C#:</p>
+<ul>
+  <li>começa com uma <strong>letra</strong> ou com <code>_</code> (sublinhado);</li>
+  <li>depois, pode ter letras, <strong>dígitos</strong> (0 a 9) e <code>_</code>;</li>
+  <li><strong>não</strong> pode ter espaço, hífen, ponto, <code>$</code>, <code>#</code> nem outros símbolos;</li>
+  <li>não pode ser uma palavra-chave reservada (seção 3).</li>
+</ul>
+
+<pre class="file" data-file="validos.cs">int idade = 29;
+int idade2 = 30;
+int _contador = 0;
+int precoTotal = 100;
+int maçãs = 3;
+Console.WriteLine($"{idade} {idade2} {_contador} {precoTotal} {maçãs}");
+</pre>
+
+<pre class="term" data-cwd="~/cs/nomes">$ dotnet run validos.cs
+29 30 0 100 3</pre>
+
+<p>Todos válidos. Repare no <code>maçãs</code>: o C# aceita <strong>letras acentuadas</strong> e outras letras do Unicode (o padrão que inclui os alfabetos do mundo inteiro). Mesmo assim, o guia usa nomes <strong>sem acento</strong> (<code>macas</code>, <code>preco</code>): nem todo teclado, editor e ferramenta lida bem com eles, e o costume da comunidade é evitar. Como o C# diferencia <code>a</code> de <code>á</code>, um acento esquecido também vira um nome diferente.</p>
+
+<h3>O que não pode</h3>
+<p>Um dígito no começo:</p>
+
+<pre class="file" data-file="digito.cs · erro de propósito">int 2lugar = 2;
+Console.WriteLine(2lugar);
+</pre>
+
+<pre class="term" data-cwd="~/cs/nomes">$ dotnet run digito.cs
+/home/ana/cs/nomes/digito.cs(1,5): error CS1001: Identificador esperado
+/home/ana/cs/nomes/digito.cs(1,5): error CS1003: Erro de sintaxe, "," esperado
+/home/ana/cs/nomes/digito.cs(2,22): error CS1003: Erro de sintaxe, "," esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Identificador esperado" (<code>Identifier expected</code>): depois do <code>int</code>, o compilador esperava um nome, e encontrou o número <code>2</code>. Um nome que começa com dígito seria confundido com um número. <strong>Conserto:</strong> <code>segundoLugar</code> ou <code>lugar2</code>.</p>
+
+<p>Um espaço ou um hífen no meio:</p>
+
+<pre class="term" data-cwd="~/cs/nomes">$ dotnet run espaco.cs                  « int minha idade = 29;
+/home/ana/cs/nomes/espaco.cs(1,11): error CS1003: Erro de sintaxe, "," esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.
+$ dotnet run hifen.cs                   « int preco-final = 10;
+/home/ana/cs/nomes/hifen.cs(1,10): error CS1003: Erro de sintaxe, "," esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Nos dois casos, o compilador leu o <strong>primeiro pedaço</strong> como o nome (<code>minha</code>, <code>preco</code>) e não soube o que fazer com o resto. Ele sugere uma vírgula porque <code>int minha, idade</code> declararia duas variáveis (aula <a href="variaveis.html">Variáveis</a>), mas não é o que você quer. Um espaço separa palavras; um hífen é o sinal de <strong>menos</strong>: <code>preco-final</code> seria "preco menos final". <strong>Conserto:</strong> junte as palavras com maiúscula, <code>minhaIdade</code>, <code>precoFinal</code> (seção 5).</p>
+
+<p>E um símbolo:</p>
+
+<pre class="term" data-cwd="~/cs/nomes">$ dotnet run cifrao.cs                  « decimal preco$ = 5m;
+/home/ana/cs/nomes/cifrao.cs(1,14): error CS1056: Caractere inesperado '$'
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<div class="trycs" data-goal="outre:^Segundo lugar: 2\nIdade: 29\nPreço final: 10\n$,compila,src:\bsegundoLugar\b,src:\bminhaIdade\b,src:\bprecoFinal\b">
+<p class="try-task"><strong>Missão:</strong> nenhum dos três nomes é válido. Troque-os (na declaração <strong>e</strong> no uso) por <code>segundoLugar</code>, <code>minhaIdade</code> e <code>precoFinal</code>, para o programa compilar e mostrar as três linhas.</p>
+<pre class="out">Segundo lugar: 2
+Idade: 29
+Preço final: 10</pre>
+<pre class="script">int 2lugar = 2;
+int minha idade = 29;
+int preco-final = 10;
+Console.WriteLine($"Segundo lugar: {2lugar}");
+Console.WriteLine($"Idade: {minha idade}");
+Console.WriteLine($"Preço final: {preco-final}");
+</pre>
+<pre class="solucao">int segundoLugar = 2;
+int minhaIdade = 29;
+int precoFinal = 10;
+Console.WriteLine($"Segundo lugar: {segundoLugar}");
+Console.WriteLine($"Idade: {minhaIdade}");
+Console.WriteLine($"Preço final: {precoFinal}");
+</pre>
+</div>
+
+<p>Repare que, dentro das aspas, <code>Preço final</code> pode ter acento e espaço à vontade: é texto, não nome.</p>
+
+<hr>
+
+<h2>2. Maiúsculas e minúsculas contam</h2>
+<p>Para o C#, <code>idade</code> e <code>Idade</code> são nomes <strong>diferentes</strong>, tão diferentes quanto <code>idade</code> e <code>altura</code>:</p>
+
+<pre class="file" data-file="maiusc.cs">int idade = 29;
+int Idade = 50;
+Console.WriteLine($"idade = {idade}, Idade = {Idade}");
+</pre>
+
+<pre class="term" data-cwd="~/cs/nomes">$ dotnet run maiusc.cs
+idade = 29, Idade = 50</pre>
+
+<p>Compila, mas é uma péssima ideia: quem lê não sabe qual é qual. E o contrário, declarar com uma forma e usar com outra, é um dos erros mais comuns:</p>
+
+<pre class="term" data-cwd="~/cs/nomes">$ dotnet run caso.cs                    « int Total = 5; Console.WriteLine(total);
+/home/ana/cs/nomes/caso.cs(2,19): error CS0103: O nome "total" não existe no contexto atual
+/home/ana/cs/nomes/caso.cs(1,5): warning CS0219: A variável "Total" é atribuída, mas seu valor nunca é usado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O erro e o aviso contam a mesma história de dois lados: <code>total</code> (minúsculo) não existe, e <code>Total</code> (maiúsculo) nunca foi usada. As convenções da seção 5 evitam essa confusão: em C#, uma variável <strong>sempre</strong> começa com minúscula.</p>
+
+<hr>
+
+<h2>3. Palavras-chave: os nomes ocupados</h2>
+<p>As <strong>palavras-chave</strong> (<em>keywords</em>) são as palavras da própria linguagem: <code>int</code>, <code>if</code>, <code>class</code>, <code>return</code>… Elas são sempre minúsculas, e os editores as pintam de outra cor. As <strong>reservadas</strong> nunca podem ser usadas como nome. Veja o que acontece quando a Ana tenta guardar a turma numa variável chamada <code>class</code> ("turma", em inglês):</p>
+
+<pre class="file" data-file="chave.cs · erro de propósito">string class = "3º A";
+Console.WriteLine(class);
+</pre>
+
+<pre class="term" data-cwd="~/cs/nomes">$ dotnet run chave.cs
+/home/ana/cs/nomes/chave.cs(1,8): error CS1001: Identificador esperado
+/home/ana/cs/nomes/chave.cs(1,8): error CS1002: ; esperado
+/home/ana/cs/nomes/chave.cs(1,14): error CS1001: Identificador esperado
+/home/ana/cs/nomes/chave.cs(1,14): error CS1514: { esperado
+/home/ana/cs/nomes/chave.cs(1,14): error CS1513: } esperada
+/home/ana/cs/nomes/chave.cs(1,14): error CS8803: As instruções de nível superior precisam preceder as declarações de namespace e de tipo.
+/home/ana/cs/nomes/chave.cs(1,14): error CS1525: Termo de expressão inválido "="
+/home/ana/cs/nomes/chave.cs(2,19): error CS1026: ) esperado
+/home/ana/cs/nomes/chave.cs(2,19): error CS1002: ; esperado
+/home/ana/cs/nomes/chave.cs(2,24): error CS1001: Identificador esperado
+/home/ana/cs/nomes/chave.cs(2,24): error CS1514: { esperado
+/home/ana/cs/nomes/chave.cs(2,24): error CS1513: } esperada
+/home/ana/cs/nomes/chave.cs(2,24): error CS1022: Definição de namespace ou tipo, ou final do arquivo esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Treze erros para duas linhas! Quando o compilador vê <code>class</code>, ele entende "aqui começa a declaração de uma classe" (aula <a href="classes-objetos.html">Classes e Objetos</a>) e passa a esperar o nome da classe, uma <code>{</code>, uma <code>}</code>… Nada disso está lá, e cada expectativa frustrada vira uma mensagem. O primeiro erro é o que importa: <code>(1,8): Identificador esperado</code>, exatamente onde está o <code>class</code>. Quando aparecer uma parede de erros estranhos, procure uma palavra-chave usada como nome.</p>
+
+<h3>As palavras reservadas</h3>
+<p>São 77, e você vai conhecer quase todas ao longo do guia. Nenhuma pode ser nome:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><td><code>abstract</code> <code>as</code> <code>base</code> <code>bool</code> <code>break</code> <code>byte</code> <code>case</code> <code>catch</code> <code>char</code> <code>checked</code> <code>class</code> <code>const</code> <code>continue</code> <code>decimal</code> <code>default</code> <code>delegate</code> <code>do</code> <code>double</code> <code>else</code> <code>enum</code> <code>event</code> <code>explicit</code> <code>extern</code> <code>false</code> <code>finally</code> <code>fixed</code> <code>float</code> <code>for</code> <code>foreach</code> <code>goto</code> <code>if</code> <code>implicit</code> <code>in</code> <code>int</code> <code>interface</code> <code>internal</code> <code>is</code> <code>lock</code> <code>long</code> <code>namespace</code> <code>new</code> <code>null</code> <code>object</code> <code>operator</code> <code>out</code> <code>override</code> <code>params</code> <code>private</code> <code>protected</code> <code>public</code> <code>readonly</code> <code>ref</code> <code>return</code> <code>sbyte</code> <code>sealed</code> <code>short</code> <code>sizeof</code> <code>stackalloc</code> <code>static</code> <code>string</code> <code>struct</code> <code>switch</code> <code>this</code> <code>throw</code> <code>true</code> <code>try</code> <code>typeof</code> <code>uint</code> <code>ulong</code> <code>unchecked</code> <code>unsafe</code> <code>ushort</code> <code>using</code> <code>virtual</code> <code>void</code> <code>volatile</code> <code>while</code></td></tr>
+</table>
+</div>
+
+<h3>As palavras contextuais</h3>
+<p>Outras palavras só têm significado especial em <strong>certos lugares</strong> do código: são as <strong>contextuais</strong>. Foram acrescentadas à linguagem ao longo dos anos, e para não quebrar programas antigos que já as usavam como nome, o C# continua aceitando-as como identificadores:</p>
+
+<pre class="file" data-file="contextual.cs">int var = 3;
+string record = "recorde";
+int value = 10;
+Console.WriteLine($"{var} {record} {value}");
+</pre>
+
+<pre class="term" data-cwd="~/cs/nomes">$ dotnet run contextual.cs
+3 recorde 10</pre>
+
+<p>Algumas delas: <code>var</code>, <code>value</code>, <code>record</code>, <code>async</code>, <code>await</code>, <code>get</code>, <code>set</code>, <code>init</code>, <code>required</code>, <code>partial</code>, <code>where</code>, <code>yield</code>, <code>nameof</code>, <code>when</code>, <code>with</code>, <code>and</code>, <code>or</code>, <code>not</code>, <code>field</code>. Compila, mas evite: um <code>int var</code> confunde qualquer leitor.</p>
+
+<hr>
+
+<h2>4. O <code>@</code>: uma palavra-chave como nome</h2>
+<p>Se você precisa mesmo de um nome igual a uma palavra reservada, ponha um <code>@</code> na frente. O <code>@class</code> é o identificador <code>class</code>, sem o significado de palavra-chave:</p>
+
+<pre class="file" data-file="arroba.cs">string @class = "3º A";
+int @int = 5;
+Console.WriteLine($"Turma {@class}, sala {@int}");
+Console.WriteLine(@class);
+</pre>
+
+<pre class="term" data-cwd="~/cs/nomes">$ dotnet run arroba.cs
+Turma 3º A, sala 5
+3º A</pre>
+
+<p>O <code>@</code> não faz parte do nome: ele só avisa o compilador "isto é um nome, não uma palavra-chave". Por isso <code>@idade</code> e <code>idade</code> são a <strong>mesma</strong> variável:</p>
+
+<pre class="term" data-cwd="~/cs/nomes">$ dotnet run mesmo.cs                   « int @idade = 29; Console.WriteLine(idade);
+29</pre>
+
+<p>Quando isso é útil? Quase só quando o seu código conversa com outro sistema que já usa esse nome, por exemplo um arquivo JSON com um campo <code>"class"</code> (aula <a href="json.html">JSON</a>). No seu próprio código, prefira um nome que não precise de <code>@</code>: <code>turma</code>, <code>sala</code>.</p>
+
+<div class="note">
+<strong>Não confunda com o <code>@</code> dos textos</strong>
+<p>Antes das aspas, como em <code>@"C:\pasta"</code>, o <code>@</code> tem outro papel: ele cria um texto em que a barra invertida não é escape (aula <a href="escapes.html">Escapes e Strings Literais</a>). Mesmo símbolo, duas funções: na frente de um <strong>nome</strong>, ou na frente de um <strong>texto</strong>.</p>
+</div>
+
+<div class="trycs" data-goal="out:Turma: 3º A,compila">
+<p class="try-task"><strong>Missão:</strong> o programa não compila porque usa a palavra-chave <code>class</code> como nome. Conserte do jeito que preferir: com o <code>@</code> (<code>@class</code>) nas duas linhas, ou, melhor ainda, trocando o nome por <code>turma</code>.</p>
+<pre class="script">string class = "3º A";
+Console.WriteLine($"Turma: {class}");
+</pre>
+<pre class="solucao">string turma = "3º A";
+Console.WriteLine($"Turma: {turma}");
+</pre>
+</div>
+
+<hr>
+
+<h2>5. As convenções: camelCase e PascalCase</h2>
+<p>Nomes com várias palavras não podem ter espaço. O jeito do C# de juntá-las é com <strong>maiúsculas</strong> no começo de cada palavra. Existem dois estilos, e cada um tem o seu lugar:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Estilo</th><th>Como é</th><th>Exemplo</th><th>Usado em</th></tr>
+<tr><td><strong>camelCase</strong></td><td>primeira palavra minúscula, as outras com maiúscula (as "corcovas" do camelo)</td><td><code>precoTotal</code>, <code>nomeCliente</code>, <code>idade</code></td><td><strong>variáveis</strong> locais e <strong>parâmetros</strong> de métodos</td></tr>
+<tr><td><strong>PascalCase</strong></td><td>todas as palavras com maiúscula, inclusive a primeira (o estilo da linguagem Pascal)</td><td><code>PrecoTotal</code>, <code>WriteLine</code>, <code>Console</code></td><td><strong>classes</strong>, <strong>métodos</strong>, propriedades, namespaces, constantes, projetos e arquivos</td></tr>
+<tr><td><strong>_camelCase</strong></td><td>camelCase com um <code>_</code> na frente</td><td><code>_saldo</code>, <code>_nomeCliente</code></td><td><strong>campos</strong> privados de uma classe (Nível 2, aula <a href="campos.html">Campos</a>)</td></tr>
+<tr><td><strong>IPascalCase</strong></td><td>PascalCase com um <code>I</code> na frente</td><td><code>IComparable</code>, <code>IDisposable</code></td><td><strong>interfaces</strong> (aula <a href="interfaces.html">Interfaces</a>)</td></tr>
+</table>
+</div>
+
+<p>É por isso que você escreve <code>Console.WriteLine</code> (uma classe e um método do .NET, em PascalCase) e <code>int quantidade</code> (uma variável, em camelCase). Olhando só para o nome, quem conhece as convenções já sabe o que ele é. Este programa usa as três primeiras (as classes são do Nível 2, mas os nomes já dá para ler):</p>
+
+<pre class="file" data-file="convencoes.cs">int quantidadeCadernos = 3;                // variável: camelCase
+decimal precoUnitario = 5.50m;             // variável: camelCase
+Console.WriteLine(Loja.CalcularTotal(quantidadeCadernos, precoUnitario));
+
+class Loja                                 // classe: PascalCase
+{
+    const int LimiteDeItens = 10;          // constante: PascalCase
+
+    public static decimal CalcularTotal(int quantidade, decimal preco)   // método: PascalCase; parâmetros: camelCase
+    {
+        return quantidade * preco;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/nomes">$ dotnet run convencoes.cs
+16,50</pre>
+
+<div class="tip">
+<strong>Outros estilos que você vai ver por aí</strong>
+<p>Outras linguagens têm outros costumes: <code>preco_total</code> (<em>snake_case</em>, comum em Python e C), <code>PRECO_TOTAL</code> (tudo maiúsculo, para constantes em C e Java), <code>preco-total</code> (<em>kebab-case</em>, em nomes de arquivos e CSS). Em C#, nenhum deles é usado para nomes de código. Se você vem de outra linguagem, a constante é a armadilha mais comum: em C#, é <code>LimiteDeItens</code>, e não <code>LIMITE_DE_ITENS</code> (aula <a href="constantes.html">Constantes</a>).</p>
+</div>
+
+<h3>Siglas</h3>
+<p>Siglas de <strong>duas</strong> letras ficam todas maiúsculas (<code>IO</code>, como em <code>System.IO</code>); siglas maiores viram uma palavra comum (<code>Html</code>, <code>Json</code>, <code>Xml</code>, como em <code>System.Text.Json</code>). Em camelCase, a sigla do começo fica toda minúscula: <code>htmlPagina</code>, <code>ioErro</code>.</p>
+
+<h3>O compilador não confere convenções</h3>
+<p>Um <code>int PrecoTotal</code> ou um <code>int preco_total</code> compilam sem nenhum aviso. Quem cobra as convenções são as pessoas, as revisões de código e os editores: o VS Code e o Visual Studio podem sublinhar nomes fora do padrão (com o aviso <code>IDE1006</code>, quando o projeto tem regras de estilo configuradas) e oferecem o <strong>Renomear</strong> (<kbd>F2</kbd>), que troca um nome em todos os lugares onde ele aparece de uma vez.</p>
+
+<hr>
+
+<h2>6. Como escolher um bom nome</h2>
+<p>O nome é a primeira documentação do código. Um bom nome dispensa comentários (aula <a href="comentarios.html">Comentários</a>).</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Evite</th><th>Prefira</th><th>Por quê</th></tr>
+<tr><td><code>x</code>, <code>a</code>, <code>valor</code></td><td><code>precoTotal</code>, <code>idadeAluno</code></td><td>Diga <strong>o que</strong> está guardado.</td></tr>
+<tr><td><code>qtd</code>, <code>prc</code>, <code>nmCli</code></td><td><code>quantidade</code>, <code>preco</code>, <code>nomeCliente</code></td><td>Abreviações economizam letras e custam entendimento. O editor completa os nomes longos para você.</td></tr>
+<tr><td><code>strNome</code>, <code>intIdade</code></td><td><code>nome</code>, <code>idade</code></td><td>Não ponha o tipo no nome: o tipo já está na declaração, e o editor o mostra.</td></tr>
+<tr><td><code>aberto2</code>, <code>flag</code></td><td><code>lojaAberta</code>, <code>temDesconto</code>, <code>estaPago</code></td><td>Para <code>bool</code>, um nome que se lê como pergunta de sim ou não.</td></tr>
+<tr><td><code>dados</code>, <code>coisa</code>, <code>temp</code></td><td><code>notasDaTurma</code>, <code>proximoCliente</code></td><td>Nomes genéricos não dizem nada.</td></tr>
+<tr><td><code>idade</code> e <code>Idade</code> juntos</td><td>nomes realmente diferentes</td><td>Diferença só de maiúscula confunde.</td></tr>
+</table>
+</div>
+
+<p>Nomes de uma letra têm o seu lugar: <code>i</code> num laço curto (aula <a href="for.html">for</a>), <code>x</code> e <code>y</code> para coordenadas. Fora disso, escreva por extenso.</p>
+
+<h3>Português ou inglês?</h3>
+<p>Tudo o que vem do .NET está em inglês (<code>Console</code>, <code>WriteLine</code>, <code>Length</code>), e em empresas e projetos abertos os nomes costumam ser em inglês também, para qualquer pessoa do mundo entender. Neste guia, os nomes que <strong>você</strong> cria estão em português (<code>preco</code>, <code>quantidade</code>), para o código se ler como uma frase enquanto você aprende. Qualquer que seja a escolha, a regra de ouro é a mesma: <strong>uma língua só no mesmo programa</strong>, e sem acento.</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS1001: Identificador esperado</code></strong>
+<p><strong>O que significa:</strong> o compilador esperava um nome naquele ponto e encontrou outra coisa: um número (<code>2lugar</code>) ou uma palavra-chave (<code>class</code>, <code>int</code>, <code>new</code>). Em inglês: <code>Identifier expected</code>.</p>
+<p><strong>Como consertar:</strong> comece o nome com uma letra, ou troque a palavra-chave por outro nome (ou ponha <code>@</code> na frente).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1003: Erro de sintaxe, "," esperado</code> numa declaração</strong>
+<p><strong>O que significa:</strong> um nome com espaço (<code>minha idade</code>) ou com hífen (<code>preco-final</code>). O compilador pegou só a primeira parte como nome.</p>
+<p><strong>Como consertar:</strong> junte as palavras em camelCase: <code>minhaIdade</code>, <code>precoFinal</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1056: Caractere inesperado '$'</code></strong>
+<p><strong>O que significa:</strong> um símbolo no nome: <code>$</code>, <code>#</code>, <code>%</code>, <code>?</code>…</p>
+<p><strong>Como consertar:</strong> só letras, dígitos e <code>_</code>. Em vez de <code>preco$</code>, <code>precoEmReais</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0103: O nome "total" não existe no contexto atual</code> (e a variável existe!)</strong>
+<p><strong>O que significa:</strong> a declaração e o uso estão escritos de jeitos diferentes: <code>Total</code> e <code>total</code>, <code>preco</code> e <code>preço</code>.</p>
+<p><strong>Como consertar:</strong> copie o nome da declaração. Seguir a convenção (variáveis sempre em camelCase, sem acento) evita o problema.</p>
+</div>
+
+<div class="cenario">
+<strong>Uma parede de erros em duas linhas de código</strong>
+<p><strong>O que significa:</strong> provavelmente uma palavra-chave usada como nome, como no <code>chave.cs</code> (treze erros por causa de um <code>class</code>).</p>
+<p><strong>Como consertar:</strong> leia o <strong>primeiro</strong> erro (aula <a href="erros-compilacao.html">Lendo Erros do Compilador</a>) e veja que palavra está na posição dele.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Regra ou convenção</th><th>Certo</th><th>Errado (ou fora do padrão)</th></tr>
+<tr><td>Começa com letra ou <code>_</code></td><td><code>lugar2</code>, <code>_total</code></td><td><code>2lugar</code> (<code>CS1001</code>)</td></tr>
+<tr><td>Só letras, dígitos e <code>_</code></td><td><code>precoFinal</code></td><td><code>preco-final</code>, <code>minha idade</code> (<code>CS1003</code>), <code>preco$</code> (<code>CS1056</code>)</td></tr>
+<tr><td>Maiúsculas contam</td><td><code>total</code> ≠ <code>Total</code></td><td>declarar <code>Total</code> e usar <code>total</code> (<code>CS0103</code>)</td></tr>
+<tr><td>Palavra reservada não é nome</td><td><code>turma</code> ou <code>@class</code></td><td><code>class</code> (<code>CS1001</code> e muitos outros)</td></tr>
+<tr><td>Variáveis e parâmetros: camelCase</td><td><code>nomeCliente</code></td><td><code>NomeCliente</code>, <code>nome_cliente</code></td></tr>
+<tr><td>Classes, métodos, propriedades, constantes, namespaces: PascalCase</td><td><code>CalcularTotal</code>, <code>LimiteDeItens</code></td><td><code>calcularTotal</code>, <code>LIMITE_DE_ITENS</code></td></tr>
+<tr><td>Campos privados: _camelCase</td><td><code>_saldo</code></td><td><code>saldo_</code>, <code>m_saldo</code></td></tr>
+<tr><td>Interfaces: I + PascalCase</td><td><code>IComparable</code></td><td><code>Comparable</code></td></tr>
+<tr><td>Nomes descritivos, sem abreviação</td><td><code>quantidade</code></td><td><code>qtd</code>, <code>x</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. camelCase</h3>
+<p>Escreva o nome da variável "nota da prova" em camelCase, sem acento:</p>
+<div class="ex-code">double <input data-answer="notaDaProva|notaProva" aria-label="nome"> = 8.5;</div>
+</div>
+
+<div class="exercise">
+<h3>2. PascalCase</h3>
+<p>Escreva o nome do método "calcular média" em PascalCase, sem acento:</p>
+<div class="ex-code">static double <input data-answer="CalcularMedia" aria-label="nome">()</div>
+</div>
+
+<div class="exercise">
+<h3>3. O <code>@</code></h3>
+<p>Complete para usar a palavra-chave <code>new</code> como nome de variável:</p>
+<div class="ex-code">bool <input data-answer="@new" aria-label="nome"> = true;</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Qual destes nomes é <strong>inválido</strong> em C#?</p>
+<label><input type="radio" name="q4"> <code>_contador</code></label>
+<label><input type="radio" name="q4"> <code>nota2</code></label>
+<label><input type="radio" name="q4"> <code>1aNota</code></label>
+<label><input type="radio" name="q4"> <code>maçãs</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Qual destes nomes segue a convenção do C# para uma variável local?</p>
+<label><input type="radio" name="q5"> <code>PrecoTotal</code></label>
+<label><input type="radio" name="q5"> <code>precoTotal</code></label>
+<label><input type="radio" name="q5"> <code>preco_total</code></label>
+<label><input type="radio" name="q5"> <code>PRECO_TOTAL</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. <code>int var = 3;</code> compila?</p>
+<label><input type="radio" name="q6"> Não: <code>var</code> é uma palavra reservada.</label>
+<label><input type="radio" name="q6"> Só com <code>@var</code>.</label>
+<label><input type="radio" name="q6"> Não: falta o tipo.</label>
+<label><input type="radio" name="q6"> Sim: <code>var</code> é uma palavra contextual. Mas confunde, e é melhor evitar.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">7. Depois de <code>int @idade = 29;</code>, o que mostra <code>Console.WriteLine(idade);</code>?</p>
+<label><input type="radio" name="q7"> <code>29</code>: o <code>@</code> não faz parte do nome.</label>
+<label><input type="radio" name="q7"> Erro <code>CS0103</code>: a variável se chama <code>@idade</code>.</label>
+<label><input type="radio" name="q7"> <code>@idade</code></label>
+<label><input type="radio" name="q7"> Erro <code>CS1001</code>.</label>
+</div>
+
+<h3>Missão final: o código da Ana, nas convenções</h3>
+
+<div class="trycs" data-goal="outre:^Cliente: Bia\nTotal: 33\,00\n$,compila,src:\bnomeCliente\b,src:\bquantidade\b,src:\bprecoUnitario\b,src:\bvalorTotal\b">
+<p class="try-task"><strong>Missão:</strong> o programa funciona, mas os nomes estão fora das convenções do C#. Renomeie, em todos os lugares: <code>NOMECLIENTE</code> para <code>nomeCliente</code>, <code>qtd</code> para <code>quantidade</code>, <code>Preco_Unitario</code> para <code>precoUnitario</code> e <code>x</code> para <code>valorTotal</code>. A saída não pode mudar.</p>
+<pre class="out">Cliente: Bia
+Total: 33,00</pre>
+<pre class="script">string NOMECLIENTE = "Bia";
+int qtd = 6;
+decimal Preco_Unitario = 5.50m;
+decimal x = qtd * Preco_Unitario;
+Console.WriteLine($"Cliente: {NOMECLIENTE}");
+Console.WriteLine($"Total: {x}");
+</pre>
+<pre class="solucao">string nomeCliente = "Bia";
+int quantidade = 6;
+decimal precoUnitario = 5.50m;
+decimal valorTotal = quantidade * precoUnitario;
+Console.WriteLine($"Cliente: {nomeCliente}");
+Console.WriteLine($"Total: {valorTotal}");
+</pre>
+</div>
+
+<p>Leia as duas versões em voz alta. A segunda conta o que o programa faz; a primeira obriga o leitor a adivinhar o que é <code>x</code>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um <strong>identificador</strong> é um nome que você cria. Começa com letra ou <code>_</code>, depois letras, dígitos e <code>_</code>. Sem espaço, hífen ou símbolos (<code>CS1001</code>, <code>CS1003</code>, <code>CS1056</code>). Acentos são aceitos, mas o guia não usa.</li>
+  <li>Maiúsculas contam: <code>total</code> e <code>Total</code> são nomes diferentes (<code>CS0103</code> quando se mistura).</li>
+  <li>As 77 palavras-chave <strong>reservadas</strong> (<code>class</code>, <code>int</code>, <code>if</code>…) não podem ser nomes; as <strong>contextuais</strong> (<code>var</code>, <code>value</code>, <code>record</code>…) podem, mas confundem.</li>
+  <li><code>@</code> na frente transforma uma palavra-chave em nome: <code>@class</code>. O <code>@</code> não faz parte do nome.</li>
+  <li>Convenções: <strong>camelCase</strong> para variáveis e parâmetros; <strong>PascalCase</strong> para classes, métodos, propriedades, constantes, namespaces e projetos; <code>_camelCase</code> para campos privados; <code>I</code> + PascalCase para interfaces. O compilador não confere; as pessoas, sim.</li>
+  <li>Bons nomes dizem o que guardam, sem abreviações nem o tipo no nome. Uma língua só por programa.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
