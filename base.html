@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# base — chamar o construtor e os métodos da classe base | Guia C#</title>
+<meta name="description" content="A palavra base em C# para iniciantes: passar dados ao construtor da classe base com : base(…), a ordem em que os construtores rodam, escolher entre vários construtores, base × this, base.Metodo() para reaproveitar a versão da base, construtores primários do C# 12 e os erros reais CS7036, CS1729 e CS1511 do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">base</span></h1>
+
+<p class="intro">Na aula de <a href="heranca.html">Herança</a>, o <code>Cachorro</code> não compilava quando o construtor de <code>Animal</code> pedia um nome. Faltava uma forma de a classe filha <strong>conversar com a mãe</strong>. Essa forma é a palavra <code>base</code>: com ela, a classe derivada chama o construtor da classe base e, quando precisa, os métodos dela.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Por que a classe filha precisa chamar o construtor da base.</li>
+  <li><code>: base(…)</code>: passar dados para o construtor da base.</li>
+  <li>A ordem em que os construtores rodam, inclusive com vários níveis.</li>
+  <li>Como escolher entre vários construtores da base, e a diferença entre <code>base(…)</code> e <code>this(…)</code>.</li>
+  <li><code>base.Metodo()</code>: reaproveitar a versão da base de um método.</li>
+  <li>Os construtores primários <span class="versao">C# 12</span>: <code>class Cachorro(string nome) : Animal(nome)</code>.</li>
+  <li>Os erros <code>CS7036</code>, <code>CS1729</code> e <code>CS1511</code>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>A ideia: montar a base primeiro</h2>
+<p>Pense numa casa de dois andares. Antes de erguer o segundo andar, alguém precisa construir o térreo, e o pedreiro do térreo precisa de informações: o tamanho do terreno, onde fica a porta. O pedreiro do segundo andar não pode simplesmente começar: ele primeiro <strong>passa as informações</strong> para o pedreiro do térreo e espera ele terminar.</p>
+<p>Um objeto <code>Cachorro</code> é assim. Ele tem uma "parte animal" (o térreo, que vem de <code>Animal</code>) e uma "parte cachorro" (o andar de cima). Quando você faz <code>new Cachorro(…)</code>, o construtor de <code>Animal</code> roda primeiro. Se ele precisa de um nome, o construtor de <code>Cachorro</code> é quem tem de entregar: <code>: base(nome)</code>.</p>
+
+<hr>
+
+<h2>O problema: o construtor da base pede dados</h2>
+
+<pre class="file" data-file="sem-base.cs — com erro de propósito">var rex = new Cachorro("Rex", "vira-lata");
+Console.WriteLine($"{rex.Nome} é um {rex.Raca}.");
+
+class Animal
+{
+    public Animal(string nome)
+    {
+        Nome = nome;
+    }
+
+    public string Nome { get; }
+}
+
+class Cachorro : Animal
+{
+    public Cachorro(string nome, string raca)
+    {
+        Raca = raca;
+    }
+
+    public string Raca { get; }
+}
+</pre>
+
+<pre class="term">$ dotnet run sem-base.cs
+/home/ana/cs/sem-base.cs(16,12): error CS7036: Não há nenhum argumento fornecido que corresponda ao parâmetro necessário 'nome' de 'Animal.Animal(string)'
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O erro aponta o construtor de <code>Cachorro</code> (linha 16). Sem instrução nenhuma, o C# tenta montar a parte animal chamando <code>Animal()</code>, <strong>sem argumentos</strong>. Mas o único construtor de <code>Animal</code> exige o parâmetro <code>nome</code>: "não há nenhum argumento fornecido que corresponda ao parâmetro necessário 'nome'". Em inglês: <code>There is no argument given that corresponds to the required parameter 'nome' of 'Animal.Animal(string)'</code>.</p>
+<p>Repare que o <code>Cachorro</code> até recebe o <code>nome</code> como parâmetro. Ele só não está entregando para ninguém.</p>
+
+<hr>
+
+<h2>: base(…), passando o nome para a base</h2>
+
+<pre class="file" data-file="base-ctor.cs">var rex = new Cachorro("Rex", "vira-lata");
+Console.WriteLine($"{rex.Nome} é um {rex.Raca}.");
+
+class Animal
+{
+    public Animal(string nome)
+    {
+        Console.WriteLine($"1. Animal montado: {nome}");
+        Nome = nome;
+    }
+
+    public string Nome { get; }
+}
+
+class Cachorro : Animal
+{
+    public Cachorro(string nome, string raca) : base(nome)
+    {
+        Console.WriteLine($"2. Cachorro montado: {raca}");
+        Raca = raca;
+    }
+
+    public string Raca { get; }
+}
+</pre>
+
+<pre class="term">$ dotnet run base-ctor.cs
+1. Animal montado: Rex
+2. Cachorro montado: vira-lata
+Rex é um vira-lata.</pre>
+
+<dl class="anatomy">
+  <dt>public Cachorro(string nome, string raca)</dt><dd>O construtor da filha recebe tudo o que precisa: o que é dela (<code>raca</code>) e o que é da base (<code>nome</code>).</dd>
+  <dt>: base(nome)</dt><dd>Fica <strong>entre</strong> os parênteses e a chave de abertura. Quer dizer: "antes do meu corpo, chame o construtor da classe base com estes argumentos". O <code>nome</code> aqui é o parâmetro que o <code>Cachorro</code> recebeu.</dd>
+  <dt>1. Animal montado</dt><dd>A prova da ordem: o corpo do construtor de <code>Animal</code> roda primeiro…</dd>
+  <dt>2. Cachorro montado</dt><dd>…e só depois o corpo do construtor de <code>Cachorro</code>. Quando ele começa, o <code>Nome</code> já está preenchido.</dd>
+</dl>
+
+<p>O <code>base(…)</code> funciona como uma chamada de método comum: você pode passar valores fixos (<code>base("sem nome")</code>), contas (<code>base(nome.Trim())</code>) ou qualquer parâmetro do construtor da filha.</p>
+
+<div class="trycs" data-goal="out:Mia tem 3 anos.,src:\)\s*:\s*base\s*\(\s*nome\s*\)">
+<p class="try-task"><strong>Missão:</strong> o programa não compila, com o erro <code>CS7036</code>. Rode para ver. Depois, faça o construtor de <code>Gato</code> passar o <code>nome</code> para o construtor de <code>Animal</code> com <code>: base(nome)</code>.</p>
+<pre class="script">var mia = new Gato("Mia", 3);
+Console.WriteLine($"{mia.Nome} tem {mia.Idade} anos.");
+
+class Animal
+{
+    public Animal(string nome)
+    {
+        Nome = nome;
+    }
+
+    public string Nome { get; }
+}
+
+class Gato : Animal
+{
+    public Gato(string nome, int idade)
+    {
+        Idade = idade;
+    }
+
+    public int Idade { get; }
+}
+</pre>
+<pre class="solucao">var mia = new Gato("Mia", 3);
+Console.WriteLine($"{mia.Nome} tem {mia.Idade} anos.");
+
+class Animal
+{
+    public Animal(string nome)
+    {
+        Nome = nome;
+    }
+
+    public string Nome { get; }
+}
+
+class Gato : Animal
+{
+    public Gato(string nome, int idade) : base(nome)
+    {
+        Idade = idade;
+    }
+
+    public int Idade { get; }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Com vários níveis</h2>
+<p>Cada classe conversa só com a mãe <strong>direta</strong>. O <code>Cachorro</code> passa o nome para o <code>Mamifero</code>, que passa para o <code>Animal</code>. Os corpos rodam de cima para baixo, do térreo ao último andar:</p>
+
+<pre class="file" data-file="tres.cs">var rex = new Cachorro("Rex");
+
+class Animal
+{
+    public Animal(string nome)
+    {
+        Console.WriteLine($"Animal: {nome}");
+    }
+}
+
+class Mamifero : Animal
+{
+    public Mamifero(string nome) : base(nome)
+    {
+        Console.WriteLine("Mamífero");
+    }
+}
+
+class Cachorro : Mamifero
+{
+    public Cachorro(string nome) : base(nome)
+    {
+        Console.WriteLine("Cachorro");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run tres.cs
+Animal: Rex
+Mamífero
+Cachorro</pre>
+
+<p>Dentro de <code>Cachorro</code>, <code>base</code> é o <code>Mamifero</code>, e não o <code>Animal</code>. Não há como "pular" um andar.</p>
+
+<hr>
+
+<h2>Escolhendo o construtor da base</h2>
+<p>Se a base tem vários construtores (veja <a href="sobrecarga.html">Sobrecarga</a>), o <code>base(…)</code> escolhe qual chamar pelo número e pelo tipo dos argumentos, como em qualquer chamada:</p>
+
+<pre class="file" data-file="base-varios.cs">var mia = new Gato("Mia");
+var semNome = new Gato();
+Console.WriteLine(mia.Nome);
+Console.WriteLine(semNome.Nome);
+
+class Animal
+{
+    public Animal()
+    {
+        Nome = "(sem nome)";
+    }
+
+    public Animal(string nome)
+    {
+        Nome = nome;
+    }
+
+    public string Nome { get; }
+}
+
+class Gato : Animal
+{
+    public Gato() : base()
+    {
+    }
+
+    public Gato(string nome) : base(nome)
+    {
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run base-varios.cs
+Mia
+(sem nome)</pre>
+
+<p><code>Gato()</code> chama <code>Animal()</code>, e <code>Gato(string)</code> chama <code>Animal(string)</code>. O <code>: base()</code> vazio é opcional: sem nada, o C# já chama o construtor sem parâmetros da base. Ele está escrito aqui só para deixar a escolha à vista. Se não existir um construtor da base com aqueles argumentos, o erro é o <code>CS1729</code>:</p>
+
+<pre class="term">$ dotnet run base-args.cs          « com : base(nome, raca), mas Animal só recebe o nome
+/home/ana/cs/base-args.cs(15,49): error CS1729: "Animal" não contém um construtor que aceita 2 argumentos
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<h3>base(…) ou this(…)?</h3>
+<p>Na aula <a href="this.html">this</a>, você viu que um construtor pode chamar <strong>outro construtor da mesma classe</strong> com <code>: this(…)</code>. As duas formas ficam no mesmo lugar, mas apontam para andares diferentes:</p>
+
+<pre class="file" data-file="this-base.cs">var mia = new Gato("Mia");
+var tom = new Gato();
+Console.WriteLine($"{mia.Nome}, {mia.Vidas} vidas");
+Console.WriteLine($"{tom.Nome}, {tom.Vidas} vidas");
+
+class Animal
+{
+    public Animal(string nome)
+    {
+        Nome = nome;
+    }
+
+    public string Nome { get; }
+}
+
+class Gato : Animal
+{
+    public Gato(string nome) : base(nome)
+    {
+        Vidas = 7;
+    }
+
+    public Gato() : this("Gato sem nome")
+    {
+    }
+
+    public int Vidas { get; }
+}
+</pre>
+
+<pre class="term">$ dotnet run this-base.cs
+Mia, 7 vidas
+Gato sem nome, 7 vidas</pre>
+
+<dl class="anatomy">
+  <dt>public Gato(string nome) : base(nome)</dt><dd>Chama o construtor da <strong>mãe</strong> (<code>Animal</code>).</dd>
+  <dt>public Gato() : this("Gato sem nome")</dt><dd>Chama o <strong>outro</strong> construtor do próprio <code>Gato</code>, que por sua vez chama a base. Assim, o <code>Vidas = 7</code> fica escrito num lugar só.</dd>
+</dl>
+<p>Um construtor escolhe <strong>um</strong> dos dois: ou <code>: base(…)</code>, ou <code>: this(…)</code>.</p>
+
+<hr>
+
+<h2>base.Metodo(): a versão da base</h2>
+<p><code>base</code> também serve fora dos construtores. Na <a href="virtual-override.html">próxima aula</a>, você vai ver que a filha pode <strong>substituir</strong> um método da mãe por uma versão dela (com <code>virtual</code> e <code>override</code>). Muitas vezes, a versão nova quer fazer <strong>o que a mãe já fazia, e mais um pouco</strong>. É aí que entra <code>base.Metodo()</code>:</p>
+
+<pre class="file" data-file="base-metodo.cs">var rex = new Cachorro("Rex", "vira-lata");
+rex.Apresentar();
+
+class Animal
+{
+    public Animal(string nome)
+    {
+        Nome = nome;
+    }
+
+    public string Nome { get; }
+
+    public virtual void Apresentar()
+    {
+        Console.WriteLine($"Eu sou {Nome}.");
+    }
+}
+
+class Cachorro : Animal
+{
+    public Cachorro(string nome, string raca) : base(nome)
+    {
+        Raca = raca;
+    }
+
+    public string Raca { get; }
+
+    public override void Apresentar()
+    {
+        base.Apresentar();
+        Console.WriteLine($"Sou um cachorro {Raca}.");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run base-metodo.cs
+Eu sou Rex.
+Sou um cachorro vira-lata.</pre>
+
+<dl class="anatomy">
+  <dt>public virtual void Apresentar()</dt><dd><code>virtual</code>: a base avisa que as filhas podem trocar este método. Detalhes na próxima aula.</dd>
+  <dt>public override void Apresentar()</dt><dd><code>override</code>: o <code>Cachorro</code> troca o <code>Apresentar</code> pela versão dele.</dd>
+  <dt>base.Apresentar();</dt><dd>Dentro da versão nova, chama a versão <strong>da base</strong>, que mostra "Eu sou Rex.". Sem o <code>base.</code>, a linha <code>Apresentar();</code> chamaria a própria versão do <code>Cachorro</code>, que chamaria de novo, e de novo, até o programa cair com <code>Stack overflow.</code>.</dd>
+  <dt>Console.WriteLine($"Sou um cachorro {Raca}.");</dt><dd>O "mais um pouco" que só o cachorro faz.</dd>
+</dl>
+
+<p>Assim, a frase "Eu sou …" fica escrita só em <code>Animal</code>. Se a Ana mudar essa frase, o cachorro passa a usar a nova sem mudar nada.</p>
+
+<h3>base não existe em métodos static</h3>
+<p>Como <code>this</code>, a palavra <code>base</code> fala do <strong>objeto atual</strong>. Num método <code>static</code> (veja <a href="static.html">static</a>), não há objeto:</p>
+
+<pre class="file" data-file="base-static.cs — com erro de propósito">Cachorro.Teste();
+
+class Animal
+{
+    public string Nome { get; set; } = "";
+}
+
+class Cachorro : Animal
+{
+    public static void Teste()
+    {
+        Console.WriteLine(base.Nome);
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run base-static.cs
+/home/ana/cs/base-static.cs(12,27): error CS1511: A palavra-chave 'base' não está disponível em um método estático
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<hr>
+
+<h2>O atalho: construtores primários <span class="versao">C# 12</span></h2>
+<p>Quando o construtor só repassa valores, dá para escrever os parâmetros direto no nome da classe. Isso se chama <strong>construtor primário</strong>, e a chamada à base vai junto, depois dos dois-pontos:</p>
+
+<pre class="file" data-file="primario.cs">var rex = new Cachorro("Rex", "vira-lata");
+Console.WriteLine($"{rex.Nome} é um {rex.Raca}.");
+
+class Animal(string nome)
+{
+    public string Nome { get; } = nome;
+}
+
+class Cachorro(string nome, string raca) : Animal(nome)
+{
+    public string Raca { get; } = raca;
+}
+</pre>
+
+<pre class="term">$ dotnet run primario.cs
+Rex é um vira-lata.</pre>
+
+<dl class="anatomy">
+  <dt>class Animal(string nome)</dt><dd>Os parâmetros do construtor ficam ao lado do nome da classe. Dentro da classe, <code>nome</code> pode ser usado para dar valor às propriedades.</dd>
+  <dt>class Cachorro(string nome, string raca) : Animal(nome)</dt><dd>O <code>Animal(nome)</code> depois dos dois-pontos faz o papel do <code>: base(nome)</code>: diz qual a classe base <strong>e</strong> o que passar para ela.</dd>
+</dl>
+
+<p>É o mesmo programa do começo da aula, em bem menos linhas. Para classes grandes, ou com validação no construtor, a forma clássica com <code>: base(…)</code> continua sendo a mais clara. As duas aparecem muito em código real.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>error CS7036: Não há nenhum argumento fornecido que corresponda ao parâmetro necessário '…' de '…'</strong>
+<p><strong>O que aconteceu:</strong> a base só tem construtor com parâmetros, e o construtor da filha não tem <code>: base(…)</code> (ou a filha nem tem construtor).</p>
+<p><strong>Como resolver:</strong> escreva o construtor da filha com <code>: base(…)</code>, passando o que a base pede. Outra saída é dar à base um construtor sem parâmetros, se fizer sentido.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS1729: "…" não contém um construtor que aceita N argumentos</strong>
+<p><strong>O que aconteceu:</strong> o <code>base(…)</code> (ou um <code>new</code>) passou um número de argumentos que nenhum construtor da classe aceita.</p>
+<p><strong>Como resolver:</strong> confira quais construtores a base tem e passe exatamente o que um deles pede.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS1511: A palavra-chave 'base' não está disponível em um método estático</strong>
+<p><strong>O que aconteceu:</strong> <code>base.</code> dentro de um método <code>static</code>.</p>
+<p><strong>Como resolver:</strong> tire o <code>static</code> do método, ou use um objeto: <code>rex.Nome</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>O programa cai com Stack overflow. dentro de um override</strong>
+<p><strong>O que aconteceu:</strong> a versão nova chamou a si mesma (<code>Apresentar();</code>) em vez da versão da base.</p>
+<p><strong>Como resolver:</strong> escreva <code>base.Apresentar();</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>public Filha(…) : base(a, b) { … }</code></td><td>Chama o construtor da base antes do corpo</td></tr>
+<tr><td><code>public Filha() : base() { }</code></td><td>Chama o construtor sem parâmetros da base (é o que acontece sem nada escrito)</td></tr>
+<tr><td><code>public Filha() : this(…) { }</code></td><td>Chama outro construtor da própria classe</td></tr>
+<tr><td><code>base.Metodo()</code></td><td>Chama a versão da base de um método</td></tr>
+<tr><td><code>base.Propriedade</code></td><td>Usa uma propriedade da base</td></tr>
+<tr><td><code>class Filha(string x) : Mae(x)</code> <span class="versao">C# 12</span></td><td>Construtor primário passando <code>x</code> para a base</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missão final: a conta poupança</h2>
+<div class="trycs" data-goal="out:Ana: R$ 1.010\,00,src:\)\s*:\s*base\s*\(\s*titular\s*\)">
+<p class="try-task"><strong>Missão:</strong> uma <code>ContaPoupanca</code> é uma <code>Conta</code> que rende juros. Escreva o construtor <code>public ContaPoupanca(string titular, decimal taxa)</code>: ele passa o <code>titular</code> para a <code>Conta</code> com <code>: base(titular)</code> e guarda a <code>taxa</code> na propriedade <code>Taxa</code>. Repare no <code>protected set</code> do <code>Saldo</code>: é ele que deixa o <code>RenderJuros</code> da filha mudar o saldo.</p>
+<pre class="script">var poupanca = new ContaPoupanca("Ana", 0.01m);
+poupanca.Depositar(1000m);
+poupanca.RenderJuros();
+Console.WriteLine($"{poupanca.Titular}: {poupanca.Saldo:C}");
+
+class Conta
+{
+    public Conta(string titular)
+    {
+        Titular = titular;
+    }
+
+    public string Titular { get; }
+    public decimal Saldo { get; protected set; }
+
+    public void Depositar(decimal valor)
+    {
+        if (valor &gt; 0)
+        {
+            Saldo += valor;
+        }
+    }
+}
+
+class ContaPoupanca : Conta
+{
+    // escreva o construtor aqui
+
+    public decimal Taxa { get; }
+
+    public void RenderJuros()
+    {
+        Saldo += Saldo * Taxa;
+    }
+}
+</pre>
+<pre class="solucao">var poupanca = new ContaPoupanca("Ana", 0.01m);
+poupanca.Depositar(1000m);
+poupanca.RenderJuros();
+Console.WriteLine($"{poupanca.Titular}: {poupanca.Saldo:C}");
+
+class Conta
+{
+    public Conta(string titular)
+    {
+        Titular = titular;
+    }
+
+    public string Titular { get; }
+    public decimal Saldo { get; protected set; }
+
+    public void Depositar(decimal valor)
+    {
+        if (valor &gt; 0)
+        {
+            Saldo += valor;
+        }
+    }
+}
+
+class ContaPoupanca : Conta
+{
+    public ContaPoupanca(string titular, decimal taxa) : base(titular)
+    {
+        Taxa = taxa;
+    }
+
+    public decimal Taxa { get; }
+
+    public void RenderJuros()
+    {
+        Saldo += Saldo * Taxa;
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Chamar a base</h3>
+<p>Complete o construtor para passar <code>nome</code> ao construtor da base: <code>public Aluno(string nome, int serie) ___</code></p>
+<div class="ex-code"><input data-answer=": base(nome)|:base(nome)" aria-label="chamada da base"></div>
+</div>
+
+<div class="exercise">
+<h3>2. A versão da mãe</h3>
+<p>Dentro de um <code>override</code> de <code>Mostrar()</code>, como se chama a versão da classe base? (com o ponto e vírgula)</p>
+<div class="ex-code"><input data-answer="base.Mostrar();" aria-label="chamada"></div>
+</div>
+
+<div class="exercise">
+<h3>3. O erro do argumento que falta</h3>
+<p>Qual é o código do erro quando a base exige um parâmetro e a filha não usa <code>: base(…)</code>?</p>
+<div class="ex-code"><input data-answer="CS7036|cs7036" aria-label="código do erro"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. <code>new Cachorro("Rex")</code>, com <code>Cachorro(string nome) : base(nome)</code>. Qual corpo de construtor roda primeiro?</p>
+<label><input type="radio" name="q4"> O de <code>Cachorro</code>.</label>
+<label><input type="radio" name="q4"> O de <code>Animal</code>.</label>
+<label><input type="radio" name="q4"> Os dois ao mesmo tempo.</label>
+<label><input type="radio" name="q4"> Só o de <code>Cachorro</code>; o de <code>Animal</code> não roda.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. Qual a diferença entre <code>: base(…)</code> e <code>: this(…)</code> num construtor?</p>
+<label><input type="radio" name="q5"> Nenhuma: são sinônimos.</label>
+<label><input type="radio" name="q5"> <code>base</code> só funciona em métodos <code>static</code>.</label>
+<label><input type="radio" name="q5"> <code>this</code> chama a base, e <code>base</code> chama a própria classe.</label>
+<label><input type="radio" name="q5"> <code>base</code> chama um construtor da classe mãe; <code>this</code>, outro construtor da mesma classe.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Em <code>class Cachorro(string nome) : Animal(nome)</code>, o que é o <code>Animal(nome)</code>?</p>
+<label><input type="radio" name="q6"> A classe base e o argumento passado ao construtor dela.</label>
+<label><input type="radio" name="q6"> Um método chamado <code>Animal</code>.</label>
+<label><input type="radio" name="q6"> Um objeto <code>Animal</code> guardado dentro do cachorro.</label>
+<label><input type="radio" name="q6"> Um erro: falta a palavra <code>base</code>.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>O construtor da base roda <strong>antes</strong> do da filha. Se ele pede dados, a filha entrega com <code>: base(…)</code>, entre os parênteses e a chave.</li>
+  <li>Sem <code>: base(…)</code>, o C# chama o construtor sem parâmetros da base; se ele não existe, <code>CS7036</code>. Argumentos que nenhum construtor aceita: <code>CS1729</code>.</li>
+  <li>Cada classe fala só com a mãe direta. <code>: this(…)</code> chama outro construtor da mesma classe.</li>
+  <li><code>base.Metodo()</code> chama a versão da base, útil dentro de um <code>override</code>. Não existe em métodos <code>static</code> (<code>CS1511</code>).</li>
+  <li>Atalho do C# 12: <code>class Cachorro(string nome) : Animal(nome)</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
