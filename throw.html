@@ -317,7 +317,7 @@ Unhandled exception. System.FormatException: The input string 'doze' was not in 
 
 <div class="note">
 <strong>No editor do guia</strong>
-<p>O editor desta página compila com o compilador C# de verdade, mas não roda os analisadores <code>CA…</code>: o aviso <code>CA2200</code> só aparece no <code>dotnet</code> do computador. A diferença entre os dois rastros aparece nos dois.</p>
+<p>O editor desta página roda os mesmos analisadores do <code>dotnet</code>: o aviso <code>CA2200</code> e o rastro curto do <code>throw e;</code> saem iguais. No rastro do <code>throw;</code> há duas diferenças pequenas: aparecem mais linhas <code>at System.…</code> de dentro do <code>int.Parse</code>, e a linha do <code>Carregar</code> é a 15 (a do <code>throw;</code>), e não a 9 (a da chamada a <code>Ler</code>). O <code>Ler</code> e a linha 21 aparecem nos dois, que é o que importa.</p>
 </div>
 
 <hr>
