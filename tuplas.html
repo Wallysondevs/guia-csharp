@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Tuplas — agrupar valores e devolver vários resultados | Guia C#</title>
+<meta name="description" content="Tuplas em C# para quem está começando: (string, int), Item1 e Item2, elementos com nome, devolver vários valores de um método, desconstrução, descarte com _, trocar duas variáveis, igualdade com ==, listas de tuplas, switch com tuplas e os erros e avisos reais CS0029, CS1061 e CS8123 do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Tuplas</span></h1>
+
+<p class="intro">Um método em C# devolve <strong>um</strong> valor com <code>return</code>. Mas e se a Ana quiser saber a menor <strong>e</strong> a maior nota de uma turma de uma vez? Criar uma classe ou um <a href="records.html">record</a> só para isso parece exagero. Para esses agrupamentos rápidos, o C# tem as <strong>tuplas</strong>: alguns valores entre parênteses, <code>("Bia", 9)</code>, que andam juntos sem precisar de um tipo com nome.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma tupla e como criar uma: <code>(string, int) aluno = ("Bia", 9);</code>.</li>
+  <li>Os nomes <code>Item1</code>, <code>Item2</code>… e como dar nomes melhores aos elementos.</li>
+  <li>Como um método devolve vários valores com uma tupla.</li>
+  <li>Desconstrução (<code>var (menor, maior) = …</code>), o descarte <code>_</code> e a troca de variáveis.</li>
+  <li>Igualdade (<code>==</code>), listas de tuplas e <code>switch</code> com tuplas.</li>
+  <li>Os erros <code>CS0029</code> e <code>CS1061</code> e o aviso <code>CS8123</code>.</li>
+  <li>Quando usar tupla e quando usar record ou classe.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com <code>dotnet run arquivo.cs</code> no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: um par de meias</h2>
+<p>Algumas coisas andam em grupo sem ganhar um nome próprio: um par de meias, as coordenadas de um ponto no mapa, "nome e telefone" anotados num guardanapo. Você não cria uma ficha de cadastro para isso; só junta as coisas. A tupla é esse guardanapo: um grupinho de valores, de tipos que podem ser diferentes, numa ordem fixa.</p>
+
+<p>O nome vem da matemática: par, trio, quádrupla, quíntupla... uma "ênupla" ou <strong>tupla</strong> é um grupo de qualquer tamanho.</p>
+
+<hr>
+
+<h2>A primeira tupla</h2>
+
+<pre class="file" data-file="basico.cs">(string, int) aluno = ("Bia", 9);
+Console.WriteLine(aluno);
+Console.WriteLine(aluno.Item1);
+Console.WriteLine(aluno.Item2);
+</pre>
+
+<dl class="anatomy">
+  <dt>(string, int)</dt><dd>O <strong>tipo</strong> da tupla: os tipos dos elementos, na ordem, entre parênteses. Esta tupla tem um texto e um número.</dd>
+  <dt>("Bia", 9)</dt><dd>O <strong>valor</strong>: os elementos entre parênteses, separados por vírgula.</dd>
+  <dt>aluno.Item1, aluno.Item2</dt><dd>Os elementos, pela posição: <code>Item1</code> é o primeiro, <code>Item2</code> o segundo, e assim por diante. (Começa do 1, não do 0, ao contrário dos arrays.)</dd>
+  <dt>Console.WriteLine(aluno)</dt><dd>Uma tupla aparece como os valores entre parênteses.</dd>
+</dl>
+
+<pre class="term">$ dotnet run basico.cs
+(Bia, 9)
+Bia
+9</pre>
+
+<hr>
+
+<h2>Dar nomes aos elementos</h2>
+<p><code>Item1</code> e <code>Item2</code> não dizem nada a quem lê o código. Dê nomes:</p>
+
+<pre class="file" data-file="nomes.cs">(string Nome, int Idade) ana = ("Ana", 29);
+Console.WriteLine($"{ana.Nome} tem {ana.Idade} anos");
+
+var bia = (Nome: "Bia", Idade: 31);
+Console.WriteLine(bia.Nome);
+
+string cidade = "Recife";
+int habitantes = 1_488_920;
+var lugar = (cidade, habitantes);
+Console.WriteLine($"{lugar.cidade}: {lugar.habitantes:N0}");
+
+Console.WriteLine(ana.Item1);
+</pre>
+
+<dl class="anatomy">
+  <dt>(string Nome, int Idade) ana</dt><dd>Os nomes vão no tipo, depois de cada tipo. Os nomes dos elementos seguem o PascalCase, como propriedades.</dd>
+  <dt>var bia = (Nome: "Bia", Idade: 31);</dt><dd>Ou os nomes vão no valor, com <code>Nome:</code>, e o <code>var</code> descobre o tipo (veja <a href="var.html">var</a>).</dd>
+  <dt>var lugar = (cidade, habitantes);</dt><dd>Feita a partir de variáveis, a tupla pega os nomes delas sozinha: <code>lugar.cidade</code>, <code>lugar.habitantes</code>.</dd>
+  <dt>ana.Item1</dt><dd>Os nomes <code>Item1</code>, <code>Item2</code> continuam valendo, mesmo com nomes dados.</dd>
+</dl>
+
+<pre class="term">$ dotnet run nomes.cs
+Ana tem 29 anos
+Bia
+Recife: 1.488.920
+Ana</pre>
+
+<div class="trycs" data-goal="out:Bia tirou 9,src:aluno\.Nome,src:aluno\.Nota">
+<p class="try-task"><strong>Missão:</strong> dê os nomes <code>Nome</code> e <code>Nota</code> aos elementos da tupla e troque <code>aluno.Item1</code> e <code>aluno.Item2</code> por <code>aluno.Nome</code> e <code>aluno.Nota</code>. A saída continua <code>Bia tirou 9</code>, mas o código fica bem mais claro.</p>
+<pre class="script">(string, int) aluno = ("Bia", 9);
+Console.WriteLine($"{aluno.Item1} tirou {aluno.Item2}");
+</pre>
+<pre class="solucao">(string Nome, int Nota) aluno = ("Bia", 9);
+Console.WriteLine($"{aluno.Nome} tirou {aluno.Nota}");
+</pre>
+</div>
+
+<hr>
+
+<h2>Devolver vários valores de um método</h2>
+<p>É o uso mais comum das tuplas. O tipo de retorno do <a href="metodos.html">método</a> é uma tupla, e o <code>return</code> devolve os valores entre parênteses:</p>
+
+<pre class="file" data-file="extremos.cs">int[] notas = [7, 10, 4, 8];
+(int Menor, int Maior) resultado = Extremos(notas);
+Console.WriteLine($"Menor: {resultado.Menor}, maior: {resultado.Maior}");
+
+var (menor, maior) = Extremos(notas);
+Console.WriteLine($"Diferença: {maior - menor}");
+
+(int Menor, int Maior) Extremos(int[] numeros)
+{
+    int menor = numeros[0];
+    int maior = numeros[0];
+    foreach (int n in numeros)
+    {
+        if (n &lt; menor) menor = n;
+        if (n &gt; maior) maior = n;
+    }
+    return (menor, maior);
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>(int Menor, int Maior) Extremos(int[] numeros)</dt><dd>O método devolve uma tupla de dois <code>int</code>, chamados <code>Menor</code> e <code>Maior</code>. Os nomes servem de documentação para quem usa o método.</dd>
+  <dt>return (menor, maior);</dt><dd>Devolve os dois valores juntos, na ordem do tipo de retorno.</dd>
+  <dt>resultado.Menor</dt><dd>Quem chamou guarda a tupla e usa os nomes.</dd>
+  <dt>var (menor, maior) = Extremos(notas);</dt><dd>A <strong>desconstrução</strong>: abre a tupla em duas variáveis separadas, de uma vez. As variáveis podem ter qualquer nome; o que vale é a ordem.</dd>
+</dl>
+
+<pre class="term">$ dotnet run extremos.cs
+Menor: 4, maior: 10
+Diferença: 6</pre>
+
+<p>Antes das tuplas (C# 7, 2017), o jeito de devolver vários valores era o <code>out</code> (veja <a href="ref-out-in.html">ref, out e in</a>), como no <code>int.TryParse(texto, out int n)</code>. Para código novo, uma tupla costuma ser mais clara.</p>
+
+<hr>
+
+<h2>Desconstrução: mais truques</h2>
+
+<pre class="file" data-file="truques.cs">var (_, maior) = Extremos([7, 10, 4, 8]);
+Console.WriteLine(maior);
+
+int a = 1, b = 2;
+(a, b) = (b, a);
+Console.WriteLine($"a = {a}, b = {b}");
+
+(int Menor, int Maior) Extremos(int[] numeros) =&gt; (numeros.Min(), numeros.Max());
+</pre>
+
+<dl class="anatomy">
+  <dt>var (_, maior)</dt><dd>O <code>_</code> é o <strong>descarte</strong>: "não quero este valor". Só o maior vira variável.</dd>
+  <dt>(a, b) = (b, a);</dt><dd>Troca os valores de duas variáveis numa linha só. Sem tupla, seria preciso uma terceira variável auxiliar.</dd>
+  <dt>=&gt; (numeros.Min(), numeros.Max())</dt><dd>A mesma função, em uma linha, com o <code>Min</code> e o <code>Max</code> do LINQ (veja <a href="linq-agregar.html">Agregar</a>).</dd>
+</dl>
+
+<pre class="term">$ dotnet run truques.cs
+10
+a = 2, b = 1</pre>
+
+<hr>
+
+<h2>Tuplas são valores</h2>
+<p>Uma tupla é um <strong>tipo de valor</strong> (um struct chamado <code>ValueTuple</code>; veja <a href="structs.html">Structs</a>). Isso tem três consequências:</p>
+
+<pre class="file" data-file="igual.cs">var p1 = (Nome: "Ana", Idade: 29);
+var p2 = (Nome: "Ana", Idade: 29);
+var p3 = ("Ana", 30);
+Console.WriteLine(p1 == p2);
+Console.WriteLine(p1 == p3);
+Console.WriteLine(p1.Equals(p2));
+
+var copia = p1;
+copia.Idade = 30;
+Console.WriteLine($"{p1} {copia}");
+</pre>
+
+<pre class="term">$ dotnet run igual.cs
+True               « mesmo conteúdo
+False              « 29 × 30
+True
+(Ana, 29) (Ana, 30)   « a cópia é independente</pre>
+
+<ol>
+  <li><strong><code>==</code> compara elemento por elemento</strong>, na ordem. Os nomes não importam: <code>p1 == p3</code> compara mesmo sem <code>p3</code> ter nomes.</li>
+  <li><strong><code>copia = p1</code> copia tudo</strong>: mudar a cópia não muda o original.</li>
+  <li><strong>Os elementos podem ser mudados</strong>: <code>copia.Idade = 30</code> funciona. Ao contrário dos records, tuplas não são imutáveis.</li>
+</ol>
+
+<p>Por baixo, o tipo de verdade é <code>System.ValueTuple`2[System.String,System.Int32]</code> (o <code>`2</code> quer dizer "dois elementos"). Os nomes <code>Nome</code> e <code>Idade</code> só existem para o compilador; o programa rodando só conhece <code>Item1</code> e <code>Item2</code>. Por isso, uma tupla com outros nomes, mas os mesmos tipos, pode receber outra: <code>(string A, int B) outro = p1;</code> funciona.</p>
+
+<hr>
+
+<h2>Listas de tuplas</h2>
+<p>Uma <code>List</code> de tuplas é um jeito rápido de montar uma "tabelinha":</p>
+
+<pre class="file" data-file="compras.cs">List&lt;(string Produto, decimal Preco)&gt; compras =
+[
+    ("Café", 18.90m),
+    ("Pão", 9.50m),
+    ("Leite", 6.20m)
+];
+
+decimal total = 0;
+foreach (var (produto, preco) in compras)
+{
+    Console.WriteLine($"{produto,-6} {preco,8:C}");
+    total += preco;
+}
+Console.WriteLine($"{"Total",-6} {total,8:C}");
+</pre>
+
+<dl class="anatomy">
+  <dt>List&lt;(string Produto, decimal Preco)&gt;</dt><dd>Uma lista em que cada item é uma tupla de texto e preço (veja <a href="list.html">List&lt;T&gt;</a>).</dd>
+  <dt>foreach (var (produto, preco) in compras)</dt><dd>O <code>foreach</code> também desconstrói: cada volta já entrega o produto e o preço em variáveis separadas.</dd>
+  <dt>{produto,-6} {preco,8:C}</dt><dd>Alinhamento: o produto ocupa 6 casas à esquerda e o preço 8 casas à direita (veja <a href="formatacao.html">Formatar Números</a>).</dd>
+</dl>
+
+<pre class="term">$ dotnet run compras.cs
+Café   R$ 18,90
+Pão     R$ 9,50
+Leite   R$ 6,20
+Total  R$ 34,60</pre>
+
+<hr>
+
+<h2>Tuplas no <code>switch</code></h2>
+<p>Uma tupla deixa o <a href="switch-expressoes.html"><code>switch</code></a> olhar para dois valores ao mesmo tempo. Pedra, papel e tesoura, entre a Ana e a Bia:</p>
+
+<pre class="file" data-file="jokenpo.cs">Console.WriteLine(Vencedor("pedra", "tesoura"));
+Console.WriteLine(Vencedor("papel", "tesoura"));
+Console.WriteLine(Vencedor("papel", "papel"));
+
+string Vencedor(string ana, string bia) =&gt; (ana, bia) switch
+{
+    var (x, y) when x == y =&gt; "empate",
+    ("pedra", "tesoura") or ("tesoura", "papel") or ("papel", "pedra") =&gt; "Ana venceu",
+    _ =&gt; "Bia venceu",
+};
+</pre>
+
+<pre class="term">$ dotnet run jokenpo.cs
+Ana venceu
+Bia venceu
+empate</pre>
+
+<p>O <code>(ana, bia) switch</code> monta uma tupla e compara com cada padrão: <code>("pedra", "tesoura")</code> casa quando o primeiro é <code>"pedra"</code> e o segundo é <code>"tesoura"</code>. A aula <a href="pattern-matching.html">Pattern Matching</a> explica o <code>when</code> e o <code>or</code>.</p>
+
+<hr>
+
+<h2>Tupla, record ou classe?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Tupla</th><th>Record</th><th>Classe</th></tr>
+<tr><td>Precisa declarar um tipo?</td><td>Não</td><td>Sim, uma linha</td><td>Sim</td></tr>
+<tr><td>Nome do tipo</td><td>Nenhum: <code>(string, int)</code></td><td><code>Produto</code></td><td><code>Produto</code></td></tr>
+<tr><td>Família</td><td>Valor</td><td>Referência (ou valor, com <code>record struct</code>)</td><td>Referência</td></tr>
+<tr><td>Muda depois de criado?</td><td>Sim</td><td>Não</td><td>Você decide</td></tr>
+<tr><td><code>==</code> compara o conteúdo</td><td>Sim</td><td>Sim</td><td>Não</td></tr>
+<tr><td>Métodos próprios</td><td>Não</td><td>Sim</td><td>Sim</td></tr>
+<tr><td>Bom para</td><td>Resultados de um método, grupinhos locais</td><td>Dados que circulam pelo programa</td><td>Objetos com comportamento e estado</td></tr>
+</table>
+</div>
+
+<p><strong>Regra prática:</strong> use tupla quando o grupo é <strong>pequeno</strong> (2 ou 3 valores) e <strong>vive pouco</strong> (sai de um método e é desmontado logo em seguida). Se a mesma tupla começa a aparecer em vários lugares do programa, ou se você sente falta de um método nela, é hora de criar um <a href="records.html">record</a>.</p>
+
+<div class="tip">
+<strong>As tuplas antigas: <code>Tuple&lt;T1, T2&gt;</code></strong>
+<p>Em código antigo (de antes de 2017), você pode encontrar <code>Tuple.Create("Bia", 9)</code> e o tipo <code>Tuple&lt;string, int&gt;</code>. São outra coisa: uma classe (tipo de referência), imutável, e só com <code>Item1</code>, <code>Item2</code>, sem nomes. Em código novo, use as tuplas com parênteses desta aula.</p>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS0029: tupla com o número errado de elementos</strong>
+<pre class="file" data-file="erros.cs">(string, int) t = ("Ana", 29, true);
+</pre>
+<pre class="term">$ dotnet run erros.cs
+/home/ana/cs/erros.cs(1,19): error CS0029: Não é possível converter implicitamente tipo "(string, int, bool)" em "(string, int)"</pre>
+<p><strong>O que aconteceu:</strong> o valor tem três elementos e o tipo, dois. Com os tipos fora de ordem, como em <code>(int, string) t = ("Ana", 29);</code>, o mesmo <code>CS0029</code> aparece para cada elemento: <code>Não é possível converter implicitamente tipo "string" em "int"</code>.</p>
+<p><strong>Como resolver:</strong> o valor e o tipo precisam ter os mesmos elementos, na mesma ordem.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1061: "… não contém uma definição para …"</strong>
+<pre class="file" data-file="erros2.cs">var t = (Nome: "Ana", Idade: 29);
+Console.WriteLine(t.Item3);
+Console.WriteLine(t.Cidade);
+</pre>
+<pre class="term">$ dotnet run erros2.cs
+/home/ana/cs/erros2.cs(2,21): error CS1061: ‘(string Nome, int Idade)’ não contém uma definição para "Item3" e não foi possível encontrar nenhum método de extensão "Item3" que aceite um primeiro argumento do tipo ‘(string Nome, int Idade)’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+/home/ana/cs/erros2.cs(3,21): error CS1061: ‘(string Nome, int Idade)’ não contém uma definição para "Cidade" e não foi possível encontrar nenhum método de extensão "Cidade" que aceite um primeiro argumento do tipo ‘(string Nome, int Idade)’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)</pre>
+<p><strong>O que aconteceu:</strong> a tupla tem dois elementos (não há <code>Item3</code>) e nenhum se chama <code>Cidade</code>. A mensagem mostra o tipo da tupla com os nomes, o que ajuda a ver o que existe.</p>
+<p><strong>Como resolver:</strong> use um dos nomes do tipo (<code>Nome</code>, <code>Idade</code>, <code>Item1</code>, <code>Item2</code>).</p>
+</div>
+
+<div class="cenario">
+<strong>CS8123: "O nome do elemento de tupla … foi ignorado …"</strong>
+<pre class="file" data-file="aviso.cs">(string Nome, int Idade) p = (N: "Ana", I: 29);
+Console.WriteLine(p.Nome);
+</pre>
+<pre class="term">$ dotnet run aviso.cs
+/home/ana/cs/aviso.cs(1,31): warning CS8123: O nome do elemento de tupla 'N' foi ignorado porque um nome diferente ou nenhum nome foi especificado pelo tipo de destino '(string Nome, int Idade)'.
+/home/ana/cs/aviso.cs(1,41): warning CS8123: O nome do elemento de tupla 'I' foi ignorado porque um nome diferente ou nenhum nome foi especificado pelo tipo de destino '(string Nome, int Idade)'.
+Ana</pre>
+<p><strong>O que aconteceu:</strong> os nomes do valor (<code>N</code>, <code>I</code>) são diferentes dos do tipo (<code>Nome</code>, <code>Idade</code>). Vale a ordem, e os nomes do tipo ganham. O compilador avisa porque isso costuma ser um engano.</p>
+<p><strong>Como resolver:</strong> tire os nomes do valor (<code>("Ana", 29)</code>) ou use os mesmos do tipo.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>(string, int) t = ("Bia", 9);</code></td><td>Tupla sem nomes: <code>t.Item1</code>, <code>t.Item2</code></td></tr>
+<tr><td><code>(string Nome, int Nota) t = ("Bia", 9);</code></td><td>Tupla com nomes no tipo</td></tr>
+<tr><td><code>var t = (Nome: "Bia", Nota: 9);</code></td><td>Tupla com nomes no valor</td></tr>
+<tr><td><code>(int Menor, int Maior) Metodo() { return (1, 9); }</code></td><td>Método que devolve vários valores</td></tr>
+<tr><td><code>var (menor, maior) = Metodo();</code></td><td>Desconstrução</td></tr>
+<tr><td><code>var (_, maior) = Metodo();</code></td><td>Descarte de um elemento</td></tr>
+<tr><td><code>(a, b) = (b, a);</code></td><td>Troca duas variáveis</td></tr>
+<tr><td><code>t1 == t2</code></td><td>Compara elemento por elemento</td></tr>
+<tr><td><code>List&lt;(string, decimal)&gt;</code>, <code>foreach (var (a, b) in lista)</code></td><td>Listas de tuplas</td></tr>
+<tr><td><code>(x, y) switch { (1, 2) =&gt; …, _ =&gt; … }</code></td><td><code>switch</code> com dois valores</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O tipo</h3>
+<p>Complete o tipo da tupla <code>("Café", 18.90m)</code>, sem nomes:</p>
+<div class="ex-code"><input data-answer="(string, decimal)|(string,decimal)" aria-label="tipo"> item = ("Café", 18.90m);</div>
+</div>
+
+<div class="exercise">
+<h3>2. O segundo elemento</h3>
+<p>Na tupla sem nomes <code>var t = ("Ana", 29);</code>, como se chama o elemento que guarda o 29?</p>
+<div class="ex-code">t.<input data-answer="Item2" aria-label="nome do elemento"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Desconstruir</h3>
+<p>Complete para abrir a tupla devolvida por <code>Extremos(notas)</code> nas variáveis <code>menor</code> e <code>maior</code>:</p>
+<div class="ex-code"><input data-answer="var (menor, maior)|var (menor,maior)|(int menor, int maior)" aria-label="desconstrução"> = Extremos(notas);</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O que faz <code>(a, b) = (b, a);</code>?</p>
+<label><input type="radio" name="q4"> Cria uma tupla e a joga fora</label>
+<label><input type="radio" name="q4"> Troca os valores de <code>a</code> e <code>b</code></label>
+<label><input type="radio" name="q4"> Erro de compilação</label>
+<label><input type="radio" name="q4"> Copia <code>b</code> para <code>a</code> e deixa <code>b</code> igual</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. <code>("Ana", 29) == (Nome: "Ana", Idade: 29)</code> dá:</p>
+<label><input type="radio" name="q5"> <code>False</code>, porque os nomes são diferentes</label>
+<label><input type="radio" name="q5"> Erro de compilação</label>
+<label><input type="radio" name="q5"> <code>True</code>: compara elemento por elemento, sem olhar os nomes</label>
+<label><input type="radio" name="q5"> Depende da execução</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Um mesmo grupo "nome, e-mail, telefone, endereço" aparece em dez métodos do programa. O que usar?</p>
+<label><input type="radio" name="q6"> Uma tupla de quatro elementos</label>
+<label><input type="radio" name="q6"> Quatro variáveis soltas</label>
+<label><input type="radio" name="q6"> Um array de <code>string</code></label>
+<label><input type="radio" name="q6"> Um record (ou classe) <code>Contato</code></label>
+</div>
+
+<div class="trycs" data-goal="out:Aprovados: 3\, reprovados: 2,src:foreach\s*\(">
+<p class="try-task"><strong>Missão final:</strong> a professora Ana quer saber quantos alunos passaram e quantos não passaram (média 6). O programa já chama <code>Contar</code> e desconstrói o resultado, mas o método devolve sempre <code>(0, 0)</code>. Complete o método: percorra as notas com <code>foreach</code>, conte as notas <code>&gt;= media</code> como aprovados e as outras como reprovados, e devolva as duas contagens com <code>return (aprovados, reprovados);</code>. A saída deve ser <code>Aprovados: 3, reprovados: 2</code>.</p>
+<pre class="script">double[] notas = [8, 5.5, 9, 4, 7];
+var (aprovados, reprovados) = Contar(notas, 6);
+Console.WriteLine($"Aprovados: {aprovados}, reprovados: {reprovados}");
+
+(int Aprovados, int Reprovados) Contar(double[] notas, double media)
+{
+    // conte aqui
+    return (0, 0);
+}
+</pre>
+<pre class="solucao">double[] notas = [8, 5.5, 9, 4, 7];
+var (aprovados, reprovados) = Contar(notas, 6);
+Console.WriteLine($"Aprovados: {aprovados}, reprovados: {reprovados}");
+
+(int Aprovados, int Reprovados) Contar(double[] notas, double media)
+{
+    int aprovados = 0;
+    int reprovados = 0;
+    foreach (double n in notas)
+    {
+        if (n &gt;= media)
+        {
+            aprovados++;
+        }
+        else
+        {
+            reprovados++;
+        }
+    }
+    return (aprovados, reprovados);
+}
+</pre>
+</div>
+
+<pre class="term">$ dotnet run turma.cs      « a solução
+Aprovados: 3, reprovados: 2</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma tupla junta alguns valores sem criar um tipo: <code>(string, int) aluno = ("Bia", 9);</code>. Os elementos são <code>Item1</code>, <code>Item2</code>…</li>
+  <li>Dê nomes: <code>(string Nome, int Nota)</code> ou <code>(Nome: "Bia", Nota: 9)</code>. Os nomes só existem para o compilador (o aviso <code>CS8123</code> aparece quando eles não batem).</li>
+  <li>O uso mais comum é devolver vários valores de um método: <code>return (menor, maior);</code>, e quem chama desconstrói com <code>var (menor, maior) = …</code>. O <code>_</code> descarta; <code>(a, b) = (b, a)</code> troca.</li>
+  <li>Tuplas são tipos de valor (<code>ValueTuple</code>): copiadas na atribuição, comparáveis com <code>==</code> elemento por elemento, e mutáveis.</li>
+  <li>Use tupla para grupos pequenos e de vida curta; se o grupo se espalha pelo programa, crie um <a href="records.html">record</a>. Próxima aula: <a href="namespaces.html">Namespaces e using</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
