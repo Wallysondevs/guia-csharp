@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# try e catch — tratar exceções e filtros when | Guia C#</title>
+<meta name="description" content="Como tratar exceções em C# com try e catch: o caminho do programa, capturar um tipo específico, a classe mãe que pega as filhas, vários catch e a ordem entre eles (CS0160), filtros when, Message e ToString, a exceção que sobe dos métodos e por que nunca engolir exceções. Com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">try e catch</span></h1>
+
+<p class="intro">Na aula <a href="excecoes.html">Exceções</a>, você viu o programa "quebrar": uma exceção não tratada encerra tudo, com o código de saída 134. Agora você vai aprender a <strong>tratar</strong> a exceção: dizer ao C# "tente fazer isto; se der este problema, faça aquilo" e deixar o programa seguir em frente. As palavras para isso são <code>try</code> e <code>catch</code>, e o C# ainda tem um recurso a mais, os <strong>filtros</strong> <code>when</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Escrever um bloco <code>try</code>/<code>catch</code> e entender o caminho que o programa percorre.</li>
+  <li>Capturar uma exceção <strong>específica</strong>, e o que acontece com as outras.</li>
+  <li>Pegar uma família inteira com a classe mãe, e por que <code>catch (Exception)</code> é perigoso.</li>
+  <li>Usar vários <code>catch</code>, e por que a ordem entre eles importa (<code>CS0160</code>).</li>
+  <li>Escolher com uma condição qual <code>catch</code> trata o problema: os filtros <code>when</code>.</li>
+  <li>Tirar informação da exceção: <code>Message</code>, <code>GetType()</code> e <code>ToString()</code>.</li>
+  <li>Capturar uma exceção que nasceu dentro de outro método.</li>
+  <li>Por que um <code>catch</code> vazio ("engolir a exceção") é um dos piores hábitos.</li>
+</ul>
+</div>
+
+<p>Todos os programas rodaram na máquina da Ana, com o .NET 10 (C# 14), usando <code>dotnet run arquivo.cs</code> na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código</h2>
+<p>Pense num trapezista de circo. Ele <strong>tenta</strong> o salto. Quase sempre dá certo. Mas, se ele cair, há uma <strong>rede de proteção</strong> embaixo que o <strong>pega</strong>, e o espetáculo continua. Sem a rede, uma queda encerra o show.</p>
+<p>No C#:</p>
+<ul>
+  <li><code>try</code> ("tente") é o salto: o código que pode dar problema.</li>
+  <li><code>catch</code> ("pegue", "capture") é a rede: o que fazer se uma exceção de certo tipo for lançada dentro do <code>try</code>.</li>
+</ul>
+
+<hr>
+
+<h2>O primeiro try/catch</h2>
+<p>A Ana recebe idades como texto (de um formulário, de um arquivo) e precisa transformá-las em número com <code>int.Parse</code>. Se o texto não for um número, o <code>int.Parse</code> lança <code>FormatException</code>. Desta vez, o programa vai estar preparado:</p>
+
+<pre class="file" data-file="idade.cs">string texto = "29 anos";
+try
+{
+    int idade = int.Parse(texto);
+    Console.WriteLine($"Idade: {idade}");
+}
+catch (FormatException)
+{
+    Console.WriteLine($"Isso não é um número: {texto}");
+}
+Console.WriteLine("Fim do programa");
+</pre>
+
+<dl class="anatomy">
+  <dt>try</dt><dd>Abre o bloco protegido. Tudo entre as chaves logo abaixo roda normalmente, mas "vigiado".</dd>
+  <dt>int idade = int.Parse(texto);</dt><dd>A linha que pode lançar a exceção.</dd>
+  <dt>Console.WriteLine($"Idade: {idade}");</dt><dd>Só roda se a linha de cima deu certo.</dd>
+  <dt>catch (FormatException)</dt><dd>A "rede". Os parênteses dizem <strong>que tipo</strong> de exceção esta rede pega: aqui, só <code>FormatException</code>.</dd>
+  <dt>{ … }</dt><dd>O que fazer quando a exceção acontece: aqui, avisar com uma mensagem amigável.</dd>
+  <dt>Console.WriteLine("Fim do programa");</dt><dd>Fora do <code>try</code>/<code>catch</code>: roda nos dois casos.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run idade.cs
+Isso não é um número: 29 anos
+Fim do programa
+$ echo $?
+0</pre>
+
+<p>Compare com a aula anterior: nada de <code>Unhandled exception</code>, o <code>Fim do programa</code> apareceu e o código de saída é <code>0</code> ("terminou bem"). A exceção aconteceu do mesmo jeito, mas foi <strong>tratada</strong>.</p>
+
+<h3>O caminho do programa</h3>
+<p>Repare que <code>Idade: …</code> não apareceu. Quando uma linha dentro do <code>try</code> lança uma exceção, o C# <strong>abandona o resto do <code>try</code></strong> e pula direto para o <code>catch</code>. Depois do <code>catch</code>, segue com o que vem depois do bloco todo. Os dois caminhos possíveis:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>Com <code>"29 anos"</code> (exceção)</th><th>Com <code>"29"</code> (tudo certo)</th></tr>
+<tr><td>4 &nbsp;<code>int.Parse(texto)</code></td><td>lança <code>FormatException</code></td><td>roda: <code>idade</code> = 29</td></tr>
+<tr><td>5 &nbsp;<code>WriteLine("Idade: …")</code></td><td><strong>pulada</strong></td><td>roda</td></tr>
+<tr><td>9 &nbsp;<code>WriteLine("Isso não é…")</code></td><td>roda</td><td><strong>pulada</strong> (sem exceção, o <code>catch</code> não roda)</td></tr>
+<tr><td>11 <code>WriteLine("Fim…")</code></td><td>roda</td><td>roda</td></tr>
+</table>
+</div>
+
+<p>Trocando <code>"29 anos"</code> por <code>"29"</code>, a saída real é:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run idade.cs
+Idade: 29
+Fim do programa</pre>
+
+<div class="trycs" data-goal="out:Isso não é um número,out:Fim do programa,exit:0,src:catch\s*\(\s*FormatException">
+<p class="try-task"><strong>Missão:</strong> rode o programa e veja-o quebrar. Depois proteja as duas linhas do meio com <code>try</code> e um <code>catch (FormatException)</code> que mostre <code>Isso não é um número</code>. O <code>Fim do programa</code> deve aparecer.</p>
+<pre class="script" data-file="idade.cs">string texto = "29 anos";
+int idade = int.Parse(texto);
+Console.WriteLine($"Idade: {idade}");
+Console.WriteLine("Fim do programa");
+</pre>
+<pre class="solucao" data-file="idade.cs">string texto = "29 anos";
+try
+{
+    int idade = int.Parse(texto);
+    Console.WriteLine($"Idade: {idade}");
+}
+catch (FormatException)
+{
+    Console.WriteLine($"Isso não é um número: {texto}");
+}
+Console.WriteLine("Fim do programa");
+</pre>
+</div>
+
+<div class="tip">
+<strong>Para entrada do usuário, prefira <code>TryParse</code></strong>
+<p>Esta aula usa <code>int.Parse</code> porque é o jeito mais simples de provocar uma exceção. Num programa de verdade, quando o texto vem do teclado, <code>int.TryParse</code> é melhor: ele não lança exceção, só devolve <code>false</code> (aula <a href="parse.html">Parse e TryParse</a>). O fim desta aula compara as duas formas. O <code>try</code>/<code>catch</code> brilha mesmo com o que você <strong>não</strong> consegue prever: arquivos, rede, outros programas.</p>
+</div>
+
+<hr>
+
+<h2>O <code>catch</code> só pega o tipo que você pediu</h2>
+<p>A rede do <code>catch</code> tem formato: <code>catch (FormatException)</code> pega <strong>só</strong> <code>FormatException</code> (e as classes filhas dela). Se outra exceção acontecer no <code>try</code>, ela passa direto pela rede:</p>
+
+<pre class="file" data-file="media.cs">int soma = 22;
+int provas = 0;
+try
+{
+    Console.WriteLine($"Média: {soma / provas}");
+}
+catch (FormatException)
+{
+    Console.WriteLine("Número inválido");
+}
+Console.WriteLine("Fim do programa");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run media.cs
+Unhandled exception. System.DivideByZeroException: Attempted to divide by zero.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/media.cs:line 5</pre>
+
+<p>A divisão lançou <code>DivideByZeroException</code>, que não é uma <code>FormatException</code>. O <code>catch</code> foi ignorado, a exceção continuou "caindo" e encerrou o programa, como se o <code>try</code> nem existisse.</p>
+
+<h3>Pegar a classe mãe pega as filhas</h3>
+<p>Lembra da <a href="excecoes.html#hierarquia">família</a>? <code>DivideByZeroException</code> e <code>OverflowException</code> são filhas de <code>ArithmeticException</code>. Um <code>catch</code> da classe mãe pega qualquer filha. E, para saber qual foi o problema, dê um nome à exceção capturada:</p>
+
+<pre class="file" data-file="media.cs">int soma = 22;
+int provas = 0;
+try
+{
+    Console.WriteLine($"Média: {soma / provas}");
+}
+catch (ArithmeticException e)
+{
+    Console.WriteLine($"Problema: {e.Message}");
+}
+Console.WriteLine("Fim do programa");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run media.cs
+Problema: Attempted to divide by zero.
+Fim do programa</pre>
+
+<dl class="anatomy">
+  <dt>catch (ArithmeticException e)</dt><dd>Pega <code>ArithmeticException</code> e todas as filhas. O <code>e</code> é uma variável que recebe o <strong>objeto</strong> da exceção. Por costume ela se chama <code>e</code> (de <em>exception</em>) ou <code>ex</code>, mas pode ter qualquer nome.</dd>
+  <dt>e.Message</dt><dd>A mensagem da exceção, a mesma que aparece depois dos dois-pontos no relatório.</dd>
+</dl>
+
+<p>Sem precisar do objeto, escreva só o tipo, como no primeiro exemplo: <code>catch (FormatException)</code>. Se você der um nome e não usar, o compilador avisa (<code>CS0168</code>, veja <a href="#errado">Quando dá errado</a>).</p>
+
+<p>Subindo mais, <code>catch (Exception e)</code> pega <strong>qualquer</strong> exceção, e <code>catch</code> sozinho, sem parênteses, também:</p>
+
+<pre class="file" data-file="semtipo.cs">try
+{
+    int[] v = [1];
+    Console.WriteLine(v[3]);
+}
+catch
+{
+    Console.WriteLine("Deu algum problema.");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run semtipo.cs
+Deu algum problema.</pre>
+
+<p>Parece prático, mas é perigoso: você passa a tratar do mesmo jeito problemas muito diferentes, inclusive os que você nem imaginava (um <code>NullReferenceException</code> causado por um defeito no seu código, por exemplo). E a mensagem "Deu algum problema" não ajuda ninguém a consertar. A regra dos programadores experientes: <strong>capture a exceção mais específica que você sabe tratar</strong>. <code>catch (Exception e)</code> fica para um lugar só, no ponto mais alto do programa, para registrar o que escapou de tudo.</p>
+
+<hr>
+
+<h2>Vários <code>catch</code></h2>
+<p>Um <code>try</code> pode ter vários <code>catch</code>, um para cada tipo de problema, cada um com a sua resposta. O C# testa os <code>catch</code> <strong>de cima para baixo</strong> e usa o primeiro que combinar:</p>
+
+<pre class="file" data-file="divisoes.cs">string[] textos = ["10", "abc", "0", "99999999999"];
+foreach (string t in textos)
+{
+    try
+    {
+        int n = int.Parse(t);
+        Console.WriteLine($"100 / {n} = {100 / n}");
+    }
+    catch (FormatException)
+    {
+        Console.WriteLine($"\"{t}\" não é número");
+    }
+    catch (DivideByZeroException)
+    {
+        Console.WriteLine("Não dá para dividir por zero");
+    }
+    catch (OverflowException)
+    {
+        Console.WriteLine($"{t} é grande demais para um int");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run divisoes.cs
+100 / 10 = 10
+"abc" não é número
+Não dá para dividir por zero
+99999999999 é grande demais para um int</pre>
+
+<p>O <a href="foreach.html">foreach</a> passa pelos quatro textos. Cada volta tem o seu próprio <code>try</code>: <code>"10"</code> dá certo; <code>"abc"</code> cai no primeiro <code>catch</code>; <code>"0"</code> passa pelo <code>int.Parse</code>, mas a divisão cai no segundo; <code>"99999999999"</code> não cabe num <code>int</code> e cai no terceiro. E, como o <code>try</code> está <strong>dentro</strong> do laço, um problema numa volta não impede as outras.</p>
+
+<h3>A ordem importa</h3>
+<p>Como o C# usa o <strong>primeiro</strong> <code>catch</code> que combina, um <code>catch</code> da classe mãe antes de uma filha deixaria a filha inalcançável. O compilador percebe e recusa o programa:</p>
+
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="ordem.cs">try
+{
+    int n = int.Parse("abc");
+    Console.WriteLine(100 / n);
+}
+catch (Exception e)
+{
+    Console.WriteLine("Algo deu errado");
+}
+catch (FormatException e)
+{
+    Console.WriteLine("Não é número");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ordem.cs
+/home/ana/cs/ordem.cs(10,8): error CS0160: Cláusula catch anterior já captura todas as exceções desta ou de um super tipo ("Exception")
+/home/ana/cs/ordem.cs(6,18): warning CS0168: A variável "e" está declarada, mas nunca é usada
+/home/ana/cs/ordem.cs(10,24): warning CS0168: A variável "e" está declarada, mas nunca é usada
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Uma cláusula <code>catch</code> anterior já captura todas as exceções deste tipo ou de um supertipo (<code>Exception</code>)." Em inglês: <em>A previous catch clause already catches all exceptions of this or of a super type</em>. O <code>catch (Exception e)</code> da linha 6 já pega qualquer <code>FormatException</code>, então o da linha 10 nunca seria usado. Os dois avisos <code>CS0168</code> dizem que os dois <code>e</code> não são usados. <strong>Regra:</strong> do mais específico (filha) para o mais geral (mãe). Inverter os dois <code>catch</code> resolve.</p>
+
+<div class="trycs" data-goal="out:Não dá para dividir por zero,out:Fim,exit:0,src:catch\s*\(\s*DivideByZeroException">
+<p class="try-task"><strong>Missão:</strong> o programa trata texto inválido, mas quebra no <code>"0"</code>. Acrescente um segundo <code>catch</code>, para <code>DivideByZeroException</code>, que mostre <code>Não dá para dividir por zero</code>, e faça o <code>Fim</code> aparecer.</p>
+<pre class="script" data-file="divisoes.cs">string[] textos = ["10", "abc", "0"];
+foreach (string t in textos)
+{
+    try
+    {
+        int n = int.Parse(t);
+        Console.WriteLine($"100 / {n} = {100 / n}");
+    }
+    catch (FormatException)
+    {
+        Console.WriteLine($"\"{t}\" não é número");
+    }
+}
+Console.WriteLine("Fim");
+</pre>
+<pre class="solucao" data-file="divisoes.cs">string[] textos = ["10", "abc", "0"];
+foreach (string t in textos)
+{
+    try
+    {
+        int n = int.Parse(t);
+        Console.WriteLine($"100 / {n} = {100 / n}");
+    }
+    catch (FormatException)
+    {
+        Console.WriteLine($"\"{t}\" não é número");
+    }
+    catch (DivideByZeroException)
+    {
+        Console.WriteLine("Não dá para dividir por zero");
+    }
+}
+Console.WriteLine("Fim");
+</pre>
+</div>
+
+<hr>
+
+<h2>Filtros: <code>catch … when (condição)</code> <span class="versao">C# 6</span></h2>
+<p>Às vezes o tipo da exceção não basta para decidir o que fazer. Um texto vazio e um texto com letras dão a mesma <code>FormatException</code>, mas a Ana quer responder diferente a cada um. O <strong>filtro</strong> <code>when</code> ("quando") acrescenta uma condição ao <code>catch</code>: ele só pega a exceção se o tipo combinar <strong>e</strong> a condição for <code>true</code>:</p>
+
+<pre class="file" data-file="filtro.cs">string[] entradas = ["12", "", "doze", "99999999999"];
+foreach (string texto in entradas)
+{
+    try
+    {
+        int quantidade = int.Parse(texto);
+        Console.WriteLine($"Quantidade: {quantidade}");
+    }
+    catch (FormatException) when (texto == "")
+    {
+        Console.WriteLine("Você não digitou nada.");
+    }
+    catch (FormatException)
+    {
+        Console.WriteLine($"\"{texto}\" não é um número.");
+    }
+    catch (Exception e) when (e is OverflowException or ArgumentNullException)
+    {
+        Console.WriteLine($"Valor fora do esperado: {e.GetType().Name}");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run filtro.cs
+Quantidade: 12
+Você não digitou nada.
+"doze" não é um número.
+Valor fora do esperado: OverflowException</pre>
+
+<dl class="anatomy">
+  <dt>catch (FormatException) when (texto == "")</dt><dd>"Pegue a <code>FormatException</code> <strong>quando</strong> o texto estiver vazio." Para <code>""</code>, as duas partes combinam, e este <code>catch</code> roda.</dd>
+  <dt>catch (FormatException)</dt><dd>Para <code>"doze"</code>, o filtro de cima deu <code>false</code>, então o C# continua procurando e chega neste, que pega qualquer <code>FormatException</code>. Dois <code>catch</code> do mesmo tipo são permitidos quando o primeiro tem filtro.</dd>
+  <dt>catch (Exception e) when (e is OverflowException or ArgumentNullException)</dt><dd>Um <code>catch</code> para <strong>dois</strong> tipos. <code>e is OverflowException</code> pergunta "a exceção é uma <code>OverflowException</code>?", e o <code>or</code> ("ou") junta as duas perguntas (aula <a href="pattern-matching.html">Pattern Matching</a>). As outras exceções passam direto.</dd>
+  <dt>e.GetType().Name</dt><dd>O nome da classe da exceção, sem o namespace: <code>OverflowException</code>.</dd>
+</dl>
+
+<div class="note">
+<strong>Vindo do Java?</strong>
+<p>O C# não tem o multi-catch com barra (<code>catch (A | B e)</code>). A forma do C# é a do último <code>catch</code> acima: <code>catch (Exception e) when (e is A or B)</code>.</p>
+</div>
+
+<p>Um detalhe que diferencia o filtro de um <code>if</code> dentro do <code>catch</code>: se a condição do <code>when</code> dá <code>false</code>, é como se aquele <code>catch</code> não existisse, e o C# continua procurando outra rede, nos <code>catch</code> de baixo ou em quem chamou o método. Com um <code>if</code> lá dentro, a exceção já teria sido capturada.</p>
+
+<p>Com filtro, a regra da ordem também muda: um <code>catch (Exception e) when (…)</code> <strong>pode</strong> vir antes de um <code>catch (FormatException)</code>, porque o filtro pode deixar a exceção passar. O compilador aceita; cabe a você pensar na ordem.</p>
+
+<div class="trycs" data-goal="out:Você não digitou nada,out:&quot;doze&quot; não é um número,src:when\s*\(">
+<p class="try-task"><strong>Missão:</strong> o programa responde <code>"" não é um número.</code> para o texto vazio, o que fica estranho. Acrescente, <strong>antes</strong> do <code>catch</code> que já existe, um <code>catch (FormatException) when (…)</code> que, para o texto vazio, mostre <code>Você não digitou nada.</code></p>
+<pre class="script" data-file="filtro.cs">string[] entradas = ["12", "", "doze"];
+foreach (string texto in entradas)
+{
+    try
+    {
+        int quantidade = int.Parse(texto);
+        Console.WriteLine($"Quantidade: {quantidade}");
+    }
+    catch (FormatException)
+    {
+        Console.WriteLine($"\"{texto}\" não é um número.");
+    }
+}
+</pre>
+<pre class="solucao" data-file="filtro.cs">string[] entradas = ["12", "", "doze"];
+foreach (string texto in entradas)
+{
+    try
+    {
+        int quantidade = int.Parse(texto);
+        Console.WriteLine($"Quantidade: {quantidade}");
+    }
+    catch (FormatException) when (texto == "")
+    {
+        Console.WriteLine("Você não digitou nada.");
+    }
+    catch (FormatException)
+    {
+        Console.WriteLine($"\"{texto}\" não é um número.");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>O que fazer com a exceção capturada</h2>
+<p>A variável <code>e</code> é um objeto, com propriedades e métodos úteis. Veja os principais lado a lado:</p>
+
+<pre class="file" data-file="info.cs">try
+{
+    int n = int.Parse("12x");
+}
+catch (FormatException e)
+{
+    Console.WriteLine($"Message:  {e.Message}");
+    Console.WriteLine($"Tipo:     {e.GetType().Name}");
+    Console.WriteLine($"Completo: {e.GetType().FullName}");
+    Console.WriteLine("--- ToString() ---");
+    Console.WriteLine(e.ToString());
+    Console.WriteLine("--- o programa continua ---");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run info.cs
+Message:  The input string '12x' was not in a correct format.
+Tipo:     FormatException
+Completo: System.FormatException
+--- ToString() ---
+System.FormatException: The input string '12x' was not in a correct format.
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+   at System.Int32.Parse(String s)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/info.cs:line 3
+--- o programa continua ---</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Membro</th><th>Devolve</th><th>Quando usar</th></tr>
+<tr><td><code>e.Message</code></td><td>Só a mensagem: <code>The input string '12x' was not in a correct format.</code></td><td>Para mostrar um detalhe do problema. Em inglês: para o usuário final, prefira uma frase sua.</td></tr>
+<tr><td><code>e.GetType().Name</code></td><td>Só o nome da classe: <code>FormatException</code></td><td>Mensagens curtas.</td></tr>
+<tr><td><code>e.GetType().FullName</code></td><td>Com o namespace: <code>System.FormatException</code></td><td>Para registrar sem ambiguidade.</td></tr>
+<tr><td><code>e.ToString()</code></td><td>Tipo, mensagem <strong>e o stack trace</strong>, igual ao relatório de uma exceção não tratada</td><td>Para registrar o problema completo num arquivo de log, enquanto você desenvolve.</td></tr>
+<tr><td><code>e.StackTrace</code></td><td>Só as linhas <code>at …</code></td><td>Raramente sozinho: o <code>ToString()</code> já inclui.</td></tr>
+</table>
+</div>
+
+<p>Repare: o <code>ToString()</code> mostra o mesmo relatório da exceção não tratada, só que sem o <code>Unhandled exception.</code> na frente, e o programa <strong>continua</strong>. Para mandar esse relatório para a saída de erro, como o .NET faz, use <code>Console.Error.WriteLine(e)</code>.</p>
+
+<hr>
+
+<h2>A exceção sobe pelos métodos</h2>
+<p>O <code>try</code> não precisa estar no mesmo método da linha que lança. Uma exceção não tratada dentro de um método <strong>sobe</strong> para quem o chamou, depois para quem chamou esse, e assim por diante, degrau por degrau da pilha, até encontrar um <code>catch</code> que combine. É o mesmo caminho do stack trace, de cima para baixo:</p>
+
+<pre class="file" data-file="sobe.cs">try
+{
+    Console.WriteLine(Calculo.Media(30, 0));
+}
+catch (DivideByZeroException e)
+{
+    Console.WriteLine($"Não deu para calcular a média: {e.Message}");
+}
+Console.WriteLine("Fim");
+
+static class Calculo
+{
+    public static int Dividir(int a, int b) =&gt; a / b;
+    public static double Media(int soma, int quantidade) =&gt; Dividir(soma, quantidade);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sobe.cs
+Não deu para calcular a média: Attempted to divide by zero.
+Fim</pre>
+
+<p>A exceção nasceu no <code>Dividir</code>, que não tem <code>try</code>. Subiu para o <code>Media</code>, que também não tem. Subiu para as instruções do topo, onde o <code>catch (DivideByZeroException)</code> a pegou. Se ninguém no caminho tivesse um <code>catch</code> adequado, ela chegaria ao fundo da pilha e o programa terminaria com 134. Isso permite tratar o problema <strong>onde faz sentido</strong>: o <code>Dividir</code> não sabe o que mostrar ao usuário; quem chamou sabe.</p>
+
+<hr>
+
+<h2>Um uso clássico: pedir de novo até acertar</h2>
+<p>Juntando <code>try</code>/<code>catch</code> com um <a href="while.html">while</a>, o programa insiste até a pessoa digitar um número válido (a leitura do teclado está na aula <a href="readline.html">Console.ReadLine</a>):</p>
+
+<pre class="file" data-file="repete.cs">int idade = -1;
+while (idade &lt; 0)
+{
+    Console.Write("Sua idade: ");
+    string linha = Console.ReadLine() ?? "";
+    try
+    {
+        idade = int.Parse(linha);
+    }
+    catch (FormatException)
+    {
+        Console.WriteLine($"\"{linha}\" não é um número. Tente de novo.");
+    }
+}
+Console.WriteLine($"Ano que vem você terá {idade + 1} anos.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run repete.cs
+Sua idade: vinte
+"vinte" não é um número. Tente de novo.
+Sua idade: 29
+Ano que vem você terá 30 anos.</pre>
+
+<p>A <code>idade</code> começa em <code>-1</code> (um valor impossível) para o laço rodar pelo menos uma vez. Se o <code>int.Parse</code> falhar, a atribuição <code>idade = …</code> não acontece, a <code>idade</code> continua <code>-1</code> e o laço repete. O <code>?? ""</code> troca um <code>null</code> (fim da entrada) por texto vazio (aula <a href="operadores-null.html">Operadores ??, ?. e ??=</a>).</p>
+
+<h3>O mesmo programa com <code>TryParse</code></h3>
+<p>Para entrada do usuário, a forma preferida em C# dispensa a exceção:</p>
+
+<pre class="file" data-file="repete2.cs">int idade;
+Console.Write("Sua idade: ");
+while (!int.TryParse(Console.ReadLine(), out idade))
+{
+    Console.Write("Isso não é um número. Sua idade: ");
+}
+Console.WriteLine($"Ano que vem você terá {idade + 1} anos.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run repete2.cs
+Sua idade: vinte
+Isso não é um número. Sua idade: 29
+Ano que vem você terá 30 anos.</pre>
+
+<p>Mais curto, sem <code>try</code> e sem o valor <code>-1</code> inventado. Lançar e capturar uma exceção dá mais trabalho ao computador do que um <code>if</code>; num laço que lê milhares de linhas de um arquivo, a diferença aparece. Guarde o <code>try</code>/<code>catch</code> para o que não dá para checar antes.</p>
+
+<hr>
+
+<h2>Não engula exceções</h2>
+<p>"Engolir" uma exceção é capturá-la e não fazer nada. O compilador aceita, o programa não quebra… e é exatamente esse o problema. A Ana somou os preços de uma lista:</p>
+
+<div class="warning"><strong>Este código esconde um problema de propósito.</strong></div>
+<pre class="file" data-file="engole.cs">string[] precos = ["10", "25", "sete e cinquenta", "8"];
+decimal total = 0;
+foreach (string p in precos)
+{
+    try
+    {
+        total += decimal.Parse(p);
+    }
+    catch (FormatException)
+    {
+    }
+}
+Console.WriteLine($"Total: {total}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run engole.cs
+Total: 43</pre>
+
+<p>O total certo seria 50,50. O <code>"sete e cinquenta"</code> lançou <code>FormatException</code>, o <code>catch</code> vazio "engoliu", e o programa mostrou um número errado <strong>sem avisar ninguém</strong>. Um programa que quebra é chato; um programa que dá a resposta errada em silêncio é muito pior, porque ninguém percebe.</p>
+
+<p>Se você capturou, faça <strong>pelo menos uma</strong> destas coisas:</p>
+<ul>
+  <li><strong>Avise</strong>: <code>Console.WriteLine($"Preço inválido ignorado: {p}");</code></li>
+  <li><strong>Corrija</strong>: use um valor padrão que faça sentido, ou peça de novo.</li>
+  <li><strong>Registre</strong>: <code>Console.Error.WriteLine(e);</code>, com o relatório completo.</li>
+  <li><strong>Não capture</strong>: se você não sabe o que fazer com a exceção ali, deixe-a subir para quem sabe, ou relance com <code>throw;</code> (aula <a href="throw.html">throw</a>).</li>
+</ul>
+
+<hr>
+
+<h2>Formas diferentes, qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Forma</th></tr>
+<tr><td>Um tipo de problema, uma resposta</td><td><code>try { … } catch (TipoException) { … }</code></td></tr>
+<tr><td>Precisa da mensagem ou do relatório</td><td><code>catch (TipoException e)</code> e use <code>e.Message</code> ou <code>e.ToString()</code></td></tr>
+<tr><td>Vários problemas, respostas diferentes</td><td>Vários <code>catch</code>, do mais específico ao mais geral</td></tr>
+<tr><td>Vários tipos, a mesma resposta</td><td><code>catch (Exception e) when (e is A or B)</code>, ou o <code>catch</code> da mãe comum (<code>ArithmeticException</code>)</td></tr>
+<tr><td>Mesmo tipo, respostas diferentes conforme a situação</td><td>Filtro: <code>catch (TipoException) when (condição)</code></td></tr>
+<tr><td>Algo que precisa rodar com ou sem exceção</td><td><code>finally</code> (<a href="finally.html">próxima aula</a>) ou <code>using</code> (<a href="using-dispose.html">using e IDisposable</a>)</td></tr>
+<tr><td>Você não sabe tratar ali</td><td>Não capture; deixe subir</td></tr>
+<tr><td>Dá para evitar com um <code>if</code> ou <code>TryParse</code></td><td>Prefira o <code>if</code>/<code>TryParse</code>: <code>if (provas != 0)</code> é mais claro que capturar <code>DivideByZeroException</code></td></tr>
+<tr><td>Registrar tudo o que escapou, no topo do programa</td><td>Um único <code>catch (Exception e)</code> que registra <code>e.ToString()</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS0103 com uma variável criada no <code>try</code></strong>
+<pre class="file" data-file="escopo.cs">try
+{
+    int idade = int.Parse("29");
+}
+catch (FormatException)
+{
+    Console.WriteLine("Não é número");
+}
+Console.WriteLine($"Idade: {idade}");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run escopo.cs
+/home/ana/cs/escopo.cs(9,29): error CS0103: O nome "idade" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> as chaves do <code>try</code> são um bloco, e uma variável criada dentro de um bloco só existe lá dentro (aula <a href="escopo.html">Escopo</a>). Na linha 9, <code>idade</code> já não existe.</p>
+<p><strong>Como consertar:</strong> declare a variável <strong>antes</strong> do <code>try</code> e só faça a atribuição dentro dele, ou coloque o <code>WriteLine</code> dentro do <code>try</code>. Mas cuidado com o próximo erro.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0165: "Uso de variável local não atribuída"</strong>
+<pre class="file" data-file="escopo2.cs">int idade;
+try
+{
+    idade = int.Parse("29");
+}
+catch (FormatException)
+{
+    Console.WriteLine("Não é número");
+}
+Console.WriteLine($"Idade: {idade}");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run escopo2.cs
+/home/ana/cs/escopo2.cs(10,29): error CS0165: Uso de variável local não atribuída "idade"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> agora a variável existe, mas o compilador pensou no caminho com exceção: se o <code>int.Parse</code> falhar, a atribuição não acontece, o <code>catch</code> roda, e a linha 10 usaria uma <code>idade</code> sem valor. O C# não deixa.</p>
+<p><strong>Como consertar:</strong> dê um valor inicial na declaração (<code>int idade = 0;</code>), ou dê um valor também dentro do <code>catch</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0160: <code>catch</code> da mãe antes da filha</strong>
+<p><strong>O que aconteceu:</strong> um <code>catch</code> de uma classe mãe (<code>Exception</code>, <code>ArithmeticException</code>) veio antes do <code>catch</code> de uma filha, sem filtro. O de baixo nunca seria usado.</p>
+<p><strong>Como consertar:</strong> coloque os <code>catch</code> do mais específico para o mais geral.</p>
+</div>
+
+<div class="cenario">
+<strong>Aviso CS0168: "A variável "e" está declarada, mas nunca é usada"</strong>
+<p><strong>O que aconteceu:</strong> você escreveu <code>catch (FormatException e)</code> e não usou o <code>e</code>.</p>
+<p><strong>Como consertar:</strong> se não precisa do objeto, tire o nome: <code>catch (FormatException)</code>. Se precisa, use-o (<code>e.Message</code>).</p>
+</div>
+
+<div class="cenario">
+<strong>O <code>catch</code> existe, mas o programa quebrou mesmo assim</strong>
+<p><strong>O que aconteceu:</strong> a exceção lançada não é do tipo do <code>catch</code> (nem filha dele), ou o filtro <code>when</code> deu <code>false</code>. Também pode ser que a linha que lançou esteja <strong>fora</strong> do <code>try</code>.</p>
+<p><strong>Como consertar:</strong> leia a primeira linha do relatório: o tipo que aparece ali é o que você precisa capturar. Confira o número da linha: ela está entre as chaves do <code>try</code>?</p>
+</div>
+
+<div class="cenario">
+<strong>O programa não quebra, mas o resultado está errado</strong>
+<p><strong>O que aconteceu:</strong> provavelmente há um <code>catch</code> vazio engolindo exceções. Procure por <code>catch</code> seguido de <code>{ }</code> no código.</p>
+<p><strong>Como consertar:</strong> coloque pelo menos um aviso ou <code>Console.Error.WriteLine(e)</code> dentro dele e rode de novo.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Sintaxe</th><th>O que faz</th></tr>
+<tr><td><code>try { … }</code></td><td>Bloco vigiado: se algo lança exceção, o resto dele é pulado</td></tr>
+<tr><td><code>catch (Tipo) { … }</code></td><td>Roda se o <code>try</code> lançou <code>Tipo</code> ou uma filha dele</td></tr>
+<tr><td><code>catch (Tipo e) { … }</code></td><td>O mesmo, com o objeto da exceção na variável <code>e</code></td></tr>
+<tr><td><code>catch { … }</code></td><td>Pega qualquer exceção, sem o objeto (evite)</td></tr>
+<tr><td><code>catch (A) { … } catch (B) { … }</code></td><td>Vários tratamentos; o primeiro que combina é usado</td></tr>
+<tr><td><code>catch (Tipo) when (condição) { … }</code></td><td>Filtro: só pega se a condição for <code>true</code> <span class="versao">C# 6</span></td></tr>
+<tr><td><code>catch (Exception e) when (e is A or B)</code></td><td>O mesmo tratamento para dois tipos</td></tr>
+<tr><td><code>e.Message</code></td><td>A mensagem</td></tr>
+<tr><td><code>e.GetType().Name</code></td><td>O nome da classe da exceção</td></tr>
+<tr><td><code>e.ToString()</code></td><td>Tipo + mensagem + stack trace</td></tr>
+<tr><td><code>Console.Error.WriteLine(e)</code></td><td>Escreve o relatório na saída de erro e continua</td></tr>
+<tr><td><code>CS0160</code></td><td><code>catch</code> de filha depois do da mãe</td></tr>
+<tr><td><code>CS0165</code></td><td>Variável usada depois do <code>try</code> pode estar sem valor</td></tr>
+<tr><td><code>CS0168</code> (aviso)</td><td>A variável da exceção não é usada</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A palavra que falta</h3>
+<p>Complete para capturar o problema do <code>int.Parse</code>:</p>
+<div class="ex-code">try { n = int.Parse(t); } <input data-answer="catch" aria-label="palavra-chave"> (FormatException) { … }</div>
+</div>
+
+<div class="exercise">
+<h3>2. Só a mensagem</h3>
+<p>Complete para mostrar só a mensagem da exceção:</p>
+<div class="ex-code">Console.WriteLine(e.<input data-answer="Message" aria-label="propriedade">);</div>
+</div>
+
+<div class="exercise">
+<h3>3. O filtro</h3>
+<p>Complete com a palavra que acrescenta uma condição ao <code>catch</code>:</p>
+<div class="ex-code">catch (FormatException) <input data-answer="when" aria-label="palavra-chave"> (texto == "")</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. O que este trecho mostra?</p>
+<pre class="file" data-file="trecho.cs">try
+{
+    Console.WriteLine("A");
+    int x = int.Parse("x");
+    Console.WriteLine("B");
+}
+catch (FormatException)
+{
+    Console.WriteLine("C");
+}
+Console.WriteLine("D");
+</pre>
+<label><input type="radio" name="q4"> A B C D</label>
+<label><input type="radio" name="q4"> A B D</label>
+<label><input type="radio" name="q4"> A C D</label>
+<label><input type="radio" name="q4"> C D</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Um <code>try</code> lança <code>DivideByZeroException</code>, e o único <code>catch</code> é <code>catch (FormatException)</code>. O que acontece?</p>
+<label><input type="radio" name="q5"> O <code>catch</code> roda mesmo assim.</label>
+<label><input type="radio" name="q5"> A exceção não é capturada e sobe; se ninguém a tratar, o programa termina com 134.</label>
+<label><input type="radio" name="q5"> O compilador não compila.</label>
+<label><input type="radio" name="q5"> O C# ignora a exceção e segue.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Qual ordem de <code>catch</code> (sem filtros) compila?</p>
+<label><input type="radio" name="q6"> <code>catch (Exception)</code> e depois <code>catch (ArithmeticException)</code></label>
+<label><input type="radio" name="q6"> <code>catch (ArithmeticException)</code> e depois <code>catch (DivideByZeroException)</code></label>
+<label><input type="radio" name="q6"> <code>catch (Exception)</code> e depois <code>catch (FormatException)</code></label>
+<label><input type="radio" name="q6"> <code>catch (FormatException)</code> e depois <code>catch (Exception)</code></label>
+</div>
+
+<div class="trycs" data-stdin="vinte\n29\n" data-goal="out:Ano que vem você terá 30 anos,out:não é um número,src:catch\s*\(\s*FormatException">
+<p class="try-task"><strong>Missão final:</strong> o programa pede a idade até receber um número, mas quebra na primeira resposta (<code>vinte</code>). Proteja o <code>int.Parse</code> com <code>try</code> e um <code>catch (FormatException)</code> que mostre <code>"…" não é um número. Tente de novo.</code>. A entrada já vem preenchida: <code>vinte</code> e depois <code>29</code>.</p>
+<pre class="script" data-file="repete.cs">int idade = -1;
+while (idade &lt; 0)
+{
+    Console.Write("Sua idade: ");
+    string linha = Console.ReadLine() ?? "";
+    idade = int.Parse(linha);
+}
+Console.WriteLine($"Ano que vem você terá {idade + 1} anos.");
+</pre>
+<pre class="solucao" data-file="repete.cs">int idade = -1;
+while (idade &lt; 0)
+{
+    Console.Write("Sua idade: ");
+    string linha = Console.ReadLine() ?? "";
+    try
+    {
+        idade = int.Parse(linha);
+    }
+    catch (FormatException)
+    {
+        Console.WriteLine($"\"{linha}\" não é um número. Tente de novo.");
+    }
+}
+Console.WriteLine($"Ano que vem você terá {idade + 1} anos.");
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>try</code> marca o código que pode lançar exceção; <code>catch (Tipo)</code> diz o que fazer se ela vier. Com <code>catch (Tipo e)</code>, você recebe o objeto da exceção.</li>
+  <li>Quando uma linha do <code>try</code> lança, o resto do <code>try</code> é pulado, o <code>catch</code> roda e o programa continua depois do bloco, com código de saída 0.</li>
+  <li>O <code>catch</code> pega o tipo pedido e as classes filhas; outros tipos passam direto e sobem.</li>
+  <li>Vários <code>catch</code>: do mais específico ao mais geral, senão <code>CS0160</code>.</li>
+  <li>Filtro <code>when (condição)</code>: o <code>catch</code> só pega se a condição for verdadeira. <code>when (e is A or B)</code> substitui o multi-catch de outras linguagens.</li>
+  <li><code>e.Message</code> dá a mensagem; <code>e.ToString()</code>, o relatório completo.</li>
+  <li>A exceção sobe pelos métodos até achar um <code>catch</code>: trate onde faz sentido.</li>
+  <li>Para entrada do usuário, <code>TryParse</code> é melhor que <code>Parse</code> + <code>catch</code>. Nunca deixe um <code>catch</code> vazio.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
