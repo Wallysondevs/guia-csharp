@@ -36,7 +36,7 @@
 
 <div class="warning">
 <strong>No editor do guia, uma thread só</strong>
-<p>O .NET do editor roda em WebAssembly, com uma thread só. O <code>Parallel</code> e o PLINQ funcionam lá e dão os mesmos resultados, mas as voltas rodam uma depois da outra, na ordem, e o tempo não cai. Para ver a velocidade e a ordem misturada, rode os exemplos no seu computador. As missões conferem os resultados, que são iguais nos dois lugares.</p>
+<p>O .NET do editor roda em WebAssembly, com uma thread só. O <code>Parallel</code> e o PLINQ funcionam lá e dão os mesmos resultados, mas as voltas rodam uma depois da outra, na ordem, e o tempo não cai. Com uma thread só, também não há corrida: os erros da seção "Quando dá errado" ficam escondidos lá, e a exceção de uma volta do <code>Parallel.For</code> chega sem a <code>AggregateException</code>. Para ver a velocidade, a ordem misturada e esses erros, rode os exemplos no seu computador. As missões conferem os resultados, que são iguais nos dois lugares.</p>
 </div>
 
 <hr>
@@ -372,6 +372,7 @@ catch (AggregateException e)
  - Falhou na volta 7</pre>
 <p><strong>O que aconteceu:</strong> quando uma volta lança uma exceção, o <code>Parallel</code> para de começar voltas novas, espera as que estão rodando e lança uma <code>AggregateException</code> com todas as exceções que aconteceram (várias voltas podem falhar ao mesmo tempo). Um <code>catch (InvalidOperationException)</code> não pegaria nada: o tipo que chega é <code>AggregateException</code>.</p>
 <p><strong>Como resolver:</strong> pegue <code>AggregateException</code> e olhe as <code>InnerExceptions</code>, ou trate o erro <strong>dentro</strong> da lambda, com um <code>try</code> em volta do trabalho de cada item.</p>
+<p><strong>No editor do guia é diferente:</strong> lá, o <code>Parallel.For</code> e o <code>Parallel.ForEach</code> deixam passar a exceção da volta <strong>sem</strong> o embrulho. O <code>catch (AggregateException)</code> do <code>exc.cs</code> não a pega, e o programa termina com <code>Unhandled exception. System.InvalidOperationException: Falhou na volta 7</code> e o código 134. (O <code>Parallel.Invoke</code> e o PLINQ embrulham igual ao terminal.) Rode este exemplo no terminal.</p>
 </div>
 
 <hr>
