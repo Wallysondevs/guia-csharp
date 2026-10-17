@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# O que é C# — a linguagem, a história e onde ela é usada | Guia C#</title>
+<meta name="description" content="O que é C# para quem nunca programou: o que é programar, linguagem compilada, tipos conferidos pelo compilador, o .NET por baixo, a história de 2000 a 2025 (Anders Hejlsberg, .NET Framework, Mono, .NET Core, .NET 10), onde o C# é usado (Unity, ASP.NET Core, Godot, MAUI) e como ele se compara com C, Java e Python. Com erros reais do compilador.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">O que é C#</span></h1>
+
+<p class="intro">Antes de escrever o primeiro programa, vale entender o que você está aprendendo. Nesta aula você descobre o que é programar, o que é uma linguagem de programação, o que o C# tem de especial, de onde ele veio e onde ele é usado hoje. Ainda não tem código para decorar: só três programinhas para rodar e mexer, para você ver que o C# já funciona aqui no navegador.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é um programa, uma linguagem de programação e um compilador.</li>
+  <li>O que é o C# e o que é o .NET, que trabalha por baixo dele.</li>
+  <li>O que quer dizer "o compilador confere os tipos" e por que isso ajuda.</li>
+  <li>A história do C#, de 2000 até o C# 14, de 2025.</li>
+  <li>Onde o C# é usado: sites, jogos, programas de computador e celular.</li>
+  <li>As diferenças entre C#, C, Java e Python.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>Primeiro: o que é programar?</h2>
+<p>Um computador é uma máquina muito rápida e muito obediente, mas que não sabe fazer nada sozinha. Ele precisa de instruções exatas, uma por uma. Um <strong>programa</strong> é essa lista de instruções, como uma <strong>receita</strong>: "pegue duas notas, some, divida por dois, mostre o resultado na tela".</p>
+
+<p>O problema é que o processador do computador só entende números (a <strong>linguagem de máquina</strong>), e escrever programas em números é quase impossível para gente. Por isso existem as <strong>linguagens de programação</strong>: um meio-termo entre o português e a linguagem da máquina, com palavras em inglês e regras exatas. Você escreve o programa nessa linguagem, e um programa especial, o <strong>compilador</strong>, traduz o seu texto para algo que o computador consegue executar.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na cozinha</th><th>Na programação</th><th>No C#</th></tr>
+<tr><td>A receita escrita em português</td><td>O <strong>código-fonte</strong>: o texto que você escreve</td><td>um arquivo <code>ola.cs</code></td></tr>
+<tr><td>O tradutor que passa a receita para outra língua</td><td>O <strong>compilador</strong></td><td>o Roslyn, que vem dentro do comando <code>dotnet</code></td></tr>
+<tr><td>A cozinheira que lê a receita traduzida e faz o bolo</td><td>Quem <strong>executa</strong> o programa</td><td>o .NET (aula <a href="dotnet.html">.NET: SDK, Runtime e CLR</a>)</td></tr>
+<tr><td>O bolo na mesa</td><td>O <strong>resultado</strong>: o que aparece na tela</td><td><code>Olá, mundo!</code></td></tr>
+</table>
+</div>
+
+<p>Programar, então, é escrever receitas tão claras que nem uma máquina consegue entender errado. No começo, parece que o computador é chato ("faltou um ponto e vírgula!"); com o tempo, você percebe que ele só faz exatamente o que você mandou.</p>
+
+<hr>
+
+<h2>O que é o C#</h2>
+<p>O <strong>C#</strong> (fala-se "cê-xárp"; em inglês, <em>C sharp</em>) é uma linguagem de programação de uso geral: serve para quase qualquer tipo de programa. Ela foi criada pela Microsoft, mas hoje é <strong>livre</strong>: o compilador e o .NET têm código aberto, são gratuitos e rodam em Linux, Windows e macOS. O nome vem da música: o sinal <code>#</code> é o "sustenido", que sobe a nota meio tom, e "C sharp" é o nome em inglês da nota dó sustenido. É como dizer "o C, um tom acima". Muita gente também repara que o <code>#</code> parece quatro sinais de <code>+</code> juntos, uma piada com o nome do C++.</p>
+
+<p>Três características marcam o C#. Você vai entender cada uma com calma ao longo do guia; por enquanto, só guarde as palavras:</p>
+
+<dl class="anatomy">
+  <dt>Compilada</dt><dd>Antes de rodar, o programa inteiro passa pelo compilador, que confere tudo. Se houver um erro de escrita em qualquer linha, nada roda, e o compilador diz onde está o problema. É diferente do Python, que lê e executa uma linha de cada vez e só descobre o erro quando chega nela.</dd>
+  <dt>Com tipos</dt><dd>Cada informação tem um <strong>tipo</strong>: texto (<code>string</code>), número inteiro (<code>int</code>), dinheiro (<code>decimal</code>)… E o compilador não deixa misturar: guardar um texto onde deveria ir um número é erro antes mesmo de rodar. Os programadores dizem que o C# tem <strong>tipagem estática</strong>.</dd>
+  <dt>Gerenciada</dt><dd>O programa roda dentro do <strong>.NET</strong>, que cuida da memória para você: ele separa o espaço que o programa precisa e, quando uma informação não é mais usada, recolhe esse espaço sozinho (o <strong>coletor de lixo</strong>). Em C, você faz isso à mão, e esquecer causa erros graves.</dd>
+</dl>
+
+<p>Veja as duas primeiras características num programa de verdade. Ele guarda o nome, a idade e o saldo da Ana, cada um com o seu tipo, e mostra tudo numa frase:</p>
+
+<pre class="file" data-file="tipos.cs">string nome = "Ana";
+int idade = 29;
+decimal saldo = 1234.50m;
+Console.WriteLine($"{nome} tem {idade} anos e R$ {saldo} na conta.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tipos.cs
+Ana tem 29 anos e R$ 1234,50 na conta.          « no código, 1234.50 com ponto; na tela, com vírgula</pre>
+
+<p>Não se preocupe com cada símbolo agora (o <code>m</code> depois do número, o <code>$</code> antes das aspas): as aulas <a href="variaveis.html">Variáveis</a>, <a href="decimais.html">float, double e decimal</a> e <a href="interpolacao.html">Interpolação</a> explicam tudo. Repare só numa coisa: no código, o número se escreve com <strong>ponto</strong> (<code>1234.50</code>), como em inglês; na tela, ele sai com <strong>vírgula</strong>, porque o computador da Ana está em português. Agora, o que acontece se alguém tentar guardar um texto na idade?</p>
+
+<div class="trycs" data-goal="out:Ana tem 30 anos.">
+<p class="try-task"><strong>Missão:</strong> rode e leia o erro: o compilador não aceita guardar o texto <code>"trinta"</code> numa variável do tipo <code>int</code> (número inteiro). Conserte a linha 3 para guardar o <strong>número</strong> <code>30</code>, sem aspas, e rode de novo. A saída deve ser <code>Ana tem 30 anos.</code></p>
+<pre class="script" data-file="idade.cs">string nome = "Ana";
+int idade = 29;
+idade = "trinta";
+Console.WriteLine($"{nome} tem {idade} anos.");
+</pre>
+<pre class="solucao">string nome = "Ana";
+int idade = 29;
+idade = 30;
+Console.WriteLine($"{nome} tem {idade} anos.");
+</pre>
+</div>
+
+<p>No terminal, o mesmo erro aparece assim:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run idade.cs
+/home/ana/cs/idade.cs(3,9): error CS0029: Não é possível converter implicitamente tipo "string" em "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Não é possível converter implicitamente" quer dizer "não dá para transformar sozinho um texto num número". O <code>(3,9)</code> é a linha 3, coluna 9, onde começa o <code>"trinta"</code>. Esse é o trabalho do compilador: achar o erro <strong>antes</strong> de o programa rodar, enquanto ele ainda é fácil de consertar. Num sistema de banco, é muito melhor que o erro apareça na tela do programador do que no extrato de um cliente.</p>
+
+<hr>
+
+<h2>Um pouco de história</h2>
+<p>No fim dos anos 1990, a Microsoft queria uma linguagem moderna para a sua nova plataforma de programação, o <strong>.NET</strong>. Ela chamou o engenheiro dinamarquês <strong>Anders Hejlsberg</strong>, que já tinha criado o Turbo Pascal e o Delphi (e que, anos depois, criaria também o TypeScript). A equipe dele desenhou o C#, apresentado em <strong>2000</strong>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Ano</th><th>O que aconteceu</th></tr>
+<tr><td>2000</td><td>A Microsoft apresenta o C# e o .NET.</td></tr>
+<tr><td>2002</td><td>Sai o <strong>C# 1.0</strong>, junto com o <strong>.NET Framework 1.0</strong>. Ele só roda no Windows. Pouco antes, em dezembro de 2001, a linguagem tinha virado um padrão aberto (ECMA-334; depois ISO, em 2003).</td></tr>
+<tr><td>2004</td><td>Sai o <strong>Mono</strong>, uma versão livre do .NET feita fora da Microsoft, que leva o C# para o Linux e o macOS.</td></tr>
+<tr><td>2005 a 2012</td><td>O C# ganha os recursos que o tornaram famoso: tipos genéricos (C# 2), o LINQ para consultar listas (C# 3), e o <code>async</code>/<code>await</code> para esperar sem travar (C# 5).</td></tr>
+<tr><td>2014</td><td>A Microsoft abre o código do compilador (o <strong>Roslyn</strong>) e começa um .NET novo, livre e multiplataforma.</td></tr>
+<tr><td>2016</td><td>Sai o <strong>.NET Core 1.0</strong>: o .NET oficial da Microsoft passa a rodar no Linux e no macOS. No mesmo ano, a Microsoft compra a Xamarin, a empresa que cuidava do Mono.</td></tr>
+<tr><td>2020</td><td>O <strong>.NET 5</strong> junta tudo num .NET só. O nome "Core" sai, e começa o ritmo de uma versão nova por ano, sempre em novembro.</td></tr>
+<tr><td>2025</td><td>Saem o <strong>C# 14</strong> e o <strong>.NET 10</strong>, as versões que este guia ensina.</td></tr>
+</table>
+</div>
+
+<p>A aula <a href="versoes.html">Versões do C# e do .NET</a> conta o que cada versão trouxe e explica a diferença entre as versões de suporte longo e curto. O antigo <strong>.NET Framework</strong>, só para Windows, ainda existe e ainda roda muito programa antigo, mas não ganha mais novidades. Quando você ler "C#" num tutorial de 2010, lembre que ele foi escrito para aquele mundo.</p>
+
+<div class="trycs" data-goal="out:2025: sai o C# 14 com o .NET 10">
+<p class="try-task"><strong>Missão:</strong> a linha do tempo da Ana parou em 2020. Acrescente uma quarta linha, igual às outras, que mostre <code>2025: sai o C# 14 com o .NET 10</code>. Copie o jeito das linhas de cima: <code>Console.WriteLine(</code>, o texto entre aspas, <code>);</code>.</p>
+<pre class="script" data-file="historia.cs">Console.WriteLine("2002: sai o C# 1.0, só para Windows");
+Console.WriteLine("2016: o .NET Core roda no Linux e no macOS");
+Console.WriteLine("2020: o .NET 5 junta tudo num .NET só");
+</pre>
+<pre class="solucao">Console.WriteLine("2002: sai o C# 1.0, só para Windows");
+Console.WriteLine("2016: o .NET Core roda no Linux e no macOS");
+Console.WriteLine("2020: o .NET 5 junta tudo num .NET só");
+Console.WriteLine("2025: sai o C# 14 com o .NET 10");
+</pre>
+</div>
+
+<p>As linhas aparecem na mesma ordem em que estão no código: o programa roda de cima para baixo, uma instrução depois da outra.</p>
+
+<hr>
+
+<h2>Onde o C# está hoje</h2>
+<p>O C# está entre as linguagens mais usadas do mundo, principalmente em empresas. Alguns lugares onde ele aparece:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Área</th><th>Com o quê</th><th>Exemplos</th></tr>
+<tr><td>Sites e sistemas na internet</td><td><strong>ASP.NET Core</strong></td><td>Lojas virtuais, sistemas de bancos, de hospitais e do governo; as APIs que os aplicativos de celular consultam.</td></tr>
+<tr><td>Jogos</td><td><strong>Unity</strong> e <strong>Godot</strong></td><td>No Unity, um dos motores de jogos mais usados do mundo (principalmente em jogos de celular), toda a lógica do jogo é escrita em C#. O Godot, um motor livre, também aceita C#.</td></tr>
+<tr><td>Programas de computador</td><td>WPF, WinForms, Avalonia</td><td>Programas de empresas, sistemas de caixa de loja, ferramentas do Windows.</td></tr>
+<tr><td>Celular e computador ao mesmo tempo</td><td><strong>.NET MAUI</strong></td><td>Um código só para Android, iPhone, Windows e macOS.</td></tr>
+<tr><td>Nuvem e automação</td><td>Azure, AWS, contêineres</td><td>Serviços que rodam em servidores Linux, robôs que processam arquivos à noite.</td></tr>
+</table>
+</div>
+
+<p>Este guia não ensina nenhuma dessas ferramentas: ele ensina a <strong>linguagem</strong>, que é a base de todas. Quem termina o Nível 3 consegue abrir o tutorial do Unity ou do ASP.NET Core e entender o código.</p>
+
+<hr>
+
+<h2>Vantagens e cuidados</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Vantagem</th><th>Por quê</th></tr>
+<tr><td>O compilador pega muitos erros cedo</td><td>Tipos conferidos antes de rodar, avisos sobre variáveis esquecidas e sobre <code>null</code> (aula <a href="referencias-anulaveis.html">Referências Anuláveis</a>).</td></tr>
+<tr><td>A memória é cuidada pelo .NET</td><td>Você não precisa liberar memória à mão, como em C.</td></tr>
+<tr><td>Biblioteca enorme</td><td>Arquivos, datas, JSON, internet, criptografia, listas: vem tudo pronto no .NET.</td></tr>
+<tr><td>Ferramentas muito boas</td><td>Editores que completam o código e mostram o erro enquanto você digita (aula <a href="editores.html">Editores e IDEs</a>).</td></tr>
+<tr><td>Rápido</td><td>O .NET transforma o programa em código de máquina enquanto ele roda, e o resultado fica perto da velocidade do C++ em muitas tarefas.</td></tr>
+<tr><td>Mercado de trabalho</td><td>Muito usado em empresas, bancos e estúdios de jogos.</td></tr>
+</table>
+</div>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Cuidado</th><th>O que fazer</th></tr>
+<tr><td>A linguagem é grande e cresce todo ano</td><td>Siga as aulas em ordem. Você não precisa de tudo para programar bem.</td></tr>
+<tr><td>Muito material antigo na internet</td><td>Tutoriais antigos usam <code>class Program</code> e <code>static void Main</code> em todo programa, e às vezes o .NET Framework. Funciona, mas é a forma antiga (aula <a href="top-level.html">Program.cs e o Main</a>).</td></tr>
+<tr><td>Precisa do .NET instalado para rodar</td><td>O programa normal precisa do .NET na máquina. Dá para publicar um programa que leva o .NET junto (aula <a href="publicar.html">Publicar o Programa</a>).</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>C#, C, Java e Python</h2>
+<p>Você vai ouvir falar dessas linguagens o tempo todo. Veja o mesmo programa, "mostrar <code>Olá, mundo!</code>", em cada uma:</p>
+
+<pre class="file" data-file="ola.cs · C#">Console.WriteLine("Olá, mundo!");
+</pre>
+
+<pre class="file" data-file="ola.c · C">#include &lt;stdio.h&gt;
+
+int main(void) {
+    printf("Olá, mundo!\n");
+    return 0;
+}
+</pre>
+
+<pre class="file" data-file="Ola.java · Java">public class Ola {
+    public static void main(String[] args) {
+        System.out.println("Olá, mundo!");
+    }
+}
+</pre>
+
+<pre class="file" data-file="ola.py · Python">print("Olá, mundo!")
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>C#</th><th>C</th><th>Java</th><th>Python</th></tr>
+<tr><td>Compila antes de rodar?</td><td>Sim, para IL, que o .NET roda</td><td>Sim, direto para código de máquina</td><td>Sim, para bytecode, que a JVM roda</td><td>Não: lê e executa na hora</td></tr>
+<tr><td>Tipos conferidos antes de rodar?</td><td>Sim</td><td>Sim (com menos cuidado)</td><td>Sim</td><td>Não</td></tr>
+<tr><td>Cuida da memória sozinha?</td><td>Sim (coletor de lixo)</td><td>Não: é à mão</td><td>Sim</td><td>Sim</td></tr>
+<tr><td>Parecida com</td><td>Java (muito)</td><td>C++</td><td>C# (muito)</td><td>Ruby</td></tr>
+</table>
+</div>
+
+<p>O C# e o Java são "primos": os dois nasceram com a mesma ideia (compilar para uma linguagem intermediária e rodar numa máquina virtual que cuida da memória) e têm uma cara muito parecida. Quem aprende um lê o outro sem muito esforço. Do C, o C# herdou o jeito de escrever: chaves <code>{ }</code>, ponto e vírgula, <code>if</code>, <code>for</code>, <code>while</code>. Mas <strong>não é "um C melhorado"</strong>: os programas de C não funcionam em C#, como você vai ver logo abaixo.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+<p>Nesta aula ainda não há programa para errar, mas há ideias erradas muito comuns sobre o C#. E elas aparecem em forma de erro quando alguém traz o costume de outra linguagem.</p>
+
+<div class="cenario">
+<strong>"C# é o C com outro nome": <code>error CS0103: O nome "printf" não existe no contexto atual</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat printf.cs
+printf("Olá, mundo!\n");
+$ dotnet run printf.cs
+/home/ana/cs/printf.cs(1,1): error CS0103: O nome "printf" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>printf</code> é do C. O C# não conhece esse nome ("não existe no contexto atual" = "não sei o que é isso aqui"). Apesar do nome parecido, o C# é outra linguagem, com outra biblioteca.</p>
+<p><strong>Como consertar:</strong> em C#, use <code>Console.WriteLine("Olá, mundo!");</code>. O <code>\n</code> não é necessário: o <code>WriteLine</code> já pula a linha.</p>
+</div>
+
+<div class="cenario">
+<strong>O costume do Python: <code>error CS1002: ; esperado</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat print.cs
+print("Olá, mundo!")
+$ dotnet run print.cs
+/home/ana/cs/print.cs(1,21): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> em Python, a linha termina sozinha; em C#, toda instrução termina com <code>;</code>. O compilador parou na coluna 21, logo depois do <code>)</code>, onde esperava o ponto e vírgula. Repare que ele nem chegou a reclamar do <code>print</code>: o primeiro erro que ele achou foi o <code>;</code>. Com o <code>;</code>, ele reclamaria do nome <code>print</code>, com o mesmo <code>CS0103</code> do <code>printf</code>.</p>
+<p><strong>Como consertar:</strong> <code>Console.WriteLine("Olá, mundo!");</code>, com o <code>;</code> no fim.</p>
+</div>
+
+<div class="cenario">
+<strong>O costume do Java: <code>error CS1001: Identificador esperado</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat java.cs
+System.out.println("Olá, mundo!");
+$ dotnet run java.cs
+/home/ana/cs/java.cs(1,8): error CS1001: Identificador esperado
+/home/ana/cs/java.cs(1,8): error CS1002: ; esperado
+/home/ana/cs/java.cs(1,8): error CS1022: Definição de namespace ou tipo, ou final do arquivo esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> três erros, todos na coluna 8, onde começa o <code>out</code>. Em C#, <code>out</code> é uma <strong>palavra reservada</strong> (tem um significado especial na linguagem, aula <a href="ref-out-in.html">ref, out e in</a>), então o compilador não esperava encontrá-la ali e se perdeu. Quando uma linha dá vários erros ao mesmo tempo, quase sempre o primeiro é o que importa: os outros são o compilador tentando entender o resto da linha.</p>
+<p><strong>Como consertar:</strong> o <code>System.out.println</code> do Java vira <code>Console.WriteLine</code> no C#.</p>
+</div>
+
+<div class="cenario">
+<strong>"C# só roda no Windows"</strong>
+<p>Era verdade até 2016, no tempo do .NET Framework. Hoje, não: todas as saídas de terminal deste guia foram produzidas num computador com <strong>Ubuntu Linux</strong>, e o mesmo programa roda igual no Windows e no macOS. O que só existe no Windows são algumas bibliotecas de janelas (WPF e WinForms) e o editor Visual Studio. A aula <a href="instalar-linux.html">Instalar no Linux</a> mostra o <code>dotnet --info</code> dizendo <code>OS Platform: Linux</code>.</p>
+</div>
+
+<hr>
+
+<h2>O que você vai conseguir fazer</h2>
+<p>No fim do Nível 1, você vai escrever programas de terminal que conversam com a pessoa, fazem contas, tomam decisões e repetem tarefas: uma calculadora, um jogo de adivinhação, um boletim de notas. No Nível 2, vai organizar programas maiores com classes, como uma conta bancária com depósitos e saques. No Nível 3, vai trabalhar com listas de dados, arquivos e JSON, consultas com LINQ e testes automáticos, como um programador profissional faz.</p>
+
+<h3>Missão: apresente-se</h3>
+<div class="trycs" data-goal="src:Meu nome é (?!\?\?\?)\S,src:aprender C# para (?!\?\?\?)\S,out:Quero aprender C# para">
+<p class="try-task"><strong>Missão:</strong> troque os dois <code>???</code> pelo seu nome e pelo que você quer fazer com o C# (por exemplo, <code>criar jogos</code>, <code>mudar de carreira</code>, <code>passar na faculdade</code>) e rode. Mantenha as aspas e o <code>;</code>.</p>
+<pre class="script" data-file="sonho.cs">Console.WriteLine("Meu nome é ???");
+Console.WriteLine("Quero aprender C# para ???");
+</pre>
+<pre class="solucao">Console.WriteLine("Meu nome é Ana");
+Console.WriteLine("Quero aprender C# para criar jogos");
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O tradutor</h3>
+<p>Como se chama o programa que lê o código-fonte e o traduz, avisando sobre os erros antes de rodar?</p>
+<div class="ex-code">o <input data-answer="compilador" aria-label="nome"></div>
+</div>
+
+<div class="exercise">
+<h3>2. A extensão</h3>
+<p>Arquivos de código em C# terminam com que extensão? (Escreva com o ponto.)</p>
+<div class="ex-code">ola<input data-answer=".cs" aria-label="extensão"></div>
+</div>
+
+<div class="exercise">
+<h3>3. O criador</h3>
+<p>Qual é o sobrenome do engenheiro que liderou a criação do C# (e também criou o TypeScript)?</p>
+<div class="ex-code">Anders <input data-answer="Hejlsberg" aria-label="sobrenome"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. A Ana escreveu <code>idade = "trinta";</code> numa variável <code>int</code>. O que acontece?</p>
+<label><input type="radio" name="q4"> O programa roda e mostra <code>trinta</code>.</label>
+<label><input type="radio" name="q4"> O programa roda e mostra <code>0</code>.</label>
+<label><input type="radio" name="q4"> O compilador recusa, com o erro <code>CS0029</code>, e o programa nem roda.</label>
+<label><input type="radio" name="q4"> O programa roda e trava no meio.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Em que sistemas o C# com o .NET 10 roda?</p>
+<label><input type="radio" name="q5"> Só no Windows.</label>
+<label><input type="radio" name="q5"> Linux, Windows e macOS.</label>
+<label><input type="radio" name="q5"> Só no Windows e no macOS.</label>
+<label><input type="radio" name="q5"> Só dentro do Unity.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Qual linguagem é a "prima" mais parecida com o C#?</p>
+<label><input type="radio" name="q6"> Python</label>
+<label><input type="radio" name="q6"> C</label>
+<label><input type="radio" name="q6"> HTML</label>
+<label><input type="radio" name="q6"> Java</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">7. O que quer dizer que o C# é "gerenciado"?</p>
+<label><input type="radio" name="q7"> O .NET cuida da memória do programa e recolhe sozinho o que não é mais usado.</label>
+<label><input type="radio" name="q7"> Só pode ser usado com licença da Microsoft.</label>
+<label><input type="radio" name="q7"> O programa precisa de um gerente para rodar.</label>
+<label><input type="radio" name="q7"> O código é lido e executado uma linha por vez.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um <strong>programa</strong> é uma lista de instruções; uma <strong>linguagem de programação</strong> é o jeito de escrevê-las; o <strong>compilador</strong> traduz o seu texto e acusa os erros antes de rodar.</li>
+  <li>O <strong>C#</strong> é uma linguagem livre, criada pela Microsoft em 2000 (C# 1.0 em 2002), que roda no <strong>.NET</strong> em Linux, Windows e macOS.</li>
+  <li>Ela é <strong>compilada</strong>, <strong>com tipos</strong> conferidos pelo compilador (<code>CS0029</code> se misturar texto e número) e <strong>gerenciada</strong> (o .NET cuida da memória).</li>
+  <li>Os marcos: .NET Framework (2002, só Windows), Mono (2004), .NET Core (2016, multiplataforma), .NET 5 (2020, tudo junto) e C# 14 com .NET 10 (2025).</li>
+  <li>O C# está em sites e sistemas (ASP.NET Core), jogos (Unity, Godot), programas de computador e celular (.NET MAUI) e na nuvem.</li>
+  <li>É prima do Java, herdou a escrita do C, mas não aceita código de C (<code>printf</code> dá <code>CS0103</code>).</li>
+  <li>Próximo passo: entender a plataforma por baixo da linguagem, em <a href="dotnet.html">.NET: SDK, Runtime e CLR</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
