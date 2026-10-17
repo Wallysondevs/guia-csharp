@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Sobrecarga de Operadores — operator +, ==, &lt;, conversões e += do C# 14 | Guia C#</title>
+<meta name="description" content="Sobrecarga de operadores em C# para iniciantes: ensinar o +, o -, o * e o == a funcionar com os seus tipos, operadores em pares, Equals e GetHashCode, conversões implicit e explicit, e os operadores += e ++ de instância do C# 14, com os erros CS0019, CS0558, CS0216 e os avisos CS0660 e CS0661 reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Sobrecarga de Operadores</span></h1>
+
+<p class="intro">O <code>+</code> sabe somar números (<code>2 + 3</code>) e juntar textos (<code>"Olá, " + "Ana"</code>). Mas, se a Ana criar um tipo <code>Dinheiro</code> para a lojinha, <code>caderno + caneta</code> não compila: o C# não sabe o que é "somar dois <code>Dinheiro</code>". <strong>Sobrecarregar um operador</strong> é ensinar isso a ele. Você escreve um método especial chamado <code>operator +</code>, e a partir daí o <code>+</code> funciona com o seu tipo como se fosse nativo.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como escrever <code>public static … operator +(…)</code>, linha por linha, e por que sem ele dá <code>CS0019</code>.</li>
+  <li>Operadores com tipos diferentes dos dois lados (<code>Dinheiro * int</code>) e operadores de um lado só (<code>-x</code>).</li>
+  <li>Por que <code>&lt;</code> e <code>&gt;</code>, <code>==</code> e <code>!=</code> vêm sempre em <strong>pares</strong> (<code>CS0216</code>), e o que o <code>Equals</code> e o <code>GetHashCode</code> têm a ver com isso (<code>CS0660</code>, <code>CS0661</code>).</li>
+  <li>Conversões <code>implicit</code> e <code>explicit</code>: ensinar o <code>(double)x</code> ao seu tipo.</li>
+  <li>O <code>+=</code> que vem de graça e o <code>operator +=</code> de instância do <span class="versao">C# 14</span>.</li>
+  <li>Quando <strong>não</strong> vale a pena sobrecarregar.</li>
+</ul>
+</div>
+
+<p>Esta aula usa <a href="structs.html">structs</a>, <a href="records.html">records</a>, <a href="static.html">static</a> e <a href="sobrecarga.html">sobrecarga de métodos</a> (vários métodos com o mesmo nome e parâmetros diferentes). Os exemplos rodaram com <code>dotnet run</code> no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código</h2>
+<p>Na escola, você aprendeu a somar números. Depois aprendeu a "somar" horas: 1h50 + 0h20 dá 2h10, e não 1h70. O <strong>sinal</strong> é o mesmo <code>+</code>, mas a <strong>regra</strong> muda conforme o que está sendo somado. Ninguém acha isso estranho, porque o significado continua óbvio: juntar duas quantidades.</p>
+<p>Em C# é igual. O <code>+</code> já tem regras para <code>int</code>, <code>double</code>, <code>decimal</code> e <code>string</code>. Quando você cria um tipo, pode <strong>acrescentar</strong> uma regra nova para ele. "Sobrecarga" é a mesma palavra da <a href="sobrecarga.html">sobrecarga de métodos</a>: um nome (aqui, um símbolo) com várias versões, e o compilador escolhe pela lista de tipos.</p>
+
+<hr>
+
+<h2>1. O primeiro operador: <code>+</code></h2>
+
+<pre class="file" data-file="dinheiro.cs">Dinheiro caderno = new(15.90m);
+Dinheiro caneta = new(2.50m);
+
+Dinheiro total = caderno + caneta;
+Console.WriteLine(total);
+Console.WriteLine(caneta * 3);
+Console.WriteLine(total - caneta);
+
+struct Dinheiro
+{
+    public decimal Valor { get; }
+
+    public Dinheiro(decimal valor) =&gt; Valor = valor;
+
+    public static Dinheiro operator +(Dinheiro a, Dinheiro b) =&gt; new(a.Valor + b.Valor);
+    public static Dinheiro operator -(Dinheiro a, Dinheiro b) =&gt; new(a.Valor - b.Valor);
+    public static Dinheiro operator *(Dinheiro a, int vezes) =&gt; new(a.Valor * vezes);
+
+    public override string ToString() =&gt; $"R$ {Valor:N2}";
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run dinheiro.cs
+R$ 18,40
+R$ 7,50
+R$ 15,90</pre>
+
+<p>Leia a linha do <code>+</code> por partes:</p>
+<dl class="anatomy">
+  <dt>public</dt><dd>Todo operador é público: quem usa o tipo precisa poder usar o <code>+</code>.</dd>
+  <dt>static</dt><dd>E é estático: ele não pertence a um <code>Dinheiro</code> específico, e sim ao <strong>tipo</strong>. Recebe os dois lados como parâmetros.</dd>
+  <dt>Dinheiro</dt><dd>O tipo do <strong>resultado</strong>: somar dois <code>Dinheiro</code> dá outro <code>Dinheiro</code>.</dd>
+  <dt>operator +</dt><dd>O "nome" do método: a palavra <code>operator</code> e o símbolo que você está ensinando.</dd>
+  <dt>(Dinheiro a, Dinheiro b)</dt><dd>Os dois operandos: <code>a</code> é o que fica à <strong>esquerda</strong> do <code>+</code>, <code>b</code> o da direita.</dd>
+  <dt>=&gt; new(a.Valor + b.Valor);</dt><dd>O corpo: soma os <code>decimal</code> de dentro (com o <code>+</code> que o C# já conhece) e embrulha num <code>Dinheiro</code> novo.</dd>
+</dl>
+
+<p>Quando o compilador vê <code>caderno + caneta</code>, ele procura um <code>operator +</code> que aceite <code>(Dinheiro, Dinheiro)</code>, acha o seu e troca a expressão por uma chamada a ele. Os operandos <strong>não mudam</strong>: o resultado é um valor novo, como em <code>2 + 3</code>, que não estraga o <code>2</code>.</p>
+
+<div class="note">
+<strong>Por que um <code>struct</code>?</strong>
+<p><code>Dinheiro</code> é um valor pequeno, que se copia, como um <code>decimal</code>. Tipos assim combinam com <a href="structs.html"><code>struct</code></a> ou <code>record struct</code>. Os operadores funcionam igual em <code>class</code>; só o <code>==</code> tem uma diferença, que aparece na seção 3.</p>
+</div>
+
+<h3>Tipos diferentes dos dois lados</h3>
+<p>O <code>operator *</code> acima recebe <code>(Dinheiro a, int vezes)</code>: o lado esquerdo é dinheiro e o direito é um inteiro. A <strong>ordem dos parâmetros é a ordem da expressão</strong>. Por isso <code>caneta * 3</code> funciona, mas <code>3 * caneta</code> não:</p>
+
+<pre class="file" data-file="vezes.cs">Dinheiro caneta = new(2.50m);
+Console.WriteLine(3 * caneta);
+struct Dinheiro
+{
+    public decimal Valor { get; }
+    public Dinheiro(decimal valor) =&gt; Valor = valor;
+    public static Dinheiro operator *(Dinheiro a, int vezes) =&gt; new(a.Valor * vezes);
+    public override string ToString() =&gt; $"R$ {Valor:N2}";
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run vezes.cs
+/home/ana/cs/vezes.cs(2,19): error CS0019: O operador "*" não pode ser aplicado a operandos dos tipos "int" e "Dinheiro"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Para aceitar as duas ordens, escreva as duas versões. A segunda pode simplesmente chamar a primeira:</p>
+<pre class="file" data-file="trecho">    public static Dinheiro operator *(Dinheiro a, int vezes) =&gt; new(a.Valor * vezes);
+    public static Dinheiro operator *(int vezes, Dinheiro a) =&gt; a * vezes;
+</pre>
+
+<p>Regra do C#: <strong>pelo menos um</strong> dos parâmetros tem de ser do tipo onde o operador está declarado. Você não pode, de dentro do <code>Dinheiro</code>, mudar o que <code>int + int</code> faz.</p>
+
+<div class="trycs" data-goal="out:(4\, 6),out:(10\, 20),src:operator\s*\+">
+<p class="try-task"><strong>Missão:</strong> o <code>Vetor</code> já sabe se multiplicar por um número. Escreva o <code>operator +</code> que soma dois vetores (X com X, Y com Y), para que <code>a + b</code> mostre <code>(4, 6)</code>.</p>
+<pre class="script">Vetor a = new(1, 2);
+Vetor b = new(3, 4);
+// Console.WriteLine(a + b);   // tire o // quando o operador existir
+Console.WriteLine(a * 10);
+
+readonly record struct Vetor(int X, int Y)
+{
+    // escreva aqui: public static Vetor operator +(Vetor a, Vetor b) =&gt; ...
+    public static Vetor operator *(Vetor v, int k) =&gt; new(v.X * k, v.Y * k);
+    public override string ToString() =&gt; $"({X}, {Y})";
+}
+</pre>
+<pre class="solucao">Vetor a = new(1, 2);
+Vetor b = new(3, 4);
+Console.WriteLine(a + b);
+Console.WriteLine(a * 10);
+
+readonly record struct Vetor(int X, int Y)
+{
+    public static Vetor operator +(Vetor a, Vetor b) =&gt; new(a.X + b.X, a.Y + b.Y);
+    public static Vetor operator *(Vetor v, int k) =&gt; new(v.X * k, v.Y * k);
+    public override string ToString() =&gt; $"({X}, {Y})";
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Operadores de um lado só</h2>
+<p>Alguns operadores têm <strong>um</strong> operando: o <code>-</code> de "negativo" (<code>-x</code>), o <code>!</code>, o <code>++</code> e o <code>--</code>. São os <strong>operadores unários</strong>, e o método recebe um parâmetro só. O C# distingue o <code>-</code> de subtrair do <code>-</code> de negar pelo número de parâmetros:</p>
+
+<pre class="file" data-file="trecho">    public static Dinheiro operator -(Dinheiro a, Dinheiro b) =&gt; new(a.Valor - b.Valor);  // a - b
+    public static Dinheiro operator -(Dinheiro a) =&gt; new(-a.Valor);                       // -a
+</pre>
+
+<p>O exemplo completo está na próxima seção, junto com as comparações.</p>
+
+<hr>
+
+<h2>3. Comparar: <code>==</code>, <code>&lt;</code> e <code>&gt;</code></h2>
+<p>Os operadores de comparação devolvem <code>bool</code> e têm uma regra extra: vêm <strong>em pares</strong>. Quem define <code>&lt;</code> tem de definir <code>&gt;</code>; quem define <code>&lt;=</code>, <code>&gt;=</code>; quem define <code>==</code>, <code>!=</code>. Faz sentido: seria muito estranho um tipo que sabe dizer "menor que" e não sabe dizer "maior que".</p>
+
+<p>E o <code>==</code>? Num <code>record struct</code> (ou num <code>record</code>), o C# já escreve o <code>==</code>, o <code>!=</code>, o <code>Equals</code> e o <code>GetHashCode</code> para você, comparando todos os campos. Então basta acrescentar o que falta:</p>
+
+<pre class="file" data-file="comparar.cs">Dinheiro carteira = new(50.00m);
+Dinheiro lanche = new(12.90m);
+Dinheiro livro = new(59.90m);
+
+Console.WriteLine(carteira == new Dinheiro(50.00m));
+Console.WriteLine(lanche &lt; carteira);
+Console.WriteLine(livro &gt; carteira);
+Console.WriteLine(livro &lt;= carteira);
+
+carteira -= lanche;
+Console.WriteLine(carteira);
+Console.WriteLine(-lanche);
+
+readonly record struct Dinheiro(decimal Valor)
+{
+    public static Dinheiro operator +(Dinheiro a, Dinheiro b) =&gt; new(a.Valor + b.Valor);
+    public static Dinheiro operator -(Dinheiro a, Dinheiro b) =&gt; new(a.Valor - b.Valor);
+    public static Dinheiro operator -(Dinheiro a) =&gt; new(-a.Valor);
+    public static bool operator &lt;(Dinheiro a, Dinheiro b) =&gt; a.Valor &lt; b.Valor;
+    public static bool operator &gt;(Dinheiro a, Dinheiro b) =&gt; a.Valor &gt; b.Valor;
+    public static bool operator &lt;=(Dinheiro a, Dinheiro b) =&gt; a.Valor &lt;= b.Valor;
+    public static bool operator &gt;=(Dinheiro a, Dinheiro b) =&gt; a.Valor &gt;= b.Valor;
+    public override string ToString() =&gt; $"R$ {Valor:N2}";
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run comparar.cs
+True
+True
+True
+False
+R$ 37,10
+R$ -12,90</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que acontece</th></tr>
+<tr><td><code>carteira == new Dinheiro(50.00m)</code></td><td>O <code>==</code> gerado pelo <code>record struct</code>: os dois têm <code>Valor</code> 50,00, então <code>True</code>.</td></tr>
+<tr><td><code>lanche &lt; carteira</code></td><td>Chama o seu <code>operator &lt;</code>: 12,90 &lt; 50,00.</td></tr>
+<tr><td><code>carteira -= lanche;</code></td><td>Você não escreveu <code>-=</code>, e funcionou: o C# transforma em <code>carteira = carteira - lanche;</code> e usa o seu <code>operator -</code> de dois lados.</td></tr>
+<tr><td><code>-lanche</code></td><td>O <code>operator -</code> de um lado só.</td></tr>
+</table>
+</div>
+
+<h3><code>==</code> em <code>class</code>: o cuidado extra</h3>
+<p>Numa <code>class</code> comum, o <code>==</code> que vem de fábrica compara <strong>referências</strong>: só dá <code>true</code> se as duas variáveis apontam para o <strong>mesmo objeto</strong> (veja <a href="valor-referencia.html">Valor × Referência</a>). Um <code>record</code> compara os valores:</p>
+
+<pre class="file" data-file="igualdade.cs">var x = new Classe(1);
+var y = new Classe(1);
+Console.WriteLine(x == y);
+var r1 = new Reg(1);
+var r2 = new Reg(1);
+Console.WriteLine(r1 == r2);
+class Classe(int n) { public int N = n; }
+record Reg(int N);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run igualdade.cs
+False
+True</pre>
+
+<p>Se você escrever o <code>==</code> à mão, numa <code>class</code> ou num <code>struct</code>, o compilador lembra que o <code>==</code> e o método <code>Equals</code> precisam concordar (e o <code>GetHashCode</code> também, porque o <a href="dictionary.html"><code>Dictionary</code></a> e o <a href="hashset.html"><code>HashSet</code></a> usam os dois). São os avisos <code>CS0660</code> e <code>CS0661</code>, em "Quando dá errado". <strong>O caminho mais simples:</strong> se o que você quer é "iguais quando os dados são iguais", use um <code>record</code> ou <code>record struct</code> e deixe o C# escrever tudo.</p>
+
+<div class="trycs" data-goal="out:2h10,out:4h55,out:True,src:operator\s*&gt;">
+<p class="try-task"><strong>Missão:</strong> a Ana anota quanto tempo estudou por dia. O <code>Tempo</code> já sabe se somar (e o construtor transforma 70 minutos em 1h10). Escreva o <code>operator &gt;</code> (compare o total de minutos: <code>Horas * 60 + Minutos</code>) e tire o <code>//</code> da última linha. Lembre: o <code>&gt;</code> precisa do par <code>&lt;</code>, que já está pronto.</p>
+<pre class="script">Tempo segunda = new(1, 50);
+Tempo terca = new(0, 20);
+Tempo quarta = new(2, 45);
+
+Console.WriteLine(segunda + terca);
+Console.WriteLine(segunda + terca + quarta);
+// Console.WriteLine(segunda &gt; terca);
+
+readonly record struct Tempo
+{
+    public int Horas { get; }
+    public int Minutos { get; }
+
+    public Tempo(int horas, int minutos)
+    {
+        Horas = horas + minutos / 60;
+        Minutos = minutos % 60;
+    }
+
+    public static Tempo operator +(Tempo a, Tempo b) =&gt; new(a.Horas + b.Horas, a.Minutos + b.Minutos);
+    // escreva o operator &gt; aqui
+    // public static bool operator &lt;(Tempo a, Tempo b) =&gt; b &gt; a;
+
+    public override string ToString() =&gt; $"{Horas}h{Minutos:D2}";
+}
+</pre>
+<pre class="solucao">Tempo segunda = new(1, 50);
+Tempo terca = new(0, 20);
+Tempo quarta = new(2, 45);
+
+Console.WriteLine(segunda + terca);
+Console.WriteLine(segunda + terca + quarta);
+Console.WriteLine(segunda &gt; terca);
+
+readonly record struct Tempo
+{
+    public int Horas { get; }
+    public int Minutos { get; }
+
+    public Tempo(int horas, int minutos)
+    {
+        Horas = horas + minutos / 60;
+        Minutos = minutos % 60;
+    }
+
+    public static Tempo operator +(Tempo a, Tempo b) =&gt; new(a.Horas + b.Horas, a.Minutos + b.Minutos);
+    public static bool operator &gt;(Tempo a, Tempo b) =&gt; a.Horas * 60 + a.Minutos &gt; b.Horas * 60 + b.Minutos;
+    public static bool operator &lt;(Tempo a, Tempo b) =&gt; b &gt; a;
+
+    public override string ToString() =&gt; $"{Horas}h{Minutos:D2}";
+}
+</pre>
+</div>
+
+<p>Com o operador pronto, o programa mostra:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run tempo.cs
+2h10
+4h55
+True</pre>
+
+<hr>
+
+<h2>4. Conversões: <code>implicit</code> e <code>explicit</code></h2>
+<p>O <a href="conversao-tipos.html">cast</a> também é um operador. Você pode ensinar o seu tipo a virar outro, e outro a virar o seu:</p>
+<ul>
+  <li><code>implicit</code> (implícita): a conversão acontece <strong>sozinha</strong>, sem cast. Use só quando ela nunca perde informação e nunca falha, como <code>int</code> → <code>long</code>.</li>
+  <li><code>explicit</code> (explícita): exige o cast <code>(Tipo)x</code>, para quem lê o código ver que há uma conversão ali.</li>
+</ul>
+
+<pre class="file" data-file="graus.cs">Celsius c = 25.0;
+Console.WriteLine(c);
+double d = (double)c;
+Console.WriteLine(d);
+Fahrenheit f = (Fahrenheit)c;
+Console.WriteLine(f);
+Console.WriteLine(-c);
+readonly record struct Celsius(double Graus)
+{
+    public static implicit operator Celsius(double graus) =&gt; new(graus);
+    public static explicit operator double(Celsius c) =&gt; c.Graus;
+    public static explicit operator Fahrenheit(Celsius c) =&gt; new(c.Graus * 9 / 5 + 32);
+    public static Celsius operator -(Celsius c) =&gt; new(-c.Graus);
+    public override string ToString() =&gt; $"{Graus} °C";
+}
+readonly record struct Fahrenheit(double Graus)
+{
+    public override string ToString() =&gt; $"{Graus} °F";
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run graus.cs
+25 °C
+25
+77 °F
+-25 °C</pre>
+
+<dl class="anatomy">
+  <dt>public static implicit operator Celsius(double graus)</dt><dd>"Um <code>double</code> pode virar <code>Celsius</code> sozinho." Por isso <code>Celsius c = 25.0;</code> compila sem cast. Repare: aqui não há tipo de retorno separado; o <strong>nome</strong> do operador é o tipo de destino.</dd>
+  <dt>public static explicit operator double(Celsius c)</dt><dd>"Um <code>Celsius</code> vira <code>double</code>, mas só com cast": <code>(double)c</code>.</dd>
+  <dt>explicit operator Fahrenheit(Celsius c)</dt><dd>Conversão entre dois tipos seus: 25 °C × 9 / 5 + 32 = 77 °F.</dd>
+</dl>
+
+<hr>
+
+<h2>5. <code>+=</code> e <code>++</code> de instância <span class="versao">C# 14</span></h2>
+<p>Você viu que <code>carteira -= lanche</code> funcionou de graça: o C# usa o seu <code>operator -</code> e cria um valor <strong>novo</strong>. Para números e valores pequenos, é o ideal. Mas imagine um objeto grande, como uma lista com milhares de itens: criar uma cópia nova a cada <code>+=</code> sai caro. O C# 14 deixa uma <code>class</code> definir o <code>+=</code> (e o <code>++</code>, o <code>--</code>, o <code>-=</code>…) como um método <strong>de instância</strong>, que <strong>altera o próprio objeto</strong>:</p>
+
+<pre class="file" data-file="contador.cs">Contador c = new();
+c += 5;
+c++;
+Console.WriteLine(c.Total);
+Dinheiro d = new(10m);
+d += new Dinheiro(2m);
+Console.WriteLine(d.Valor);
+
+class Contador
+{
+    public int Total { get; private set; }
+    public void operator +=(int n)
+    {
+        Console.WriteLine($"somando {n} no mesmo objeto");
+        Total += n;
+    }
+    public void operator ++() =&gt; Total++;
+}
+struct Dinheiro
+{
+    public decimal Valor { get; }
+    public Dinheiro(decimal valor) =&gt; Valor = valor;
+    public static Dinheiro operator +(Dinheiro a, Dinheiro b) =&gt; new(a.Valor + b.Valor);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run contador.cs
+somando 5 no mesmo objeto
+6
+12</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Trecho</th><th>O que é</th></tr>
+<tr><td><code>public void operator +=(int n)</code></td><td>Novo no C# 14: <strong>sem</strong> <code>static</code>, devolve <code>void</code> e recebe só o lado direito. O lado esquerdo é o próprio objeto (<code>this</code>), que é alterado.</td></tr>
+<tr><td><code>public void operator ++()</code></td><td>O <code>++</code> de instância: sem parâmetros, muda o objeto.</td></tr>
+<tr><td><code>d += new Dinheiro(2m)</code></td><td>O <code>Dinheiro</code> não tem <code>operator +=</code>; o C# usa o <code>operator +</code> estático, como sempre fez.</td></tr>
+</table>
+</div>
+
+<div class="note">
+<strong>Para quem lê código antigo</strong>
+<p>Até o C# 13, <code>+=</code>, <code>-=</code> e companhia <strong>não</strong> podiam ser sobrecarregados: eram sempre traduzidos para <code>x = x + y</code>. Quase todo código que você vai encontrar ainda é assim, e para tipos pequenos (dinheiro, vetores, datas) continua sendo o certo. O <code>operator +=</code> de instância é para casos de desempenho, em tipos grandes e mutáveis.</p>
+</div>
+
+<hr>
+
+<h2>Quais operadores dá para sobrecarregar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>Operadores</th><th>Observação</th></tr>
+<tr><td>Unários</td><td><code>+x</code>, <code>-x</code>, <code>!</code>, <code>~</code>, <code>++</code>, <code>--</code>, <code>true</code>, <code>false</code></td><td>Um parâmetro</td></tr>
+<tr><td>Aritméticos</td><td><code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code></td><td>Dois parâmetros</td></tr>
+<tr><td>Bits</td><td><code>&amp;</code>, <code>|</code>, <code>^</code>, <code>&lt;&lt;</code>, <code>&gt;&gt;</code>, <code>&gt;&gt;&gt;</code></td><td>Dois parâmetros</td></tr>
+<tr><td>Comparação</td><td><code>==</code> e <code>!=</code>, <code>&lt;</code> e <code>&gt;</code>, <code>&lt;=</code> e <code>&gt;=</code></td><td><strong>Em pares</strong></td></tr>
+<tr><td>Conversões</td><td><code>implicit operator T</code>, <code>explicit operator T</code></td><td>O nome é o tipo de destino</td></tr>
+<tr><td>Atribuição composta <span class="versao">C# 14</span></td><td><code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code>… e <code>++</code>/<code>--</code> de instância</td><td>Sem <code>static</code>, devolvem <code>void</code></td></tr>
+<tr><td><strong>Não</strong> dá</td><td><code>&amp;&amp;</code>, <code>||</code>, <code>=</code>, <code>.</code>, <code>?:</code>, <code>??</code>, <code>is</code>, <code>new</code>, <code>[]</code></td><td>O <code>[]</code> tem o seu próprio recurso: os <a href="indexadores.html">indexadores</a></td></tr>
+</table>
+</div>
+
+<h2>Quando usar (e quando não)</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Bom uso</th><th>Mau uso</th></tr>
+<tr><td><code>Dinheiro + Dinheiro</code>, <code>Vetor * 2</code>, <code>Tempo + Tempo</code>, <code>Fracao / Fracao</code>: o significado é o da matemática.</td><td><code>carrinho + produto</code> para "adicionar ao carrinho": prefira um método com nome, <code>carrinho.Adicionar(produto)</code>.</td></tr>
+<tr><td><code>a &lt; b</code> quando existe uma ordem natural (valores, datas, versões).</td><td><code>&lt;</code> em <code>Cliente</code>: menor em quê? Nome? Idade? Use um <a href="comparacao.html"><code>IComparer</code></a>.</td></tr>
+<tr><td>Conversão <code>implicit</code> que nunca perde nada.</td><td><code>implicit</code> que pode falhar ou arredondar: use <code>explicit</code> ou um método <code>Converter…</code>.</td></tr>
+</table>
+</div>
+<p>A regra de ouro: quem lê <code>a + b</code> tem de adivinhar o que acontece <strong>sem abrir o código</strong> do operador.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<h3>Usar um operador que o tipo não tem</h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="semop.cs">Dinheiro a = new(10m);
+Dinheiro b = new(5m);
+Console.WriteLine(a + b);
+struct Dinheiro
+{
+    public decimal Valor { get; }
+    public Dinheiro(decimal valor) =&gt; Valor = valor;
+    public override string ToString() =&gt; $"R$ {Valor:N2}";
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run semop.cs
+/home/ana/cs/semop.cs(3,19): error CS0019: O operador "+" não pode ser aplicado a operandos dos tipos "Dinheiro" e "Dinheiro"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> "o operador + não pode ser aplicado a dois <code>Dinheiro</code>" (<em>Operator '+' cannot be applied to operands of type…</em>). Não existe um <code>operator +</code> com esses dois tipos, <strong>nessa ordem</strong>. <strong>Como consertar:</strong> escreva <code>public static Dinheiro operator +(Dinheiro a, Dinheiro b)</code>. Se o erro fala de <code>"int" e "Dinheiro"</code>, falta a versão com os parâmetros na outra ordem.</p>
+</div>
+
+<div class="cenario">
+<h3>Esquecer o <code>static</code></h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="semstatic.cs">Dinheiro a = new(10m);
+Console.WriteLine(a + a);
+struct Dinheiro
+{
+    public decimal Valor { get; }
+    public Dinheiro(decimal valor) =&gt; Valor = valor;
+    public Dinheiro operator +(Dinheiro a, Dinheiro b) =&gt; new(a.Valor + b.Valor);
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run semstatic.cs
+/home/ana/cs/semstatic.cs(7,30): error CS0558: O operador definido pelo usuário "Dinheiro.operator +(Dinheiro, Dinheiro)" deve ser declarado como static e public
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> o <code>operator +</code> de dois lados precisa ser <code>public static</code>. <strong>Como consertar:</strong> <code>public static Dinheiro operator +(…)</code>. (Só os <code>+=</code>, <code>++</code> etc. de instância do C# 14 ficam sem <code>static</code>.)</p>
+</div>
+
+<div class="cenario">
+<h3>Definir só metade do par</h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="par.cs">Dinheiro a = new(10m);
+Console.WriteLine(a &lt; new Dinheiro(20m));
+struct Dinheiro
+{
+    public decimal Valor { get; }
+    public Dinheiro(decimal valor) =&gt; Valor = valor;
+    public static bool operator &lt;(Dinheiro a, Dinheiro b) =&gt; a.Valor &lt; b.Valor;
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run par.cs
+/home/ana/cs/par.cs(7,33): error CS0216: O operador "Dinheiro.operator &lt;(Dinheiro, Dinheiro)" requer que um operador correspondente "&gt;" também seja definido
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> quem define <code>&lt;</code> precisa definir <code>&gt;</code>. <strong>Como consertar:</strong> acrescente o par. Um truque para não repetir a lógica: <code>operator &gt;(a, b) =&gt; b &lt; a;</code>.</p>
+</div>
+
+<div class="cenario">
+<h3><code>==</code> escrito à mão, sem <code>Equals</code> e <code>GetHashCode</code></h3>
+<pre class="file" data-file="igual.cs">Dinheiro a = new(10m);
+Console.WriteLine(a == new Dinheiro(10m));
+struct Dinheiro
+{
+    public decimal Valor { get; }
+    public Dinheiro(decimal valor) =&gt; Valor = valor;
+    public static bool operator ==(Dinheiro a, Dinheiro b) =&gt; a.Valor == b.Valor;
+    public static bool operator !=(Dinheiro a, Dinheiro b) =&gt; !(a == b);
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run igual.cs
+/home/ana/cs/igual.cs(3,8): warning CS0660: "Dinheiro" define o operador = = ou operador !=, mas não substitui Object.Equals(object o)
+/home/ana/cs/igual.cs(3,8): warning CS0661: "Dinheiro" define o operador = = ou operador !=, mas não substitui Object.GetHashCode()
+True</pre>
+<p><strong>O que quer dizer:</strong> compilou e rodou (são avisos), mas agora <code>a == b</code> e <code>a.Equals(b)</code> podem dar respostas diferentes, e um <code>HashSet&lt;Dinheiro&gt;</code> pode se perder. (O "= =" separado é da tradução; em inglês: <em>defines operator == or operator != but does not override Object.Equals(object o)</em>.) <strong>Como consertar:</strong> o mais simples é trocar <code>struct</code> por <code>readonly record struct Dinheiro(decimal Valor)</code> e apagar os dois operadores: o record já traz <code>==</code>, <code>!=</code>, <code>Equals</code> e <code>GetHashCode</code> combinando. Veja <a href="object.html">A Classe object</a> para escrever o <code>Equals</code> à mão.</p>
+</div>
+
+<div class="cenario">
+<h3>Tentar sobrecarregar o que não pode</h3>
+<p><code>public static Caixa operator &amp;&amp;(Caixa a, Caixa b)</code> dá <code>error CS1020: Operador binário que pode ser sobrecarregado é esperado</code>. <strong>Como consertar:</strong> o <code>&amp;&amp;</code> e o <code>||</code> não são sobrecarregáveis; sobrecarregue o <code>&amp;</code> e o <code>|</code> (e, para o <code>&amp;&amp;</code> funcionar, também <code>true</code> e <code>false</code>), ou, melhor, use um método com nome.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Exemplo</th></tr>
+<tr><td>Binário</td><td><code>public static T operator +(T a, T b) =&gt; …;</code></td></tr>
+<tr><td>Tipos misturados</td><td><code>public static T operator *(T a, int k)</code> e <code>(int k, T a)</code></td></tr>
+<tr><td>Unário</td><td><code>public static T operator -(T a) =&gt; …;</code></td></tr>
+<tr><td>Comparação (par)</td><td><code>public static bool operator &lt;(T a, T b)</code> + <code>operator &gt;</code></td></tr>
+<tr><td>Igualdade</td><td>Use <code>record</code>/<code>record struct</code>; à mão: <code>==</code>, <code>!=</code>, <code>Equals</code>, <code>GetHashCode</code></td></tr>
+<tr><td>Conversão automática</td><td><code>public static implicit operator T(double x)</code></td></tr>
+<tr><td>Conversão com cast</td><td><code>public static explicit operator double(T x)</code></td></tr>
+<tr><td><code>+=</code> de graça</td><td>Vem do <code>operator +</code>: <code>x += y</code> é <code>x = x + y</code></td></tr>
+<tr><td><code>+=</code> de instância <span class="versao">C# 14</span></td><td><code>public void operator +=(int n) { … }</code></td></tr>
+<tr><td><code>++</code> de instância <span class="versao">C# 14</span></td><td><code>public void operator ++() { … }</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<p>1. Complete a declaração do operador de soma:</p>
+<div class="ex-code">public static Vetor <input data-answer="operator +|operator+">(Vetor a, Vetor b) =&gt; new(a.X + b.X, a.Y + b.Y);</div>
+</div>
+
+<div class="exercise">
+<p>2. Que palavra faz a conversão acontecer sem cast?</p>
+<div class="ex-code">public static <input data-answer="implicit"> operator Celsius(double graus) =&gt; new(graus);</div>
+</div>
+
+<div class="exercise">
+<p>3. Você definiu <code>operator &lt;=</code>. Qual operador o compilador exige junto?</p>
+<div class="ex-code">Resposta: <input data-answer="&gt;=|operator &gt;=|operator&gt;="></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O <code>Dinheiro</code> só tem <code>operator +</code>. O que acontece com <code>carteira += lanche;</code>?</p>
+<label><input type="radio" name="q4"> Erro: falta o <code>operator +=</code>.</label>
+<label><input type="radio" name="q4"> Funciona: o C# transforma em <code>carteira = carteira + lanche</code>.</label>
+<label><input type="radio" name="q4"> Funciona, mas altera o <code>lanche</code>.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Com <code>operator *(Dinheiro a, int vezes)</code>, por que <code>3 * caneta</code> dá <code>CS0019</code>?</p>
+<label><input type="radio" name="q5"> Porque não se pode multiplicar dinheiro.</label>
+<label><input type="radio" name="q5"> Porque o <code>*</code> precisa ser <code>implicit</code>.</label>
+<label><input type="radio" name="q5"> Porque a ordem dos parâmetros é a ordem da expressão; falta <code>operator *(int, Dinheiro)</code>.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Qual destes é um bom candidato a sobrecarga de operador?</p>
+<label><input type="radio" name="q6"> <code>Fracao + Fracao</code></label>
+<label><input type="radio" name="q6"> <code>Carrinho + Produto</code> para adicionar um item</label>
+<label><input type="radio" name="q6"> <code>Cliente &lt; Cliente</code></label>
+</div>
+
+<div class="trycs" data-goal="out:Total: R$ 23\,80,out:Desconto: R$ 2\,38,out:A pagar: R$ 21\,42,src:operator\s*\*\s*\(\s*Dinheiro\s+\w+\s*\,\s*decimal">
+<p class="try-task"><strong>Missão final:</strong> o carrinho da Ana tem 2 cadernos de R$ 8,90 e um estojo de R$ 6,00. Escreva dois operadores no <code>Dinheiro</code>: <code>operator +(Dinheiro, Dinheiro)</code> e <code>operator *(Dinheiro, decimal)</code> (o <code>decimal</code> serve tanto para "2 cadernos" quanto para "10% de desconto", <code>0.10m</code>). Depois tire os <code>//</code>. A saída deve ser <code>Total: R$ 23,80</code>, <code>Desconto: R$ 2,38</code> e <code>A pagar: R$ 21,42</code>.</p>
+<pre class="script">Dinheiro caderno = new(8.90m);
+Dinheiro estojo = new(6.00m);
+
+// Dinheiro total = caderno * 2 + estojo;
+// Dinheiro desconto = total * 0.10m;
+// Console.WriteLine($"Total: {total}");
+// Console.WriteLine($"Desconto: {desconto}");
+// Console.WriteLine($"A pagar: {total - desconto}");
+
+readonly record struct Dinheiro(decimal Valor)
+{
+    // escreva o operator + e o operator * aqui
+    public static Dinheiro operator -(Dinheiro a, Dinheiro b) =&gt; new(a.Valor - b.Valor);
+    public override string ToString() =&gt; $"R$ {Valor:N2}";
+}
+</pre>
+<pre class="solucao">Dinheiro caderno = new(8.90m);
+Dinheiro estojo = new(6.00m);
+
+Dinheiro total = caderno * 2 + estojo;
+Dinheiro desconto = total * 0.10m;
+Console.WriteLine($"Total: {total}");
+Console.WriteLine($"Desconto: {desconto}");
+Console.WriteLine($"A pagar: {total - desconto}");
+
+readonly record struct Dinheiro(decimal Valor)
+{
+    public static Dinheiro operator +(Dinheiro a, Dinheiro b) =&gt; new(a.Valor + b.Valor);
+    public static Dinheiro operator *(Dinheiro a, decimal fator) =&gt; new(a.Valor * fator);
+    public static Dinheiro operator -(Dinheiro a, Dinheiro b) =&gt; new(a.Valor - b.Valor);
+    public override string ToString() =&gt; $"R$ {Valor:N2}";
+}
+</pre>
+</div>
+
+<p>Repare que <code>caderno * 2</code> funcionou com um <code>operator *</code> que pede <code>decimal</code>: o <code>2</code> é <code>int</code>, e o C# converte <code>int</code> para <code>decimal</code> sozinho (é uma conversão implícita que já vem na linguagem). A solução, na máquina da Ana:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run carrinho.cs
+Total: R$ 23,80
+Desconto: R$ 2,38
+A pagar: R$ 21,42</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Sobrecarregar um operador é escrever <code>public static Resultado operator +(Esquerda a, Direita b)</code>. Sem ele, <code>a + b</code> dá <code>CS0019</code>; sem <code>public static</code>, <code>CS0558</code>.</li>
+  <li>A ordem dos parâmetros é a ordem da expressão: <code>Dinheiro * int</code> e <code>int * Dinheiro</code> são dois operadores.</li>
+  <li>Comparações vêm em pares (<code>&lt;</code>/<code>&gt;</code>, <code>&lt;=</code>/<code>&gt;=</code>, <code>==</code>/<code>!=</code>; senão, <code>CS0216</code>). O <code>==</code> à mão pede <code>Equals</code> e <code>GetHashCode</code> (<code>CS0660</code>, <code>CS0661</code>); um <code>record</code> já traz tudo.</li>
+  <li><code>implicit operator</code> converte sozinho; <code>explicit operator</code> exige o cast.</li>
+  <li><code>x += y</code> vem de graça do <code>operator +</code>. No <span class="versao">C# 14</span>, uma classe pode definir <code>public void operator +=(…)</code> e <code>operator ++()</code> de instância, que alteram o próprio objeto.</li>
+  <li>Use operadores só quando o significado for óbvio, como na matemática. Para o resto, métodos com nome.</li>
+</ul>
+
+<p>Próxima aula: <a href="indexadores.html">Indexadores</a>, para o seu tipo aceitar colchetes: <code>agenda["Ana"]</code>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
