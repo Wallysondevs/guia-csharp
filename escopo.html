@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Escopo — onde cada variável existe | Guia C#</title>
+<meta name="description" content="Escopo em C# para quem nunca programou: a variável existe só no bloco { } em que nasceu, variáveis de if e for, blocos irmãos e aninhados, variáveis de método, por que as funções locais do fim do arquivo enxergam as variáveis do programa (e a forma com classe não), static para impedir isso, o tempo de vida das variáveis e os erros reais do dotnet 10 (CS0103, CS0136, CS0165, CS0841, CS8421), com missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Escopo</span></h1>
+
+<p class="intro">Toda variável tem um "território": o trecho do código em que o nome dela existe. Esse território se chama <strong>escopo</strong>. Fora dele, o compilador simplesmente não conhece o nome, e você recebe o famoso <code>O nome "x" não existe no contexto atual</code>. Nesta aula você vai aprender a regra das chaves, ver como ela vale para <code>if</code>, <code>for</code> e métodos, e entender um ponto que confunde muita gente no C# moderno: os métodos do fim de um arquivo com instruções de nível superior <strong>enxergam</strong> as variáveis do programa, mas os métodos de uma classe, não.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A regra das chaves: uma variável existe do ponto em que é declarada até o <code>}</code> do bloco onde nasceu.</li>
+  <li>O escopo das variáveis criadas dentro de <code>if</code>, <code>for</code> e <code>foreach</code>.</li>
+  <li>Blocos irmãos (o mesmo nome pode) e blocos aninhados (o mesmo nome não pode).</li>
+  <li>O escopo das variáveis e parâmetros de um método.</li>
+  <li>Por que as <strong>funções locais</strong> enxergam as variáveis do programa, e como o <code>static</code> impede isso.</li>
+  <li>O <strong>tempo de vida</strong>: por que uma variável de método recomeça do zero a cada chamada.</li>
+  <li>Os erros <code>CS0103</code>, <code>CS0136</code>, <code>CS0165</code>, <code>CS0841</code> e <code>CS8421</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram na máquina fictícia da Ana, na pasta <code>~/cs</code>, com o <strong>.NET 10</strong> e o comando <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: os cômodos da casa</h2>
+<p>Pense na casa da Ana. O que está na <strong>sala</strong> pode ser visto de qualquer lugar da sala, e também de dentro do quarto, se a porta estiver aberta para ela. Mas o que está guardado <strong>dentro do quarto</strong> não aparece na sala: quem está na sala não vê. E, quando a Ana arruma o quarto e fecha a porta, o que estava lá some de vista.</p>
+<p>Em C#, os cômodos são os <strong>blocos</strong>, os trechos entre <code>{</code> e <code>}</code>. Um bloco dentro de outro enxerga o de fora; o de fora não enxerga o de dentro.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na casa</th><th>Em C#</th></tr>
+<tr><td>Um cômodo</td><td>Um bloco <code>{ … }</code>: o corpo de um <code>if</code>, de um laço, de um método</td></tr>
+<tr><td>Um objeto deixado no cômodo</td><td>Uma variável declarada no bloco</td></tr>
+<tr><td>Do quarto dá para ver a sala</td><td>Um bloco de dentro enxerga as variáveis dos blocos de fora</td></tr>
+<tr><td>Da sala não dá para ver dentro do quarto</td><td>Fora do bloco, a variável não existe (<code>CS0103</code>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. A regra das chaves</h2>
+<p>Uma variável existe <strong>a partir da linha em que é declarada</strong> até o <code>}</code> que fecha o bloco em que ela nasceu. Este programa tem três níveis de blocos (chaves soltas são permitidas, só para mostrar a ideia):</p>
+
+<pre class="file" data-file="escada.cs">int nivel1 = 1;
+{
+    int nivel2 = 2;
+    {
+        int nivel3 = 3;
+        Console.WriteLine($"{nivel1} {nivel2} {nivel3}");
+    }
+    Console.WriteLine($"{nivel1} {nivel2}");
+}
+Console.WriteLine($"{nivel1}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run escada.cs
+1 2 3
+1 2
+1</pre>
+
+<ol class="passo">
+  <li>No bloco mais de dentro, as três variáveis existem: o bloco enxerga os de fora.</li>
+  <li>Depois do primeiro <code>}</code>, <code>nivel3</code> deixou de existir. Sobraram <code>nivel1</code> e <code>nivel2</code>.</li>
+  <li>Depois do segundo <code>}</code>, só <code>nivel1</code>, que nasceu fora de qualquer bloco, no nível do programa.</li>
+</ol>
+
+<p>E "a partir da linha em que é declarada" quer dizer que usar antes também não vale:</p>
+
+<pre class="file" data-file="antesdecl.cs">Console.WriteLine(preco);
+decimal preco = 9.90m;
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run antesdecl.cs
+/home/ana/cs/antesdecl.cs(1,19): error CS0841: Não é possível usar a variável local "preco" antes de declará-la
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<hr>
+
+<h2>2. Variáveis de <code>if</code> e de laços</h2>
+<p>O corpo de um <code>if</code> é um bloco. O que nasce lá dentro morre no <code>}</code> dele:</p>
+
+<pre class="file" data-file="bloco.cs">int idade = 20;
+if (idade &gt;= 18)
+{
+    string mensagem = "Pode dirigir";
+    Console.WriteLine(mensagem);
+}
+Console.WriteLine(mensagem);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run bloco.cs
+/home/ana/cs/bloco.cs(7,19): error CS0103: O nome "mensagem" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p><em>O nome "mensagem" não existe no contexto atual</em> (<em>The name 'mensagem' does not exist in the current context</em>). "Contexto atual" é o escopo da linha 7, que fica fora do <code>if</code>. A variável nasceu na linha 4 e morreu no <code>}</code> da linha 6. É o mesmo erro de um nome digitado errado, mas a causa é outra: o nome está certo, só que no lugar errado.</p>
+
+<p>O conserto é declarar a variável <strong>antes</strong> do <code>if</code>, no escopo em que ela vai ser usada, e só dar o valor dentro:</p>
+
+<pre class="file" data-file="blocook.cs">int idade = 20;
+string mensagem;
+if (idade &gt;= 18)
+{
+    mensagem = "Pode dirigir";
+}
+else
+{
+    mensagem = "Ainda não";
+}
+Console.WriteLine(mensagem);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run blocook.cs
+Pode dirigir</pre>
+
+<p>Repare no <code>else</code>. Sem ele, se a idade fosse 15, <code>mensagem</code> chegaria na última linha sem valor, e o compilador recusaria com <code>CS0165: Uso de variável local não atribuída "mensagem"</code>. Ele confere todos os caminhos, como faz com o <code>return</code> (<a href="retorno.html">Valor de Retorno</a>).</p>
+
+<div class="trycs" data-goal="compila,outre:^Pode dirigir\n$">
+<p class="try-task"><strong>Missão:</strong> o programa não compila (<code>CS0103</code>): a última linha usa <code>mensagem</code> fora do bloco em que ela nasceu. Conserte para que o programa mostre <code>Pode dirigir</code> uma vez só, pela última linha (tire o <code>WriteLine</code> de dentro do <code>if</code>).</p>
+<pre class="script">int idade = 20;
+if (idade &gt;= 18)
+{
+    string mensagem = "Pode dirigir";
+    Console.WriteLine(mensagem);
+}
+Console.WriteLine(mensagem);
+</pre>
+<pre class="solucao">int idade = 20;
+string mensagem = "Ainda não";
+if (idade &gt;= 18)
+{
+    mensagem = "Pode dirigir";
+}
+Console.WriteLine(mensagem);
+</pre>
+</div>
+
+<h3>A variável do <code>for</code></h3>
+<p>A variável criada nos parênteses do <code>for</code> pertence ao laço. Quando ele termina, ela some:</p>
+
+<pre class="file" data-file="forvar.cs">for (int i = 1; i &lt;= 3; i++)
+{
+    Console.WriteLine($"Volta {i}");
+}
+Console.WriteLine($"Terminou com i = {i}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run forvar.cs
+/home/ana/cs/forvar.cs(5,39): error CS0103: O nome "i" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O mesmo vale para a variável do <code>foreach</code> (<code>foreach (string item in lista)</code>). Se você precisa do valor depois do laço, declare a variável antes dele.</p>
+
+<h3>Blocos irmãos e blocos aninhados</h3>
+<p>Como cada laço tem a sua variável, dois laços <strong>um depois do outro</strong> podem usar o mesmo nome. São blocos <strong>irmãos</strong>: quando o segundo começa, a variável do primeiro já morreu.</p>
+
+<pre class="file" data-file="irmaos.cs">for (int i = 1; i &lt;= 2; i++)
+{
+    Console.Write($"a{i} ");
+}
+for (int i = 1; i &lt;= 2; i++)
+{
+    Console.Write($"b{i} ");
+}
+Console.WriteLine();
+
+if (true)
+{
+    int x = 1;
+    Console.WriteLine($"primeiro x = {x}");
+}
+if (true)
+{
+    int x = 2;
+    Console.WriteLine($"segundo x = {x}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run irmaos.cs
+a1 a2 b1 b2
+primeiro x = 1
+segundo x = 2</pre>
+
+<p>Já um bloco <strong>dentro</strong> de outro não pode criar uma variável com o nome de uma que ainda está viva lá fora. Do bloco de dentro, as duas seriam visíveis ao mesmo tempo, e o nome ficaria ambíguo:</p>
+
+<pre class="file" data-file="aninhado.cs">int total = 10;
+if (total &gt; 5)
+{
+    int total = 20;
+    Console.WriteLine(total);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run aninhado.cs
+/home/ana/cs/aninhado.cs(4,9): error CS0136: Um local ou um parâmetro denominado "total" não pode ser declarado neste escopo porque esse nome é usado em um escopo delimitador de local para definir um local ou parâmetro
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Escopo delimitador" é o bloco de fora, o que "abraça" o <code>if</code>. Em inglês: <em>A local or parameter named 'total' cannot be declared in this scope because that name is used in an enclosing local scope</em>. Se a intenção era mudar o valor, tire o tipo (<code>total = 20;</code>). Se era outra variável, dê outro nome.</p>
+
+<hr>
+
+<h2>3. O escopo de um método</h2>
+<p>O corpo de um método também é um bloco. As variáveis declaradas lá dentro, e os parâmetros, só existem dentro dele:</p>
+
+<pre class="file" data-file="metodolocal.cs">CalcularTotal();
+Console.WriteLine(total);
+
+void CalcularTotal()
+{
+    decimal total = 12.50m * 3;
+    Console.WriteLine($"Dentro: {total}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run metodolocal.cs
+/home/ana/cs/metodolocal.cs(2,19): error CS0103: O nome "total" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O <code>total</code> mora dentro de <code>CalcularTotal</code>. Para levar um valor de dentro do método para fora, o caminho certo é o <a href="retorno.html"><code>return</code></a>: <code>decimal total = CalcularTotal();</code>.</p>
+
+<h3>Cada chamada começa do zero</h3>
+<p>Além do <strong>onde</strong> (o escopo), toda variável tem um <strong>quando</strong>: o <strong>tempo de vida</strong>. Uma variável declarada dentro de um método nasce quando a chamada começa e morre quando ela termina. A chamada seguinte cria uma variável nova:</p>
+
+<pre class="file" data-file="reinicia.cs">Contar();
+Contar();
+Contar();
+
+void Contar()
+{
+    int vezes = 0;
+    vezes++;
+    Console.WriteLine($"vezes = {vezes}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run reinicia.cs
+vezes = 1
+vezes = 1
+vezes = 1</pre>
+
+<p>Nunca passa de 1: em cada chamada, <code>vezes</code> nasce com 0, vira 1, é mostrada e morre. Para um contador que dure entre as chamadas, ele tem de morar <strong>fora</strong> do método. É a próxima seção.</p>
+
+<hr>
+
+<h2>4. Funções locais enxergam as variáveis do programa</h2>
+<p>Em <a href="metodos.html">Métodos</a> você viu que, num arquivo com instruções de nível superior, os métodos do fim do arquivo são <strong>funções locais</strong> do <code>Main</code> escondido. Elas moram <strong>dentro</strong> do mesmo bloco que as variáveis do programa. Pela regra das chaves, então, elas enxergam essas variáveis:</p>
+
+<pre class="file" data-file="captura1.cs">string loja = "Lojinha da Ana";
+MostrarCabecalho();
+
+void MostrarCabecalho()
+{
+    Console.WriteLine($"=== {loja} ===");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run captura1.cs
+=== Lojinha da Ana ===</pre>
+
+<p>O método usou <code>loja</code> sem receber nada por parâmetro. Isso se chama <strong>capturar</strong> a variável. E a captura não é uma cópia: a função local mexe na própria variável. É assim que se faz um contador que dura entre as chamadas:</p>
+
+<pre class="file" data-file="captura2.cs">int vendas = 0;
+Vender();
+Vender();
+Vender();
+Console.WriteLine($"Vendas do dia: {vendas}");
+
+void Vender()
+{
+    vendas++;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run captura2.cs
+Vendas do dia: 3</pre>
+
+<h3>Na forma com classe, não funciona</h3>
+<p>Agora o mesmo cabeçalho na forma com classe. Aqui, <code>MostrarCabecalho</code> é um método da classe, <strong>irmão</strong> do <code>Main</code>, e não está dentro dele:</p>
+
+<pre class="file" data-file="classeescopo.cs">class Program
+{
+    static void Main()
+    {
+        string loja = "Lojinha da Ana";
+        MostrarCabecalho();
+    }
+
+    static void MostrarCabecalho()
+    {
+        Console.WriteLine(loja);
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run classeescopo.cs
+/home/ana/cs/classeescopo.cs(5,16): warning CS0219: A variável "loja" é atribuída, mas seu valor nunca é usado
+/home/ana/cs/classeescopo.cs(11,27): error CS0103: O nome "loja" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Pela regra das chaves, <code>loja</code> mora no bloco do <code>Main</code>; o bloco de <code>MostrarCabecalho</code> fica do lado de fora. Para o compilador, o <code>loja</code> do <code>Main</code> nunca é usado (o aviso <code>CS0219</code>), e o da linha 11 não existe. Na forma com classe, os dados passam de um método a outro por <strong>parâmetros</strong> (<code>MostrarCabecalho(loja)</code>) ou ficam num <strong>campo</strong> da classe:</p>
+
+<pre class="file" data-file="campo.cs">class Program
+{
+    static int vendas = 0;
+
+    static void Main()
+    {
+        Vender();
+        Vender();
+        Console.WriteLine($"Vendas: {vendas}");
+    }
+
+    static void Vender()
+    {
+        vendas++;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run campo.cs
+Vendas: 2</pre>
+
+<p>O <code>static int vendas</code>, declarado direto na classe (fora de qualquer método), é um <strong>campo</strong>: o escopo dele é a classe inteira, e ele vive enquanto o programa roda. Campos são o assunto de <a href="campos.html">Campos</a> e <a href="static.html">static</a>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Função local (fim do arquivo)</th><th>Método de classe (<code>static</code> ao lado do <code>Main</code>)</th></tr>
+<tr><td>Onde mora</td><td>Dentro do <code>Main</code> escondido</td><td>Na classe, ao lado do <code>Main</code></td></tr>
+<tr><td>Enxerga as variáveis do programa?</td><td><strong>Sim</strong> (captura)</td><td><strong>Não</strong> (<code>CS0103</code>)</td></tr>
+<tr><td>Como recebe dados</td><td>Parâmetros ou captura</td><td>Parâmetros ou campos da classe</td></tr>
+</table>
+</div>
+
+<h3>Os cuidados com a captura</h3>
+<p>Capturar é prático, mas tem dois perigos.</p>
+<p><strong>1. A variável precisa ter valor quando a função roda.</strong> Uma função local pode ser chamada antes de ser escrita, mas a variável que ela usa, não:</p>
+
+<pre class="file" data-file="capturaordem.cs">MostrarCabecalho();
+string loja = "Lojinha da Ana";
+
+void MostrarCabecalho()
+{
+    Console.WriteLine($"=== {loja} ===");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run capturaordem.cs
+/home/ana/cs/capturaordem.cs(1,1): error CS0165: Uso de variável local não atribuída "loja"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Repare onde o erro aponta: a linha 1, a <strong>chamada</strong>. Naquele momento, <code>loja</code> ainda não tem valor, e o método ia lê-la.</p>
+
+<p><strong>2. Fica escondido o que o método usa e muda.</strong> Quem lê <code>Vender();</code> não sabe que <code>vendas</code> mudou; para descobrir, tem de abrir o método. Num programa pequeno, tudo bem. Num grande, um método que mexe em variáveis "de longe" é uma fonte clássica de bugs.</p>
+
+<h3><code>static</code>: proibir a captura</h3>
+<p>Se você escrever <code>static</code> antes de uma função local <span class="versao">C# 8</span>, o compilador <strong>proíbe</strong> que ela use as variáveis de fora. Tudo o que ela precisar tem de chegar por parâmetro:</p>
+
+<pre class="file" data-file="estaticolocal.cs">string loja = "Lojinha da Ana";
+MostrarCabecalho();
+
+static void MostrarCabecalho()
+{
+    Console.WriteLine($"=== {loja} ===");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run estaticolocal.cs
+/home/ana/cs/estaticolocal.cs(6,30): error CS8421: Uma função local estática não pode conter uma referência a 'loja'.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Conserto: <code>static void MostrarCabecalho(string loja)</code> e a chamada <code>MostrarCabecalho(loja);</code>. Com o <code>static</code>, a função local se comporta como um método de classe: só enxerga o que recebe. A aula <a href="funcoes-locais.html">Funções Locais</a> volta a esse assunto.</p>
+
+<h3>O mesmo nome dentro da função local</h3>
+<p>Uma função local pode ter um parâmetro ou uma variável com o mesmo nome de uma variável do programa <span class="versao">C# 8</span>. Lá dentro, o nome passa a ser o dela, e a de fora fica "escondida" (em inglês, <em>shadowing</em>, "fazer sombra"):</p>
+
+<pre class="file" data-file="sombra.cs">string nome = "Ana";
+Saudar("Bruno");
+Console.WriteLine($"Fora: {nome}");
+
+void Saudar(string nome)
+{
+    Console.WriteLine($"Dentro: {nome}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sombra.cs
+Dentro: Bruno
+Fora: Ana</pre>
+
+<p>É permitido, mas confunde. Essa é a exceção à regra do <code>CS0136</code> que você viu na seção 2: ela vale para blocos comuns, e não para funções locais. O guia prefere nomes diferentes.</p>
+
+<hr>
+
+<h2>Formas diferentes de compartilhar um valor entre métodos</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Jeito</th><th>Exemplo</th><th>Quando usar</th></tr>
+<tr><td>Parâmetro e <code>return</code></td><td><code>total = Somar(total, 5);</code></td><td>O padrão: deixa claro o que entra e o que sai</td></tr>
+<tr><td>Captura numa função local</td><td><code>vendas++;</code> dentro de <code>Vender()</code></td><td>Programas curtos de um arquivo; ajudantes que só fazem sentido ali</td></tr>
+<tr><td><code>ref</code></td><td><code>Vender(ref vendas);</code></td><td>Quando o método precisa mudar uma variável de quem chamou e você quer que isso apareça na chamada (<a href="ref-out-in.html">ref, out e in</a>)</td></tr>
+<tr><td>Campo da classe</td><td><code>static int vendas;</code></td><td>Na forma com classe, um valor usado por vários métodos (<a href="campos.html">Campos</a>)</td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>Regra do guia: o menor escopo possível</strong>
+<p>Declare cada variável o mais perto possível de onde ela é usada, e no bloco mais de dentro que der. Assim, menos código consegue mexer nela, e quem lê não precisa procurar longe. Uma variável usada só dentro de um <code>for</code> nasce dentro do <code>for</code>.</p>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0103: O nome "mensagem" não existe no contexto atual</code></strong>
+<p><strong>O que significa:</strong> o nome não existe naquele ponto. Ou foi digitado errado, ou a variável nasceu num bloco que já fechou (um <code>if</code>, um <code>for</code>, outro método), ou, na forma com classe, ela mora em outro método.</p>
+<p><strong>Como consertar:</strong> declare a variável antes do bloco, no escopo em que ela vai ser usada; ou passe o valor por parâmetro e traga de volta com <code>return</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0136: Um local ou um parâmetro denominado "total" não pode ser declarado neste escopo…</code></strong>
+<p><strong>O que significa:</strong> um bloco de dentro tentou criar uma variável com o nome de uma que está viva no bloco de fora (ou de um parâmetro do método). Também acontece com <code>for (int n = …)</code> dentro de um método que tem o parâmetro <code>n</code>.</p>
+<p><strong>Como consertar:</strong> tire o tipo, se queria mudar a variável existente; senão, use outro nome.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0165: Uso de variável local não atribuída "loja"</code></strong>
+<p><strong>O que significa:</strong> a variável existe, mas, naquele ponto, pode ainda não ter valor: foi declarada sem valor e só recebe um num <code>if</code> sem <code>else</code>, ou uma função local que a usa foi chamada antes da linha que dá o valor.</p>
+<p><strong>Como consertar:</strong> dê um valor inicial na declaração, cubra todos os caminhos (o <code>else</code>), ou mova a chamada da função local para depois da linha que dá o valor.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0841: Não é possível usar a variável local "preco" antes de declará-la</code></strong>
+<p><strong>O que significa:</strong> a linha usa a variável antes da linha que a declara. O escopo começa na declaração.</p>
+<p><strong>Como consertar:</strong> mova a declaração para cima.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8421: Uma função local estática não pode conter uma referência a 'loja'.</code></strong>
+<p><strong>O que significa:</strong> uma função local com <code>static</code> tentou usar uma variável de fora.</p>
+<p><strong>Como consertar:</strong> passe o valor por parâmetro, ou tire o <code>static</code> se a captura for mesmo o que você quer.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS0219: A variável "loja" é atribuída, mas seu valor nunca é usado</code></strong>
+<p><strong>O que significa:</strong> a variável recebeu um valor e ninguém a leu. Junto com um <code>CS0103</code> em outro método, é o sinal de que você esperava que um método de classe enxergasse uma variável do <code>Main</code>.</p>
+<p><strong>Como consertar:</strong> passe a variável como argumento para o método que precisa dela.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Onde a variável nasce</th><th>Onde ela existe</th></tr>
+<tr><td>No nível do programa (instruções de nível superior)</td><td>Da declaração até o fim do arquivo, inclusive dentro das funções locais</td></tr>
+<tr><td>Dentro de um bloco <code>{ }</code> (<code>if</code>, <code>else</code>, <code>while</code>…)</td><td>Da declaração até o <code>}</code> desse bloco</td></tr>
+<tr><td>Nos parênteses do <code>for</code> / <code>foreach</code></td><td>Só dentro do laço</td></tr>
+<tr><td>Parâmetro de um método</td><td>Só dentro do método</td></tr>
+<tr><td>Dentro de um método</td><td>Só dentro do método; nasce de novo a cada chamada</td></tr>
+<tr><td>Campo da classe (<code>static int x;</code>)</td><td>Em todos os métodos da classe, enquanto o programa roda</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O código do erro</h3>
+<p>Qual é o código do erro "O nome … não existe no contexto atual"? (por exemplo, <code>CS1234</code>)</p>
+<div class="ex-code"><input data-answer="CS0103|cs0103" aria-label="código"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Quanto mostra?</h3>
+<p>Num arquivo com instruções de nível superior: <code>int pontos = 1; Somar(); Somar(); Console.WriteLine(pontos);</code> e, no fim, <code>void Somar() { pontos += 10; }</code>. O que aparece?</p>
+<div class="ex-code"><input data-answer="21" aria-label="saída"></div>
+</div>
+
+<div class="exercise">
+<h3>3. A palavra que proíbe</h3>
+<p>Que palavra, escrita antes de uma função local, proíbe que ela use as variáveis de fora?</p>
+<div class="ex-code"><input data-answer="static" aria-label="palavra"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Dois laços <code>for (int i = 0; …)</code>, um depois do outro, no mesmo programa. O que acontece?</p>
+<label><input type="radio" name="q4"> Erro <code>CS0136</code>: o nome <code>i</code> está repetido</label>
+<label><input type="radio" name="q4"> Funciona: são blocos irmãos, e o <code>i</code> do primeiro já morreu</label>
+<label><input type="radio" name="q4"> O segundo laço continua do <code>i</code> do primeiro</label>
+<label><input type="radio" name="q4"> Aviso <code>CS0219</code></label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Na forma com classe, o <code>Main</code> declara <code>string loja</code> e chama <code>static void Mostrar()</code>, que usa <code>loja</code>. O que acontece?</p>
+<label><input type="radio" name="q5"> Funciona: <code>Mostrar</code> enxerga as variáveis do <code>Main</code></label>
+<label><input type="radio" name="q5"> Erro <code>CS8421</code></label>
+<label><input type="radio" name="q5"> Erro <code>CS0103</code>: <code>loja</code> mora no <code>Main</code>, e <code>Mostrar</code> fica fora dele</label>
+<label><input type="radio" name="q5"> Mostra um texto vazio</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Um método tem <code>int vezes = 0; vezes++;</code> e mostra <code>vezes</code>. Chamado três vezes, o que aparece?</p>
+<label><input type="radio" name="q6"> 1, 1, 1: a variável nasce de novo a cada chamada</label>
+<label><input type="radio" name="q6"> 1, 2, 3</label>
+<label><input type="radio" name="q6"> 0, 1, 2</label>
+<label><input type="radio" name="q6"> Erro <code>CS0136</code></label>
+</div>
+
+<h3>Missão final: o contador de vendas</h3>
+
+<div class="trycs" data-goal="outre:^Vendido: Caderno \(venda nº 1\)\nVendido: Caneta \(venda nº 2\)\nVendido: Borracha \(venda nº 3\)\nTotal de vendas: 3\n$">
+<p class="try-task"><strong>Missão:</strong> o contador <code>vendas</code> mora dentro do método, então recomeça do zero a cada chamada, e todas as vendas saem como "nº 1". Mude a variável de lugar para que ela dure entre as chamadas, e acrescente no fim do programa uma linha <code>Total de vendas: 3</code> (que só funciona se <code>vendas</code> existir lá). A saída deve ser:</p>
+<pre class="out">Vendido: Caderno (venda nº 1)
+Vendido: Caneta (venda nº 2)
+Vendido: Borracha (venda nº 3)
+Total de vendas: 3</pre>
+<pre class="script">Vender("Caderno");
+Vender("Caneta");
+Vender("Borracha");
+
+void Vender(string produto)
+{
+    int vendas = 0;
+    vendas++;
+    Console.WriteLine($"Vendido: {produto} (venda nº {vendas})");
+}
+</pre>
+<pre class="solucao">int vendas = 0;
+
+Vender("Caderno");
+Vender("Caneta");
+Vender("Borracha");
+Console.WriteLine($"Total de vendas: {vendas}");
+
+void Vender(string produto)
+{
+    vendas++;
+    Console.WriteLine($"Vendido: {produto} (venda nº {vendas})");
+}
+</pre>
+</div>
+
+<p>Se apareceu <code>CS0165</code>, a linha <code>int vendas = 0;</code> ficou depois das chamadas: a função local usa a variável, então ela precisa ter valor antes da primeira chamada. Se o contador continuou em 1, sobrou um <code>int vendas = 0;</code> dentro do método: ele cria outra variável, que faz sombra à de fora (numa função local isso não dá erro, como você viu na seção 4).</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><strong>Escopo</strong> é onde um nome existe: da declaração até o <code>}</code> do bloco em que a variável nasceu. Fora disso, <code>CS0103</code>; antes da declaração, <code>CS0841</code>.</li>
+  <li>Variáveis de <code>if</code>, <code>for</code> e <code>foreach</code> morrem no fim do bloco. Blocos irmãos podem repetir nomes; um bloco de dentro não pode repetir um nome vivo lá fora (<code>CS0136</code>).</li>
+  <li>Variáveis e parâmetros de um método só existem dentro dele, e nascem de novo a cada chamada.</li>
+  <li>As funções locais do fim do arquivo <strong>capturam</strong> as variáveis do programa (enxergam e mudam). Os métodos de classe, não: lá, use parâmetros ou campos.</li>
+  <li><code>static</code> numa função local proíbe a captura (<code>CS8421</code>). Prefira sempre o menor escopo possível.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
