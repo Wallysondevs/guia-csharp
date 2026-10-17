@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# float, double e decimal — números com vírgula e dinheiro | Guia C#</title>
+<meta name="description" content="Números com vírgula em C# para quem nunca programou: double (o padrão), float (sufixo f) e decimal (sufixo m, para dinheiro), por que 0.1 + 0.2 dá 0,30000000000000004 com double e 0,3 com decimal, a precisão de cada um, os erros CS0664 e CS0019, a divisão por zero (∞, NaN e DivideByZeroException), com saídas reais do .NET 10 em pt-BR e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">float, double e decimal</span></h1>
+
+<p class="intro">Altura, peso, temperatura, preço, média de notas: muita coisa tem vírgula. O C# tem três tipos para esses números: <code>double</code>, <code>float</code> e <code>decimal</code>. Os dois primeiros são rápidos, mas guardam uma surpresa que pega todo iniciante: <code>0.1 + 0.2</code> não dá exatamente <code>0.3</code>. O terceiro é exato, e é por isso que <strong>dinheiro em C# é sempre <code>decimal</code></strong>. Nesta aula você vai ver os três, lado a lado.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li><code>double</code> (o padrão), <code>float</code> e <code>decimal</code>, e quantos dígitos cada um acerta.</li>
+  <li>Os sufixos <code>f</code> e <code>m</code>, e o erro <code>CS0664</code> quando eles faltam.</li>
+  <li>Por que <code>0.1 + 0.2</code> dá <code>0,30000000000000004</code> com <code>double</code> e <code>0,3</code> com <code>decimal</code>.</li>
+  <li>Por que dinheiro é sempre <code>decimal</code>, e por que não dá para misturar <code>decimal</code> com <code>double</code> (<code>CS0019</code>).</li>
+  <li>A notação científica (<code>1.5e3</code>, <code>1E+20</code>).</li>
+  <li>A divisão por zero: <code>∞</code> e <code>NaN</code> com <code>double</code>, <code>DivideByZeroException</code> com <code>decimal</code> e <code>int</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>, Ubuntu em português), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Por isso as saídas usam vírgula: <code>3,5</code>.</p>
+
+<hr>
+
+<h2>A ideia: a dízima que não cabe no papel</h2>
+<p>Tente escrever 1/3 em decimal numa folha: <code>0,33333…</code>. Os 3 não acabam nunca. Em algum momento você para e aceita um valor <strong>quase</strong> certo.</p>
+<p>O <code>double</code> e o <code>float</code> fazem contas em <strong>binário</strong> (base 2), e em binário acontece a mesma coisa com números que, para nós, são simples: <code>0,1</code> em binário é uma dízima infinita (<code>0,000110011001100…</code>). Como a caixa tem um número fixo de bits, ela guarda o valor mais próximo que cabe. Quase sempre ninguém percebe; às vezes, a diferença aparece.</p>
+<p>O <code>decimal</code> faz as contas em <strong>base 10</strong>, como nós. Para ele, <code>0,1</code> é exatamente <code>0,1</code>. Ele é mais lento e ocupa o dobro do espaço, mas não erra os centavos.</p>
+
+<hr>
+
+<h2>1. Os três tipos</h2>
+
+<pre class="file" data-file="tres.cs">float f = 1.0f / 3;
+double d = 1.0 / 3;
+decimal m = 1.0m / 3;
+Console.WriteLine(f);
+Console.WriteLine(d);
+Console.WriteLine(m);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tres.cs
+0,33333334
+0,3333333333333333
+0,3333333333333333333333333333</pre>
+
+<dl class="anatomy">
+  <dt>float f = 1.0f / 3;</dt><dd><code>float</code> ("flutuante", de <em>ponto flutuante</em>): 4 bytes, uns <strong>7 dígitos</strong> certos. O <code>f</code> no fim do número diz "este número é <code>float</code>". Veja o último dígito: <code>…34</code>, o <code>float</code> já errou.</dd>
+  <dt>double d = 1.0 / 3;</dt><dd><code>double</code> ("duplo", de precisão dupla): 8 bytes, uns <strong>15 a 17 dígitos</strong>. É o <strong>padrão</strong>: um número com ponto no código, sem sufixo, como <code>1.0</code>, é <code>double</code>.</dd>
+  <dt>decimal m = 1.0m / 3;</dt><dd><code>decimal</code>: 16 bytes, <strong>28 a 29 dígitos</strong>, em base 10. O <code>m</code> (de <em>money</em>, "dinheiro") diz "este número é <code>decimal</code>".</dd>
+  <dt>/ 3</dt><dd>A divisão. O <code>3</code> é <code>int</code>, mas, numa conta com um <code>float</code>, <code>double</code> ou <code>decimal</code>, ele vira desse tipo sozinho. Se os <strong>dois</strong> lados fossem <code>int</code>, <code>1 / 3</code> daria <code>0</code> (divisão inteira, aula <a href="operadores-aritmeticos.html">Operadores Aritméticos</a>).</dd>
+</dl>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>Bytes</th><th>Dígitos certos</th><th>Base</th><th>Sufixo</th><th>Use para</th></tr>
+<tr><td><code>float</code></td><td>4</td><td>~7</td><td>2</td><td><code>f</code> ou <code>F</code></td><td>Gráficos e jogos (Unity), muitos dados quando a memória pesa</td></tr>
+<tr><td><code>double</code></td><td>8</td><td>~15 a 17</td><td>2</td><td>nenhum (ou <code>d</code>)</td><td><strong>Medidas</strong>: altura, peso, distância, ciência, médias</td></tr>
+<tr><td><code>decimal</code></td><td>16</td><td>28 a 29</td><td>10</td><td><code>m</code> ou <code>M</code></td><td><strong>Dinheiro</strong> e tudo que precisa ser exato em base 10</td></tr>
+</table>
+</div>
+
+<h3>Os sufixos são obrigatórios</h3>
+<p>Como <code>62.5</code> sem sufixo é <code>double</code>, ele não entra direto numa caixa <code>float</code> nem <code>decimal</code>:</p>
+
+<pre class="file" data-file="floatlit.cs">float peso = 62.5;
+Console.WriteLine(peso);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run floatlit.cs
+/home/ana/cs/floatlit.cs(1,14): error CS0664: Literal do tipo double não pode ser convertido implicitamente no tipo "float"; use um sufixo "F" para criar um literal desse tipo
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<pre class="file" data-file="declit.cs">decimal preco = 19.90;
+Console.WriteLine(preco);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run declit.cs
+/home/ana/cs/declit.cs(1,17): error CS0664: Literal do tipo double não pode ser convertido implicitamente no tipo "decimal"; use um sufixo "M" para criar um literal desse tipo
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O próprio erro diz o conserto: <code>62.5f</code> e <code>19.90m</code>. O C# é rigoroso aqui de propósito: passar de <code>double</code> para <code>float</code> perde dígitos, e passar de <code>double</code> para <code>decimal</code> pode carregar o "quase certo" do <code>double</code> para dentro do seu dinheiro. Já um número <strong>inteiro</strong> entra sem sufixo: <code>decimal preco = 10;</code> funciona, porque 10 é exato em qualquer tipo.</p>
+
+<div class="trycs" data-goal="out:Preço: 19\,90,src:19\.90[mM]">
+<p class="try-task"><strong>Missão:</strong> o preço da camiseta não compila. Rode para ver o erro <code>CS0664</code> e conserte com o sufixo certo, para mostrar <code>Preço: 19,90</code>.</p>
+<pre class="script" data-file="camiseta.cs">decimal preco = 19.90;
+Console.WriteLine("Preço: " + preco);
+</pre>
+<pre class="solucao" data-file="camiseta.cs">decimal preco = 19.90m;
+Console.WriteLine("Preço: " + preco);
+</pre>
+</div>
+
+<p>Repare que o <code>decimal</code> guarda o zero do fim: <code>19.90m</code> aparece como <code>19,90</code>. O <code>double</code> <code>19.90</code> apareceria como <code>19,9</code>.</p>
+
+<hr>
+
+<h2>2. A surpresa: <code>0.1 + 0.2</code></h2>
+
+<pre class="file" data-file="soma01.cs">double a = 0.1 + 0.2;
+decimal b = 0.1m + 0.2m;
+Console.WriteLine(a);
+Console.WriteLine(b);
+Console.WriteLine(a == 0.3);
+Console.WriteLine(b == 0.3m);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run soma01.cs
+0,30000000000000004      « double: quase 0,3
+0,3                      « decimal: exato
+False                    « para o double, 0.1 + 0.2 não é igual a 0.3
+True</pre>
+
+<dl class="anatomy">
+  <dt>double a = 0.1 + 0.2;</dt><dd>Nem <code>0.1</code> nem <code>0.2</code> são exatos em binário. A soma dos dois "quase" deu um "quase" um pouquinho maior: <code>0,30000000000000004</code>.</dd>
+  <dt>decimal b = 0.1m + 0.2m;</dt><dd>Em base 10, <code>0,1</code> e <code>0,2</code> são exatos, e a soma é exatamente <code>0,3</code>.</dd>
+  <dt>a == 0.3</dt><dd>O <code>==</code> pergunta "é igual?" (aula <a href="operadores-comparacao.html">Operadores de Comparação</a>). Para o <code>double</code>, a resposta é <code>False</code>: os dois números diferem na 17ª casa.</dd>
+</dl>
+
+<p>Isso não é defeito do C#. Acontece igual em Java, Python, JavaScript, C e na planilha: todos usam o mesmo padrão de <code>double</code> (o IEEE 754). O .NET só mostra o número com todos os dígitos que ele realmente tem.</p>
+
+<h3>Por que dinheiro é sempre <code>decimal</code></h3>
+<p>A lojinha da Ana vende balas de R$ 0,10. Ela soma 10 balas no caixa, uma por uma:</p>
+
+<pre class="file" data-file="dez.cs">double totalD = 0;
+decimal totalM = 0;
+for (int i = 0; i &lt; 10; i++)
+{
+    totalD = totalD + 0.10;
+    totalM = totalM + 0.10m;
+}
+Console.WriteLine(totalD);
+Console.WriteLine(totalM);
+Console.WriteLine(totalD == 1.0);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run dez.cs
+0,9999999999999999       « double: faltou um "pedacinho" de centavo
+1,00                     « decimal: R$ 1,00 certinho
+False</pre>
+
+<p>O <code>for</code> repete a soma 10 vezes (aula <a href="for.html">for</a>). Com <code>double</code>, cada soma erra um tiquinho, e os erros se acumulam: no fim, o caixa tem R$ 0,9999999999999999. Num banco, com milhões de contas e operações, esses tiquinhos viram dinheiro de verdade. E um <code>if (total == 1.0)</code> nunca seria verdadeiro. Com <code>decimal</code>, dez vezes <code>0,10</code> é <code>1,00</code>.</p>
+
+<div class="warning">
+<strong>Regra do guia: dinheiro é <code>decimal</code></strong>
+<p>Preço, saldo, salário, troco, juros: sempre <code>decimal</code>, com o sufixo <code>m</code> nos números (<code>19.90m</code>). Use <code>double</code> para medidas e ciência, em que um erro na 16ª casa não importa.</p>
+</div>
+
+<h3>Uma conta de dinheiro completa</h3>
+
+<pre class="file" data-file="dinheiro.cs">decimal preco = 19.90m;
+int quantidade = 3;
+decimal total = preco * quantidade;
+Console.WriteLine(total);
+Console.WriteLine(total.ToString("C"));
+decimal desconto = total * 0.1m;
+Console.WriteLine(desconto);
+Console.WriteLine(total - desconto);
+Console.WriteLine(Math.Round(total - desconto, 2));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run dinheiro.cs
+59,70
+R$ 59,70
+5,970
+53,730
+53,73</pre>
+
+<dl class="anatomy">
+  <dt>preco * quantidade</dt><dd><code>decimal</code> vezes <code>int</code> dá <code>decimal</code>. O resultado guarda as duas casas do preço: <code>59,70</code>.</dd>
+  <dt>total.ToString("C")</dt><dd>O formato <code>"C"</code> (<em>currency</em>, "moeda") mostra como dinheiro do país do computador: <code>R$ 59,70</code>. Outros formatos em <a href="formatacao.html">Formatar Números</a>.</dd>
+  <dt>total * 0.1m</dt><dd>10% de desconto. O <code>decimal</code> soma as casas dos dois números (2 + 1), e o resultado tem 3: <code>5,970</code>. O valor está certo; só aparece com um zero a mais.</dd>
+  <dt>Math.Round(…, 2)</dt><dd>Arredonda para 2 casas: <code>53,73</code>. A classe <code>Math</code> tem aula própria: <a href="math.html">Matemática</a>.</dd>
+</dl>
+
+<hr>
+
+<h2>3. Não dá para misturar <code>decimal</code> e <code>double</code></h2>
+<p>A Ana quer pôr 10% de taxa num preço e escreve <code>1.1</code>, sem o <code>m</code>:</p>
+
+<pre class="file" data-file="misturadec.cs">decimal preco = 100m;
+decimal comTaxa = preco * 1.1;
+Console.WriteLine(comTaxa);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run misturadec.cs
+/home/ana/cs/misturadec.cs(2,19): error CS0019: O operador "*" não pode ser aplicado a operandos dos tipos "decimal" e "double"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O <code>int</code> se mistura com qualquer um (ele é exato), mas <code>decimal</code> e <code>double</code> não se misturam sozinhos: o C# não sabe qual dos dois você quer, e qualquer escolha poderia perder algo. O conserto é escrever <code>1.1m</code>. Se o valor já está numa variável <code>double</code>, converta de propósito: <code>preco * (decimal)taxa</code> (aula <a href="conversao-tipos.html">Conversão de Tipos</a>).</p>
+
+<hr>
+
+<h2>4. Limites e notação científica</h2>
+
+<pre class="file" data-file="limitesdec.cs">Console.WriteLine(float.MaxValue);
+Console.WriteLine(double.MaxValue);
+Console.WriteLine(decimal.MaxValue);
+Console.WriteLine(double.Epsilon);
+Console.WriteLine(1.5e3);
+Console.WriteLine(2.5e-4);
+Console.WriteLine(1e20);
+Console.WriteLine(123456789.123456789);
+Console.WriteLine(123456789.123456789f);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run limitesdec.cs
+3,4028235E+38
+1,7976931348623157E+308
+79228162514264337593543950335
+5E-324
+1500
+0,00025
+1E+20
+123456789,12345679
+123456790</pre>
+
+<dl class="anatomy">
+  <dt>3,4028235E+38</dt><dd><strong>Notação científica</strong>: <code>E+38</code> quer dizer "vezes 10 elevado a 38". O maior <code>float</code> é 3,4 seguido de 38 casas. O maior <code>double</code> tem 308 casas!</dd>
+  <dt>79228162514264337593543950335</dt><dd>O maior <code>decimal</code>, uns 79 octilhões. Bem menor que o do <code>double</code>: o <code>decimal</code> troca alcance por exatidão.</dd>
+  <dt>5E-324</dt><dd><code>double.Epsilon</code>, o menor <code>double</code> positivo: 5 × 10<sup>-324</sup>. <code>E-</code> é "dividido por 10 elevado a".</dd>
+  <dt>1.5e3 · 2.5e-4 · 1e20</dt><dd>Você também pode <strong>escrever</strong> números assim no código: <code>1.5e3</code> = 1,5 × 1000 = <code>1500</code>; <code>2.5e-4</code> = <code>0,00025</code>. O .NET passa a mostrar em notação científica quando o número fica grande demais (<code>1E+20</code>).</dd>
+  <dt>123456789,12345679 · 123456790</dt><dd>O mesmo número em <code>double</code> e em <code>float</code>. O <code>double</code> acertou 17 dígitos; o <code>float</code>, só 8, e arredondou o resto.</dd>
+</dl>
+
+<hr>
+
+<h2>5. Divisão por zero</h2>
+<p>Dividir por zero não dá o mesmo resultado nos três tipos (nem no <code>int</code>).</p>
+
+<h3>Com <code>double</code>: infinito e NaN</h3>
+<pre class="file" data-file="divzero.cs">double a = 1.0 / 0;
+double b = -1.0 / 0;
+double c = 0.0 / 0;
+Console.WriteLine(a);
+Console.WriteLine(b);
+Console.WriteLine(c);
+Console.WriteLine(double.IsInfinity(a));
+Console.WriteLine(double.IsNaN(c));
+Console.WriteLine(c == double.NaN);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run divzero.cs
+∞
+-∞
+NaN
+True
+True
+False</pre>
+
+<dl class="anatomy">
+  <dt>1.0 / 0 → ∞</dt><dd>O <code>double</code> tem um valor especial para "infinito". O .NET mostra o símbolo <code>∞</code>, em pt-BR e também em en-US; só a cultura invariante (<code>CultureInfo.InvariantCulture</code>, aula <a href="cultura.html">Cultura</a>) escreve <code>Infinity</code>. O programa <strong>não para</strong>.</dd>
+  <dt>-1.0 / 0 → -∞</dt><dd>Infinito negativo.</dd>
+  <dt>0.0 / 0 → NaN</dt><dd><em>Not a Number</em>, "não é um número": uma conta sem resultado. Aparece como <code>NaN</code> também em pt-BR.</dd>
+  <dt>double.IsInfinity · double.IsNaN</dt><dd>Perguntam "é infinito?" e "é NaN?".</dd>
+  <dt>c == double.NaN → False</dt><dd>Pegadinha: <code>NaN</code> não é igual a nada, nem a ele mesmo. Para saber se um número é NaN, use sempre <code>double.IsNaN</code>.</dd>
+</dl>
+
+<p>O perigo é que um <code>∞</code> ou um <code>NaN</code> "contamina" as contas seguintes (<code>NaN + 1</code> é <code>NaN</code>) e o programa segue em frente mostrando resultados sem sentido. Confira o divisor antes de dividir.</p>
+
+<h3>Com <code>decimal</code> e <code>int</code>: o programa para</h3>
+<pre class="file" data-file="divzerom.cs">decimal saldo = 100m;
+decimal pessoas = 0m;
+Console.WriteLine(saldo / pessoas);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run divzerom.cs
+Unhandled exception. System.DivideByZeroException: Attempted to divide by zero.
+   at System.Decimal.DecCalc.VarDecDiv(DecCalc&amp; d1, DecCalc&amp; d2)
+   at System.Decimal.op_Division(Decimal d1, Decimal d2)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/divzerom.cs:line 3</pre>
+
+<p>O <code>decimal</code> não tem infinito nem NaN. Dividir por zero lança a exceção <code>System.DivideByZeroException</code>: "tentativa de dividir por zero". As duas primeiras linhas <code>at</code> são de dentro do próprio .NET (a divisão de <code>decimal</code>); a última é a que interessa: <code>divzerom.cs</code>, <strong>linha 3</strong>. O <code>int</code> faz o mesmo (veja <a href="operadores-aritmeticos.html">Operadores Aritméticos</a>). Para dinheiro isso é bom: melhor parar do que dividir uma conta por zero pessoas e seguir.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Conta</th><th><code>double</code></th><th><code>decimal</code></th><th><code>int</code></th></tr>
+<tr><td><code>1 / 0</code></td><td><code>∞</code></td><td><code>DivideByZeroException</code></td><td><code>DivideByZeroException</code></td></tr>
+<tr><td><code>-1 / 0</code></td><td><code>-∞</code></td><td><code>DivideByZeroException</code></td><td><code>DivideByZeroException</code></td></tr>
+<tr><td><code>0 / 0</code></td><td><code>NaN</code></td><td><code>DivideByZeroException</code></td><td><code>DivideByZeroException</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>6. Comparar números <code>double</code></h2>
+<p>Como o <code>double</code> é "quase certo", nunca compare com <code>==</code> um resultado de conta. Pergunte se a diferença é pequena o bastante (uma <strong>tolerância</strong>):</p>
+
+<pre class="file" data-file="tolerancia.cs">double x = 0.1 + 0.2;
+Console.WriteLine(Math.Abs(x - 0.3) &lt; 1e-9);
+Console.WriteLine(x.ToString("F2"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tolerancia.cs
+True
+0,30</pre>
+
+<dl class="anatomy">
+  <dt>Math.Abs(x - 0.3) &lt; 1e-9</dt><dd><code>Math.Abs</code> é o valor absoluto (tira o sinal). A pergunta é: "a distância entre <code>x</code> e <code>0,3</code> é menor que um bilionésimo?". Sim: <code>True</code>.</dd>
+  <dt>x.ToString("F2")</dt><dd>Para <strong>mostrar</strong>, arredonde na hora de escrever: <code>"F2"</code> = 2 casas fixas, <code>0,30</code>. O valor guardado continua o mesmo.</dd>
+</dl>
+
+<hr>
+
+<h2>Qual usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Tipo</th></tr>
+<tr><td>Preço, saldo, salário, troco, juros, impostos</td><td><code>decimal</code> (<code>19.90m</code>)</td></tr>
+<tr><td>Altura, peso, temperatura, distância, média de notas</td><td><code>double</code> (<code>1.65</code>)</td></tr>
+<tr><td>Contas científicas, <code>Math.Sqrt</code>, <code>Math.Sin</code> (elas recebem e devolvem <code>double</code>)</td><td><code>double</code></td></tr>
+<tr><td>Jogos e gráficos (Unity usa <code>float</code>), milhões de valores na memória</td><td><code>float</code> (<code>1.5f</code>)</td></tr>
+<tr><td>Contagens, sem vírgula</td><td>nenhum deles: <a href="inteiros.html"><code>int</code></a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0664: Literal do tipo double não pode ser convertido implicitamente no tipo "decimal"; use um sufixo "M"…</code></strong>
+<p><strong>O que significa:</strong> um número com ponto e sem sufixo é <code>double</code>, e foi para uma caixa <code>decimal</code> (ou <code>float</code>: aí a mensagem pede o sufixo <code>"F"</code>). Em inglês: <code>Literal of type double cannot be implicitly converted to type 'decimal'; use an 'M' suffix to create a literal of this type</code>.</p>
+<p><strong>Como consertar:</strong> o sufixo: <code>19.90m</code>, <code>62.5f</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0019: O operador "*" não pode ser aplicado a operandos dos tipos "decimal" e "double"</code></strong>
+<p><strong>O que significa:</strong> uma conta mistura <code>decimal</code> com <code>double</code>. Quase sempre é um número escrito sem <code>m</code>.</p>
+<p><strong>Como consertar:</strong> ponha <code>m</code> no número (<code>1.1m</code>) ou converta a variável com <code>(decimal)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Saiu <code>0,30000000000000004</code> ou <code>0,9999999999999999</code></strong>
+<p><strong>O que significa:</strong> o <code>double</code> guardou o valor mais próximo, não o exato, e o .NET mostra todos os dígitos.</p>
+<p><strong>Como consertar:</strong> se é dinheiro, troque para <code>decimal</code>. Se é medida, só arredonde na hora de mostrar (<code>ToString("F2")</code>) e compare com tolerância.</p>
+</div>
+
+<div class="cenario">
+<strong>Um <code>if (x == 0.3)</code> nunca é verdadeiro</strong>
+<p><strong>O que significa:</strong> o valor calculado é vizinho de <code>0,3</code>, mas não igual.</p>
+<p><strong>Como consertar:</strong> <code>Math.Abs(x - 0.3) &lt; 1e-9</code>, ou use <code>decimal</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Saiu <code>∞</code> ou <code>NaN</code></strong>
+<p><strong>O que significa:</strong> divisão por zero com <code>double</code> (<code>∞</code>, <code>-∞</code>) ou uma conta sem resultado, como <code>0.0 / 0</code> (<code>NaN</code>).</p>
+<p><strong>Como consertar:</strong> confira o divisor antes de dividir. Para testar o resultado, <code>double.IsInfinity</code> e <code>double.IsNaN</code>, nunca <code>== double.NaN</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>System.DivideByZeroException: Attempted to divide by zero.</code></strong>
+<p><strong>O que significa:</strong> divisão por zero com <code>decimal</code> ou <code>int</code>. O programa parou (código de saída 134).</p>
+<p><strong>Como consertar:</strong> confira antes: <code>if (pessoas != 0)</code> (aula <a href="if-else.html">if e else</a>).</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que é</th></tr>
+<tr><td><code>1.5</code>, <code>1.5d</code></td><td><code>double</code> (o padrão para números com ponto)</td></tr>
+<tr><td><code>1.5f</code></td><td><code>float</code></td></tr>
+<tr><td><code>1.5m</code></td><td><code>decimal</code></td></tr>
+<tr><td><code>1.5e3</code>, <code>2.5e-4</code></td><td>Notação científica: 1500 e 0,00025</td></tr>
+<tr><td><code>double.MaxValue</code>, <code>decimal.MaxValue</code>, <code>float.MaxValue</code></td><td>Os maiores valores</td></tr>
+<tr><td><code>double.PositiveInfinity</code>, <code>double.NaN</code></td><td>Os valores especiais (<code>∞</code> e <code>NaN</code>)</td></tr>
+<tr><td><code>double.IsNaN(x)</code>, <code>double.IsInfinity(x)</code></td><td>Testes de NaN e infinito</td></tr>
+<tr><td><code>Math.Abs(a - b) &lt; 1e-9</code></td><td>Comparar <code>double</code> com tolerância</td></tr>
+<tr><td><code>x.ToString("F2")</code>, <code>valor.ToString("C")</code></td><td>Mostrar com 2 casas; mostrar como moeda (<code>R$ 59,70</code>)</td></tr>
+<tr><td><code>Math.Round(valor, 2)</code></td><td>Arredondar para 2 casas</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O sufixo do dinheiro</h3>
+<p>Complete para o código compilar:</p>
+<div class="ex-code">decimal salario = 2500.50<input data-answer="m|M" aria-label="sufixo">;</div>
+</div>
+
+<div class="exercise">
+<h3>2. O sufixo do float</h3>
+<p>Complete para o código compilar:</p>
+<div class="ex-code">float nota = 7.5<input data-answer="f|F" aria-label="sufixo">;</div>
+</div>
+
+<div class="exercise">
+<h3>3. Notação científica</h3>
+<p>Quanto vale <code>2e3</code>? (Escreva só o número.)</p>
+<div class="ex-code"><input data-answer="2000" aria-label="valor"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O que <code>Console.WriteLine(0.1 + 0.2);</code> mostra no Ubuntu em português?</p>
+<label><input type="radio" name="q4"> <code>0,3</code></label>
+<label><input type="radio" name="q4"> <code>0,30000000000000004</code></label>
+<label><input type="radio" name="q4"> <code>0.30000000000000004</code></label>
+<label><input type="radio" name="q4"> Um erro de compilação</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Qual tipo usar para o saldo de uma conta bancária?</p>
+<label><input type="radio" name="q5"> <code>float</code></label>
+<label><input type="radio" name="q5"> <code>double</code></label>
+<label><input type="radio" name="q5"> <code>decimal</code>, porque é exato em base 10</label>
+<label><input type="radio" name="q5"> <code>int</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. O que acontece em <code>double r = 5.0 / 0;</code>?</p>
+<label><input type="radio" name="q6"> <code>r</code> vale infinito (<code>∞</code>) e o programa continua</label>
+<label><input type="radio" name="q6"> <code>DivideByZeroException</code></label>
+<label><input type="radio" name="q6"> <code>r</code> vale 0</label>
+<label><input type="radio" name="q6"> Não compila</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">7. <code>decimal total = preco * 1.05;</code> (com <code>preco</code> <code>decimal</code>) não compila. Por quê?</p>
+<label><input type="radio" name="q7"> Falta <code>Math.Round</code></label>
+<label><input type="radio" name="q7"> <code>decimal</code> não pode ser multiplicado</label>
+<label><input type="radio" name="q7"> 1.05 é grande demais</label>
+<label><input type="radio" name="q7"> <code>1.05</code> é <code>double</code>, e <code>decimal</code> não se mistura com <code>double</code> (<code>CS0019</code>); o certo é <code>1.05m</code></label>
+</div>
+
+<h3>Missão final: o caixa das balas</h3>
+
+<div class="trycs" data-goal="out:Total: 1\,00,src:\bdecimal\s+total\b">
+<p class="try-task"><strong>Missão:</strong> o caixa da lojinha soma 10 balas de R$ 0,10 e mostra <code>Total: 0,9999999999999999</code>. Troque o tipo de <code>total</code> e o do preço da bala para o tipo de dinheiro (não esqueça o sufixo), para mostrar <code>Total: 1,00</code>.</p>
+<pre class="script" data-file="balas.cs">double total = 0;
+for (int i = 0; i &lt; 10; i++)
+{
+    total = total + 0.10;
+}
+Console.WriteLine("Total: " + total);
+</pre>
+<pre class="solucao" data-file="balas.cs">decimal total = 0;
+for (int i = 0; i &lt; 10; i++)
+{
+    total = total + 0.10m;
+}
+Console.WriteLine("Total: " + total);
+</pre>
+</div>
+
+<p>Se você trocar só o tipo de <code>total</code> e esquecer o <code>m</code> do <code>0.10</code>, o compilador reclama com o <code>CS0019</code> desta aula: <code>decimal</code> mais <code>double</code>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>double</code> é o padrão para números com ponto (<code>1.65</code>): 8 bytes, uns 15 a 17 dígitos. <code>float</code> (<code>1.5f</code>): 4 bytes, uns 7 dígitos. <code>decimal</code> (<code>19.90m</code>): 16 bytes, 28 a 29 dígitos, exato em base 10.</li>
+  <li><code>0.1 + 0.2</code> dá <code>0,30000000000000004</code> com <code>double</code> e <code>0,3</code> com <code>decimal</code>. Dez vezes <code>0.10</code> dá <code>0,9999999999999999</code> e <code>1,00</code>.</li>
+  <li><strong>Dinheiro é sempre <code>decimal</code>.</strong> Medidas, <code>double</code>.</li>
+  <li>Sem sufixo, o número com ponto é <code>double</code>: <code>CS0664</code> numa caixa <code>float</code> ou <code>decimal</code>. <code>decimal</code> e <code>double</code> não se misturam: <code>CS0019</code>.</li>
+  <li>Nunca compare <code>double</code> com <code>==</code>: use tolerância (<code>Math.Abs(a - b) &lt; 1e-9</code>).</li>
+  <li>Divisão por zero: <code>double</code> dá <code>∞</code>, <code>-∞</code> ou <code>NaN</code> e segue; <code>decimal</code> e <code>int</code> lançam <code>DivideByZeroException</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
