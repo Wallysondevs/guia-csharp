@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# HashSet&lt;T&gt; — conjunto sem repetidos: Add, Contains, UnionWith | Guia C#</title>
+<meta name="description" content="HashSet em C# para quem nunca programou: um conjunto que não aceita repetidos, o bool do Add, Contains, Remove, tirar os repetidos de uma lista, por que a ordem não é garantida, união, interseção e diferença (UnionWith, IntersectWith, ExceptWith), SortedSet, comparador sem maiúsculas, objetos seus com class e record e a InvalidOperationException do foreach, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">HashSet&lt;T&gt;</span></h1>
+
+<p class="intro">Às vezes você não quer uma lista, quer um <strong>conjunto</strong>: as figurinhas que a Ana já tem, os nomes de quem confirmou presença, as palavras que já apareceram num texto. Num conjunto, cada coisa aparece <strong>uma vez só</strong>, e a pergunta mais importante é "isto está aqui?". O <code>HashSet&lt;T&gt;</code> responde essa pergunta num instante, mesmo com milhões de itens, e ainda faz as contas de conjuntos da escola: união, interseção e diferença.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é um conjunto e como criar um <code>HashSet&lt;T&gt;</code>.</li>
+  <li><code>Add</code> (e o <code>bool</code> que ele devolve), <code>Contains</code>, <code>Remove</code> e <code>Count</code>.</li>
+  <li>Tirar os repetidos de uma lista em uma linha.</li>
+  <li>Por que a <strong>ordem</strong> não é garantida, e o <code>SortedSet&lt;T&gt;</code>.</li>
+  <li>União, interseção e diferença: <code>UnionWith</code>, <code>IntersectWith</code>, <code>ExceptWith</code>, <code>SymmetricExceptWith</code>.</li>
+  <li>Perguntas de conjunto: <code>IsSubsetOf</code>, <code>Overlaps</code>, <code>SetEquals</code>.</li>
+  <li>Conjuntos de objetos seus: por que uma <code>class</code> deixa entrar "repetidos" e um <code>record</code> não.</li>
+  <li>Os erros reais: <code>CS0021</code> (o conjunto não tem posições) e a <code>InvalidOperationException</code> do <code>foreach</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> na máquina da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Você pode repetir cada um no editor do guia.</p>
+
+<hr>
+
+<h2>A ideia: um álbum de figurinhas</h2>
+<p>A Ana coleciona figurinhas. No <strong>álbum</strong>, cada figurinha tem um lugar só: colar a figurinha 7 de novo não cria uma segunda 7, ela vai para o monte de repetidas. E, quando um amigo oferece uma figurinha, a primeira pergunta é: "eu já tenho essa?".</p>
+
+<p>Um <code>HashSet&lt;T&gt;</code> ("conjunto por <em>hash</em>") é esse álbum:</p>
+<ul>
+  <li><strong>Não aceita repetidos.</strong> Tentar acrescentar um item que já está lá não faz nada (e ele avisa que não fez).</li>
+  <li><strong>Não tem posições.</strong> Não existe "a figurinha da posição 0". Existe só "tem" ou "não tem".</li>
+  <li><strong>Responde "tem?" muito rápido.</strong> Numa <a href="list.html">List</a>, o <code>Contains</code> olha item por item; num <code>HashSet</code>, ele vai direto ao lugar certo, como o <a href="dictionary.html">Dictionary</a> faz com as chaves.</li>
+</ul>
+
+<p>O <code>T</code> em <code>HashSet&lt;T&gt;</code> é o tipo dos itens, escolhido por você: <code>HashSet&lt;int&gt;</code> guarda números; <code>HashSet&lt;string&gt;</code>, textos (veja <a href="generics.html">Generics</a>).</p>
+
+<hr>
+
+<h2>1. Criar, acrescentar e perguntar</h2>
+
+<pre class="file" data-file="album.cs">var album = new HashSet&lt;int&gt;();
+
+Console.WriteLine(album.Add(7));
+Console.WriteLine(album.Add(12));
+Console.WriteLine(album.Add(7));
+album.Add(30);
+
+Console.WriteLine($"Figurinhas diferentes: {album.Count}");
+Console.WriteLine(album.Contains(12));
+Console.WriteLine(album.Contains(99));
+
+Console.WriteLine(album.Remove(12));
+Console.WriteLine(album.Remove(12));
+Console.WriteLine($"Figurinhas diferentes: {album.Count}");
+Console.WriteLine(album);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run album.cs
+True                              « a 7 entrou
+True                              « a 12 entrou
+False                             « a 7 já estava: não entrou de novo
+Figurinhas diferentes: 3          « 7, 12 e 30
+True
+False
+True                              « tirou a 12
+False                             « a 12 já não estava lá
+Figurinhas diferentes: 2
+System.Collections.Generic.HashSet`1[System.Int32]</pre>
+
+<dl class="anatomy">
+  <dt>new HashSet&lt;int&gt;()</dt><dd>Cria um conjunto vazio de números inteiros.</dd>
+  <dt>album.Add(7)</dt><dd><em>Add</em> = acrescentar. Devolve um <code>bool</code>: <code>true</code> se o item entrou, <code>false</code> se ele já estava no conjunto. Diferente do <code>Add</code> do <a href="dictionary.html">Dictionary</a>, aqui um repetido <strong>não</strong> lança exceção.</dd>
+  <dt>album.Add(30);</dt><dd>Você pode ignorar o <code>bool</code> quando não precisa dele.</dd>
+  <dt>album.Count</dt><dd>Quantos itens <strong>diferentes</strong> o conjunto tem.</dd>
+  <dt>album.Contains(12)</dt><dd><em>Contains</em> = contém. "A 12 está no álbum?" É a pergunta que o <code>HashSet</code> responde mais rápido.</dd>
+  <dt>album.Remove(12)</dt><dd>Tira o item. Devolve <code>true</code> se ele estava lá e <code>false</code> se não estava (sem exceção).</dd>
+  <dt>Console.WriteLine(album)</dt><dd>Como o <code>Dictionary</code>, o conjunto não mostra o conteúdo: aparece só o nome do tipo. Para ver os itens, use <code>foreach</code> ou <code>string.Join</code>.</dd>
+</dl>
+
+<h3>O <code>bool</code> do <code>Add</code> trabalha para você</h3>
+<p>Como o <code>Add</code> já diz se o item é novo, você não precisa de um <code>Contains</code> antes. Este laço acha as figurinhas repetidas de um pacote numa passada só:</p>
+
+<pre class="file" data-file="pacote.cs">int[] pacote = [5, 18, 5, 40, 18, 5];
+var album = new HashSet&lt;int&gt;();
+
+foreach (int fig in pacote)
+{
+    if (!album.Add(fig))
+        Console.WriteLine($"Repetida: {fig}");
+}
+Console.WriteLine($"Coladas: {album.Count}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pacote.cs
+Repetida: 5
+Repetida: 18
+Repetida: 5
+Coladas: 3</pre>
+
+<p>Leia <code>if (!album.Add(fig))</code> como "se <strong>não</strong> deu para colar". O <code>!</code> é o "não" de <a href="operadores-logicos.html">Operadores Lógicos</a>. O <code>Add</code> sempre tenta colar; quando devolve <code>false</code>, a figurinha era repetida.</p>
+
+<h3>Criar já com itens</h3>
+<p>Dá para criar o conjunto com itens entre chaves (o inicializador) ou a partir de outra coleção. Repetidos são ignorados nas duas formas:</p>
+
+<pre class="file" data-file="criar.cs">var cores = new HashSet&lt;string&gt; { "azul", "verde", "azul" };
+int[] numeros = [3, 1, 3, 2];
+var semRepetir = new HashSet&lt;int&gt;(numeros);
+HashSet&lt;char&gt; vogais = ['a', 'e', 'i', 'o', 'u'];
+</pre>
+
+<p>A última linha usa a expressão de coleção <code>[ … ]</code> <span class="versao">C# 12</span>, que também funciona com <code>HashSet</code> quando o tipo está escrito à esquerda.</p>
+
+<hr>
+
+<h2>2. Tirar os repetidos de uma lista</h2>
+<p>A Ana anotou quem confirmou presença na festa, mas algumas pessoas confirmaram duas vezes. Quantas pessoas vêm de verdade?</p>
+
+<pre class="file" data-file="repetidos.cs">string[] convidados = ["Ana", "Bruno", "Ana", "Carla", "Bruno", "Ana"];
+
+var semRepetir = new HashSet&lt;string&gt;(convidados);
+
+Console.WriteLine($"Nomes na lista: {convidados.Length}");
+Console.WriteLine($"Pessoas diferentes: {semRepetir.Count}");
+
+foreach (string nome in semRepetir)
+{
+    Console.WriteLine(nome);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run repetidos.cs
+Nomes na lista: 6
+Pessoas diferentes: 3
+Ana
+Bruno
+Carla</pre>
+
+<p>A linha <code>new HashSet&lt;string&gt;(convidados)</code> passa todos os nomes do array para o conjunto, e os repetidos simplesmente não entram. O <code>foreach</code> percorre o conjunto como percorreria uma lista.</p>
+
+<div class="trycs" data-goal="out:Telefones diferentes: 4,exit:0,src:HashSet">
+<p class="try-task"><strong>Missão:</strong> a agenda da Ana tem telefones repetidos. O programa conta 7. Use um <code>HashSet&lt;string&gt;</code> para contar só os <strong>diferentes</strong> e mostrar <code>Telefones diferentes: 4</code>.</p>
+<pre class="script">string[] telefones = ["99001-0001", "99001-0002", "99001-0001", "99001-0003",
+                      "99001-0002", "99001-0004", "99001-0001"];
+
+Console.WriteLine($"Telefones diferentes: {telefones.Length}");
+</pre>
+<pre class="solucao">string[] telefones = ["99001-0001", "99001-0002", "99001-0001", "99001-0003",
+                      "99001-0002", "99001-0004", "99001-0001"];
+
+var diferentes = new HashSet&lt;string&gt;(telefones);
+Console.WriteLine($"Telefones diferentes: {diferentes.Count}");
+</pre>
+</div>
+
+<h3 id="ordem">A ordem de um <code>HashSet</code></h3>
+<p>Os convidados saíram na ordem em que foram anotados, mas não conte com isso. O <code>HashSet</code> não promete nenhuma ordem: ele guarda cada item no lugar que o <em>hash code</em> do item indica (uma "impressão digital" numérica; veja <a href="object.html">A Classe object</a>), e, quando um item sai, o próximo que entra pode ocupar o lugar vago:</p>
+
+<pre class="file" data-file="ordem.cs">var cores = new HashSet&lt;string&gt; { "azul", "verde", "vermelho", "amarelo" };
+Console.WriteLine(string.Join(", ", cores));
+
+cores.Remove("verde");
+cores.Add("roxo");
+Console.WriteLine(string.Join(", ", cores));
+
+var ordenado = new SortedSet&lt;string&gt;(cores);
+Console.WriteLine(string.Join(", ", ordenado));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ordem.cs
+azul, verde, vermelho, amarelo
+azul, roxo, vermelho, amarelo      « o roxo entrou por último, mas ficou no lugar do verde
+amarelo, azul, roxo, vermelho      « SortedSet: sempre em ordem</pre>
+
+<div class="warning">
+<strong>Nunca dependa da ordem de um <code>HashSet</code></strong>
+<p>Se a ordem importa, use um <code>SortedSet&lt;T&gt;</code> (que mantém os itens sempre ordenados e tem os mesmos métodos <code>Add</code>, <code>Contains</code>, <code>Remove</code>…) ou ordene na hora de mostrar, com o <code>Order()</code> do <a href="linq-ordenar.html">LINQ</a>: <code>string.Join(", ", cores.Order())</code>. O <code>SortedSet</code> é um pouco mais lento que o <code>HashSet</code>; use-o só quando precisar da ordem.</p>
+</div>
+
+<hr>
+
+<h2>3. Operações de conjunto</h2>
+<p>Lembra dos diagramas de Venn da escola, com dois círculos que se cruzam? O <code>HashSet</code> faz essas contas. A Ana e o Bruno escolheram matérias para a monitoria:</p>
+
+<pre class="syntax">  Ana:    Matemática  Física  Química
+  Bruno:              Física  Química  História</pre>
+
+<pre class="file" data-file="operacoes.cs">var ana = new HashSet&lt;string&gt; { "Matemática", "Física", "Química" };
+var bruno = new HashSet&lt;string&gt; { "Física", "História", "Química" };
+
+var juntas = new HashSet&lt;string&gt;(ana);
+juntas.UnionWith(bruno);
+Console.WriteLine($"União: {string.Join(", ", juntas.Order())}");
+
+var comum = new HashSet&lt;string&gt;(ana);
+comum.IntersectWith(bruno);
+Console.WriteLine($"Interseção: {string.Join(", ", comum.Order())}");
+
+var soAna = new HashSet&lt;string&gt;(ana);
+soAna.ExceptWith(bruno);
+Console.WriteLine($"Só a Ana: {string.Join(", ", soAna.Order())}");
+
+var soUm = new HashSet&lt;string&gt;(ana);
+soUm.SymmetricExceptWith(bruno);
+Console.WriteLine($"Só um dos dois: {string.Join(", ", soUm.Order())}");
+
+Console.WriteLine($"ana continua com {ana.Count}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run operacoes.cs
+União: Física, História, Matemática, Química
+Interseção: Física, Química
+Só a Ana: Matemática
+Só um dos dois: História, Matemática
+ana continua com 3</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>Tradução</th><th>Fica com…</th><th>Na escola</th></tr>
+<tr><td><code>a.UnionWith(b)</code></td><td>"unir com"</td><td>tudo o que está em <code>a</code> <strong>ou</strong> em <code>b</code></td><td>A ∪ B</td></tr>
+<tr><td><code>a.IntersectWith(b)</code></td><td>"cruzar com"</td><td>só o que está em <code>a</code> <strong>e</strong> em <code>b</code></td><td>A ∩ B</td></tr>
+<tr><td><code>a.ExceptWith(b)</code></td><td>"tirar o que tem em"</td><td>o que está em <code>a</code> e <strong>não</strong> está em <code>b</code></td><td>A − B</td></tr>
+<tr><td><code>a.SymmetricExceptWith(b)</code></td><td>"diferença simétrica"</td><td>o que está em <strong>um só</strong> dos dois</td><td>A Δ B</td></tr>
+</table>
+</div>
+
+<div class="warning">
+<strong>Esses métodos mudam o próprio conjunto</strong>
+<p><code>a.UnionWith(b)</code> não devolve um conjunto novo: ele <strong>altera</strong> o <code>a</code> (e devolve <code>void</code>, nada). Por isso o programa copia a Ana antes de cada conta (<code>new HashSet&lt;string&gt;(ana)</code>), e no fim o conjunto <code>ana</code> continua com 3 matérias. Se você fizer <code>ana.IntersectWith(bruno)</code> direto, perde a Matemática da Ana.</p>
+</div>
+
+<h3>Perguntas sobre dois conjuntos</h3>
+
+<pre class="file" data-file="perguntas.cs">var turma = new HashSet&lt;string&gt; { "Ana", "Bruno", "Carla", "Davi" };
+var time = new HashSet&lt;string&gt; { "Ana", "Carla" };
+var outros = new HashSet&lt;string&gt; { "Eva", "Fábio" };
+
+Console.WriteLine(time.IsSubsetOf(turma));
+Console.WriteLine(turma.IsSupersetOf(time));
+Console.WriteLine(turma.Overlaps(outros));
+Console.WriteLine(time.SetEquals(new[] { "Carla", "Ana", "Ana" }));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run perguntas.cs
+True                « todo mundo do time está na turma
+True                « a turma contém o time
+False               « a turma e os outros não têm ninguém em comum
+True                « os mesmos itens; a ordem e os repetidos não contam</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>Pergunta</th></tr>
+<tr><td><code>a.IsSubsetOf(b)</code></td><td>"Todo item de <code>a</code> está em <code>b</code>?" (subconjunto)</td></tr>
+<tr><td><code>a.IsSupersetOf(b)</code></td><td>"<code>a</code> contém todos os itens de <code>b</code>?"</td></tr>
+<tr><td><code>a.Overlaps(b)</code></td><td>"Têm pelo menos um item em comum?"</td></tr>
+<tr><td><code>a.SetEquals(b)</code></td><td>"Têm exatamente os mesmos itens?"</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>4. Maiúsculas e minúsculas</h2>
+<p>Para o <code>HashSet&lt;string&gt;</code>, <code>"CSharp"</code> e <code>"csharp"</code> são itens diferentes. Como no <code>Dictionary</code>, um <strong>comparador</strong> na criação muda isso:</p>
+
+<pre class="file" data-file="caixa.cs">var tags = new HashSet&lt;string&gt;(StringComparer.OrdinalIgnoreCase) { "CSharp", "csharp", "CSHARP", "dotnet" };
+Console.WriteLine(tags.Count);
+Console.WriteLine(tags.Contains("DotNet"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run caixa.cs
+2                « as três formas de "csharp" contaram como uma só
+True</pre>
+
+<hr>
+
+<h2 id="objetos">5. Conjuntos de objetos seus: <code>class</code> × <code>record</code></h2>
+<p>Para saber se um item "já está lá", o <code>HashSet</code> precisa comparar itens. Com números e textos, ele compara o <strong>conteúdo</strong>. Com objetos de uma <code>class</code> sua, o padrão é comparar a <strong>identidade</strong>: dois objetos criados com <code>new</code> são dois objetos diferentes, mesmo com os mesmos dados (veja <a href="valor-referencia.html">Valor × Referência</a>).</p>
+
+<pre class="file" data-file="objetos.cs">var pontosClasse = new HashSet&lt;PontoClasse&gt;();
+pontosClasse.Add(new PontoClasse { X = 1, Y = 2 });
+pontosClasse.Add(new PontoClasse { X = 1, Y = 2 });
+Console.WriteLine($"class: {pontosClasse.Count}");
+
+var pontosRecord = new HashSet&lt;PontoRecord&gt;();
+pontosRecord.Add(new PontoRecord(1, 2));
+pontosRecord.Add(new PontoRecord(1, 2));
+Console.WriteLine($"record: {pontosRecord.Count}");
+
+class PontoClasse
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+}
+
+record PontoRecord(int X, int Y);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run objetos.cs
+class: 2               « dois objetos diferentes, mesmo com X = 1 e Y = 2
+record: 1              « o record compara os dados: é o mesmo ponto</pre>
+
+<p>Um <a href="records.html">record</a> já vem com <code>Equals</code> e <code>GetHashCode</code> que comparam os dados, por isso o segundo ponto (1, 2) não entrou. Numa <code>class</code>, você teria de escrever esses dois métodos (aula <a href="object.html">A Classe object</a>). Regra prática: para guardar objetos "de dados" num <code>HashSet</code> ou usá-los como chave de um <code>Dictionary</code>, prefira <code>record</code>.</p>
+
+<hr>
+
+<h2 id="foreach">6. Mudar o conjunto dentro do <code>foreach</code></h2>
+<p>Como no <code>Dictionary</code>, você não pode <strong>acrescentar</strong> itens no conjunto que o <code>foreach</code> está percorrendo:</p>
+
+<pre class="file" data-file="foreach.cs">var album = new HashSet&lt;int&gt; { 7, 12, 30 };
+
+foreach (int fig in album)
+{
+    album.Add(fig + 100);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run foreach.cs
+Unhandled exception. System.InvalidOperationException: Collection was modified; enumeration operation may not execute.
+   at System.Collections.Generic.HashSet`1.Enumerator.MoveNext()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/foreach.cs:line 3
+$ echo $?
+134</pre>
+
+<p>"A coleção foi modificada; o percurso não pode continuar." A linha apontada é a 3, a do <code>foreach</code>: o <code>Add</code> funcionou, mas o <code>foreach</code> percebeu a mudança quando foi buscar o próximo item (<code>MoveNext</code>). Para acrescentar, junte os itens novos em outra coleção e acrescente depois do laço. E, para <strong>tirar</strong> todos os itens que cumprem uma condição, o <code>HashSet</code> tem um método pronto, o <code>RemoveWhere</code> ("remover onde"):</p>
+
+<pre class="file" data-file="removewhere.cs">var album = new HashSet&lt;int&gt; { 7, 12, 30, 41, 50 };
+int tirados = album.RemoveWhere(n =&gt; n % 2 == 0);
+Console.WriteLine($"Tirados: {tirados}");
+Console.WriteLine(string.Join(", ", album.Order()));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run removewhere.cs
+Tirados: 3
+7, 41</pre>
+
+<p>O <code>n =&gt; n % 2 == 0</code> é uma <a href="lambdas.html">lambda</a>: uma minifunção que recebe cada número <code>n</code> e diz se ele deve sair (aqui, os pares: resto 0 na divisão por 2). O <code>RemoveWhere</code> devolve quantos itens tirou.</p>
+
+<hr>
+
+<h2>Qual coleção usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Use</th></tr>
+<tr><td>Itens em ordem, com posição, repetidos permitidos</td><td><a href="list.html"><code>List&lt;T&gt;</code></a></td></tr>
+<tr><td>Itens sem repetir; perguntar "tem?" rápido; a ordem não importa</td><td><code>HashSet&lt;T&gt;</code></td></tr>
+<tr><td>Itens sem repetir, sempre em ordem</td><td><code>SortedSet&lt;T&gt;</code></td></tr>
+<tr><td>Ligar cada item a um valor (nome → nota)</td><td><a href="dictionary.html"><code>Dictionary&lt;TKey, TValue&gt;</code></a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0021: Não é possível aplicar a indexação com [] a uma expressão do tipo "HashSet&lt;int&gt;"</code></strong>
+<p><strong>O que significa:</strong> você tentou pegar um item pela posição, como numa lista (<code>album[0]</code>). Um conjunto não tem posições. Em inglês: <code>Cannot apply indexing with [] to an expression of type 'HashSet&lt;int&gt;'</code>.</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run indice.cs
+/home/ana/cs/indice.cs(2,19): error CS0021: Não é possível aplicar a indexação com [] a uma expressão do tipo "HashSet&lt;int&gt;"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>Como consertar:</strong> pergunte com <code>Contains</code>, percorra com <code>foreach</code> ou, se você precisa mesmo de posições, use uma <code>List&lt;T&gt;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>InvalidOperationException: Collection was modified; enumeration operation may not execute.</code></strong>
+<p><strong>O que significa:</strong> você acrescentou itens no conjunto enquanto um <code>foreach</code> o percorria.</p>
+<p><strong>Como consertar:</strong> guarde os itens novos em outra coleção e acrescente depois do laço (por exemplo, com <code>UnionWith</code>). Para tirar itens por uma condição, use <code>RemoveWhere</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>O conjunto aceitou dois objetos "iguais"</strong>
+<p><strong>O que significa:</strong> não há mensagem de erro: o <code>Count</code> simplesmente sai maior do que você esperava. Os itens são de uma <code>class</code> sua, que compara identidade, e não os dados (<a href="#objetos">seção 5</a>).</p>
+<p><strong>Como consertar:</strong> transforme a classe num <code>record</code>, ou escreva <code>Equals</code> e <code>GetHashCode</code> nela.</p>
+</div>
+
+<div class="cenario">
+<strong>A ordem mudou e o programa "quebrou"</strong>
+<p><strong>O que significa:</strong> o programa contava com a ordem do <code>HashSet</code>, que não é garantida e muda depois de remoções.</p>
+<p><strong>Como consertar:</strong> use <code>SortedSet&lt;T&gt;</code> ou ordene ao mostrar (<code>.Order()</code>).</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>new HashSet&lt;T&gt;()</code></td><td>Conjunto vazio</td></tr>
+<tr><td><code>new HashSet&lt;T&gt;(colecao)</code></td><td>Conjunto com os itens da coleção, sem repetidos</td></tr>
+<tr><td><code>new HashSet&lt;string&gt;(StringComparer.OrdinalIgnoreCase)</code></td><td>Textos sem diferenciar maiúsculas</td></tr>
+<tr><td><code>s.Add(x)</code></td><td>Acrescenta; <code>true</code> se entrou, <code>false</code> se já estava</td></tr>
+<tr><td><code>s.Contains(x)</code></td><td>Está no conjunto? (muito rápido)</td></tr>
+<tr><td><code>s.Remove(x)</code></td><td>Tira; <code>true</code> se estava lá</td></tr>
+<tr><td><code>s.RemoveWhere(x =&gt; …)</code></td><td>Tira todos os que cumprem a condição; devolve quantos</td></tr>
+<tr><td><code>s.Count</code> / <code>s.Clear()</code></td><td>Quantos itens / tira todos</td></tr>
+<tr><td><code>a.UnionWith(b)</code></td><td><code>a</code> passa a ter também os itens de <code>b</code></td></tr>
+<tr><td><code>a.IntersectWith(b)</code></td><td><code>a</code> fica só com os itens que estão nos dois</td></tr>
+<tr><td><code>a.ExceptWith(b)</code></td><td><code>a</code> perde os itens que estão em <code>b</code></td></tr>
+<tr><td><code>a.SymmetricExceptWith(b)</code></td><td><code>a</code> fica com o que está em um só dos dois</td></tr>
+<tr><td><code>a.IsSubsetOf(b)</code>, <code>IsSupersetOf</code>, <code>Overlaps</code>, <code>SetEquals</code></td><td>Perguntas de conjunto; devolvem <code>bool</code></td></tr>
+<tr><td><code>SortedSet&lt;T&gt;</code></td><td>Conjunto sempre ordenado</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Perguntar</h3>
+<p>Complete para perguntar se a figurinha 40 está no álbum:</p>
+<div class="ex-code">if (album.<input data-answer="Contains" aria-label="método">(40))</div>
+</div>
+
+<div class="exercise">
+<h3>2. Só o que falta</h3>
+<p>Complete para que <code>faltam</code> fique só com as figurinhas que <strong>não</strong> estão em <code>tenho</code>:</p>
+<div class="ex-code">faltam.<input data-answer="ExceptWith" aria-label="método">(tenho);</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">3. O conjunto <code>s</code> já tem o 7. O que <code>s.Add(7)</code> faz?</p>
+<label><input type="radio" name="q3"> Lança uma exceção, como o <code>Add</code> do <code>Dictionary</code></label>
+<label><input type="radio" name="q3"> Não muda nada e devolve <code>false</code></label>
+<label><input type="radio" name="q3"> Acrescenta um segundo 7 e devolve <code>true</code></label>
+<label><input type="radio" name="q3"> Não compila</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Com <code>var a = new HashSet&lt;int&gt; { 1, 2, 3 };</code> e <code>a.IntersectWith(new[] { 2, 3, 4 });</code>, quanto vale <code>a.Count</code>?</p>
+<label><input type="radio" name="q4"> 4</label>
+<label><input type="radio" name="q4"> 3, porque o <code>IntersectWith</code> devolve um conjunto novo e não muda o <code>a</code></label>
+<label><input type="radio" name="q4"> 2</label>
+<label><input type="radio" name="q4"> 1</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. Você guardou dois objetos <code>new Aluno { Nome = "Ana" }</code> (uma <code>class</code> sem <code>Equals</code>) num <code>HashSet&lt;Aluno&gt;</code>. Quanto vale o <code>Count</code>?</p>
+<label><input type="radio" name="q5"> 2: são dois objetos diferentes</label>
+<label><input type="radio" name="q5"> 1: os dados são iguais</label>
+<label><input type="radio" name="q5"> 0</label>
+<label><input type="radio" name="q5"> Dá <code>InvalidOperationException</code></label>
+</div>
+
+<h3>Missão final: troca de figurinhas</h3>
+
+<div class="trycs" data-goal="out:Bruno pode dar: 3\, 8,out:Os dois têm: 2\, 5\, 9,out:A Ana continua com 5,exit:0,src:ExceptWith,src:IntersectWith">
+<p class="try-task"><strong>Missão:</strong> a Ana e o Bruno vão trocar figurinhas. Usando <strong>cópias</strong> dos conjuntos (para não estragar os originais), calcule com <code>ExceptWith</code> as figurinhas que o Bruno tem e a Ana não tem, e com <code>IntersectWith</code> as que os dois têm. Mostre cada resultado em ordem crescente com <code>string.Join(", ", conjunto.Order())</code>. No fim, mostre que a Ana continua com 5 figurinhas.</p>
+<pre class="out">Bruno pode dar: 3, 8
+Os dois têm: 2, 5, 9
+A Ana continua com 5</pre>
+<pre class="script">var ana = new HashSet&lt;int&gt; { 1, 2, 4, 5, 9 };
+var bruno = new HashSet&lt;int&gt; { 2, 3, 5, 8, 9 };
+
+// 1. copie o conjunto do Bruno e tire o que a Ana já tem
+
+// 2. copie o conjunto da Ana e fique só com o que o Bruno também tem
+
+Console.WriteLine($"A Ana continua com {ana.Count}");
+</pre>
+<pre class="solucao">var ana = new HashSet&lt;int&gt; { 1, 2, 4, 5, 9 };
+var bruno = new HashSet&lt;int&gt; { 2, 3, 5, 8, 9 };
+
+var podeDar = new HashSet&lt;int&gt;(bruno);
+podeDar.ExceptWith(ana);
+Console.WriteLine($"Bruno pode dar: {string.Join(", ", podeDar.Order())}");
+
+var emComum = new HashSet&lt;int&gt;(ana);
+emComum.IntersectWith(bruno);
+Console.WriteLine($"Os dois têm: {string.Join(", ", emComum.Order())}");
+
+Console.WriteLine($"A Ana continua com {ana.Count}");
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um <code>HashSet&lt;T&gt;</code> é um conjunto: <strong>sem repetidos</strong>, <strong>sem posições</strong> e com um <code>Contains</code> muito rápido.</li>
+  <li><code>Add</code> devolve <code>true</code> se o item entrou e <code>false</code> se ele já estava (sem exceção). <code>Remove</code> devolve se tirou.</li>
+  <li><code>new HashSet&lt;T&gt;(lista)</code> tira os repetidos de uma lista em uma linha.</li>
+  <li>A ordem não é garantida (muda depois de remoções). Para ordem, use <code>SortedSet&lt;T&gt;</code> ou <code>.Order()</code> ao mostrar.</li>
+  <li><code>UnionWith</code>, <code>IntersectWith</code>, <code>ExceptWith</code> e <code>SymmetricExceptWith</code> <strong>mudam</strong> o conjunto: copie antes se precisar do original.</li>
+  <li>Objetos de uma <code>class</code> são comparados pela identidade; os de um <code>record</code>, pelos dados.</li>
+  <li><code>conjunto[0]</code> dá <code>CS0021</code>; acrescentar dentro do <code>foreach</code> dá <code>InvalidOperationException</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
