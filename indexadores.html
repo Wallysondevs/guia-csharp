@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Indexadores — this[int], this[string] e colchetes nas suas classes | Guia C#</title>
+<meta name="description" content="Indexadores em C# para iniciantes: criar this[int] com get, set e value, indexar por texto como um Dictionary, indexadores sobrecarregados e com dois índices, somente leitura, ^1 automático e intervalos com Slice, com os erros CS0021, CS0200 e CS1503 reais e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Indexadores</span></h1>
+
+<p class="intro">Com um array, você escreve <code>notas[2]</code>. Com uma <code>List</code>, <code>nomes[0]</code>. Com um <code>Dictionary</code>, <code>telefones["Ana"]</code>. Esses colchetes não são mágica dos tipos do .NET: qualquer classe ou struct sua pode aceitá-los. O recurso se chama <strong>indexador</strong> (em inglês, <em>indexer</em>), e é uma espécie de propriedade que recebe um <strong>índice</strong> entre colchetes.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como declarar um indexador com <code>this[int posicao]</code>, <code>get</code>, <code>set</code> e <code>value</code>, e o que o erro <code>CS0021</code> quer dizer.</li>
+  <li>Indexar por texto (<code>agenda["Ana"]</code>), ter vários indexadores na mesma classe e um indexador só de leitura (<code>CS0200</code>).</li>
+  <li>Indexadores com dois índices, como um tabuleiro: <code>t[1, 2]</code>.</li>
+  <li>Validar o índice e o valor dentro do indexador.</li>
+  <li>Como o seu indexador ganha o <code>[^1]</code> de graça, e o que falta para aceitar <code>[1..3]</code>.</li>
+</ul>
+</div>
+
+<p>Esta aula usa <a href="propriedades.html">propriedades (get e set)</a>, <a href="arrays.html">arrays</a>, <a href="dictionary.html">Dictionary</a> e <a href="indices-intervalos.html">índices e intervalos</a>. Os exemplos rodaram com <code>dotnet run</code> no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código</h2>
+<p>Pense numa <strong>prateleira</strong> do mercadinho da Ana, com espaços numerados. "Me dá o que está no espaço 1" e "coloque café no espaço 2" são os dois pedidos que se fazem a ela. Um array faz isso: <code>prateleira[1]</code> lê, <code>prateleira[2] = "café"</code> grava.</p>
+<p>Agora imagine que a Ana quer uma prateleira <strong>esperta</strong>: que recuse produtos vencidos, ou que diga "(vazio)" em vez de <code>null</code>. Ela cria uma classe <code>Prateleira</code>, guarda um array <strong>escondido</strong> lá dentro e oferece os mesmos colchetes por fora. Quem usa a classe continua escrevendo <code>p[1]</code>; quem decide o que acontece é o indexador.</p>
+
+<hr>
+
+<h2>1. O primeiro indexador</h2>
+
+<pre class="file" data-file="prateleira.cs">Prateleira p = new();
+p[0] = "arroz";
+p[1] = "feijão";
+p[2] = "café";
+
+Console.WriteLine(p[1]);
+Console.WriteLine($"Primeira: {p[0]}, última: {p[^1]}");
+p[5] = "açúcar";
+
+class Prateleira
+{
+    private readonly string[] _itens = new string[3];
+
+    public int Length =&gt; _itens.Length;
+
+    public string this[int posicao]
+    {
+        get =&gt; _itens[posicao];
+        set =&gt; _itens[posicao] = value;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run prateleira.cs
+feijão
+Primeira: arroz, última: café
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Prateleira.set_Item(Int32 posicao, String value) in /home/ana/cs/prateleira.cs:line 19
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/prateleira.cs:line 8</pre>
+
+<dl class="anatomy">
+  <dt>public string</dt><dd>Quem pode usar e o <strong>tipo do valor</strong> que sai e entra pelos colchetes: aqui, textos.</dd>
+  <dt>this</dt><dd>No lugar do nome de uma propriedade, a palavra <code>this</code> ("este objeto"). Quer dizer: "os colchetes ficam direto no objeto", <code>p[…]</code>.</dd>
+  <dt>[int posicao]</dt><dd>O <strong>índice</strong>: o que vai dentro dos colchetes. Aqui, um <code>int</code> chamado <code>posicao</code>.</dd>
+  <dt>get =&gt; _itens[posicao];</dt><dd>O que acontece numa <strong>leitura</strong>, como <code>p[1]</code>: devolve o item do array escondido.</dd>
+  <dt>set =&gt; _itens[posicao] = value;</dt><dd>O que acontece numa <strong>gravação</strong>, como <code>p[0] = "arroz"</code>. A palavra <code>value</code> ("valor") é o que veio à direita do <code>=</code>, como no <code>set</code> de uma <a href="propriedades.html">propriedade</a>.</dd>
+</dl>
+
+<p>Três coisas para reparar na saída:</p>
+<ul>
+  <li><code>p[^1]</code> funcionou, e você não escreveu nada para isso. Como a classe tem uma propriedade <code>Length</code> e um indexador de <code>int</code>, o C# traduz <code>p[^1]</code> para <code>p[p.Length - 1]</code> sozinho (o mesmo vale com uma propriedade <code>Count</code>).</li>
+  <li><code>p[5]</code> não existe (a prateleira tem 3 espaços), e quem reclamou foi o array de dentro, com a <code>IndexOutOfRangeException</code> de sempre, código de saída 134.</li>
+  <li>No rastro da exceção aparece <code>set_Item</code>: por dentro, o .NET chama o indexador de <code>Item</code>, e o <code>set</code> vira um método <code>set_Item</code>. Ver esse nome num erro significa "foi no <code>set</code> de um indexador".</li>
+</ul>
+
+<div class="tip">
+<strong>Indexador × método</strong>
+<p>O indexador é só uma forma mais bonita de escrever dois métodos: <code>p[1]</code> é como <code>p.Pegar(1)</code>, e <code>p[0] = "arroz"</code> é como <code>p.Colocar(0, "arroz")</code>. Use o indexador quando o seu tipo <strong>é uma coleção</strong> de alguma coisa (prateleira, boletim, tabuleiro, agenda) e os colchetes ficam naturais para quem lê.</p>
+</div>
+
+<div class="trycs" data-goal="out:1º bimestre: 8\,5,out:4º bimestre: 7\,5,out:Média: 7\,75,src:this\s*\[\s*int">
+<p class="try-task"><strong>Missão:</strong> o <code>Boletim</code> guarda as 4 notas num array escondido. Escreva o indexador <code>public double this[int bimestre]</code>, com <code>get</code> e <code>set</code>, e tire os <code>//</code> do começo do programa.</p>
+<pre class="script">Boletim b = new();
+// b[0] = 8.5;
+// b[1] = 6.0;
+// b[2] = 9.0;
+// b[3] = 7.5;
+//
+// for (int i = 0; i &lt; 4; i++)
+// {
+//     Console.WriteLine($"{i + 1}º bimestre: {b[i]}");
+// }
+Console.WriteLine($"Média: {b.Media()}");
+
+class Boletim
+{
+    private readonly double[] _notas = new double[4];
+
+    // escreva o indexador aqui
+
+    public double Media() =&gt; _notas.Average();
+}
+</pre>
+<pre class="solucao">Boletim b = new();
+b[0] = 8.5;
+b[1] = 6.0;
+b[2] = 9.0;
+b[3] = 7.5;
+
+for (int i = 0; i &lt; 4; i++)
+{
+    Console.WriteLine($"{i + 1}º bimestre: {b[i]}");
+}
+Console.WriteLine($"Média: {b.Media()}");
+
+class Boletim
+{
+    private readonly double[] _notas = new double[4];
+
+    public double this[int bimestre]
+    {
+        get =&gt; _notas[bimestre];
+        set =&gt; _notas[bimestre] = value;
+    }
+
+    public double Media() =&gt; _notas.Average();
+}
+</pre>
+</div>
+
+<p>A solução, na máquina da Ana:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run boletim.cs
+1º bimestre: 8,5
+2º bimestre: 6
+3º bimestre: 9
+4º bimestre: 7,5
+Média: 7,75</pre>
+
+<hr>
+
+<h2>2. Índice de texto, vários indexadores e só leitura</h2>
+<p>O índice não precisa ser um número. Um <code>Dictionary</code> usa a <strong>chave</strong> como índice, e a sua classe também pode. A <code>Agenda</code> abaixo tem <strong>dois</strong> indexadores: um por nome, para ler e gravar telefones, e um por posição, só para ler quem foi cadastrado primeiro.</p>
+
+<pre class="file" data-file="agenda.cs">Agenda agenda = new();
+agenda["Ana"] = "(81) 99999-0001";
+agenda["Bruno"] = "(81) 98888-0002";
+
+Console.WriteLine(agenda["Ana"]);
+Console.WriteLine(agenda["Carla"]);
+agenda["Ana"] = "(81) 97777-0003";
+Console.WriteLine(agenda["Ana"]);
+Console.WriteLine(agenda[0]);
+Console.WriteLine($"{agenda.Quantidade} contatos");
+
+class Agenda
+{
+    private readonly Dictionary&lt;string, string&gt; _telefones = [];
+    private readonly List&lt;string&gt; _ordem = [];
+
+    public int Quantidade =&gt; _ordem.Count;
+
+    public string this[string nome]
+    {
+        get =&gt; _telefones.TryGetValue(nome, out var tel) ? tel : "(sem telefone)";
+        set
+        {
+            if (!_telefones.ContainsKey(nome)) _ordem.Add(nome);
+            _telefones[nome] = value;
+        }
+    }
+
+    public string this[int posicao] =&gt; _ordem[posicao];
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run agenda.cs
+(81) 99999-0001
+(sem telefone)
+(81) 97777-0003
+Ana
+2 contatos</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Trecho</th><th>O que faz</th></tr>
+<tr><td><code>this[string nome]</code></td><td>Índice de texto: <code>agenda["Ana"]</code>.</td></tr>
+<tr><td><code>get =&gt; _telefones.TryGetValue(…) ? tel : "(sem telefone)"</code></td><td>A leitura de um nome que não existe <strong>não</strong> quebra: devolve um texto padrão. Com um <code>Dictionary</code> puro, <code>telefones["Carla"]</code> lançaria <code>KeyNotFoundException</code>. Quem escreve o indexador decide.</td></tr>
+<tr><td><code>set { … }</code> com chaves</td><td>Um <code>set</code> com várias linhas: anota o nome na lista de ordem (só se for novo) e grava o telefone.</td></tr>
+<tr><td><code>this[int posicao] =&gt; _ordem[posicao];</code></td><td>Um <strong>segundo</strong> indexador, de <code>int</code>. Com <code>=&gt;</code> direto (sem <code>get</code>/<code>set</code>), ele é <strong>só de leitura</strong>.</td></tr>
+</table>
+</div>
+
+<p>Ter dois indexadores com índices de tipos diferentes é uma <a href="sobrecarga.html">sobrecarga</a>, como acontece com métodos: o compilador escolhe pelo tipo do que está entre os colchetes. <code>agenda["Ana"]</code> vai para o de <code>string</code>, <code>agenda[0]</code> vai para o de <code>int</code>. E como o de <code>int</code> não tem <code>set</code>, <code>agenda[0] = "Zé"</code> não compila (<code>CS0200</code>, em "Quando dá errado").</p>
+
+<hr>
+
+<h2>3. Dois índices: um tabuleiro</h2>
+<p>Um indexador pode receber <strong>mais de um</strong> índice, separados por vírgula, como um <a href="arrays-multidimensionais.html">array multidimensional</a>. O jogo da velha da Ana fica assim:</p>
+
+<pre class="file" data-file="velha.cs">Tabuleiro t = new();
+t[0, 0] = 'X';
+t[1, 1] = 'O';
+t[2, 2] = 'X';
+t.Mostrar();
+Console.WriteLine(t[1, 1]);
+
+class Tabuleiro
+{
+    private readonly char[,] _casas = new char[3, 3];
+
+    public char this[int linha, int coluna]
+    {
+        get =&gt; _casas[linha, coluna] == '\0' ? '.' : _casas[linha, coluna];
+        set
+        {
+            if (value is not ('X' or 'O'))
+                throw new ArgumentException($"Só X ou O, não '{value}'.");
+            _casas[linha, coluna] = value;
+        }
+    }
+
+    public void Mostrar()
+    {
+        for (int l = 0; l &lt; 3; l++)
+        {
+            Console.WriteLine($"{this[l, 0]} {this[l, 1]} {this[l, 2]}");
+        }
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run velha.cs
+X . .
+. O .
+. . X
+O</pre>
+
+<dl class="anatomy">
+  <dt>this[int linha, int coluna]</dt><dd>Dois índices. Quem usa escreve <code>t[1, 1]</code>.</dd>
+  <dt>_casas[linha, coluna] == '\0' ? '.' : …</dt><dd>Uma casa nunca preenchida guarda o caractere nulo <code>'\0'</code> (o valor padrão de <code>char</code>). O <code>get</code> mostra um ponto no lugar, para o tabuleiro ficar legível.</dd>
+  <dt>value is not ('X' or 'O')</dt><dd>O <code>set</code> <strong>valida</strong> o valor com um <a href="pattern-matching.html">padrão</a>: só aceita X ou O. Qualquer outra coisa lança uma exceção.</dd>
+  <dt>this[l, 0]</dt><dd>Dentro da própria classe, o indexador é usado com <code>this[…]</code>.</dd>
+</dl>
+
+<p>Se alguém tentar <code>t[0, 0] = 'Z';</code>, a validação entra em ação:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run velha2.cs
+Unhandled exception. System.ArgumentException: Só X ou O, não 'Z'.
+   at Tabuleiro.set_Item(Int32 linha, Int32 coluna, Char value) in /home/ana/cs/velha2.cs:line 12
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/velha2.cs:line 2</pre>
+
+<p>Esse é o grande ganho em relação a deixar o array <code>public</code>: o tabuleiro <strong>nunca</strong> fica num estado inválido, porque toda gravação passa pelo <code>set</code>. É o <a href="encapsulamento.html">encapsulamento</a> trabalhando.</p>
+
+<hr>
+
+<h2>4. <code>[^1]</code> de graça e <code>[1..3]</code> com <code>Slice</code> <span class="versao">C# 8</span></h2>
+<p>Você viu na seção 1 que <code>p[^1]</code> funcionou sem nenhum código extra. A regra do C# é:</p>
+<ul>
+  <li><strong>Índice do fim</strong> (<code>^1</code>, <code>^2</code>…): funciona se o tipo tem um indexador de <code>int</code> e uma propriedade <code>Length</code> ou <code>Count</code>. O C# troca <code>x[^1]</code> por <code>x[x.Length - 1]</code>.</li>
+  <li><strong>Intervalo</strong> (<code>1..3</code>): funciona se o tipo tem <code>Length</code> ou <code>Count</code> e um método <code>Slice(int inicio, int quantos)</code> (fatia). O C# troca <code>x[1..3]</code> por <code>x.Slice(1, 2)</code>.</li>
+</ul>
+
+<pre class="file" data-file="fatia.cs">Prateleira p = new(["arroz", "feijão", "café", "sal"]);
+Console.WriteLine(string.Join(", ", p[1..3]));
+class Prateleira(string[] itens)
+{
+    public int Length =&gt; itens.Length;
+    public string this[int i] =&gt; itens[i];
+    public string[] Slice(int inicio, int quantos) =&gt; itens[inicio..(inicio + quantos)];
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fatia.cs
+feijão, café</pre>
+
+<p><code>p[1..3]</code> pegou os itens das posições 1 e 2 (o fim do intervalo fica de fora, como você viu em <a href="indices-intervalos.html">Índices e Intervalos</a>). A <code>Prateleira</code> aqui usa um <a href="construtores.html">construtor primário</a>: o <code>(string[] itens)</code> logo depois do nome da classe.</p>
+
+<hr>
+
+<h2>Qual usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Use</th></tr>
+<tr><td>Que o seu tipo, que guarda vários itens, seja lido por posição</td><td><code>public T this[int i] { get; set; }</code></td></tr>
+<tr><td>Busca por nome ou código</td><td><code>this[string chave]</code> (por dentro, um <code>Dictionary</code>)</td></tr>
+<tr><td>Que de fora só se possa ler</td><td>Indexador só com <code>get</code> (ou <code>=&gt;</code>)</td></tr>
+<tr><td>Uma grade (tabuleiro, planilha, mapa)</td><td><code>this[int linha, int coluna]</code></td></tr>
+<tr><td>Aceitar <code>[^1]</code></td><td>Indexador de <code>int</code> + <code>Length</code> ou <code>Count</code></td></tr>
+<tr><td>Aceitar <code>[1..3]</code></td><td>+ um método <code>Slice(int inicio, int quantos)</code></td></tr>
+<tr><td>Uma operação com nome claro (<code>Buscar</code>, <code>Remover</code>)</td><td>Um método comum, não um indexador</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<h3>Colchetes num tipo que não tem indexador</h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="semidx.cs">Caixa c = new();
+Console.WriteLine(c[0]);
+class Caixa
+{
+    public string Nome = "lápis";
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run semidx.cs
+/home/ana/cs/semidx.cs(2,19): error CS0021: Não é possível aplicar a indexação com [] a uma expressão do tipo "Caixa"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> "não dá para usar colchetes com <code>Caixa</code>" (<em>Cannot apply indexing with [] to an expression of type 'Caixa'</em>). <strong>Como consertar:</strong> se a <code>Caixa</code> guarda vários itens, escreva um <code>public string this[int i]</code>. Se não guarda, você provavelmente queria uma propriedade: <code>c.Nome</code>.</p>
+</div>
+
+<div class="cenario">
+<h3>Gravar num indexador só de leitura</h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="leitura.cs">Agenda a = new();
+a[0] = "Ana";
+class Agenda
+{
+    private readonly List&lt;string&gt; _nomes = ["Bruno"];
+    public string this[int posicao] =&gt; _nomes[posicao];
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run leitura.cs
+/home/ana/cs/leitura.cs(2,1): error CS0200: A propriedade ou o indexador "Agenda.this[int]" não pode ser atribuído, pois é somente leitura
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> o indexador só tem <code>get</code> (o <code>=&gt;</code> direto é um <code>get</code>). <strong>Como consertar:</strong> se a gravação deve mesmo ser permitida, troque por <code>{ get =&gt; …; set =&gt; …; }</code>. Se não deve, o erro está no programa que tentou gravar.</p>
+</div>
+
+<div class="cenario">
+<h3>Índice do tipo errado</h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="tipoerr.cs">Agenda a = new();
+Console.WriteLine(a["Ana"]);
+class Agenda
+{
+    private readonly List&lt;string&gt; _nomes = ["Bruno"];
+    public string this[int posicao] =&gt; _nomes[posicao];
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run tipoerr.cs
+/home/ana/cs/tipoerr.cs(2,21): error CS1503: Argumento 1: não é possível converter de "string" para "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> o único indexador recebe <code>int</code>, e você passou um texto. O "Argumento 1" é o primeiro índice entre os colchetes. <strong>Como consertar:</strong> passe um número (<code>a[0]</code>) ou acrescente um segundo indexador, <code>this[string nome]</code>, como na <code>Agenda</code> da seção 2.</p>
+</div>
+
+<div class="cenario">
+<h3><code>IndexOutOfRangeException</code> vinda de dentro do indexador</h3>
+<p>Foi o que aconteceu com <code>p[5]</code> na seção 1: o rastro mostra <code>at Prateleira.set_Item(…)</code>. <strong>O que quer dizer:</strong> o índice chegou ao array de dentro sem ser conferido. <strong>Como consertar:</strong> confira no próprio indexador e lance uma exceção que explique o problema, por exemplo <code>ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(posicao, _itens.Length);</code>, ou devolva um valor padrão no <code>get</code>, como a <code>Agenda</code> faz com <code>"(sem telefone)"</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Exemplo</th></tr>
+<tr><td>Leitura e gravação</td><td><code>public T this[int i] { get =&gt; _a[i]; set =&gt; _a[i] = value; }</code></td></tr>
+<tr><td>Só leitura</td><td><code>public T this[int i] =&gt; _a[i];</code></td></tr>
+<tr><td>Índice de texto</td><td><code>public T this[string chave] { get; set; }</code></td></tr>
+<tr><td>Vários índices</td><td><code>public T this[int linha, int coluna] { … }</code></td></tr>
+<tr><td>Vários indexadores</td><td><code>this[int]</code> e <code>this[string]</code> na mesma classe</td></tr>
+<tr><td>Usar dentro da classe</td><td><code>this[0]</code></td></tr>
+<tr><td>Índice do fim automático</td><td>Indexador de <code>int</code> + <code>Length</code>/<code>Count</code> → <code>x[^1]</code></td></tr>
+<tr><td>Intervalo</td><td>+ <code>Slice(int inicio, int quantos)</code> → <code>x[1..3]</code></td></tr>
+<tr><td>Nome por dentro</td><td><code>Item</code> (<code>get_Item</code>, <code>set_Item</code> nos rastros de exceção)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<p>1. Complete a declaração do indexador:</p>
+<div class="ex-code">public string <input data-answer="this">[int posicao]</div>
+</div>
+
+<div class="exercise">
+<p>2. Dentro do <code>set</code>, qual palavra guarda o valor que veio à direita do <code>=</code>?</p>
+<div class="ex-code">set =&gt; _itens[posicao] = <input data-answer="value">;</div>
+</div>
+
+<div class="exercise">
+<p>3. Qual propriedade, junto com um indexador de <code>int</code>, faz <code>x[^1]</code> funcionar? (uma delas)</p>
+<div class="ex-code">Resposta: <input data-answer="Length|Count"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. A classe tem só <code>public string this[int i] =&gt; _nomes[i];</code>. O que acontece com <code>x[0] = "Ana";</code>?</p>
+<label><input type="radio" name="q4"> Funciona e troca o nome.</label>
+<label><input type="radio" name="q4"> Não compila: <code>CS0200</code>, o indexador é somente leitura.</label>
+<label><input type="radio" name="q4"> Compila, mas lança exceção ao rodar.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. Uma classe pode ter <code>this[int i]</code> e <code>this[string nome]</code> ao mesmo tempo?</p>
+<label><input type="radio" name="q5"> Sim: é uma sobrecarga, e o compilador escolhe pelo tipo do índice.</label>
+<label><input type="radio" name="q5"> Não: só um indexador por classe.</label>
+<label><input type="radio" name="q5"> Só se um deles for <code>static</code>.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">6. Por que vale mais a pena um indexador com validação do que deixar o array <code>public</code>?</p>
+<label><input type="radio" name="q6"> Porque o indexador é mais rápido que o array.</label>
+<label><input type="radio" name="q6"> Porque arrays públicos não compilam.</label>
+<label><input type="radio" name="q6"> Porque toda gravação passa pelo <code>set</code>, que pode recusar valores inválidos.</label>
+</div>
+
+<div class="trycs" data-goal="out:caneta: 15,out:caderno: 2,out:lápis: 0,src:this\s*\[\s*string">
+<p class="try-task"><strong>Missão final:</strong> o <code>Estoque</code> guarda quantidades por nome de produto. Escreva o indexador <code>public int this[string produto]</code>: o <code>get</code> devolve a quantidade, ou <code>0</code> se o produto não existe (dica: <code>_quantidades.GetValueOrDefault(produto)</code>), e o <code>set</code> grava no dicionário. Repare que <code>estoque["caneta"] += 10</code> e <code>estoque["caderno"]--</code> usam o <code>get</code> e o <code>set</code> juntos.</p>
+<pre class="script">Estoque estoque = new();
+// estoque["caneta"] = 5;
+// estoque["caneta"] += 10;
+// estoque["caderno"] = 3;
+// estoque["caderno"]--;
+//
+// Console.WriteLine($"caneta: {estoque["caneta"]}");
+// Console.WriteLine($"caderno: {estoque["caderno"]}");
+// Console.WriteLine($"lápis: {estoque["lápis"]}");
+
+class Estoque
+{
+    private readonly Dictionary&lt;string, int&gt; _quantidades = [];
+
+    // escreva o indexador aqui
+}
+</pre>
+<pre class="solucao">Estoque estoque = new();
+estoque["caneta"] = 5;
+estoque["caneta"] += 10;
+estoque["caderno"] = 3;
+estoque["caderno"]--;
+
+Console.WriteLine($"caneta: {estoque["caneta"]}");
+Console.WriteLine($"caderno: {estoque["caderno"]}");
+Console.WriteLine($"lápis: {estoque["lápis"]}");
+
+class Estoque
+{
+    private readonly Dictionary&lt;string, int&gt; _quantidades = [];
+
+    public int this[string produto]
+    {
+        get =&gt; _quantidades.GetValueOrDefault(produto);
+        set =&gt; _quantidades[produto] = value;
+    }
+}
+</pre>
+</div>
+
+<p>A solução, na máquina da Ana. O lápis nunca foi cadastrado, e o <code>get</code> devolveu 0 em vez de quebrar:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run estoque.cs
+caneta: 15
+caderno: 2
+lápis: 0</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um <strong>indexador</strong> dá colchetes à sua classe: <code>public T this[int i] { get =&gt; …; set =&gt; … value …; }</code>. Sem ele, <code>x[0]</code> dá <code>CS0021</code>.</li>
+  <li>O índice pode ser de qualquer tipo (<code>this[string nome]</code>), pode haver vários indexadores na mesma classe (escolhidos pelo tipo do índice; tipo errado dá <code>CS1503</code>) e vários índices no mesmo (<code>this[int l, int c]</code>).</li>
+  <li>Sem <code>set</code>, o indexador é só de leitura (gravar dá <code>CS0200</code>).</li>
+  <li>O <code>get</code> e o <code>set</code> são o lugar de validar índices e valores; assim o objeto nunca fica inválido. Por dentro, o indexador se chama <code>Item</code> (<code>set_Item</code> nos rastros).</li>
+  <li>Indexador de <code>int</code> + <code>Length</code>/<code>Count</code> dá <code>x[^1]</code> de graça; com um <code>Slice(inicio, quantos)</code>, também <code>x[1..3]</code>.</li>
+</ul>
+
+<p>Próxima aula: <a href="atributos.html">Atributos</a>, as etiquetas entre colchetes que você coloca <strong>em cima</strong> do código, como <code>[Obsolete]</code>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
