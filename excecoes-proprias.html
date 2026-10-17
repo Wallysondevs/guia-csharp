@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Exceções Próprias — criar a sua classe de exceção | Guia C#</title>
+<meta name="description" content="Como criar exceções próprias em C#: herdar de Exception, o nome terminado em Exception, passar a mensagem para base, guardar dados extras em propriedades, os três construtores, uma família de exceções do programa e os erros CS0029, CS0155, CS1729 e CS8864, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Exceções Próprias</span></h1>
+
+<p class="intro">O .NET tem exceções para os problemas de qualquer programa: argumento inválido, arquivo que não existe, divisão por zero. Mas a lojinha da Ana tem problemas que só ela tem: "o estoque não dá para este pedido", "este produto não está cadastrado". Nesta aula você vai criar <strong>as suas próprias classes de exceção</strong>, com nome, mensagem e dados que fazem sentido no seu programa, e organizar várias delas numa família.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Criar uma exceção: uma classe que herda de <code>Exception</code> e passa a mensagem para <code>base</code>.</li>
+  <li>As regras de nome e de herança que todo programador C# segue.</li>
+  <li>Guardar dados extras (o produto, a quantidade) em propriedades da exceção.</li>
+  <li>Os três construtores de costume, inclusive o que recebe a <code>InnerException</code>.</li>
+  <li>Montar uma família: uma exceção mãe do programa e as filhas, capturadas juntas.</li>
+  <li>Quando vale a pena criar uma exceção, e quando uma do .NET basta.</li>
+  <li>Os erros <code>CS0029</code>, <code>CS0155</code>, <code>CS1729</code> e <code>CS8864</code>.</li>
+</ul>
+</div>
+
+<p>Esta aula usa <a href="heranca.html">herança</a> (<code>: Exception</code>), <a href="construtores.html">construtores</a> e <a href="base.html">base</a>. Todos os programas rodaram na máquina da Ana, com o .NET 10 (C# 14), usando <code>dotnet run arquivo.cs</code> na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código</h2>
+<p>Num hospital, "deu um problema" não ajuda ninguém. Os avisos têm nome: "código azul", "código vermelho". Cada nome diz <strong>o que</strong> aconteceu e chama <strong>a equipe certa</strong>. Quem é da cardiologia corre para o código azul e ignora os outros.</p>
+<p>Uma exceção própria é um aviso com nome. Em vez de lançar uma <code>InvalidOperationException</code> genérica para "estoque insuficiente", a lojinha lança uma <code>EstoqueInsuficienteException</code>. Quem chama pode capturar exatamente esse problema com <code>catch (EstoqueInsuficienteException)</code>, sem pegar sem querer os outros.</p>
+
+<hr>
+
+<h2>1. A menor exceção possível</h2>
+<p>Uma exceção é uma <a href="classes-objetos.html">classe</a> como outra qualquer, com uma exigência: ela tem de ser da família <code>Exception</code>.</p>
+
+<pre class="file" data-file="propria.cs">Vender("caderno", 5, 2);
+
+void Vender(string produto, int pedido, int emEstoque)
+{
+    if (pedido &gt; emEstoque)
+    {
+        throw new EstoqueInsuficienteException($"Pedido de {pedido} {produto}(s), mas só há {emEstoque}.");
+    }
+    Console.WriteLine("Vendido!");
+}
+
+class EstoqueInsuficienteException : Exception
+{
+    public EstoqueInsuficienteException(string mensagem) : base(mensagem)
+    {
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run propria.cs
+Unhandled exception. EstoqueInsuficienteException: Pedido de 5 caderno(s), mas só há 2.
+   at Program.&lt;&lt;Main&gt;$&gt;g__Vender|0_0(String produto, Int32 pedido, Int32 emEstoque) in /home/ana/cs/propria.cs:line 7
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/propria.cs:line 1
+$ echo $?
+134</pre>
+
+<dl class="anatomy">
+  <dt>class EstoqueInsuficienteException</dt><dd>O nome da exceção. Por convenção, <strong>sempre termina em <code>Exception</code></strong>. O compilador não obriga, mas todo mundo espera.</dd>
+  <dt>: Exception</dt><dd>Herda de <code>Exception</code>. É isso que permite usar a classe com <code>throw</code> e <code>catch</code>, e que dá a ela, de graça, a <code>Message</code>, o stack trace, a <code>InnerException</code>…</dd>
+  <dt>public EstoqueInsuficienteException(string mensagem)</dt><dd>Um construtor que recebe a mensagem.</dd>
+  <dt>: base(mensagem)</dt><dd>Repassa a mensagem para o construtor da classe mãe, <code>Exception</code>, que a guarda em <code>Message</code> (aula <a href="base.html">base</a>). As chaves ficam vazias: não há mais nada a fazer.</dd>
+  <dt>Unhandled exception. EstoqueInsuficienteException: …</dt><dd>No relatório, a sua exceção aparece igual às do .NET. Sem o <code>System.</code> na frente, porque ela não está em namespace nenhum (veja a <a href="#familia">seção 4</a>).</dd>
+</dl>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Regra</th><th>Por quê</th></tr>
+<tr><td>O nome termina em <code>Exception</code></td><td>Quem lê <code>catch (EstoqueInsuficienteException)</code> sabe na hora o que é. É o padrão de todas as exceções do .NET.</td></tr>
+<tr><td>Herde de <code>Exception</code> (ou de uma exceção sua)</td><td>Não use <code>ApplicationException</code>: a própria Microsoft desistiu dela. E não herde de <code>SystemException</code>, que é das exceções do .NET.</td></tr>
+<tr><td>A mensagem é uma frase completa</td><td>Ela aparece no relatório e nos logs. "Pedido de 5 caderno(s), mas só há 2." ajuda; "erro estoque" não.</td></tr>
+<tr><td>A classe fica <code>public</code> num projeto</td><td>Quem usa o seu código precisa enxergá-la para escrever o <code>catch</code>.</td></tr>
+</table>
+</div>
+
+<div class="trycs" data-goal="out:ProdutoEsgotadoException,out:O caderno esgotou,src:class\s+ProdutoEsgotadoException\s*:\s*Exception">
+<p class="try-task"><strong>Missão:</strong> o programa lança uma <code>ProdutoEsgotadoException</code>, mas a classe não existe e o código não compila (<code>CS0246</code>). Crie a classe no fim do arquivo, herdando de <code>Exception</code>, com um construtor que recebe a mensagem e a repassa para <code>base</code>.</p>
+<pre class="script" data-file="esgotado.cs">int caderno = 0;
+if (caderno == 0)
+{
+    throw new ProdutoEsgotadoException("O caderno esgotou.");
+}
+Console.WriteLine("Ainda tem caderno.");
+</pre>
+<pre class="solucao" data-file="esgotado.cs">int caderno = 0;
+if (caderno == 0)
+{
+    throw new ProdutoEsgotadoException("O caderno esgotou.");
+}
+Console.WriteLine("Ainda tem caderno.");
+
+class ProdutoEsgotadoException : Exception
+{
+    public ProdutoEsgotadoException(string mensagem) : base(mensagem)
+    {
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Dados extras: o que o <code>catch</code> precisa saber</h2>
+<p>A grande vantagem de ter a sua classe é poder guardar <strong>dados</strong> nela. Quem captura a exceção não precisa "ler" a mensagem para descobrir quantas unidades havia: a informação está numa <a href="propriedades.html">propriedade</a>.</p>
+
+<pre class="file" data-file="dados.cs">try
+{
+    Loja.Vender("caderno", 5);
+}
+catch (EstoqueInsuficienteException e)
+{
+    Console.WriteLine(e.Message);
+    Console.WriteLine($"Que tal levar só {e.Disponivel}?");
+}
+
+static class Loja
+{
+    static readonly Dictionary&lt;string, int&gt; estoque = new() { ["caderno"] = 2, ["caneta"] = 40 };
+
+    public static void Vender(string produto, int pedido)
+    {
+        int disponivel = estoque[produto];
+        if (pedido &gt; disponivel)
+        {
+            throw new EstoqueInsuficienteException(produto, pedido, disponivel);
+        }
+        estoque[produto] = disponivel - pedido;
+        Console.WriteLine($"Vendido: {pedido} {produto}(s)");
+    }
+}
+
+class EstoqueInsuficienteException : Exception
+{
+    public string Produto { get; }
+    public int Pedido { get; }
+    public int Disponivel { get; }
+
+    public EstoqueInsuficienteException(string produto, int pedido, int disponivel)
+        : base($"Pedido de {pedido} {produto}(s), mas só há {disponivel}.")
+    {
+        Produto = produto;
+        Pedido = pedido;
+        Disponivel = disponivel;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run dados.cs
+Pedido de 5 caderno(s), mas só há 2.
+Que tal levar só 2?</pre>
+
+<dl class="anatomy">
+  <dt>public int Disponivel { get; }</dt><dd>Uma propriedade só de leitura (aula <a href="readonly.html">readonly e init</a>): quem captura lê, mas não muda. Exceções carregam fatos sobre o que aconteceu; não faz sentido alterá-los depois.</dd>
+  <dt>EstoqueInsuficienteException(string produto, int pedido, int disponivel)</dt><dd>Agora o construtor recebe os <strong>dados</strong>, não a mensagem pronta. Quem lança só diz o que aconteceu: <code>new EstoqueInsuficienteException(produto, pedido, disponivel)</code>.</dd>
+  <dt>: base($"Pedido de {pedido} …")</dt><dd>A exceção monta a própria mensagem a partir dos dados. Assim, todas as mensagens desse problema saem no mesmo formato, em qualquer lugar do programa.</dd>
+  <dt>e.Disponivel</dt><dd>No <code>catch</code>, a informação vem pronta, como número. Dá para oferecer uma alternativa ao cliente, sem precisar "garimpar" o 2 de dentro do texto.</dd>
+</dl>
+
+<h3>A forma curta, com construtor primário <span class="versao">C# 12</span></h3>
+<p>Com um <strong>construtor primário</strong>, os parâmetros vão direto no nome da classe e a chamada a <code>base</code> vai junto do <code>: Exception(…)</code>:</p>
+
+<pre class="file" data-file="prim.cs">throw new ProdutoEsgotadoException("caderno");
+
+class ProdutoEsgotadoException(string produto) : Exception($"O produto \"{produto}\" esgotou.")
+{
+    public string Produto { get; } = produto;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run prim.cs
+Unhandled exception. ProdutoEsgotadoException: O produto "caderno" esgotou.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/prim.cs:line 1</pre>
+
+<p>É o mesmo resultado, em menos linhas. O guia usa a forma longa na maior parte das aulas, porque ela deixa cada passo à vista; as duas estão certas.</p>
+
+<div class="warning">
+<strong>Não dá para fazer com <code>record</code></strong>
+<p>Uma exceção parece um bom caso para <a href="records.html">record</a> (só dados, só leitura), mas records só herdam de outros records, e <code>Exception</code> é uma classe. <code>record ProdutoEsgotadoException(string Mensagem) : Exception(Mensagem);</code> dá o erro <code>CS8864</code> (veja <a href="#errado">Quando dá errado</a>). Use <code>class</code>.</p>
+</div>
+
+<div class="trycs" data-goal="out:Que tal levar só 2?,src:catch\s*\(\s*EstoqueInsuficienteException\s+\w+\s*\)">
+<p class="try-task"><strong>Missão:</strong> o programa quebra com a exceção da lojinha. Envolva a chamada da primeira linha num <code>try</code> com <code>catch (EstoqueInsuficienteException e)</code> e mostre <code>Que tal levar só 2?</code> usando a propriedade <code>e.Disponivel</code> (não escreva o 2 à mão).</p>
+<pre class="script" data-file="dados.cs">Loja.Vender("caderno", 5);
+
+static class Loja
+{
+    static readonly Dictionary&lt;string, int&gt; estoque = new() { ["caderno"] = 2, ["caneta"] = 40 };
+
+    public static void Vender(string produto, int pedido)
+    {
+        int disponivel = estoque[produto];
+        if (pedido &gt; disponivel)
+        {
+            throw new EstoqueInsuficienteException(produto, pedido, disponivel);
+        }
+        estoque[produto] = disponivel - pedido;
+        Console.WriteLine($"Vendido: {pedido} {produto}(s)");
+    }
+}
+
+class EstoqueInsuficienteException : Exception
+{
+    public string Produto { get; }
+    public int Pedido { get; }
+    public int Disponivel { get; }
+
+    public EstoqueInsuficienteException(string produto, int pedido, int disponivel)
+        : base($"Pedido de {pedido} {produto}(s), mas só há {disponivel}.")
+    {
+        Produto = produto;
+        Pedido = pedido;
+        Disponivel = disponivel;
+    }
+}
+</pre>
+<pre class="solucao" data-file="dados.cs">try
+{
+    Loja.Vender("caderno", 5);
+}
+catch (EstoqueInsuficienteException e)
+{
+    Console.WriteLine(e.Message);
+    Console.WriteLine($"Que tal levar só {e.Disponivel}?");
+}
+
+static class Loja
+{
+    static readonly Dictionary&lt;string, int&gt; estoque = new() { ["caderno"] = 2, ["caneta"] = 40 };
+
+    public static void Vender(string produto, int pedido)
+    {
+        int disponivel = estoque[produto];
+        if (pedido &gt; disponivel)
+        {
+            throw new EstoqueInsuficienteException(produto, pedido, disponivel);
+        }
+        estoque[produto] = disponivel - pedido;
+        Console.WriteLine($"Vendido: {pedido} {produto}(s)");
+    }
+}
+
+class EstoqueInsuficienteException : Exception
+{
+    public string Produto { get; }
+    public int Pedido { get; }
+    public int Disponivel { get; }
+
+    public EstoqueInsuficienteException(string produto, int pedido, int disponivel)
+        : base($"Pedido de {pedido} {produto}(s), mas só há {disponivel}.")
+    {
+        Produto = produto;
+        Pedido = pedido;
+        Disponivel = disponivel;
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Os três construtores de costume</h2>
+<p>As exceções do .NET têm, quase todas, três construtores: sem nada, com a mensagem, e com a mensagem e a exceção interna (a <code>InnerException</code>, da aula <a href="throw.html">throw</a>). Numa biblioteca que outras pessoas vão usar, é costume oferecer os mesmos três:</p>
+
+<pre class="file" data-file="Lojinha/LojinhaException.cs">public class LojinhaException : Exception
+{
+    public LojinhaException() { }
+    public LojinhaException(string mensagem) : base(mensagem) { }
+    public LojinhaException(string mensagem, Exception interna) : base(mensagem, interna) { }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>LojinhaException() { }</dt><dd>Sem argumentos. A mensagem fica a padrão do .NET (veja abaixo).</dd>
+  <dt>LojinhaException(string mensagem) : base(mensagem)</dt><dd>O mais usado: só a mensagem.</dd>
+  <dt>LojinhaException(string mensagem, Exception interna) : base(mensagem, interna)</dt><dd>Para embrulhar uma exceção de baixo nível (um <code>FormatException</code>, um <code>IOException</code>) numa da lojinha, sem perder a original.</dd>
+</dl>
+
+<p>Se você não escrever construtor nenhum, a classe ganha só o construtor vazio, e a mensagem fica a genérica do .NET:</p>
+
+<pre class="file" data-file="semnome.cs">try
+{
+    throw new ProdutoEsgotadoException();
+}
+catch (ProdutoEsgotadoException e)
+{
+    Console.WriteLine(e.Message);
+}
+
+class ProdutoEsgotadoException : Exception
+{
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run semnome.cs
+Exception of type 'ProdutoEsgotadoException' was thrown.</pre>
+
+<p>"Uma exceção do tipo <code>ProdutoEsgotadoException</code> foi lançada." Funciona, mas não diz qual produto. E, nessa classe sem construtores, <code>new ProdutoEsgotadoException("…")</code> nem compila (<code>CS1729</code>): construtores não são herdados em C#; cada classe declara os seus.</p>
+
+<hr>
+
+<h2 id="familia">4. Uma família de exceções</h2>
+<p>Um programa maior tem vários problemas próprios. O costume é criar uma exceção <strong>mãe</strong> do programa, e as outras como filhas dela. Assim, quem chama escolhe: capturar um problema específico, ou capturar "qualquer problema da lojinha" de uma vez. E, num projeto, elas moram no <a href="namespaces.html">namespace</a> do programa:</p>
+
+<pre class="file" data-file="familia.cs">using Lojinha;
+
+string[] pedidos = ["caneta:3", "caderno:5", "borracha:1"];
+foreach (string p in pedidos)
+{
+    string[] partes = p.Split(':');
+    try
+    {
+        Loja.Vender(partes[0], int.Parse(partes[1]));
+    }
+    catch (LojinhaException e)
+    {
+        Console.WriteLine($"Não deu: {e.Message} ({e.GetType().Name})");
+    }
+}
+Loja.Vender("lápis", 1);
+
+namespace Lojinha
+{
+    class LojinhaException : Exception
+    {
+        public LojinhaException() { }
+        public LojinhaException(string mensagem) : base(mensagem) { }
+        public LojinhaException(string mensagem, Exception interna) : base(mensagem, interna) { }
+    }
+
+    class EstoqueInsuficienteException : LojinhaException
+    {
+        public EstoqueInsuficienteException(string produto, int disponivel)
+            : base($"só há {disponivel} {produto}(s)") { }
+    }
+
+    class ProdutoNaoEncontradoException : LojinhaException
+    {
+        public ProdutoNaoEncontradoException(string produto)
+            : base($"\"{produto}\" não está cadastrado") { }
+    }
+
+    static class Loja
+    {
+        static readonly Dictionary&lt;string, int&gt; estoque = new() { ["caderno"] = 2, ["caneta"] = 40 };
+
+        public static void Vender(string produto, int pedido)
+        {
+            if (!estoque.TryGetValue(produto, out int disponivel))
+            {
+                throw new ProdutoNaoEncontradoException(produto);
+            }
+            if (pedido &gt; disponivel)
+            {
+                throw new EstoqueInsuficienteException(produto, disponivel);
+            }
+            estoque[produto] = disponivel - pedido;
+            Console.WriteLine($"Vendido: {pedido} {produto}(s)");
+        }
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run familia.cs
+Vendido: 3 caneta(s)
+Não deu: só há 2 caderno(s) (EstoqueInsuficienteException)
+Não deu: "borracha" não está cadastrado (ProdutoNaoEncontradoException)
+Unhandled exception. Lojinha.ProdutoNaoEncontradoException: "lápis" não está cadastrado
+   at Lojinha.Loja.Vender(String produto, Int32 pedido) in /home/ana/cs/familia.cs:line 47
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/familia.cs:line 16</pre>
+
+<dl class="anatomy">
+  <dt>class EstoqueInsuficienteException : LojinhaException</dt><dd>Herda da exceção da lojinha, que herda de <code>Exception</code>. A árvore fica: <code>Exception</code> → <code>LojinhaException</code> → <code>EstoqueInsuficienteException</code> / <code>ProdutoNaoEncontradoException</code>.</dd>
+  <dt>: base($"só há …")</dt><dd>Chama o construtor <code>LojinhaException(string mensagem)</code>, que por sua vez chama o de <code>Exception</code>.</dd>
+  <dt>catch (LojinhaException e)</dt><dd>Pega as duas filhas (lembre: o <code>catch</code> da mãe pega as filhas). O <code>e.GetType().Name</code> mostra qual delas veio.</dd>
+  <dt>Lojinha.ProdutoNaoEncontradoException</dt><dd>Agora, dentro do namespace, o relatório mostra o nome completo, como o <code>System.FormatException</code> do .NET. O <code>"lápis"</code> foi vendido fora do <code>try</code> de propósito, para você ver esse relatório.</dd>
+</dl>
+
+<p>Repare que um <code>FormatException</code> do <code>int.Parse</code> <strong>não</strong> seria pego pelo <code>catch (LojinhaException e)</code>: ele não é da família. É justamente essa a vantagem: o <code>catch</code> pega os problemas <strong>da lojinha</strong>, que ele sabe tratar, e deixa os defeitos de programação aparecerem.</p>
+
+<hr>
+
+<h2>Criar a sua ou usar uma do .NET?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>Um parâmetro <code>null</code>, fora do intervalo, inválido</td><td>As do .NET: <code>ArgumentNullException</code>, <code>ArgumentOutOfRangeException</code>, <code>ArgumentException</code></td></tr>
+<tr><td>O objeto não está pronto para a operação</td><td><code>InvalidOperationException</code></td></tr>
+<tr><td>Um problema do <strong>negócio</strong> que quem chama vai querer tratar à parte (estoque, saldo, cadastro)</td><td>Uma exceção sua: <code>EstoqueInsuficienteException</code></td></tr>
+<tr><td>Quem trata precisa de dados (quanto havia, qual produto)</td><td>Uma exceção sua, com propriedades</td></tr>
+<tr><td>Vários problemas próprios, às vezes tratados juntos</td><td>Uma família: <code>LojinhaException</code> e filhas</td></tr>
+<tr><td>Só para ter uma mensagem diferente</td><td>Não precisa de classe: <code>throw new InvalidOperationException("…")</code></td></tr>
+</table>
+</div>
+
+<p>Uma regra prática: crie uma exceção quando você consegue imaginar alguém escrevendo um <code>catch</code> só para ela. Se ninguém nunca vai capturá-la separada, uma do .NET basta.</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS0029: a classe esqueceu o <code>: Exception</code></strong>
+<pre class="file" data-file="naoexc.cs">throw new ProdutoEsgotado("caderno");
+
+class ProdutoEsgotado
+{
+    public ProdutoEsgotado(string nome) { }
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run naoexc.cs
+/home/ana/cs/naoexc.cs(1,7): error CS0029: Não é possível converter implicitamente tipo "ProdutoEsgotado" em "System.Exception"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>throw</code> só aceita objetos da família <code>Exception</code>, e <code>ProdutoEsgotado</code> não é.</p>
+<p><strong>Como consertar:</strong> faça a classe herdar de <code>Exception</code>, passe a mensagem para <code>base</code> e, de quebra, ponha o <code>Exception</code> no fim do nome: <code>class ProdutoEsgotadoException : Exception</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0155: <code>catch</code> de algo que não é exceção</strong>
+<pre class="file" data-file="catchnao.cs">try { Console.WriteLine("oi"); }
+catch (string e) { }
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run catchnao.cs
+/home/ana/cs/catchnao.cs(2,8): error CS0155: O tipo caught ou thrown deve ser derivado de System.Exception
+/home/ana/cs/catchnao.cs(2,15): warning CS0168: A variável "e" está declarada, mas nunca é usada
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> "o tipo capturado (<em>caught</em>) ou lançado (<em>thrown</em>) deve ser derivado de <code>System.Exception</code>". A tradução deixou duas palavras em inglês, mas a ideia é a mesma do erro anterior, do lado do <code>catch</code>.</p>
+<p><strong>Como consertar:</strong> no <code>catch</code>, só tipos da família <code>Exception</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1729: "não contém um construtor que aceita 1 argumentos"</strong>
+<pre class="file" data-file="semctor.cs">throw new ProdutoEsgotadoException("O caderno esgotou.");
+
+class ProdutoEsgotadoException : Exception
+{
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run semctor.cs
+/home/ana/cs/semctor.cs(1,11): error CS1729: "ProdutoEsgotadoException" não contém um construtor que aceita 1 argumentos
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> <code>Exception</code> tem um construtor com mensagem, mas a sua classe não herda construtores. Sem nenhum escrito, ela só tem o vazio.</p>
+<p><strong>Como consertar:</strong> escreva o construtor: <code>public ProdutoEsgotadoException(string mensagem) : base(mensagem) { }</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS8864: exceção como <code>record</code></strong>
+<pre class="file" data-file="rec.cs">throw new ProdutoEsgotadoException("O caderno esgotou.");
+
+record ProdutoEsgotadoException(string Mensagem) : Exception(Mensagem);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run rec.cs
+/home/ana/cs/rec.cs(3,52): error CS8864: Os registros só podem ser herdados de um objeto ou de outro registro
+/home/ana/cs/rec.cs(3,8): error CS0115: "ProdutoEsgotadoException.EqualityContract": não encontrado nenhum método adequado para substituição
+/home/ana/cs/rec.cs(3,8): error CS0115: "ProdutoEsgotadoException.Equals(Exception?)": não encontrado nenhum método adequado para substituição
+/home/ana/cs/rec.cs(3,8): error CS0115: "ProdutoEsgotadoException.PrintMembers(StringBuilder)": não encontrado nenhum método adequado para substituição
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o primeiro erro é o que importa: "registros (records) só podem herdar de <code>object</code> ou de outro record". Os três <code>CS0115</code> são consequência: o compilador tentou gerar os métodos de um record em cima de uma classe que não é record.</p>
+<p><strong>Como consertar:</strong> use <code>class</code>, com construtor normal ou primário (a forma curta da seção 2).</p>
+</div>
+
+<div class="cenario">
+<strong>A mensagem é "Exception of type '…' was thrown."</strong>
+<p><strong>O que significa:</strong> o construtor da sua exceção não repassou a mensagem para <code>base</code>, ou a exceção foi criada com <code>new …()</code> sem argumentos.</p>
+<p><strong>Como consertar:</strong> confira se o construtor tem <code>: base(mensagem)</code> (e não só guarda a mensagem numa propriedade sua).</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Sintaxe</th><th>O que faz</th></tr>
+<tr><td><code>class XException : Exception</code></td><td>Cria uma exceção própria</td></tr>
+<tr><td><code>public XException(string m) : base(m) { }</code></td><td>Construtor que repassa a mensagem para <code>Exception</code></td></tr>
+<tr><td><code>public XException(string m, Exception i) : base(m, i) { }</code></td><td>Construtor que guarda a <code>InnerException</code></td></tr>
+<tr><td><code>class XException(string p) : Exception($"… {p}")</code></td><td>Forma curta, com construtor primário <span class="versao">C# 12</span></td></tr>
+<tr><td><code>public int Disponivel { get; }</code></td><td>Dado extra, só de leitura</td></tr>
+<tr><td><code>class FilhaException : MaeException</code></td><td>Família de exceções; <code>catch (MaeException)</code> pega as filhas</td></tr>
+<tr><td><code>Exception of type 'X' was thrown.</code></td><td>Mensagem padrão, quando nenhuma foi passada</td></tr>
+<tr><td><code>CS0029</code> / <code>CS0155</code></td><td><code>throw</code> / <code>catch</code> de um tipo que não é <code>Exception</code></td></tr>
+<tr><td><code>CS1729</code></td><td>Falta o construtor com esses argumentos</td></tr>
+<tr><td><code>CS8864</code></td><td>Record não pode herdar de <code>Exception</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A classe mãe</h3>
+<p>Complete para criar uma exceção própria:</p>
+<div class="ex-code">class SaldoInsuficienteException : <input data-answer="Exception|System.Exception" aria-label="classe mãe"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Repassar a mensagem</h3>
+<p>Complete o construtor:</p>
+<div class="ex-code">public SaldoInsuficienteException(string mensagem) : <input data-answer="base(mensagem)" aria-label="chamada"> { }</div>
+</div>
+
+<div class="exercise">
+<h3>3. O nome de costume</h3>
+<p>Uma exceção para "cliente bloqueado" deve se chamar <code>ClienteBloqueado</code> e terminar com:</p>
+<div class="ex-code">ClienteBloqueado<input data-answer="Exception" aria-label="sufixo"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. <code>ProdutoNaoEncontradoException</code> herda de <code>LojinhaException</code>, que herda de <code>Exception</code>. Quais <code>catch</code> pegam uma <code>ProdutoNaoEncontradoException</code>?</p>
+<label><input type="radio" name="q4"> Só <code>catch (ProdutoNaoEncontradoException)</code>.</label>
+<label><input type="radio" name="q4"> Só <code>catch (Exception)</code>.</label>
+<label><input type="radio" name="q4"> <code>catch (ProdutoNaoEncontradoException)</code>, <code>catch (LojinhaException)</code> e <code>catch (Exception)</code>.</label>
+<label><input type="radio" name="q4"> Nenhum: exceções próprias não podem ser capturadas.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Por que guardar <code>Disponivel</code> numa propriedade em vez de só escrevê-lo na mensagem?</p>
+<label><input type="radio" name="q5"> Porque a <code>Message</code> não aceita números.</label>
+<label><input type="radio" name="q5"> Porque quem captura recebe o número pronto para usar, sem tirar de dentro do texto.</label>
+<label><input type="radio" name="q5"> Porque o compilador exige uma propriedade em toda exceção.</label>
+<label><input type="radio" name="q5"> Porque assim a exceção não aparece no stack trace.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Em qual caso <strong>não</strong> vale a pena criar uma exceção própria?</p>
+<label><input type="radio" name="q6"> O saldo não dá para o saque, e o caixa eletrônico quer oferecer um valor menor.</label>
+<label><input type="radio" name="q6"> Vários problemas do sistema da escola, às vezes tratados juntos.</label>
+<label><input type="radio" name="q6"> Um pedido para um produto fora de linha, que a tela trata de um jeito especial.</label>
+<label><input type="radio" name="q6"> Um método recebeu <code>null</code> num parâmetro obrigatório.</label>
+</div>
+
+<div class="trycs" data-goal="out:Não deu: &quot;borracha&quot; não está cadastrado,out:Não deu: só há 2,src:class\s+ProdutoNaoEncontradoException\s*:\s*LojinhaException">
+<p class="try-task"><strong>Missão final:</strong> a <code>ProdutoNaoEncontradoException</code> herda direto de <code>Exception</code>, então o <code>catch (LojinhaException e)</code> não a pega e o programa quebra na <code>borracha</code>. Mude <strong>só a classe mãe</strong> dela, para que o mesmo <code>catch</code> trate os dois problemas da lojinha.</p>
+<pre class="script" data-file="familia.cs">string[] pedidos = ["caneta:3", "caderno:5", "borracha:1"];
+foreach (string p in pedidos)
+{
+    string[] partes = p.Split(':');
+    try
+    {
+        Loja.Vender(partes[0], int.Parse(partes[1]));
+    }
+    catch (LojinhaException e)
+    {
+        Console.WriteLine($"Não deu: {e.Message}");
+    }
+}
+
+class LojinhaException : Exception
+{
+    public LojinhaException(string mensagem) : base(mensagem) { }
+}
+
+class EstoqueInsuficienteException : LojinhaException
+{
+    public EstoqueInsuficienteException(string produto, int disponivel)
+        : base($"só há {disponivel} {produto}(s)") { }
+}
+
+class ProdutoNaoEncontradoException : Exception
+{
+    public ProdutoNaoEncontradoException(string produto)
+        : base($"\"{produto}\" não está cadastrado") { }
+}
+
+static class Loja
+{
+    static readonly Dictionary&lt;string, int&gt; estoque = new() { ["caderno"] = 2, ["caneta"] = 40 };
+
+    public static void Vender(string produto, int pedido)
+    {
+        if (!estoque.TryGetValue(produto, out int disponivel))
+        {
+            throw new ProdutoNaoEncontradoException(produto);
+        }
+        if (pedido &gt; disponivel)
+        {
+            throw new EstoqueInsuficienteException(produto, disponivel);
+        }
+        estoque[produto] = disponivel - pedido;
+        Console.WriteLine($"Vendido: {pedido} {produto}(s)");
+    }
+}
+</pre>
+<pre class="solucao" data-file="familia.cs">string[] pedidos = ["caneta:3", "caderno:5", "borracha:1"];
+foreach (string p in pedidos)
+{
+    string[] partes = p.Split(':');
+    try
+    {
+        Loja.Vender(partes[0], int.Parse(partes[1]));
+    }
+    catch (LojinhaException e)
+    {
+        Console.WriteLine($"Não deu: {e.Message}");
+    }
+}
+
+class LojinhaException : Exception
+{
+    public LojinhaException(string mensagem) : base(mensagem) { }
+}
+
+class EstoqueInsuficienteException : LojinhaException
+{
+    public EstoqueInsuficienteException(string produto, int disponivel)
+        : base($"só há {disponivel} {produto}(s)") { }
+}
+
+class ProdutoNaoEncontradoException : LojinhaException
+{
+    public ProdutoNaoEncontradoException(string produto)
+        : base($"\"{produto}\" não está cadastrado") { }
+}
+
+static class Loja
+{
+    static readonly Dictionary&lt;string, int&gt; estoque = new() { ["caderno"] = 2, ["caneta"] = 40 };
+
+    public static void Vender(string produto, int pedido)
+    {
+        if (!estoque.TryGetValue(produto, out int disponivel))
+        {
+            throw new ProdutoNaoEncontradoException(produto);
+        }
+        if (pedido &gt; disponivel)
+        {
+            throw new EstoqueInsuficienteException(produto, disponivel);
+        }
+        estoque[produto] = disponivel - pedido;
+        Console.WriteLine($"Vendido: {pedido} {produto}(s)");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma exceção própria é uma classe que herda de <code>Exception</code> e tem o nome terminado em <code>Exception</code>.</li>
+  <li>O construtor repassa a mensagem com <code>: base(mensagem)</code>; sem isso, a mensagem é "Exception of type '…' was thrown.". Construtores não são herdados (<code>CS1729</code>).</li>
+  <li>Dados extras vão em propriedades só de leitura; a exceção pode montar a própria mensagem a partir deles.</li>
+  <li>Os três construtores de costume: vazio, com mensagem e com mensagem + <code>InnerException</code>.</li>
+  <li>Uma família (<code>LojinhaException</code> e filhas) deixa quem chama escolher entre um problema específico e todos os do programa.</li>
+  <li>Crie uma exceção quando alguém vai querer um <code>catch</code> só para ela; para parâmetros inválidos, use as do .NET. Exceção é <code>class</code>, nunca <code>record</code> (<code>CS8864</code>).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
