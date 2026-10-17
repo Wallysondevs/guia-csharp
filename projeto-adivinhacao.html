@@ -1,0 +1,1105 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Projeto Jogo de Adivinhação — Random, while, do while e métodos | Guia C#</title>
+<meta name="description" content="Projeto passo a passo: o jogo de adivinhação da Ana em C#. O computador sorteia um número de 1 a 100 com Random.Shared.Next, dá dicas maior e menor, conta as tentativas, limita a 7 palpites e pergunta se você quer jogar de novo com do while. Cinco versões com saídas reais do .NET 10, o erro CS0165, o 100 que nunca é sorteado e o laço infinito quando a entrada acaba.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>Projeto <span class="hl">Jogo de Adivinhação</span></h1>
+
+<p class="intro">O computador pensa num número de 1 a 100, e você tenta adivinhar. A cada palpite ele diz "é maior" ou "é menor", e você vai fechando o cerco. É o projeto clássico para treinar <strong>laços</strong> (o jogo repete até você acertar), <strong>decisões</strong> (maior, menor ou acertou) e <strong>números aleatórios</strong>. No fim, o jogo tem limite de tentativas e pergunta se você quer jogar outra partida.</p>
+
+<div class="note">
+<strong>Você vai praticar</strong>
+<ul>
+  <li>Comparar o palpite com o segredo usando <a href="if-else.html">if</a> e <a href="else-if.html">else if</a>.</li>
+  <li>Repetir com <a href="while.html">while</a> e contar as tentativas.</li>
+  <li>Sortear um número com <a href="aleatorios.html">Random.Shared.Next</a> (e o cuidado com o limite).</li>
+  <li>Aceitar só números com <a href="parse.html">TryParse</a> e tratar o fim da entrada.</li>
+  <li>Limitar as tentativas com uma <a href="constantes.html">constante</a> e um <code>bool</code>.</li>
+  <li>Perguntar "jogar de novo?" com <a href="do-while.html">do while</a> e separar a partida num <a href="metodos.html">método</a>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>O que vamos construir</h2>
+<p>O jogo pronto, numa tarde em que a Ana jogou duas partidas:</p>
+
+<pre class="term" data-cwd="~/cs/adivinhacao">$ dotnet run adivinhacao.cs
+=== Jogo de Adivinhação ===
+
+Partida 1: pensei num número de 1 a 100. Você tem 7 tentativas.
+Palpite 1 de 7: 10
+O número é maior que 10.
+Palpite 2 de 7: 20
+O número é maior que 20.
+Palpite 3 de 7: 30
+O número é maior que 30.
+Palpite 4 de 7: 40
+O número é maior que 40.
+Palpite 5 de 7: 60
+O número é maior que 60.
+Palpite 6 de 7: 70
+O número é maior que 70.
+Palpite 7 de 7: 80
+O número é menor que 80.
+Suas 7 tentativas acabaram. O número era 78.
+Jogar de novo? (s/n): talvez
+Jogar de novo? (s/n): s
+
+Partida 2: pensei num número de 1 a 100. Você tem 7 tentativas.
+Palpite 1 de 7: 50
+O número é menor que 50.
+Palpite 2 de 7: 25
+O número é maior que 25.
+Palpite 3 de 7: 37
+O número é maior que 37.
+Palpite 4 de 7: 43
+Acertou! Tentativas: 4.
+Jogar de novo? (s/n): n
+Partidas: 2. Até a próxima!</pre>
+
+<p>Na segunda partida, a Ana usou a melhor estratégia: chutar sempre <strong>o meio</strong> do que sobrou (50, depois 25 ou 75…). Cada palpite corta as possibilidades pela metade, e assim 7 palpites sempre bastam para 100 números. Essa ideia tem nome: <strong>busca binária</strong>.</p>
+
+<ol class="passo">
+  <li><a href="#versao1">Um palpite contra um número fixo</a>.</li>
+  <li><a href="#versao2">Repetir até acertar e contar as tentativas</a>.</li>
+  <li><a href="#versao3">Sortear o número e aceitar só números</a>.</li>
+  <li><a href="#versao4">No máximo 7 tentativas</a>.</li>
+  <li><a href="#versao5">Jogar de novo</a> (<code>do while</code> e um método).</li>
+</ol>
+
+<h3>Antes de começar</h3>
+<p>Você precisa ter visto <a href="if-else.html">if e else</a>, <a href="else-if.html">else if</a>, <a href="while.html">while</a>, <a href="readline.html">Ler do Teclado</a> e <a href="parse.html">Parse e TryParse</a>; para as versões finais, <a href="aleatorios.html">Números Aleatórios</a>, <a href="do-while.html">do while</a> e <a href="metodos.html">Métodos</a>. É um arquivo só, <code>adivinhacao.cs</code> (sem acento no nome do arquivo, para evitar problemas no terminal):</p>
+
+<pre class="term">$ mkdir -p cs/adivinhacao
+$ cd cs/adivinhacao</pre>
+
+<hr>
+
+<h2 id="versao1">Versão 1 · Um palpite contra um número fixo</h2>
+<p>Antes de sortear, vamos fazer o jogo funcionar com um número que <strong>nós</strong> escolhemos: 42. Assim dá para testar e saber a resposta certa. O programa lê um palpite e diz se acertou, se o número é maior ou se é menor.</p>
+
+<pre class="file" data-file="adivinhacao.cs">const int Segredo = 42;
+
+Console.WriteLine("=== Jogo de Adivinhação ===");
+Console.WriteLine("Pensei num número de 1 a 100.");
+Console.Write("Seu palpite: ");
+int palpite = int.Parse(Console.ReadLine()!);
+
+if (palpite == Segredo)
+{
+    Console.WriteLine("Acertou!");
+}
+else if (palpite &lt; Segredo)
+{
+    Console.WriteLine($"O número é maior que {palpite}.");
+}
+else
+{
+    Console.WriteLine($"O número é menor que {palpite}.");
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>const int Segredo = 42;</dt><dd>Uma <a href="constantes.html">constante</a>: um valor com nome que nunca muda. Por convenção, constantes têm nome em PascalCase.</dd>
+  <dt>int.Parse(Console.ReadLine()!)</dt><dd>Lê o palpite e converte em <code>int</code> (inteiro). Por enquanto, sem proteção: a versão 3 troca por <code>TryParse</code>.</dd>
+  <dt>if (palpite == Segredo)</dt><dd><code>==</code> compara ("é igual a?"). Não confunda com <code>=</code>, que guarda um valor (<a href="operadores-comparacao.html">Operadores de Comparação</a>).</dd>
+  <dt>else if (palpite &lt; Segredo)</dt><dd>Só é testado se o primeiro <code>if</code> foi falso. Se o palpite é menor que o segredo, a dica é "o número é <strong>maior</strong>".</dd>
+  <dt>else</dt><dd>Sobrou um caso: o palpite é maior que o segredo.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs/adivinhacao">$ dotnet run adivinhacao.cs
+=== Jogo de Adivinhação ===
+Pensei num número de 1 a 100.
+Seu palpite: 30
+O número é maior que 30.
+$ dotnet run adivinhacao.cs
+=== Jogo de Adivinhação ===
+Pensei num número de 1 a 100.
+Seu palpite: 50
+O número é menor que 50.
+$ dotnet run adivinhacao.cs
+=== Jogo de Adivinhação ===
+Pensei num número de 1 a 100.
+Seu palpite: 42
+Acertou!</pre>
+
+<p>Testamos os três caminhos do <code>if</code>: maior, menor e igual. É um bom hábito: para cada decisão do programa, um teste que passa por ela.</p>
+
+<div class="trycs" data-stdin="50\n" data-goal="out:O número é menor que 50.">
+<p class="try-task"><strong>Missão (versão 1):</strong> falta o último caso. Acrescente o <code>else</code> que mostra <code>O número é menor que 50.</code> (use <code>{palpite}</code>, não o número escrito). A entrada da missão é o palpite <code>50</code>.</p>
+<pre class="script" data-file="adivinhacao.cs">const int Segredo = 42;
+
+Console.WriteLine("=== Jogo de Adivinhação ===");
+Console.WriteLine("Pensei num número de 1 a 100.");
+Console.Write("Seu palpite: ");
+int palpite = int.Parse(Console.ReadLine()!);
+
+if (palpite == Segredo)
+{
+    Console.WriteLine("Acertou!");
+}
+else if (palpite &lt; Segredo)
+{
+    Console.WriteLine($"O número é maior que {palpite}.");
+}
+// acrescente o else
+</pre>
+<pre class="solucao" data-file="adivinhacao.cs">const int Segredo = 42;
+
+Console.WriteLine("=== Jogo de Adivinhação ===");
+Console.WriteLine("Pensei num número de 1 a 100.");
+Console.Write("Seu palpite: ");
+int palpite = int.Parse(Console.ReadLine()!);
+
+if (palpite == Segredo)
+{
+    Console.WriteLine("Acertou!");
+}
+else if (palpite &lt; Segredo)
+{
+    Console.WriteLine($"O número é maior que {palpite}.");
+}
+else
+{
+    Console.WriteLine($"O número é menor que {palpite}.");
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao2">Versão 2 · Repetir até acertar e contar as tentativas</h2>
+<p>Um palpite só não é jogo. A pergunta e o <code>if</code> vão para dentro de um <code>while (true)</code>, que repete até o <code>break</code> do acerto. E uma variável <code>tentativas</code> conta os palpites.</p>
+
+<pre class="file" data-file="adivinhacao.cs">const int Segredo = 42;
+
+Console.WriteLine("=== Jogo de Adivinhação ===");
+Console.WriteLine("Pensei num número de 1 a 100.");
+
+int tentativas = 0;
+while (true)
+{
+    Console.Write("Seu palpite: ");
+    int palpite = int.Parse(Console.ReadLine()!);
+    tentativas++;
+
+    if (palpite == Segredo)
+    {
+        Console.WriteLine($"Acertou! Tentativas: {tentativas}.");
+        break;
+    }
+    else if (palpite &lt; Segredo)
+    {
+        Console.WriteLine($"O número é maior que {palpite}.");
+    }
+    else
+    {
+        Console.WriteLine($"O número é menor que {palpite}.");
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>int tentativas = 0;</dt><dd>Fica <strong>fora</strong> do laço: se ficasse dentro, voltaria a 0 a cada palpite (veja <a href="escopo.html">Escopo</a>).</dd>
+  <dt>while (true)</dt><dd>Repete "para sempre". Quem para o laço é o <code>break</code>.</dd>
+  <dt>int palpite = …;</dt><dd>Agora fica <strong>dentro</strong> do laço: cada volta lê um palpite novo.</dd>
+  <dt>tentativas++;</dt><dd>Soma 1 a cada palpite (<a href="incremento.html">++ e --</a>).</dd>
+  <dt>break;</dt><dd>Acertou: sai do <code>while</code>, e o programa termina.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs/adivinhacao">$ dotnet run adivinhacao.cs
+=== Jogo de Adivinhação ===
+Pensei num número de 1 a 100.
+Seu palpite: 50
+O número é menor que 50.
+Seu palpite: 25
+O número é maior que 25.
+Seu palpite: 37
+O número é maior que 37.
+Seu palpite: 43
+O número é menor que 43.
+Seu palpite: 40
+O número é maior que 40.
+Seu palpite: 42
+Acertou! Tentativas: 6.</pre>
+
+<div class="cenario">
+<strong>"Uso de variável local não atribuída": erro <code>CS0165</code></strong>
+<p>A Ana tentou um laço diferente, que repete "enquanto o palpite for diferente do segredo":</p>
+<pre class="file" data-file="adivinhacao.cs">const int Segredo = 42;
+
+int palpite;
+while (palpite != Segredo)
+{
+    Console.Write("Seu palpite: ");
+    palpite = int.Parse(Console.ReadLine()!);
+}
+Console.WriteLine("Acertou!");
+</pre>
+<pre class="term" data-cwd="~/cs/adivinhacao">$ dotnet run adivinhacao.cs
+/home/ana/cs/adivinhacao/adivinhacao.cs(4,8): error CS0165: Uso de variável local não atribuída "palpite"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> na linha 4, coluna 8, o <code>while</code> compara <code>palpite</code> com o segredo, mas <code>palpite</code> ainda não recebeu nenhum valor (em inglês, <em>Use of unassigned local variable</em>). O C# não deixa ler uma variável local antes de guardar algo nela, para você nunca usar um valor "lixo".</p>
+<p><strong>Como consertar:</strong> dê um valor inicial que com certeza não é o segredo (<code>int palpite = 0;</code>), ou use o <code>while (true)</code> com <code>break</code> da versão 2, que lê o palpite antes de comparar. Um <a href="do-while.html">do while</a> também resolve, porque roda o corpo antes de testar a condição.</p>
+</div>
+
+<div class="trycs" data-stdin="50\n25\n42\n" data-goal="out:Acertou! Tentativas: 3.">
+<p class="try-task"><strong>Missão (versão 2):</strong> o jogo repete, mas sempre diz <code>Tentativas: 0.</code>. Conte cada palpite com <code>tentativas++;</code> logo depois de ler o número. A entrada da missão são os palpites <code>50</code>, <code>25</code> e <code>42</code>.</p>
+<pre class="script" data-file="adivinhacao.cs">const int Segredo = 42;
+
+Console.WriteLine("=== Jogo de Adivinhação ===");
+Console.WriteLine("Pensei num número de 1 a 100.");
+
+int tentativas = 0;
+while (true)
+{
+    Console.Write("Seu palpite: ");
+    int palpite = int.Parse(Console.ReadLine()!);
+    // conte o palpite
+
+    if (palpite == Segredo)
+    {
+        Console.WriteLine($"Acertou! Tentativas: {tentativas}.");
+        break;
+    }
+    else if (palpite &lt; Segredo)
+    {
+        Console.WriteLine($"O número é maior que {palpite}.");
+    }
+    else
+    {
+        Console.WriteLine($"O número é menor que {palpite}.");
+    }
+}
+</pre>
+<pre class="solucao" data-file="adivinhacao.cs">const int Segredo = 42;
+
+Console.WriteLine("=== Jogo de Adivinhação ===");
+Console.WriteLine("Pensei num número de 1 a 100.");
+
+int tentativas = 0;
+while (true)
+{
+    Console.Write("Seu palpite: ");
+    int palpite = int.Parse(Console.ReadLine()!);
+    tentativas++;
+
+    if (palpite == Segredo)
+    {
+        Console.WriteLine($"Acertou! Tentativas: {tentativas}.");
+        break;
+    }
+    else if (palpite &lt; Segredo)
+    {
+        Console.WriteLine($"O número é maior que {palpite}.");
+    }
+    else
+    {
+        Console.WriteLine($"O número é menor que {palpite}.");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao3">Versão 3 · Sortear o número e aceitar só números</h2>
+<p>Com o 42 fixo, o jogo perde a graça na segunda vez. Agora o computador sorteia. E, já que o jogo vai ser usado de verdade, ele precisa aguentar um palpite como <code>abc</code> sem cair.</p>
+
+<pre class="file" data-file="adivinhacao.cs">int segredo = Random.Shared.Next(1, 101);
+
+Console.WriteLine("=== Jogo de Adivinhação ===");
+Console.WriteLine("Pensei num número de 1 a 100.");
+
+int tentativas = 0;
+while (true)
+{
+    Console.Write("Seu palpite: ");
+    string? texto = Console.ReadLine();
+    if (texto is null)
+    {
+        Console.WriteLine();
+        Console.WriteLine("Jogo interrompido.");
+        return;
+    }
+    if (!int.TryParse(texto, out int palpite))
+    {
+        Console.WriteLine("Digite um número inteiro.");
+        continue;
+    }
+    tentativas++;
+
+    if (palpite == segredo)
+    {
+        Console.WriteLine($"Acertou! Tentativas: {tentativas}.");
+        break;
+    }
+    else if (palpite &lt; segredo)
+    {
+        Console.WriteLine($"O número é maior que {palpite}.");
+    }
+    else
+    {
+        Console.WriteLine($"O número é menor que {palpite}.");
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>Random.Shared.Next(1, 101)</dt><dd>Sorteia um inteiro de <strong>1 a 100</strong>. O primeiro número entra no sorteio; o segundo <strong>não</strong> (é o "limite de fora"). Por isso 101. <code>Random.Shared</code> é um sorteador pronto, que o .NET cria uma vez e todo o programa compartilha (veja <a href="aleatorios.html">Números Aleatórios</a>).</dd>
+  <dt>int segredo</dt><dd>Não é mais <code>const</code>: o valor só é conhecido quando o programa roda. Por isso o nome volta para camelCase.</dd>
+  <dt>string? texto = Console.ReadLine();</dt><dd>Primeiro guardamos o texto. O <code>?</code> diz que ele pode ser <code>null</code>: é o que o <code>ReadLine</code> devolve quando a entrada acaba (com <kbd>Ctrl</kbd>+<kbd>D</kbd> no terminal, ou no fim de um arquivo). Veja <a href="referencias-anulaveis.html">Referências Anuláveis</a>.</dd>
+  <dt>if (texto is null) { …; return; }</dt><dd>Sem entrada, não há jogo: avisa e termina. O cenário "laço infinito" abaixo mostra o que acontece sem essas linhas.</dd>
+  <dt>if (!int.TryParse(texto, out int palpite)) { …; continue; }</dt><dd>Se não é um número, avisa e volta para o começo do laço (<code>continue</code>), <strong>sem</strong> contar a tentativa.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs/adivinhacao">$ dotnet run adivinhacao.cs
+=== Jogo de Adivinhação ===
+Pensei num número de 1 a 100.
+Seu palpite: abc
+Digite um número inteiro.
+Seu palpite: 50
+O número é maior que 50.
+Seu palpite: 75
+O número é maior que 75.
+Seu palpite: 88
+O número é maior que 88.
+Seu palpite: 94
+O número é maior que 94.
+Seu palpite: 97
+O número é maior que 97.
+Seu palpite: 99
+O número é maior que 99.
+Seu palpite: 100
+Acertou! Tentativas: 7.</pre>
+
+<p>O <code>abc</code> não contou como tentativa, e o 100 foi sorteado: o limite de 101 funcionou. Rodando de novo, o número é outro.</p>
+
+<div class="cenario">
+<strong><code>Next(1, 100)</code>: o 100 nunca sai</strong>
+<p>Na primeira tentativa, a Ana escreveu <code>Random.Shared.Next(1, 100)</code>, achando que era "de 1 a 100". Para conferir, ela sorteou um milhão de vezes e guardou o maior:</p>
+<pre class="file" data-file="limite.cs">int maior = 0;
+for (int i = 0; i &lt; 1_000_000; i++)
+{
+    int sorteado = Random.Shared.Next(1, 100);
+    maior = Math.Max(maior, sorteado);
+}
+Console.WriteLine($"Maior número sorteado em 1 milhão de vezes: {maior}");
+</pre>
+<pre class="term" data-cwd="~/cs/adivinhacao">$ dotnet run limite.cs
+Maior número sorteado em 1 milhão de vezes: 99</pre>
+<p><strong>O que significa:</strong> em <code>Next(mínimo, máximo)</code>, o máximo <strong>não</strong> entra. Não é um erro de compilação nem uma exceção: o jogo funciona, só que quem pensa no 100 nunca ganha. Esse tipo de erro "por um" (em inglês, <em>off-by-one</em>) é um dos mais comuns em programação.</p>
+<p><strong>Como consertar:</strong> <code>Next(1, 101)</code>. Para não esquecer, leia o segundo número como "até antes de".</p>
+</div>
+
+<div class="cenario">
+<strong>Laço infinito quando a entrada acaba</strong>
+<p>Numa versão anterior, a Ana leu o palpite com <code>string texto = Console.ReadLine() ?? "";</code>, sem o <code>if (texto is null)</code>. Para testar, ela mandou dois palpites de um arquivo (veja <a href="projetos.html">Sobre os Projetos</a>):</p>
+<pre class="term" data-cwd="~/cs/adivinhacao">$ cat palpites.txt
+50
+75
+$ dotnet run adivinhacao.cs &lt; palpites.txt
+=== Jogo de Adivinhação ===
+Pensei num número de 1 a 100.
+Seu palpite: O número é menor que 50.
+Seu palpite: O número é menor que 75.
+Seu palpite: Digite um número inteiro.
+Seu palpite: Digite um número inteiro.
+Seu palpite: Digite um número inteiro.
+Seu palpite: Digite um número inteiro.
+Seu palpite: Digite um número inteiro.
+…                                         « sem parar, até a Ana apertar Ctrl+C
+^C</pre>
+<p><strong>O que aconteceu:</strong> depois do <code>75</code>, o arquivo acabou. Dali em diante, cada <code>ReadLine()</code> devolve <code>null</code> na hora, o <code>?? ""</code> troca por texto vazio, o <code>TryParse("")</code> falha e o <code>continue</code> volta ao começo, para sempre. Com uma pessoa digitando isso não aparece, mas com um arquivo (ou num teste automático) o programa nunca termina.</p>
+<p><strong>Como consertar:</strong> trate o <code>null</code> separadamente, como na versão 3: "a entrada acabou, então o jogo acaba". Para parar um programa travado no terminal, aperte <kbd>Ctrl</kbd>+<kbd>C</kbd>.</p>
+</div>
+
+<div class="trycs" data-stdin="1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+" data-goal="outre:Acertou! Tentativas: \d+\.,src:Random\.Shared\.Next\(\s*1\s*\,\s*101\s*\)">
+<p class="try-task"><strong>Missão (versão 3):</strong> o segredo ainda é o 42 fixo. Troque a primeira linha por um sorteio de 1 a 100: <code>int segredo = Random.Shared.Next(1, 101);</code>, e use <code>segredo</code> no lugar de <code>Segredo</code> nas comparações. Para a missão funcionar com qualquer número sorteado, a entrada são os palpites 1, 2, 3… até 100: um deles acerta.</p>
+<pre class="script" data-file="adivinhacao.cs">const int Segredo = 42;
+
+Console.WriteLine("=== Jogo de Adivinhação ===");
+Console.WriteLine("Pensei num número de 1 a 100.");
+
+int tentativas = 0;
+while (true)
+{
+    Console.Write("Seu palpite: ");
+    string? texto = Console.ReadLine();
+    if (texto is null)
+    {
+        Console.WriteLine();
+        Console.WriteLine("Jogo interrompido.");
+        return;
+    }
+    if (!int.TryParse(texto, out int palpite))
+    {
+        Console.WriteLine("Digite um número inteiro.");
+        continue;
+    }
+    tentativas++;
+
+    if (palpite == Segredo)
+    {
+        Console.WriteLine($"Acertou! Tentativas: {tentativas}.");
+        break;
+    }
+    else if (palpite &lt; Segredo)
+    {
+        Console.WriteLine($"O número é maior que {palpite}.");
+    }
+    else
+    {
+        Console.WriteLine($"O número é menor que {palpite}.");
+    }
+}
+</pre>
+<pre class="solucao" data-file="adivinhacao.cs">int segredo = Random.Shared.Next(1, 101);
+
+Console.WriteLine("=== Jogo de Adivinhação ===");
+Console.WriteLine("Pensei num número de 1 a 100.");
+
+int tentativas = 0;
+while (true)
+{
+    Console.Write("Seu palpite: ");
+    string? texto = Console.ReadLine();
+    if (texto is null)
+    {
+        Console.WriteLine();
+        Console.WriteLine("Jogo interrompido.");
+        return;
+    }
+    if (!int.TryParse(texto, out int palpite))
+    {
+        Console.WriteLine("Digite um número inteiro.");
+        continue;
+    }
+    tentativas++;
+
+    if (palpite == segredo)
+    {
+        Console.WriteLine($"Acertou! Tentativas: {tentativas}.");
+        break;
+    }
+    else if (palpite &lt; segredo)
+    {
+        Console.WriteLine($"O número é maior que {palpite}.");
+    }
+    else
+    {
+        Console.WriteLine($"O número é menor que {palpite}.");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao4">Versão 4 · No máximo 7 tentativas</h2>
+<p>Sem limite, qualquer um ganha chutando 1, 2, 3… Com <strong>7 tentativas</strong>, só ganha quem pensa (7 é exatamente o que a busca binária precisa para 100 números). O laço deixa de ser "para sempre": ele roda <strong>enquanto</strong> ainda há tentativas. Ao sair, o programa precisa saber <strong>por que</strong> saiu (acertou ou acabaram as tentativas), e para isso usamos um <code>bool</code>.</p>
+
+<pre class="file" data-file="adivinhacao.cs">const int MaxTentativas = 7;
+int segredo = Random.Shared.Next(1, 101);
+
+Console.WriteLine("=== Jogo de Adivinhação ===");
+Console.WriteLine($"Pensei num número de 1 a 100. Você tem {MaxTentativas} tentativas.");
+
+int tentativas = 0;
+bool acertou = false;
+while (tentativas &lt; MaxTentativas)
+{
+    Console.Write($"Palpite {tentativas + 1} de {MaxTentativas}: ");
+    string? texto = Console.ReadLine();
+    if (texto is null)
+    {
+        Console.WriteLine();
+        Console.WriteLine("Jogo interrompido.");
+        return;
+    }
+    if (!int.TryParse(texto, out int palpite))
+    {
+        Console.WriteLine("Digite um número inteiro.");
+        continue;
+    }
+    tentativas++;
+
+    if (palpite == segredo)
+    {
+        acertou = true;
+        break;
+    }
+    else if (palpite &lt; segredo)
+    {
+        Console.WriteLine($"O número é maior que {palpite}.");
+    }
+    else
+    {
+        Console.WriteLine($"O número é menor que {palpite}.");
+    }
+}
+
+if (acertou)
+{
+    Console.WriteLine($"Acertou! Tentativas: {tentativas}.");
+}
+else
+{
+    Console.WriteLine($"Suas {MaxTentativas} tentativas acabaram. O número era {segredo}.");
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>const int MaxTentativas = 7;</dt><dd>O limite com nome. Quer um modo fácil, com 10? Muda uma linha.</dd>
+  <dt>bool acertou = false;</dt><dd>Uma "bandeira" (em inglês, <em>flag</em>): começa abaixada e só sobe quando a Ana acerta (<a href="char-bool.html">bool</a>).</dd>
+  <dt>while (tentativas &lt; MaxTentativas)</dt><dd>Roda enquanto a Ana tiver tentativas: na 7ª, <code>tentativas</code> vira 7 e o laço para sozinho.</dd>
+  <dt>$"Palpite {tentativas + 1} de {MaxTentativas}: "</dt><dd>Mostra qual palpite é: o primeiro é o 1, quando <code>tentativas</code> ainda vale 0.</dd>
+  <dt>acertou = true; break;</dt><dd>Levanta a bandeira e sai do laço antes do fim.</dd>
+  <dt>if (acertou) … else …</dt><dd>Depois do laço, a bandeira diz como ele terminou.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs/adivinhacao">$ dotnet run adivinhacao.cs
+=== Jogo de Adivinhação ===
+Pensei num número de 1 a 100. Você tem 7 tentativas.
+Palpite 1 de 7: 50
+O número é maior que 50.
+Palpite 2 de 7: 75
+O número é maior que 75.
+Palpite 3 de 7: 88
+O número é maior que 88.
+Palpite 4 de 7: 94
+O número é maior que 94.
+Palpite 5 de 7: 97
+O número é maior que 97.
+Palpite 6 de 7: 99
+Acertou! Tentativas: 6.
+$ dotnet run adivinhacao.cs
+=== Jogo de Adivinhação ===
+Pensei num número de 1 a 100. Você tem 7 tentativas.
+Palpite 1 de 7: 1
+O número é maior que 1.
+Palpite 2 de 7: 2
+O número é maior que 2.
+Palpite 3 de 7: 3
+O número é maior que 3.
+Palpite 4 de 7: 4
+O número é maior que 4.
+Palpite 5 de 7: 5
+O número é maior que 5.
+Palpite 6 de 7: 6
+O número é maior que 6.
+Palpite 7 de 7: 7
+O número é maior que 7.
+Suas 7 tentativas acabaram. O número era 60.</pre>
+
+<div class="trycs" data-stdin="1\n2\n3\n4\n5\n6\n7\n" data-goal="outre:Acertou! Tentativas: [1-7]\.|O número era \d+\.,src:while\s*\(\s*tentativas\s*&lt;\s*MaxTentativas\s*\)">
+<p class="try-task"><strong>Missão (versão 4):</strong> o jogo ainda não tem limite. Troque o <code>while (true)</code> por <code>while (tentativas &lt; MaxTentativas)</code> e, no <code>else</code> do fim, mostre <code>Suas 7 tentativas acabaram. O número era …</code> com o <code>segredo</code>. A entrada são os palpites 1 a 7: dependendo do sorteio, a Ana ganha ou perde, e as duas saídas valem.</p>
+<pre class="script" data-file="adivinhacao.cs">const int MaxTentativas = 7;
+int segredo = Random.Shared.Next(1, 101);
+
+Console.WriteLine("=== Jogo de Adivinhação ===");
+Console.WriteLine($"Pensei num número de 1 a 100. Você tem {MaxTentativas} tentativas.");
+
+int tentativas = 0;
+bool acertou = false;
+while (true)
+{
+    Console.Write($"Palpite {tentativas + 1} de {MaxTentativas}: ");
+    string? texto = Console.ReadLine();
+    if (texto is null)
+    {
+        Console.WriteLine();
+        Console.WriteLine("Jogo interrompido.");
+        return;
+    }
+    if (!int.TryParse(texto, out int palpite))
+    {
+        Console.WriteLine("Digite um número inteiro.");
+        continue;
+    }
+    tentativas++;
+
+    if (palpite == segredo)
+    {
+        acertou = true;
+        break;
+    }
+    else if (palpite &lt; segredo)
+    {
+        Console.WriteLine($"O número é maior que {palpite}.");
+    }
+    else
+    {
+        Console.WriteLine($"O número é menor que {palpite}.");
+    }
+}
+
+if (acertou)
+{
+    Console.WriteLine($"Acertou! Tentativas: {tentativas}.");
+}
+else
+{
+    // mostre que as tentativas acabaram e qual era o número
+}
+</pre>
+<pre class="solucao" data-file="adivinhacao.cs">const int MaxTentativas = 7;
+int segredo = Random.Shared.Next(1, 101);
+
+Console.WriteLine("=== Jogo de Adivinhação ===");
+Console.WriteLine($"Pensei num número de 1 a 100. Você tem {MaxTentativas} tentativas.");
+
+int tentativas = 0;
+bool acertou = false;
+while (tentativas &lt; MaxTentativas)
+{
+    Console.Write($"Palpite {tentativas + 1} de {MaxTentativas}: ");
+    string? texto = Console.ReadLine();
+    if (texto is null)
+    {
+        Console.WriteLine();
+        Console.WriteLine("Jogo interrompido.");
+        return;
+    }
+    if (!int.TryParse(texto, out int palpite))
+    {
+        Console.WriteLine("Digite um número inteiro.");
+        continue;
+    }
+    tentativas++;
+
+    if (palpite == segredo)
+    {
+        acertou = true;
+        break;
+    }
+    else if (palpite &lt; segredo)
+    {
+        Console.WriteLine($"O número é maior que {palpite}.");
+    }
+    else
+    {
+        Console.WriteLine($"O número é menor que {palpite}.");
+    }
+}
+
+if (acertou)
+{
+    Console.WriteLine($"Acertou! Tentativas: {tentativas}.");
+}
+else
+{
+    Console.WriteLine($"Suas {MaxTentativas} tentativas acabaram. O número era {segredo}.");
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="versao5">Versão 5 · Jogar de novo</h2>
+<p>Para jogar outra partida, a Ana tinha de rodar o programa de novo. Na versão final, o programa pergunta "Jogar de novo?". Duas mudanças:</p>
+<ul>
+  <li>A partida inteira vai para um <strong>método</strong> <code>Jogar()</code>. O programa principal fica só com o "jogar enquanto a Ana quiser".</li>
+  <li>Dois <a href="do-while.html">do while</a>: um para as partidas e outro para a pergunta. O <code>do while</code> roda o corpo <strong>pelo menos uma vez</strong> e só depois testa a condição: perfeito para "jogue uma partida, depois pergunte" e para "pergunte até a resposta ser s ou n".</li>
+</ul>
+
+<pre class="file" data-file="adivinhacao.cs">const int MaxTentativas = 7;
+
+Console.WriteLine("=== Jogo de Adivinhação ===");
+
+int partidas = 0;
+string resposta;
+do
+{
+    partidas++;
+    Console.WriteLine();
+    Console.WriteLine($"Partida {partidas}: pensei num número de 1 a 100. Você tem {MaxTentativas} tentativas.");
+    Jogar();
+
+    do
+    {
+        Console.Write("Jogar de novo? (s/n): ");
+        resposta = (Console.ReadLine() ?? "n").Trim().ToLower();
+    } while (resposta != "s" &amp;&amp; resposta != "n");
+} while (resposta == "s");
+
+Console.WriteLine($"Partidas: {partidas}. Até a próxima!");
+
+static void Jogar()
+{
+    int segredo = Random.Shared.Next(1, 101);
+    int tentativas = 0;
+    while (tentativas &lt; MaxTentativas)
+    {
+        Console.Write($"Palpite {tentativas + 1} de {MaxTentativas}: ");
+        string? texto = Console.ReadLine();
+        if (texto is null)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Jogo interrompido.");
+            return;
+        }
+        if (!int.TryParse(texto, out int palpite))
+        {
+            Console.WriteLine("Digite um número inteiro.");
+            continue;
+        }
+        tentativas++;
+
+        if (palpite == segredo)
+        {
+            Console.WriteLine($"Acertou! Tentativas: {tentativas}.");
+            return;
+        }
+        if (palpite &lt; segredo)
+        {
+            Console.WriteLine($"O número é maior que {palpite}.");
+        }
+        else
+        {
+            Console.WriteLine($"O número é menor que {palpite}.");
+        }
+    }
+    Console.WriteLine($"Suas {MaxTentativas} tentativas acabaram. O número era {segredo}.");
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>string resposta;</dt><dd>Declarada <strong>antes</strong> do <code>do</code>, porque o <code>while (resposta == "s")</code> do fim fica fora das chaves e precisa enxergá-la (<a href="escopo.html">Escopo</a>). Não precisa de valor inicial: o C# vê que o <code>do</code> sempre guarda algo nela antes do teste.</dd>
+  <dt>do { … } while (resposta == "s");</dt><dd>Joga uma partida, pergunta, e repete se a resposta for <code>s</code>. Repare no <code>;</code> depois do <code>while</code>: no <code>do while</code> ele é obrigatório.</dd>
+  <dt>(Console.ReadLine() ?? "n").Trim().ToLower()</dt><dd>Se a entrada acabou, vale "n". O <code>Trim()</code> tira os espaços das pontas e o <code>ToLower()</code> passa para minúsculas: <code>" S "</code> vira <code>"s"</code> (<a href="metodos-string.html">Métodos de String</a>).</dd>
+  <dt>while (resposta != "s" &amp;&amp; resposta != "n")</dt><dd>Pergunta de novo enquanto a resposta não for nem <code>s</code> nem <code>n</code>: <code>talvez</code> não vale (<a href="operadores-logicos.html">&amp;&amp;</a>).</dd>
+  <dt>static void Jogar()</dt><dd>A partida inteira. <code>void</code> quer dizer "não devolve nada". O <code>segredo</code> e as <code>tentativas</code> agora são variáveis do método: cada partida começa do zero.</dd>
+  <dt>return; (dentro de Jogar)</dt><dd>Termina <strong>só a partida</strong> e volta para quem chamou. O <code>bool acertou</code> não é mais necessário: se o laço acabar sem <code>return</code>, as tentativas acabaram.</dd>
+  <dt>MaxTentativas dentro de Jogar()</dt><dd>Um <code>static</code> local enxerga as constantes do programa principal (mas não as variáveis comuns, como <code>partidas</code>; veja <a href="funcoes-locais.html">Funções Locais</a>).</dd>
+</dl>
+
+<p>A saída é a do começo da página, em "O que vamos construir".</p>
+
+<div class="trycs" data-stdin="1\n2\n3\n4\n5\n6\n7\ns\n1\n2\n3\n4\n5\n6\n7\nn\n" data-goal="out:Partidas: 2.">
+<p class="try-task"><strong>Missão (versão 5):</strong> o jogo repete, mas o fim sempre diz <code>Partidas: 0.</code> (e as partidas aparecem como "Partida 0"). No começo do <code>do</code> de fora, conte a partida com <code>partidas++;</code>. A entrada joga duas partidas (palpites 1 a 7, <code>s</code>, palpites 1 a 7, <code>n</code>); quando a Ana acerta antes do 7º palpite, os números que sobram são respondidos na pergunta "Jogar de novo?", que os recusa até chegar o <code>s</code> ou o <code>n</code>.</p>
+<pre class="script" data-file="adivinhacao.cs">const int MaxTentativas = 7;
+
+Console.WriteLine("=== Jogo de Adivinhação ===");
+
+int partidas = 0;
+string resposta;
+do
+{
+    // conte a partida
+    Console.WriteLine();
+    Console.WriteLine($"Partida {partidas}: pensei num número de 1 a 100. Você tem {MaxTentativas} tentativas.");
+    Jogar();
+
+    do
+    {
+        Console.Write("Jogar de novo? (s/n): ");
+        resposta = (Console.ReadLine() ?? "n").Trim().ToLower();
+    } while (resposta != "s" &amp;&amp; resposta != "n");
+} while (resposta == "s");
+
+Console.WriteLine($"Partidas: {partidas}. Até a próxima!");
+
+static void Jogar()
+{
+    int segredo = Random.Shared.Next(1, 101);
+    int tentativas = 0;
+    while (tentativas &lt; MaxTentativas)
+    {
+        Console.Write($"Palpite {tentativas + 1} de {MaxTentativas}: ");
+        string? texto = Console.ReadLine();
+        if (texto is null)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Jogo interrompido.");
+            return;
+        }
+        if (!int.TryParse(texto, out int palpite))
+        {
+            Console.WriteLine("Digite um número inteiro.");
+            continue;
+        }
+        tentativas++;
+
+        if (palpite == segredo)
+        {
+            Console.WriteLine($"Acertou! Tentativas: {tentativas}.");
+            return;
+        }
+        if (palpite &lt; segredo)
+        {
+            Console.WriteLine($"O número é maior que {palpite}.");
+        }
+        else
+        {
+            Console.WriteLine($"O número é menor que {palpite}.");
+        }
+    }
+    Console.WriteLine($"Suas {MaxTentativas} tentativas acabaram. O número era {segredo}.");
+}
+</pre>
+<pre class="solucao" data-file="adivinhacao.cs">const int MaxTentativas = 7;
+
+Console.WriteLine("=== Jogo de Adivinhação ===");
+
+int partidas = 0;
+string resposta;
+do
+{
+    partidas++;
+    Console.WriteLine();
+    Console.WriteLine($"Partida {partidas}: pensei num número de 1 a 100. Você tem {MaxTentativas} tentativas.");
+    Jogar();
+
+    do
+    {
+        Console.Write("Jogar de novo? (s/n): ");
+        resposta = (Console.ReadLine() ?? "n").Trim().ToLower();
+    } while (resposta != "s" &amp;&amp; resposta != "n");
+} while (resposta == "s");
+
+Console.WriteLine($"Partidas: {partidas}. Até a próxima!");
+
+static void Jogar()
+{
+    int segredo = Random.Shared.Next(1, 101);
+    int tentativas = 0;
+    while (tentativas &lt; MaxTentativas)
+    {
+        Console.Write($"Palpite {tentativas + 1} de {MaxTentativas}: ");
+        string? texto = Console.ReadLine();
+        if (texto is null)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Jogo interrompido.");
+            return;
+        }
+        if (!int.TryParse(texto, out int palpite))
+        {
+            Console.WriteLine("Digite um número inteiro.");
+            continue;
+        }
+        tentativas++;
+
+        if (palpite == segredo)
+        {
+            Console.WriteLine($"Acertou! Tentativas: {tentativas}.");
+            return;
+        }
+        if (palpite &lt; segredo)
+        {
+            Console.WriteLine($"O número é maior que {palpite}.");
+        }
+        else
+        {
+            Console.WriteLine($"O número é menor que {palpite}.");
+        }
+    }
+    Console.WriteLine($"Suas {MaxTentativas} tentativas acabaram. O número era {segredo}.");
+}
+</pre>
+</div>
+
+<div class="tip">
+<strong>Como testar um jogo que muda a cada vez?</strong>
+<p>As missões desta página nunca dependem do número sorteado: a entrada cobre todos os casos (os palpites de 1 a 100, ou "ganhou ou perdeu, tanto faz"). Outra técnica, muito usada em testes automáticos, é criar o sorteador com uma <strong>semente</strong> fixa, <code>new Random(123)</code>, que sorteia sempre a mesma sequência. Veja <a href="aleatorios.html">Números Aleatórios</a> e <a href="testes.html">Testes</a>.</p>
+</div>
+
+<hr>
+
+<h2>O programa completo</h2>
+<p>A versão final é a versão 5, acima. O que o projeto juntou: <a href="constantes.html">const</a>, <a href="if-else.html">if</a> e <a href="else-if.html">else if</a>, <a href="while.html">while</a>, <a href="do-while.html">do while</a>, <a href="break-continue.html">break e continue</a>, <a href="aleatorios.html">Random.Shared</a>, <a href="parse.html">TryParse</a>, <a href="referencias-anulaveis.html">string?</a> e um <a href="metodos.html">método</a> <code>void</code>.</p>
+
+<hr>
+
+<h2>Desafios extras</h2>
+<ol>
+  <li><strong>Recorde.</strong> Faça o <code>Jogar()</code> devolver um <code>int</code> (as tentativas, ou 0 se perdeu) e mostre no fim o menor número de tentativas das partidas (veja <a href="retorno.html">Valor de Retorno</a>).</li>
+  <li><strong>Níveis.</strong> Pergunte o nível antes de cada partida: fácil (1 a 50, 10 tentativas), normal (1 a 100, 7) e difícil (1 a 1000, 10). Um <a href="enums.html">enum</a> e uma <a href="switch-expressoes.html">expressão switch</a> ajudam.</li>
+  <li><strong>Esquentando.</strong> Além de "maior" ou "menor", diga "está quente!" quando o palpite estiver a menos de 5 do segredo (<code>Math.Abs(palpite - segredo) &lt; 5</code>, veja <a href="math.html">Math</a>).</li>
+  <li><strong>Fora da faixa.</strong> Recuse palpites menores que 1 ou maiores que 100 sem gastar tentativa.</li>
+  <li><strong>O computador adivinha.</strong> Inverta o jogo: você pensa no número, e o programa chuta o meio e pergunta "maior, menor ou acertei?".</li>
+</ol>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">1. Quais números <code>Random.Shared.Next(1, 7)</code> pode sortear?</p>
+<label><input type="radio" name="q1"> De 1 a 7.</label>
+<label><input type="radio" name="q1"> De 0 a 7.</label>
+<label><input type="radio" name="q1"> De 1 a 6, como um dado.</label>
+<label><input type="radio" name="q1"> De 0 a 6.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">2. Qual a diferença entre <code>while</code> e <code>do while</code>?</p>
+<label><input type="radio" name="q2"> O <code>do while</code> roda o corpo pelo menos uma vez, antes de testar a condição.</label>
+<label><input type="radio" name="q2"> O <code>do while</code> é mais rápido.</label>
+<label><input type="radio" name="q2"> O <code>while</code> não aceita <code>break</code>.</label>
+<label><input type="radio" name="q2"> Nenhuma: são dois nomes para a mesma coisa.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">3. Por que <code>int tentativas = 0;</code> fica fora do <code>while</code>?</p>
+<label><input type="radio" name="q3"> Porque variáveis não podem ser criadas dentro de laços.</label>
+<label><input type="radio" name="q3"> Para o programa compilar mais rápido.</label>
+<label><input type="radio" name="q3"> Porque <code>int</code> só funciona fora de chaves.</label>
+<label><input type="radio" name="q3"> Porque dentro do laço ela voltaria a 0 a cada volta e nunca passaria de 1.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O que o <code>CS0165</code> ("Uso de variável local não atribuída") quer dizer?</p>
+<label><input type="radio" name="q4"> Que a variável foi declarada duas vezes.</label>
+<label><input type="radio" name="q4"> Que o programa lê uma variável local antes de guardar qualquer valor nela.</label>
+<label><input type="radio" name="q4"> Que a variável é <code>null</code>.</label>
+<label><input type="radio" name="q4"> Que falta um <code>;</code>.</label>
+</div>
+
+<div class="exercise">
+<p>5. Complete o sorteio de um número de 1 a 100:</p>
+<div class="ex-code">int segredo = Random.Shared.Next(1, <input data-answer="101" aria-label="limite" size="4">);</div>
+</div>
+
+<div class="exercise">
+<p>6. Complete o laço que pergunta até a resposta ser <code>s</code> ou <code>n</code>:</p>
+<div class="ex-code">} while (resposta != "s" <input data-answer="&amp;&amp;" aria-label="operador" size="3"> resposta != "n");</div>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Comece com um segredo fixo para testar; sorteie só quando o jogo funcionar.</li>
+  <li><code>Random.Shared.Next(1, 101)</code> sorteia de 1 a 100: o segundo número não entra.</li>
+  <li><code>while (true)</code> com <code>break</code> repete até acertar; <code>while (tentativas &lt; MaxTentativas)</code> repete enquanto há tentativas, e um <code>bool</code> diz como o laço terminou.</li>
+  <li><code>TryParse</code> com <code>continue</code> recusa palpites que não são números sem gastar tentativa.</li>
+  <li>Trate o <code>null</code> do <code>ReadLine</code> (fim da entrada), senão um laço com <code>continue</code> nunca termina.</li>
+  <li><code>do while</code> roda pelo menos uma vez: ótimo para "jogar de novo?" e para repetir uma pergunta até a resposta valer.</li>
+</ul>
+<p>Próximo projeto: <a href="projeto-notas.html">Boletim de Notas</a>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
