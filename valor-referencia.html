@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Valor × Referência — cópias, objetos compartilhados e boxing | Guia C#</title>
+<meta name="description" content="Tipos de valor e tipos de referência em C# para quem está começando: por que copiar um int faz uma cópia e copiar um objeto não, parâmetros de métodos, arrays, o caso do string, null, boxing e unboxing, a InvalidCastException real e os erros CS0037 e CS0266 do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Valor × Referência</span></h1>
+
+<p class="intro">Faça um teste: guarde um número numa variável, copie para outra e mude a cópia. A original não muda. Agora faça o mesmo com um objeto: mude a "cópia" e a original muda junto! Não é defeito. O C# tem <strong>dois tipos de tipo</strong>: os <strong>tipos de valor</strong>, em que a variável guarda o próprio dado, e os <strong>tipos de referência</strong>, em que a variável guarda o <strong>endereço</strong> de um objeto. Entender essa diferença evita uma família inteira de bugs.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é um tipo de valor e um tipo de referência, e quais tipos são de cada família.</li>
+  <li>O que acontece numa atribuição (<code>b = a</code>) em cada caso.</li>
+  <li>O que acontece quando você passa cada um para um método.</li>
+  <li>Por que os arrays e as listas se comportam como objetos, e por que o <code>string</code> parece um valor.</li>
+  <li>Quem pode ser <code>null</code> (o erro <code>CS0037</code>).</li>
+  <li><em>Boxing</em> e <em>unboxing</em>: guardar um valor dentro de um <code>object</code>, e a <code>InvalidCastException</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com <code>dotnet run arquivo.cs</code> no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: a fotocópia e o endereço</h2>
+<p>A Ana tem uma receita de bolo e quer passá-la para a Bia. Ela pode fazer de dois jeitos:</p>
+<ul>
+  <li><strong>Tirar uma fotocópia</strong> e dar a cópia. Se a Bia rabiscar a cópia dela, a receita da Ana continua limpa. Cada uma tem a sua. Isso é um <strong>tipo de valor</strong>.</li>
+  <li><strong>Passar o endereço</strong> do blog onde a receita está publicada. Agora as duas olham <strong>a mesma</strong> receita. Se a Bia (que também tem a senha) editar a página, a Ana vê a mudança. Isso é um <strong>tipo de referência</strong>: a variável guarda o "endereço" do objeto, não o objeto.</li>
+</ul>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipos de valor (a variável guarda o dado)</th><th>Tipos de referência (a variável guarda o endereço)</th></tr>
+<tr><td><code>int</code>, <code>long</code>, <code>double</code>, <code>decimal</code>, <code>bool</code>, <code>char</code></td><td>Toda <code>class</code> (as suas e as do .NET)</td></tr>
+<tr><td><a href="structs.html"><code>struct</code></a> (como <code>DateTime</code>)</td><td><code>string</code></td></tr>
+<tr><td><a href="enums.html"><code>enum</code></a></td><td>Arrays (<code>int[]</code>), <code>List&lt;T&gt;</code>, <code>Dictionary</code></td></tr>
+<tr><td><code>record struct</code>, <a href="tuplas.html">tuplas</a></td><td><a href="interfaces.html">interfaces</a>, <code>record</code>, <code>object</code>, <a href="delegates.html">delegates</a></td></tr>
+</table>
+</div>
+
+<p>Uma regra fácil para o começo: <strong><code>class</code> é referência; números, <code>bool</code>, <code>char</code>, <code>struct</code> e <code>enum</code> são valor</strong>. Dá para perguntar ao .NET:</p>
+
+<pre class="file" data-file="tipos.cs">Console.WriteLine(typeof(int).IsValueType);
+Console.WriteLine(typeof(decimal).IsValueType);
+Console.WriteLine(typeof(DateTime).IsValueType);
+Console.WriteLine(typeof(string).IsValueType);
+Console.WriteLine(typeof(int[]).IsValueType);
+Console.WriteLine(typeof(List&lt;int&gt;).IsValueType);
+</pre>
+
+<pre class="term">$ dotnet run tipos.cs
+True       « int
+True       « decimal
+True       « DateTime é uma struct
+False      « string
+False      « array
+False      « List</pre>
+
+<hr>
+
+<h2>Copiar um valor: cada um com o seu</h2>
+
+<pre class="file" data-file="valor.cs">int a = 5;
+int b = a;
+b = 10;
+Console.WriteLine($"a = {a}, b = {b}");
+</pre>
+
+<dl class="anatomy">
+  <dt>int a = 5;</dt><dd>A variável <code>a</code> guarda o número 5 dentro dela.</dd>
+  <dt>int b = a;</dt><dd>O 5 é <strong>copiado</strong> para dentro de <code>b</code>. A partir daqui, <code>a</code> e <code>b</code> não têm nada a ver uma com a outra.</dd>
+  <dt>b = 10;</dt><dd>Muda só o <code>b</code>.</dd>
+</dl>
+
+<pre class="term">$ dotnet run valor.cs
+a = 5, b = 10</pre>
+
+<p>Nada de surpresa: é o que você esperava desde a aula de <a href="variaveis.html">Variáveis</a>.</p>
+
+<hr>
+
+<h2>Copiar uma referência: os dois apontam para o mesmo objeto</h2>
+
+<pre class="file" data-file="referencia.cs">Caderno c1 = new Caderno();
+c1.Dono = "Ana";
+Caderno c2 = c1;
+c2.Dono = "Bia";
+Console.WriteLine($"c1: {c1.Dono}, c2: {c2.Dono}");
+
+class Caderno
+{
+    public string Dono { get; set; } = "";
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>Caderno c1 = new Caderno();</dt><dd>O <code>new</code> cria <strong>um</strong> objeto <code>Caderno</code> na memória. A variável <code>c1</code> não guarda o caderno; guarda o <strong>endereço</strong> dele (a "referência").</dd>
+  <dt>Caderno c2 = c1;</dt><dd>Copia o <strong>endereço</strong>, não o caderno. Agora <code>c1</code> e <code>c2</code> são dois nomes para o mesmo objeto. Repare: não houve <code>new</code>, então não nasceu caderno nenhum.</dd>
+  <dt>c2.Dono = "Bia";</dt><dd>"Vá até o objeto para onde <code>c2</code> aponta e troque o dono." É o mesmo objeto de <code>c1</code>.</dd>
+</dl>
+
+<pre class="term">$ dotnet run referencia.cs
+c1: Bia, c2: Bia</pre>
+
+<p>Um desenho ajuda:</p>
+<pre class="file" data-file="memoria">  variáveis              objetos na memória
+  ┌──────────┐
+  │ c1  ●────┼──────┐
+  └──────────┘      ▼
+  ┌──────────┐   ┌────────────────┐
+  │ c2  ●────┼──▶│ Caderno        │
+  └──────────┘   │ Dono = "Bia"   │
+                 └────────────────┘
+  ┌──────────┐
+  │ a   5    │    « um int guarda o próprio número
+  └──────────┘
+</pre>
+
+<div class="tip">
+<strong>"Pilha" e "heap"</strong>
+<p>Em livros e entrevistas você vai ouvir que "tipos de valor ficam na <em>pilha</em> (<em>stack</em>) e objetos ficam no <em>heap</em>". É uma boa imagem para começar: as variáveis locais ficam numa área rápida e organizada (a pilha), e os objetos criados com <code>new</code> ficam numa área maior, cuidada pelo <a href="memoria.html">coletor de lixo</a> (o heap). Mas não é a regra inteira: um <code>int</code> que é campo de uma classe mora dentro do objeto, no heap. O que define a família é o <strong>comportamento na cópia</strong>, não o lugar.</p>
+</div>
+
+<div class="trycs" data-goal="out:c1: Ana\, c2: Bia,src:Caderno\s+c2\s*=\s*new">
+<p class="try-task"><strong>Missão:</strong> a Ana quer que a Bia tenha um caderno <strong>dela</strong>. Troque <code>Caderno c2 = c1;</code> por um caderno novo (<code>new Caderno()</code>), para a saída ficar <code>c1: Ana, c2: Bia</code>.</p>
+<pre class="script">Caderno c1 = new Caderno();
+c1.Dono = "Ana";
+Caderno c2 = c1;
+c2.Dono = "Bia";
+Console.WriteLine($"c1: {c1.Dono}, c2: {c2.Dono}");
+
+class Caderno
+{
+    public string Dono { get; set; } = "";
+}
+</pre>
+<pre class="solucao">Caderno c1 = new Caderno();
+c1.Dono = "Ana";
+Caderno c2 = new Caderno();
+c2.Dono = "Bia";
+Console.WriteLine($"c1: {c1.Dono}, c2: {c2.Dono}");
+
+class Caderno
+{
+    public string Dono { get; set; } = "";
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Passar para um método</h2>
+<p>Passar um argumento para um método é uma atribuição disfarçada: o parâmetro recebe uma <strong>cópia</strong> do que está na variável. Para um valor, é a cópia do dado. Para uma referência, é a cópia do endereço.</p>
+
+<pre class="file" data-file="metodos.cs">int pontos = 10;
+DobrarNumero(pontos);
+Console.WriteLine($"pontos = {pontos}");
+
+Placar placar = new Placar { Pontos = 10 };
+DobrarPlacar(placar);
+Console.WriteLine($"placar.Pontos = {placar.Pontos}");
+
+void DobrarNumero(int numero)
+{
+    numero = numero * 2;
+}
+
+void DobrarPlacar(Placar p)
+{
+    p.Pontos = p.Pontos * 2;
+}
+
+class Placar
+{
+    public int Pontos { get; set; }
+}
+</pre>
+
+<pre class="term">$ dotnet run metodos.cs
+pontos = 10           « o método dobrou a cópia
+placar.Pontos = 20    « o método mexeu no mesmo objeto</pre>
+
+<dl class="anatomy">
+  <dt>DobrarNumero(pontos)</dt><dd>O parâmetro <code>numero</code> recebe uma cópia do 10. O método dobra a cópia, e ela some quando o método termina. A variável <code>pontos</code> nem fica sabendo.</dd>
+  <dt>DobrarPlacar(placar)</dt><dd>O parâmetro <code>p</code> recebe uma cópia do <strong>endereço</strong>. <code>p</code> e <code>placar</code> apontam para o mesmo objeto, então <code>p.Pontos = …</code> muda o placar de verdade.</dd>
+</dl>
+
+<h3>Mas trocar o objeto inteiro não funciona</h3>
+<p>O método recebeu uma <strong>cópia do endereço</strong>. Se ele fizer o parâmetro apontar para outro objeto, a variável de fora continua apontando para o antigo:</p>
+
+<pre class="file" data-file="trocar.cs">Placar placar = new Placar { Pontos = 10 };
+Zerar(placar);
+Console.WriteLine($"placar.Pontos = {placar.Pontos}");
+
+void Zerar(Placar p)
+{
+    p = new Placar();
+    p.Pontos = 0;
+}
+
+class Placar
+{
+    public int Pontos { get; set; }
+}
+</pre>
+
+<pre class="term">$ dotnet run trocar.cs
+placar.Pontos = 10    « o Zerar mexeu num placar novo, que ninguém viu</pre>
+
+<p>O <code>p = new Placar();</code> fez <strong>só o <code>p</code></strong> apontar para um placar novo. Se você precisa que um método troque a variável de quem chamou, existe o <code>ref</code> (veja <a href="ref-out-in.html">ref, out e in</a>). Mas, quase sempre, o melhor é o método <strong>devolver</strong> o objeto novo com <code>return</code>.</p>
+
+<hr>
+
+<h2>Arrays e listas são referências</h2>
+<p>Um array é um objeto, mesmo que seja de <code>int</code>. Copiar a variável copia o endereço:</p>
+
+<pre class="file" data-file="arrays.cs">int[] notas = [7, 8, 9];
+int[] copia = notas;
+copia[0] = 10;
+Console.WriteLine(string.Join(", ", notas));
+
+int[] deVerdade = (int[])notas.Clone();
+deVerdade[1] = 0;
+Console.WriteLine(string.Join(", ", notas));
+Console.WriteLine(string.Join(", ", deVerdade));
+</pre>
+
+<pre class="term">$ dotnet run arrays.cs
+10, 8, 9     « mudar a "copia" mudou as notas
+10, 8, 9     « o Clone criou um array novo: as notas ficaram
+10, 0, 9</pre>
+
+<dl class="anatomy">
+  <dt>int[] copia = notas;</dt><dd>Não copia nada: <code>copia</code> é outro nome para o mesmo array.</dd>
+  <dt>(int[])notas.Clone()</dt><dd>O <code>Clone()</code> cria um array <strong>novo</strong>, com os mesmos elementos. Ele devolve <code>object</code>, por isso o <code>(int[])</code> na frente (veja <a href="conversao-tipos.html">Conversão de Tipos</a>). Com listas, use <code>new List&lt;int&gt;(lista)</code> ou <code>lista.ToList()</code>.</dd>
+</dl>
+
+<hr>
+
+<h2>E o <code>string</code>?</h2>
+<p>O <code>string</code> é um tipo de referência, mas <strong>parece</strong> um valor:</p>
+
+<pre class="file" data-file="texto.cs">string s1 = "Ana";
+string s2 = s1;
+s2 = s2 + " Souza";
+Console.WriteLine($"s1 = {s1}, s2 = {s2}");
+</pre>
+
+<pre class="term">$ dotnet run texto.cs
+s1 = Ana, s2 = Ana Souza</pre>
+
+<p>O segredo é que um <code>string</code> é <strong>imutável</strong>: nenhum método muda o texto que já existe (veja <a href="strings.html">Strings</a>). O <code>s2 + " Souza"</code> cria um texto <strong>novo</strong> e faz o <code>s2</code> apontar para ele, igual ao <code>p = new Placar()</code> de antes. O <code>s1</code> continua apontando para o <code>"Ana"</code> antigo. Como ninguém consegue mudar um texto "por dentro", compartilhar a referência nunca causa surpresas. E o <code>==</code> do <code>string</code> compara o conteúdo, não o endereço.</p>
+
+<hr>
+
+<h2>Quem pode ser <code>null</code></h2>
+<p><code>null</code> quer dizer "não aponta para nada". Só faz sentido para referências: um endereço pode estar vazio, mas um <code>int</code> sempre guarda um número.</p>
+
+<pre class="file" data-file="nulo.cs">int idade = null;
+</pre>
+
+<pre class="term">$ dotnet run nulo.cs
+/home/ana/cs/nulo.cs(1,13): error CS0037: Não é possível converter o valor nulo em 'int' porque ele não é um tipo de valor não anulável
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<div class="warning">
+<strong>Mais uma tradução confusa</strong>
+<p>"Porque ele <strong>não</strong> é um tipo de valor não anulável" parece dizer o contrário do que deveria. O original é <em>Cannot convert null to 'int' because it is a non-nullable value type</em>: "porque <code>int</code> <strong>é</strong> um tipo de valor que não aceita <code>null</code>". Para um valor que pode faltar, use <code>int?</code> (veja <a href="null.html">null e Tipos Anuláveis</a>).</p>
+</div>
+
+<hr>
+
+<h2><em>Boxing</em>: um valor dentro de uma caixa</h2>
+<p>A variável <code>object</code> é uma referência: ela guarda um endereço. Então, como <code>object caixa = 42;</code> funciona, se o 42 é um valor? O C# faz um truque chamado <strong><em>boxing</em></strong> ("encaixotar"): cria um objeto no heap, coloca uma <strong>cópia</strong> do 42 dentro e guarda o endereço da caixa. O caminho de volta, tirar o valor da caixa, é o <strong><em>unboxing</em></strong>.</p>
+
+<pre class="file" data-file="boxing.cs">int n = 42;
+object caixa = n;
+n = 7;
+Console.WriteLine($"n = {n}, caixa = {caixa}");
+
+int deVolta = (int)caixa;
+Console.WriteLine(deVolta + 1);
+</pre>
+
+<dl class="anatomy">
+  <dt>object caixa = n;</dt><dd><em>Boxing</em>: a caixa recebe uma <strong>cópia</strong> do 42. Acontece sozinho, sem você escrever nada.</dd>
+  <dt>n = 7;</dt><dd>Muda o <code>n</code>. A caixa tem a sua própria cópia e continua com 42.</dd>
+  <dt>(int)caixa</dt><dd><em>Unboxing</em>: tira o valor da caixa. Precisa do <em>cast</em> <code>(int)</code>, porque o compilador só sabe que ali há "um <code>object</code>".</dd>
+</dl>
+
+<pre class="term">$ dotnet run boxing.cs
+n = 7, caixa = 42
+43</pre>
+
+<p>Sem o <em>cast</em>, o compilador recusa:</p>
+
+<pre class="term">$ dotnet run semcast.cs
+/home/ana/cs/semcast.cs(2,9): error CS0266: Não é possível converter implicitamente tipo "object" em "int". Existe uma conversão explícita (há uma conversão ausente?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<h3>O <em>unboxing</em> tem de usar o tipo exato</h3>
+<p>Uma caixa com um <code>int</code> só abre como <code>int</code>. Nem um <code>long</code>, que cabe um <code>int</code> com folga, serve:</p>
+
+<pre class="file" data-file="unbox.cs">object caixa = 42;
+long grande = (long)caixa;
+Console.WriteLine(grande);
+</pre>
+
+<pre class="term">$ dotnet run unbox.cs
+Unhandled exception. System.InvalidCastException: Unable to cast object of type 'System.Int32' to type 'System.Int64'.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/unbox.cs:line 2
+$ echo $?
+134</pre>
+
+<p>Desta vez compilou, e o erro só apareceu <strong>rodando</strong>: uma exceção (em inglês, como toda exceção do .NET no Linux). "Não é possível converter um objeto do tipo <code>Int32</code> (o <code>int</code>) para o tipo <code>Int64</code> (o <code>long</code>)." O conserto é abrir a caixa com o tipo certo e, só depois, converter: <code>long grande = (int)caixa;</code>. Se você não sabe o que há na caixa, pergunte com <code>is</code>: <code>if (caixa is int numero) { … }</code>.</p>
+
+<h3>Por que evitar</h3>
+<p>Cada <em>boxing</em> cria um objeto novo na memória, e isso custa tempo. Num laço com milhões de voltas, faz diferença. Por isso o C# moderno usa <a href="generics.html">generics</a>: uma <code>List&lt;int&gt;</code> guarda os <code>int</code> direto, sem caixas, enquanto a antiga <code>ArrayList</code> (de antes dos generics) guardava tudo como <code>object</code>. Regra prática: <strong>use o tipo certo, não <code>object</code></strong>, e o <em>boxing</em> quase nunca aparece.</p>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> rode e veja a <code>InvalidCastException</code> e o código de saída 134. Depois, conserte de dois jeitos: com <code>(int)caixa</code> e com <code>if (caixa is int numero)</code>. Teste também <code>object caixa = 42L;</code> (o <code>L</code> faz o número ser <code>long</code>).</p>
+<pre class="script">object caixa = 42;
+long grande = (long)caixa;
+Console.WriteLine(grande);
+</pre>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>"Mudei a cópia e o original mudou junto"</strong>
+<p><strong>O que aconteceu:</strong> não havia cópia. <code>b = a</code> com um objeto, um array ou uma lista só copia o endereço.</p>
+<p><strong>Como resolver:</strong> crie um objeto novo de propósito: <code>new Caderno { Dono = c1.Dono }</code>, <code>(int[])notas.Clone()</code>, <code>new List&lt;string&gt;(lista)</code>. Para classes suas, um método <code>Copiar()</code> ajuda (é a missão final). Ou use um <a href="records.html">record</a>, que tem o <code>with</code> para fazer cópias com mudanças.</p>
+</div>
+
+<div class="cenario">
+<strong>"O método não mudou a minha variável"</strong>
+<p><strong>O que aconteceu:</strong> o método recebeu uma cópia: do número (tipo de valor) ou do endereço (e trocou o parâmetro por outro objeto com <code>new</code>).</p>
+<p><strong>Como resolver:</strong> faça o método devolver o resultado (<code>pontos = Dobrar(pontos);</code>) ou, se for mesmo necessário, use <code>ref</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0037: "Não é possível converter o valor nulo em 'int' …"</strong>
+<pre class="term">$ dotnet run nulo.cs
+/home/ana/cs/nulo.cs(1,13): error CS0037: Não é possível converter o valor nulo em 'int' porque ele não é um tipo de valor não anulável</pre>
+<p><strong>Como resolver:</strong> tipos de valor não aceitam <code>null</code>. Use <code>int?</code> se o valor pode faltar.</p>
+</div>
+
+<div class="cenario">
+<strong><code>System.InvalidCastException: Unable to cast object of type 'System.Int32' to type 'System.Int64'.</code></strong>
+<p><strong>O que aconteceu:</strong> um <em>unboxing</em> com o tipo errado.</p>
+<p><strong>Como resolver:</strong> abra a caixa com o tipo exato (<code>(int)caixa</code>) ou teste com <code>is</code>. Melhor ainda: evite guardar valores em <code>object</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Tipo de valor</th><th>Tipo de referência</th></tr>
+<tr><td>Exemplos</td><td><code>int</code>, <code>double</code>, <code>decimal</code>, <code>bool</code>, <code>char</code>, <code>struct</code>, <code>enum</code></td><td><code>class</code>, <code>string</code>, arrays, <code>List</code>, <code>object</code>, <code>record</code></td></tr>
+<tr><td>A variável guarda</td><td>O próprio dado</td><td>O endereço de um objeto</td></tr>
+<tr><td><code>b = a;</code></td><td>Copia o dado: dois independentes</td><td>Copia o endereço: o mesmo objeto</td></tr>
+<tr><td>Passar para um método</td><td>O método recebe uma cópia do dado</td><td>O método recebe uma cópia do endereço e pode mudar o objeto</td></tr>
+<tr><td>Pode ser <code>null</code>?</td><td>Não (<code>CS0037</code>); use <code>int?</code></td><td>Sim (<code>string?</code> com referências anuláveis)</td></tr>
+<tr><td>Guardado em <code>object</code></td><td><em>Boxing</em>: vira uma cópia numa caixa</td><td>Só o endereço é guardado</td></tr>
+<tr><td>Perguntar</td><td colspan="2"><code>typeof(T).IsValueType</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Valor</h3>
+<p><code>int x = 3; int y = x; y = 8;</code> Quanto vale <code>x</code>?</p>
+<div class="ex-code"><input data-answer="3" aria-label="valor de x"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Referência</h3>
+<p><code>int[] a = [1, 2]; int[] b = a; b[0] = 9;</code> Quanto vale <code>a[0]</code>?</p>
+<div class="ex-code"><input data-answer="9" aria-label="valor de a[0]"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Abrir a caixa</h3>
+<p>Complete para tirar o número de <code>object caixa = 10;</code>:</p>
+<div class="ex-code">int n = <input data-answer="(int)caixa|(int) caixa" aria-label="unboxing">;</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Qual destes é um tipo de <strong>referência</strong>?</p>
+<label><input type="radio" name="q4"> <code>decimal</code></label>
+<label><input type="radio" name="q4"> <code>DateTime</code></label>
+<label><input type="radio" name="q4"> <code>List&lt;int&gt;</code></label>
+<label><input type="radio" name="q4"> <code>bool</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. <code>void Zerar(Placar p) { p = new Placar(); }</code> é chamado com <code>Zerar(meuPlacar);</code>. O que acontece com <code>meuPlacar</code>?</p>
+<label><input type="radio" name="q5"> Passa a apontar para o placar novo</label>
+<label><input type="radio" name="q5"> Nada: só o parâmetro <code>p</code> passou a apontar para o placar novo</label>
+<label><input type="radio" name="q5"> Vira <code>null</code></label>
+<label><input type="radio" name="q5"> Erro de compilação</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. <code>object caixa = 42; long g = (long)caixa;</code> O que acontece?</p>
+<label><input type="radio" name="q6"> <code>g</code> vale 42</label>
+<label><input type="radio" name="q6"> Erro de compilação <code>CS0266</code></label>
+<label><input type="radio" name="q6"> <code>g</code> vale 0</label>
+<label><input type="radio" name="q6"> Compila, mas dá <code>InvalidCastException</code> ao rodar</label>
+</div>
+
+<div class="trycs" data-goal="outre:^Ana: Café\nBia: Café\, Chá\n$,src:Copiar\(\)\s*\{[^}]*new\s+Carrinho">
+<p class="try-task"><strong>Missão final:</strong> a Bia quis começar o carrinho dela a partir do da Ana e acrescentar um chá. Mas o método <code>Copiar()</code> devolve <code>this</code> (o próprio objeto), e o chá foi parar no carrinho da Ana também. Rode e veja. Conserte o <code>Copiar()</code>: ele deve criar um <code>new Carrinho()</code>, colocar nele os itens deste carrinho (<code>novo.Itens.AddRange(Itens);</code>) e devolver o novo. A saída deve ser <code>Ana: Café</code> e <code>Bia: Café, Chá</code>.</p>
+<pre class="script">Carrinho daAna = new Carrinho();
+daAna.Itens.Add("Café");
+
+Carrinho daBia = daAna.Copiar();
+daBia.Itens.Add("Chá");
+
+Console.WriteLine($"Ana: {string.Join(", ", daAna.Itens)}");
+Console.WriteLine($"Bia: {string.Join(", ", daBia.Itens)}");
+
+class Carrinho
+{
+    public List&lt;string&gt; Itens { get; } = [];
+
+    public Carrinho Copiar()
+    {
+        return this;
+    }
+}
+</pre>
+<pre class="solucao">Carrinho daAna = new Carrinho();
+daAna.Itens.Add("Café");
+
+Carrinho daBia = daAna.Copiar();
+daBia.Itens.Add("Chá");
+
+Console.WriteLine($"Ana: {string.Join(", ", daAna.Itens)}");
+Console.WriteLine($"Bia: {string.Join(", ", daBia.Itens)}");
+
+class Carrinho
+{
+    public List&lt;string&gt; Itens { get; } = [];
+
+    public Carrinho Copiar()
+    {
+        Carrinho novo = new Carrinho();
+        novo.Itens.AddRange(Itens);
+        return novo;
+    }
+}
+</pre>
+</div>
+
+<p>Pense no que aconteceria se o <code>Copiar()</code> fizesse <code>novo.Itens = Itens;</code> (se a propriedade tivesse <code>set</code>): os dois carrinhos teriam objetos diferentes, mas a <strong>mesma lista</strong> lá dentro, e o problema voltaria. Copiar o objeto de fora sem copiar as referências de dentro é chamado de <strong>cópia rasa</strong>; copiar tudo, até o fundo, é a <strong>cópia profunda</strong>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><strong>Tipo de valor</strong> (<code>int</code>, <code>decimal</code>, <code>bool</code>, <code>struct</code>, <code>enum</code>): a variável guarda o dado; <code>b = a</code> faz uma cópia independente.</li>
+  <li><strong>Tipo de referência</strong> (<code>class</code>, <code>string</code>, arrays, listas): a variável guarda o endereço; <code>b = a</code> faz dois nomes para o mesmo objeto.</li>
+  <li>Métodos recebem cópias: do dado ou do endereço. Pelo endereço, o método pode mudar o objeto, mas não trocar a variável de quem chamou.</li>
+  <li>O <code>string</code> é referência, mas imutável, e por isso se comporta como valor. Tipos de valor não aceitam <code>null</code> (<code>CS0037</code>); use <code>int?</code>.</li>
+  <li><em>Boxing</em> põe uma cópia de um valor numa caixa <code>object</code>; o <em>unboxing</em> exige o tipo exato (<code>InvalidCastException</code>). Prefira generics a <code>object</code>. Próxima aula: <a href="structs.html">Structs</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
