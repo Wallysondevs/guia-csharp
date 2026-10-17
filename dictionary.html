@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Dictionary&lt;TKey, TValue&gt; — chave e valor: TryGetValue, Remove, foreach | Guia C#</title>
+<meta name="description" content="Dictionary em C# para quem nunca programou: guardar pares chave e valor, o indexador [ ], Add, a KeyNotFoundException real, ContainsKey, TryGetValue, GetValueOrDefault, TryAdd, Remove, percorrer com foreach e KeyValuePair, contar palavras, a ordem depois de remoções, SortedDictionary e a InvalidOperationException de mudar o dicionário dentro do foreach, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Dictionary&lt;TKey, TValue&gt;</span></h1>
+
+<p class="intro">Numa <a href="list.html">List</a>, você encontra as coisas pela <strong>posição</strong>: o item 0, o item 1, o item 2. Mas muitas vezes você quer encontrar pelo <strong>nome</strong>: o preço <em>do café</em>, a nota <em>da Ana</em>, o estoque <em>de bananas</em>. Para isso existe o <strong>dicionário</strong>: <code>Dictionary&lt;TKey, TValue&gt;</code>. Ele liga cada <strong>chave</strong> a um <strong>valor</strong> e acha qualquer chave num piscar de olhos, mesmo com um milhão de itens.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que são chave e valor, e como criar um <code>Dictionary</code>.</li>
+  <li>Guardar e ler com o indexador <code>[ ]</code>, e a diferença para o <code>Add</code>.</li>
+  <li>O que acontece quando a chave não existe: a <code>KeyNotFoundException</code>.</li>
+  <li>Perguntar antes: <code>ContainsKey</code>, <code>TryGetValue</code>, <code>GetValueOrDefault</code>, <code>TryAdd</code> e <code>Remove</code>.</li>
+  <li>Percorrer com <code>foreach</code>, <code>KeyValuePair</code>, <code>Keys</code> e <code>Values</code>.</li>
+  <li>Contar quantas vezes cada palavra aparece.</li>
+  <li>Por que você não deve contar com a <strong>ordem</strong> e quando usar o <code>SortedDictionary</code>.</li>
+  <li>A <code>InvalidOperationException</code> de mudar o dicionário dentro do <code>foreach</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> na máquina da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code> (veja <a href="dotnet-run.html">Rodar com dotnet run</a>). Você pode repetir cada um no editor do guia.</p>
+
+<hr>
+
+<h2>A ideia: um dicionário de papel</h2>
+<p>Num dicionário de papel, você não procura "a palavra número 3.512": você procura <strong>pela palavra</strong> e encontra o significado. A palavra é a <strong>chave</strong> (<em>key</em>); o significado é o <strong>valor</strong> (<em>value</em>). A tabela de preços da lojinha da Ana é igual:</p>
+
+<pre class="syntax">  chave        valor
+  "pão"    →   0,75
+  "leite"  →   5,49
+  "café"   →  18,90</pre>
+
+<p>Duas regras definem um dicionário:</p>
+<ul>
+  <li><strong>Cada chave aparece uma vez só.</strong> Não existem dois "pão". Guardar "pão" de novo <strong>troca</strong> o valor que estava lá.</li>
+  <li><strong>Os valores podem se repetir.</strong> O pão e a banana podem custar o mesmo.</li>
+</ul>
+
+<p>No nome <code>Dictionary&lt;TKey, TValue&gt;</code>, os dois tipos entre <code>&lt; &gt;</code> são escolhidos por você: <code>TKey</code> é o tipo da chave e <code>TValue</code>, o do valor. Um <code>Dictionary&lt;string, decimal&gt;</code> é "um dicionário de texto para dinheiro". Essa escolha de tipos entre <code>&lt; &gt;</code> se chama <em>generics</em> e tem aula própria (<a href="generics.html">Generics</a>). O <code>Dictionary</code> mora no <em>namespace</em> <code>System.Collections.Generic</code>, que o .NET já importa sozinho (o <code>using</code> implícito; veja <a href="namespaces.html">Namespaces e using</a>).</p>
+
+<hr>
+
+<h2>1. Criar, guardar e ler: o indexador <code>[ ]</code></h2>
+
+<pre class="file" data-file="precos.cs">var precos = new Dictionary&lt;string, decimal&gt;();
+
+precos["pão"] = 0.75m;
+precos["leite"] = 5.49m;
+precos["café"] = 18.90m;
+
+Console.WriteLine($"Produtos: {precos.Count}");
+Console.WriteLine($"Leite: {precos["leite"]:C}");
+
+precos["leite"] = 5.99m;
+Console.WriteLine($"Leite agora: {precos["leite"]:C}");
+Console.WriteLine($"Produtos: {precos.Count}");
+
+Console.WriteLine(precos);
+</pre>
+
+<dl class="anatomy">
+  <dt>new Dictionary&lt;string, decimal&gt;()</dt><dd>Cria um dicionário <strong>vazio</strong>. A chave é <code>string</code> (o nome do produto) e o valor é <code>decimal</code> (o preço; dinheiro é sempre <code>decimal</code>, veja <a href="decimais.html">float, double e decimal</a>).</dd>
+  <dt>precos["pão"] = 0.75m;</dt><dd>O <strong>indexador</strong>: os colchetes com a <strong>chave</strong> dentro, em vez de um número de posição. Leia "o preço do pão recebe 0,75". Se a chave não existe, ela é criada; se já existe, o valor é trocado.</dd>
+  <dt>precos.Count</dt><dd><em>Count</em> = contagem. Quantos <strong>pares</strong> chave-valor existem.</dd>
+  <dt>precos["leite"]</dt><dd>Sem o <code>=</code> depois, o indexador <strong>lê</strong>: devolve o valor ligado à chave <code>"leite"</code>.</dd>
+  <dt>:C</dt><dd>Formata como moeda (<code>R$</code>), como em <a href="formatacao.html">Formatar Números</a>.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run precos.cs
+Produtos: 3
+Leite: R$ 5,49
+Leite agora: R$ 5,99                                       « a mesma chave: o valor foi trocado
+Produtos: 3                                                « continua com 3, não criou outro leite
+System.Collections.Generic.Dictionary`2[System.String,System.Decimal]</pre>
+
+<p>Repare na última linha. Diferente de outras linguagens, o C# <strong>não</strong> mostra o conteúdo do dicionário quando você o passa para o <code>Console.WriteLine</code>: ele mostra só o <strong>nome do tipo</strong> (o <code>`2</code> quer dizer "com 2 tipos entre <code>&lt; &gt;</code>"). Para ver o que tem dentro, você percorre o dicionário com <code>foreach</code>, como na <a href="#percorrer">seção 4</a>.</p>
+
+<h3>O <code>Add</code>: guardar só se a chave for nova</h3>
+<p>Também dá para guardar com o método <code>Add</code> ("acrescentar"). A diferença aparece quando a chave <strong>já existe</strong>: o indexador troca o valor em silêncio, mas o <code>Add</code> recusa e lança uma exceção.</p>
+
+<pre class="file" data-file="add.cs">var precos = new Dictionary&lt;string, decimal&gt;();
+
+precos.Add("pão", 0.75m);
+precos.Add("leite", 5.49m);
+Console.WriteLine($"Produtos: {precos.Count}");
+
+precos.Add("pão", 0.80m);
+Console.WriteLine("Esta linha não roda.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run add.cs
+Produtos: 2
+Unhandled exception. System.ArgumentException: An item with the same key has already been added. Key: pão
+   at System.Collections.Generic.Dictionary`2.TryInsert(TKey key, TValue value, InsertionBehavior behavior)
+   at System.Collections.Generic.Dictionary`2.Add(TKey key, TValue value)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/add.cs:line 7
+$ echo $?
+134</pre>
+
+<p>A mensagem, em português: "um item com a mesma chave já foi adicionado. Chave: pão". A última linha do rastro diz onde: <code>add.cs:line 7</code>. Isso não é um defeito do <code>Add</code>, é o trabalho dele: quando uma chave repetida é um <strong>erro</strong> nos seus dados (dois alunos com a mesma matrícula, por exemplo), o <code>Add</code> avisa na hora em vez de apagar o primeiro sem você perceber.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Chave nova</th><th>Chave que já existe</th></tr>
+<tr><td><code>d[chave] = valor;</code></td><td>Cria o par</td><td>Troca o valor (sem aviso)</td></tr>
+<tr><td><code>d.Add(chave, valor);</code></td><td>Cria o par</td><td>Lança <code>ArgumentException</code></td></tr>
+<tr><td><code>d.TryAdd(chave, valor)</code></td><td>Cria o par e devolve <code>true</code></td><td>Não mexe e devolve <code>false</code> (<a href="#perguntar">seção 3</a>)</td></tr>
+</table>
+</div>
+
+<h3>Criar já com itens</h3>
+<p>Em vez de uma linha por item, você pode encher o dicionário na criação, com um <strong>inicializador</strong> entre chaves. Há duas formas, e as duas dão o mesmo dicionário:</p>
+
+<pre class="file" data-file="inicializar.cs">var estoque = new Dictionary&lt;string, int&gt;
+{
+    ["maçã"] = 12,
+    ["banana"] = 30,
+};
+
+var notas = new Dictionary&lt;string, double&gt;
+{
+    { "Ana", 9.5 },
+    { "Bruno", 7.0 },
+};
+</pre>
+
+<dl class="anatomy">
+  <dt>["maçã"] = 12,</dt><dd>Usa o indexador para cada item. Se a mesma chave aparecer duas vezes, vale a última.</dd>
+  <dt>{ "Ana", 9.5 },</dt><dd>Usa o <code>Add</code> para cada item. Uma chave repetida dá a <code>ArgumentException</code> que você acabou de ver.</dd>
+  <dt>a vírgula depois do último item</dt><dd>É permitida e comum: facilita acrescentar uma linha depois.</dd>
+</dl>
+
+<div class="tip">
+<strong>E os colchetes <code>[ ]</code> das listas?</strong>
+<p>Uma lista pode ser criada com a expressão de coleção <code>List&lt;int&gt; n = [1, 2, 3];</code> <span class="versao">C# 12</span>. Para dicionários isso ainda não existe no C# 14: <code>Dictionary&lt;string, int&gt; d = ["a": 1];</code> dá <code>error CS1003: Erro de sintaxe, "]" esperado</code>. Use um dos dois inicializadores acima.</p>
+</div>
+
+<div class="trycs" data-goal="out:Café: R$ 19\,50,out:Produtos: 3,src:precos\[\s*&quot;café&quot;\s*\]\s*=\s*19">
+<p class="try-task"><strong>Missão:</strong> o café subiu. Logo depois do <code>Console.WriteLine</code> do preço antigo, troque o preço do café para <code>19.50m</code> usando o indexador, e mostre a linha <code>Café: R$ 19,50</code>. O número de produtos tem de continuar 3.</p>
+<pre class="script">var precos = new Dictionary&lt;string, decimal&gt;
+{
+    ["pão"] = 0.75m,
+    ["leite"] = 5.49m,
+    ["café"] = 18.90m,
+};
+
+Console.WriteLine($"Café: {precos["café"]:C}");
+
+// troque o preço do café aqui e mostre de novo
+
+Console.WriteLine($"Produtos: {precos.Count}");
+</pre>
+<pre class="solucao">var precos = new Dictionary&lt;string, decimal&gt;
+{
+    ["pão"] = 0.75m,
+    ["leite"] = 5.49m,
+    ["café"] = 18.90m,
+};
+
+Console.WriteLine($"Café: {precos["café"]:C}");
+
+precos["café"] = 19.50m;
+Console.WriteLine($"Café: {precos["café"]:C}");
+
+Console.WriteLine($"Produtos: {precos.Count}");
+</pre>
+</div>
+
+<hr>
+
+<h2 id="naoexiste">2. A chave que não existe: <code>KeyNotFoundException</code></h2>
+<p>Ler com o indexador é direto, mas tem um preço: se a chave <strong>não existe</strong>, o programa para com uma exceção.</p>
+
+<pre class="file" data-file="queijo.cs">var precos = new Dictionary&lt;string, decimal&gt;();
+precos["pão"] = 0.75m;
+precos["leite"] = 5.49m;
+
+Console.WriteLine($"Queijo: {precos["queijo"]:C}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run queijo.cs
+Unhandled exception. System.Collections.Generic.KeyNotFoundException: The given key 'queijo' was not present in the dictionary.
+   at System.Collections.Generic.Dictionary`2.get_Item(TKey key)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/queijo.cs:line 5
+$ echo $?
+134</pre>
+
+<dl class="anatomy">
+  <dt>KeyNotFoundException</dt><dd>"Exceção de chave não encontrada". O nome já diz tudo.</dd>
+  <dt>The given key 'queijo' was not present in the dictionary.</dt><dd>"A chave 'queijo' não estava presente no dicionário." O .NET mostra qual chave você pediu: confira se ela foi guardada e se está escrita igual (maiúsculas, acentos, espaços).</dd>
+  <dt>get_Item(TKey key)</dt><dd>É o nome interno do indexador quando ele <strong>lê</strong> (<em>get</em> = pegar).</dd>
+  <dt>queijo.cs:line 5</dt><dd>A linha do seu programa que pediu a chave.</dd>
+</dl>
+
+<p>Como toda exceção não tratada, ela termina o programa com código de saída 134 (veja <a href="excecoes.html">Exceções</a>). Você poderia cercar a leitura com <a href="try-catch.html">try e catch</a>, mas existe um jeito melhor e mais barato: <strong>perguntar antes</strong>.</p>
+
+<hr>
+
+<h2 id="perguntar">3. Perguntar antes: <code>ContainsKey</code>, <code>TryGetValue</code> e companhia</h2>
+
+<pre class="file" data-file="perguntar.cs">var estoque = new Dictionary&lt;string, int&gt;
+{
+    ["maçã"] = 12,
+    ["banana"] = 30,
+    ["uva"] = 0,
+};
+
+Console.WriteLine(estoque.ContainsKey("uva"));
+Console.WriteLine(estoque.ContainsKey("kiwi"));
+
+if (estoque.TryGetValue("banana", out int bananas))
+    Console.WriteLine($"Tem {bananas} bananas.");
+
+if (!estoque.TryGetValue("kiwi", out int kiwis))
+    Console.WriteLine($"Não tem kiwi (kiwis = {kiwis}).");
+
+Console.WriteLine(estoque.GetValueOrDefault("kiwi"));
+Console.WriteLine(estoque.GetValueOrDefault("kiwi", -1));
+
+Console.WriteLine(estoque.TryAdd("maçã", 99));
+Console.WriteLine(estoque.TryAdd("pera", 7));
+
+Console.WriteLine(estoque.Remove("uva"));
+Console.WriteLine(estoque.Remove("uva"));
+Console.WriteLine($"Itens: {estoque.Count}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run perguntar.cs
+True                              « a uva existe, mesmo com estoque 0
+False
+Tem 30 bananas.
+Não tem kiwi (kiwis = 0).         « quando falha, o out recebe o valor padrão (0 para int)
+0
+-1                                « o padrão que você escolheu
+False                             « TryAdd: a maçã já existia, continua 12
+True                              « a pera entrou com 7
+True                              « Remove: tirou a uva
+False                             « a uva já não estava lá: nada a tirar, e sem exceção
+Itens: 3</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>Tradução</th><th>O que faz</th></tr>
+<tr><td><code>ContainsKey(k)</code></td><td>"contém a chave"</td><td><code>true</code> se a chave existe. Muito rápido.</td></tr>
+<tr><td><code>TryGetValue(k, out int v)</code></td><td>"tentar pegar o valor"</td><td>Se a chave existe, põe o valor em <code>v</code> e devolve <code>true</code>. Se não existe, põe o valor padrão do tipo (<code>0</code>, <code>null</code>, <code>false</code>) e devolve <code>false</code>. Nunca lança exceção. O <code>out</code> está em <a href="ref-out-in.html">ref, out e in</a>.</td></tr>
+<tr><td><code>GetValueOrDefault(k)</code></td><td>"pegar o valor ou o padrão"</td><td>O valor da chave, ou o padrão do tipo se ela não existe.</td></tr>
+<tr><td><code>GetValueOrDefault(k, p)</code></td><td></td><td>O mesmo, mas quem escolhe o padrão é você (<code>p</code>).</td></tr>
+<tr><td><code>TryAdd(k, v)</code></td><td>"tentar acrescentar"</td><td>Só guarda se a chave é nova. Devolve <code>true</code> se guardou.</td></tr>
+<tr><td><code>Remove(k)</code></td><td>"remover"</td><td>Tira o par. Devolve <code>true</code> se a chave existia e <code>false</code> se não existia.</td></tr>
+<tr><td><code>ContainsValue(v)</code></td><td>"contém o valor"</td><td><code>true</code> se algum par tem esse valor. <strong>Lento</strong>: olha todos os pares, um por um.</td></tr>
+<tr><td><code>Clear()</code></td><td>"limpar"</td><td>Tira todos os pares.</td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong><code>ContainsKey</code> + indexador, ou <code>TryGetValue</code>?</strong>
+<p>Este código funciona, mas procura a chave <strong>duas</strong> vezes:</p>
+<pre class="file" data-file="duas-vezes.cs">if (estoque.ContainsKey("banana"))
+    Console.WriteLine(estoque["banana"]);
+</pre>
+<p>O <code>TryGetValue</code> pergunta e pega numa busca só. Quando você vai <strong>usar</strong> o valor, prefira ele. O <code>ContainsKey</code> fica para quando você só quer saber "existe ou não".</p>
+</div>
+
+<div class="trycs" data-goal="out:maçã: 12,out:kiwi: 0,exit:0,src:TryGetValue|GetValueOrDefault">
+<p class="try-task"><strong>Missão:</strong> rode e veja a <code>KeyNotFoundException</code> do kiwi. Depois troque as duas leituras com <code>[ ]</code> por <code>GetValueOrDefault</code> (ou por <code>TryGetValue</code>), para a saída ser <code>maçã: 12</code> e <code>kiwi: 0</code>, sem exceção.</p>
+<pre class="script">var estoque = new Dictionary&lt;string, int&gt;
+{
+    ["maçã"] = 12,
+    ["banana"] = 30,
+};
+
+Console.WriteLine($"maçã: {estoque["maçã"]}");
+Console.WriteLine($"kiwi: {estoque["kiwi"]}");
+</pre>
+<pre class="solucao">var estoque = new Dictionary&lt;string, int&gt;
+{
+    ["maçã"] = 12,
+    ["banana"] = 30,
+};
+
+Console.WriteLine($"maçã: {estoque.GetValueOrDefault("maçã")}");
+Console.WriteLine($"kiwi: {estoque.GetValueOrDefault("kiwi")}");
+</pre>
+</div>
+
+<hr>
+
+<h2 id="percorrer">4. Percorrer: <code>foreach</code>, <code>KeyValuePair</code>, <code>Keys</code> e <code>Values</code></h2>
+<p>O <code>foreach</code> (aula <a href="foreach.html">foreach</a>) passa por todos os <strong>pares</strong> do dicionário. Cada par é um <code>KeyValuePair&lt;TKey, TValue&gt;</code> ("par chave-valor"), com duas propriedades: <code>Key</code> (a chave) e <code>Value</code> (o valor).</p>
+
+<pre class="file" data-file="percorrer.cs">var notas = new Dictionary&lt;string, double&gt;
+{
+    ["Ana"] = 9.5,
+    ["Bruno"] = 7.0,
+    ["Carla"] = 8.25,
+};
+
+foreach (KeyValuePair&lt;string, double&gt; par in notas)
+{
+    Console.WriteLine($"{par.Key} tirou {par.Value}");
+}
+
+foreach (var (nome, nota) in notas)
+{
+    Console.WriteLine($"{nome}: {nota}");
+}
+
+Console.WriteLine(string.Join(", ", notas.Keys));
+Console.WriteLine(notas.Values.Sum() / notas.Count);
+
+foreach (var par in notas)
+{
+    Console.WriteLine(par);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run percorrer.cs
+Ana tirou 9,5
+Bruno tirou 7
+Carla tirou 8,25
+Ana: 9,5
+Bruno: 7
+Carla: 8,25
+Ana, Bruno, Carla
+8,25                     « a média: (9,5 + 7 + 8,25) / 3
+[Ana, 9,5]               « um KeyValuePair se mostra assim: [chave, valor]
+[Bruno, 7]
+[Carla, 8,25]</pre>
+
+<dl class="anatomy">
+  <dt>foreach (KeyValuePair&lt;string, double&gt; par in notas)</dt><dd>"Para cada par em notas". O tipo completo é comprido; na prática quase todo mundo escreve <code>var par</code>.</dd>
+  <dt>par.Key / par.Value</dt><dd>A chave e o valor do par atual.</dd>
+  <dt>foreach (var (nome, nota) in notas)</dt><dd>A forma moderna: o par é <strong>desmontado</strong> em duas variáveis com nomes que você escolhe (a desconstrução, a mesma das <a href="tuplas.html">Tuplas</a>). Fica mais fácil de ler que <code>par.Key</code>.</dd>
+  <dt>notas.Keys</dt><dd>Só as chaves. Aqui o <code>string.Join</code> as junta com <code>", "</code>.</dd>
+  <dt>notas.Values.Sum()</dt><dd>Só os valores, somados pelo <code>Sum</code> do <a href="linq-agregar.html">LINQ</a>.</dd>
+  <dt>Console.WriteLine(par)</dt><dd>Mostra o par entre colchetes. Cuidado com a cultura pt-BR: em <code>[Ana, 9,5]</code>, a primeira vírgula separa chave e valor, e a segunda é a vírgula decimal do 9,5.</dd>
+</dl>
+
+<p>Quando precisar da chave <strong>e</strong> do valor, percorra os pares (como nos dois primeiros laços). Fazer <code>foreach (var nome in notas.Keys)</code> e ler <code>notas[nome]</code> lá dentro funciona, mas busca cada chave de novo, sem necessidade.</p>
+
+<hr>
+
+<h2>5. Contar coisas: a frequência das palavras</h2>
+<p>O uso mais clássico de um dicionário: contar quantas vezes cada coisa aparece. A <strong>chave</strong> é a coisa (a palavra); o <strong>valor</strong> é quantas vezes ela apareceu.</p>
+
+<pre class="file" data-file="contar.cs">string frase = "o rato roeu a roupa do rei de roma e o rato fugiu";
+var contagem = new Dictionary&lt;string, int&gt;();
+
+foreach (string palavra in frase.Split(' '))
+{
+    if (contagem.TryGetValue(palavra, out int vezes))
+        contagem[palavra] = vezes + 1;
+    else
+        contagem[palavra] = 1;
+}
+
+Console.WriteLine($"Palavras diferentes: {contagem.Count}");
+Console.WriteLine($"rato: {contagem["rato"]}");
+Console.WriteLine($"o: {contagem["o"]}");
+Console.WriteLine($"rei: {contagem["rei"]}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run contar.cs
+Palavras diferentes: 11
+rato: 2
+o: 2
+rei: 1</pre>
+
+<dl class="anatomy">
+  <dt>frase.Split(' ')</dt><dd>Corta a frase em cada espaço e devolve um array com as 13 palavras (veja <a href="metodos-string.html">Métodos de String</a>).</dd>
+  <dt>if (contagem.TryGetValue(palavra, out int vezes))</dt><dd>"Essa palavra já foi contada? Se sim, quantas vezes?"</dd>
+  <dt>contagem[palavra] = vezes + 1;</dt><dd>Já existia: guarda a contagem antiga mais 1.</dd>
+  <dt>contagem[palavra] = 1;</dt><dd>É a primeira vez: começa com 1.</dd>
+</dl>
+
+<p>São 13 palavras, mas só 11 <strong>diferentes</strong>, porque "o" e "rato" aparecem duas vezes. O mesmo laço fica numa linha só com o <code>GetValueOrDefault</code>: "pegue a contagem atual, ou 0 se é a primeira vez, e some 1":</p>
+
+<pre class="file" data-file="contar-curto.cs">foreach (string palavra in frase.Split(' '))
+    contagem[palavra] = contagem.GetValueOrDefault(palavra) + 1;
+</pre>
+
+<hr>
+
+<h2 id="ordem">6. A ordem não é garantida</h2>
+<p>Por dentro, o <code>Dictionary</code> não guarda os pares numa fila. Ele calcula um número a partir de cada chave (o <em>hash code</em>, uma "impressão digital" numérica; veja <a href="object.html">A Classe object</a>) e usa esse número para achar a chave depois sem olhar as outras. É por isso que ele é tão rápido.</p>
+
+<p>Num dicionário em que você só acrescenta, o <code>foreach</code> do .NET <em>costuma</em> devolver os pares na ordem em que entraram, como você viu nas notas. Mas isso é um detalhe de como ele foi feito, não uma promessa. Basta uma remoção para a ordem mudar:</p>
+
+<pre class="file" data-file="ordem.cs">var frutas = new Dictionary&lt;string, int&gt;();
+frutas["uva"] = 1;
+frutas["banana"] = 2;
+frutas["maçã"] = 3;
+frutas["kiwi"] = 4;
+Console.WriteLine(string.Join(", ", frutas.Keys));
+
+frutas.Remove("banana");
+frutas["pera"] = 5;
+Console.WriteLine(string.Join(", ", frutas.Keys));
+
+var ordenado = new SortedDictionary&lt;string, int&gt;(frutas);
+Console.WriteLine(string.Join(", ", ordenado.Keys));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ordem.cs
+uva, banana, maçã, kiwi
+uva, pera, maçã, kiwi          « a pera entrou por último, mas ocupou o lugar vago da banana
+kiwi, maçã, pera, uva          « SortedDictionary: chaves em ordem alfabética</pre>
+
+<p>A pera foi a última a entrar, mas apareceu em segundo: ela reaproveitou o espaço que a banana deixou. Se o seu programa só "funciona" porque o dicionário por acaso mostrou na ordem certa, ele pode quebrar com a primeira remoção.</p>
+
+<div class="warning">
+<strong>Nunca dependa da ordem de um <code>Dictionary</code></strong>
+<p>Quando a ordem importa, diga isso no código:</p>
+<ul>
+  <li>Ordem alfabética (ou numérica) das chaves: <code>SortedDictionary&lt;TKey, TValue&gt;</code>, que mantém as chaves sempre ordenadas.</li>
+  <li>Uma ordem só na hora de mostrar: ordene as chaves antes, com o <code>Order()</code> do <a href="linq-ordenar.html">LINQ</a>: <code>foreach (var k in frutas.Keys.Order())</code>.</li>
+  <li>A ordem em que os itens chegaram: guarde-os também numa <a href="list.html">List</a>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2 id="modificar">7. Mudar o dicionário dentro do <code>foreach</code></h2>
+<p>Enquanto o <code>foreach</code> anda pelo dicionário, você não pode <strong>acrescentar</strong> chaves nele. A Ana quis marcar as frutas que acabaram criando uma chave nova "… (encomendar)" no meio do laço:</p>
+
+<pre class="file" data-file="modificar.cs">var estoque = new Dictionary&lt;string, int&gt;
+{
+    ["maçã"] = 12,
+    ["banana"] = 0,
+    ["uva"] = 5,
+};
+
+foreach (var (fruta, qtd) in estoque)
+{
+    if (qtd == 0)
+        estoque.Add($"{fruta} (encomendar)", 50);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run modificar.cs
+Unhandled exception. System.InvalidOperationException: Collection was modified; enumeration operation may not execute.
+   at System.Collections.Generic.Dictionary`2.Enumerator.MoveNext()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/modificar.cs:line 8
+$ echo $?
+134</pre>
+
+<p>Em português: "a coleção foi modificada; a operação de enumeração (o percurso) não pode continuar". O <code>Add</code> em si funcionou; quem reclamou foi o <code>foreach</code>, quando tentou ir para o próximo par (<code>MoveNext</code>, "mover para o próximo"). Por isso o rastro aponta a <strong>linha 8</strong>, a do <code>foreach</code>, e não a do <code>Add</code>. Acrescentar uma chave pode reorganizar o dicionário por dentro, e o percurso perderia o fio.</p>
+
+<p>O conserto é fazer em <strong>dois passos</strong>: primeiro anote numa lista o que precisa mudar; depois, fora do laço, mude.</p>
+
+<pre class="file" data-file="modificar2.cs">var estoque = new Dictionary&lt;string, int&gt;
+{
+    ["maçã"] = 12,
+    ["banana"] = 0,
+    ["uva"] = 5,
+    ["kiwi"] = 0,
+};
+
+var acabaram = new List&lt;string&gt;();
+foreach (var (fruta, qtd) in estoque)
+{
+    if (qtd == 0)
+        acabaram.Add(fruta);
+}
+
+foreach (string fruta in acabaram)
+{
+    estoque.Remove(fruta);
+    estoque[$"{fruta} (encomendar)"] = 50;
+}
+
+Console.WriteLine(string.Join(", ", estoque.Keys.Order()));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run modificar2.cs
+banana (encomendar), kiwi (encomendar), maçã, uva</pre>
+
+<p>O segundo <code>foreach</code> anda pela lista <code>acabaram</code>, não pelo dicionário, então mexer no dicionário ali é seguro. Como houve remoções, o programa ordena as chaves com <code>Order()</code> antes de mostrar (lembre da <a href="#ordem">seção 6</a>).</p>
+
+<div class="note">
+<strong>E remover dentro do <code>foreach</code>?</strong>
+<p>Desde o .NET Core 3.0, o <code>Dictionary</code> deixa você <strong>remover</strong> a chave atual ou trocar o valor de uma chave que já existe durante o <code>foreach</code>, sem exceção. Só acrescentar chaves é proibido. Mesmo assim, o jeito em dois passos funciona em qualquer coleção (a <a href="list.html">List</a>, por exemplo, reclama também de remoções) e deixa claro o que o código faz.</p>
+</div>
+
+<hr>
+
+<h2>8. Maiúsculas e minúsculas na chave</h2>
+<p>Para o dicionário, <code>"Ana"</code> e <code>"ana"</code> são chaves <strong>diferentes</strong>. Se você quer que ele ignore a caixa das letras, passe um <strong>comparador</strong> na criação:</p>
+
+<pre class="file" data-file="caixa.cs">var senhas = new Dictionary&lt;string, string&gt;(StringComparer.OrdinalIgnoreCase);
+senhas["Ana"] = "girassol";
+
+Console.WriteLine(senhas.ContainsKey("ana"));
+Console.WriteLine(senhas["ANA"]);
+
+var normal = new Dictionary&lt;string, string&gt;();
+normal["Ana"] = "girassol";
+Console.WriteLine(normal.ContainsKey("ana"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run caixa.cs
+True
+girassol
+False                    « sem o comparador, "ana" não é "Ana"</pre>
+
+<p><code>StringComparer.OrdinalIgnoreCase</code> quer dizer "comparar letra por letra, ignorando maiúsculas e minúsculas". É útil para nomes de usuário, comandos digitados e extensões de arquivo.</p>
+
+<hr>
+
+<h2>Qual coleção usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Use</th></tr>
+<tr><td>Itens em fila, acessados pela posição (0, 1, 2…)</td><td><a href="list.html"><code>List&lt;T&gt;</code></a></td></tr>
+<tr><td>Achar um valor pela chave, rápido; a ordem não importa</td><td><code>Dictionary&lt;TKey, TValue&gt;</code></td></tr>
+<tr><td>Achar pela chave e percorrer em ordem de chave</td><td><code>SortedDictionary&lt;TKey, TValue&gt;</code></td></tr>
+<tr><td>Só saber se um item está ou não está, sem valor ligado</td><td><a href="hashset.html"><code>HashSet&lt;T&gt;</code></a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>KeyNotFoundException: The given key 'queijo' was not present in the dictionary.</code></strong>
+<p><strong>O que significa:</strong> você leu <code>d[chave]</code> com uma chave que não está no dicionário. O programa para com código 134.</p>
+<p><strong>Como consertar:</strong> confira a grafia da chave (a mensagem mostra exatamente o que foi pedido). Se a chave pode faltar, leia com <code>TryGetValue</code> ou <code>GetValueOrDefault</code>, como na <a href="#perguntar">seção 3</a>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>ArgumentException: An item with the same key has already been added. Key: pão</code></strong>
+<p><strong>O que significa:</strong> um <code>Add</code> (ou um inicializador <code>{ "pão", … }</code>) tentou guardar uma chave que já existe.</p>
+<p><strong>Como consertar:</strong> se trocar o valor é o que você quer, use o indexador: <code>d["pão"] = 0.80m;</code>. Se a chave nova não deve apagar a antiga, use <code>TryAdd</code> e veja o <code>bool</code> que ele devolve. Se a repetição é um erro nos dados, a exceção está certa: conserte os dados.</p>
+</div>
+
+<div class="cenario">
+<strong><code>InvalidOperationException: Collection was modified; enumeration operation may not execute.</code></strong>
+<p><strong>O que significa:</strong> você acrescentou uma chave enquanto um <code>foreach</code> percorria o mesmo dicionário. O rastro aponta a linha do <code>foreach</code>.</p>
+<p><strong>Como consertar:</strong> faça em dois passos: anote numa <code>List</code> o que mudar e mude depois do laço (<a href="#modificar">seção 7</a>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1503: Argumento 1: não é possível converter de "int" para "string"</code></strong>
+<p><strong>O que significa:</strong> a chave que você passou não é do tipo <code>TKey</code>. Com <code>Dictionary&lt;string, int&gt; estoque</code>, a linha <code>estoque[1]</code> tenta usar um número como chave, como se fosse uma lista:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run tipo.cs
+/home/ana/cs/tipo.cs(2,27): error CS1503: Argumento 1: não é possível converter de "int" para "string"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>Como consertar:</strong> um dicionário não tem posições, só chaves. Use a chave (<code>estoque["maçã"]</code>). Se você precisa "do primeiro item", talvez a coleção certa seja uma <code>List</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>new Dictionary&lt;TKey, TValue&gt;()</code></td><td>Cria um dicionário vazio</td></tr>
+<tr><td><code>new Dictionary&lt;string, int&gt; { ["a"] = 1 }</code></td><td>Cria já com itens (indexador)</td></tr>
+<tr><td><code>new Dictionary&lt;string, int&gt; { { "a", 1 } }</code></td><td>Cria já com itens (<code>Add</code>)</td></tr>
+<tr><td><code>d[k] = v;</code></td><td>Cria ou troca o valor de <code>k</code></td></tr>
+<tr><td><code>d[k]</code></td><td>Lê o valor de <code>k</code>; <code>KeyNotFoundException</code> se não existe</td></tr>
+<tr><td><code>d.Add(k, v)</code></td><td>Cria; <code>ArgumentException</code> se <code>k</code> já existe</td></tr>
+<tr><td><code>d.TryAdd(k, v)</code></td><td>Cria só se <code>k</code> é nova; devolve <code>bool</code></td></tr>
+<tr><td><code>d.TryGetValue(k, out var v)</code></td><td>Busca sem exceção; devolve <code>bool</code></td></tr>
+<tr><td><code>d.GetValueOrDefault(k[, padrão])</code></td><td>O valor ou um padrão</td></tr>
+<tr><td><code>d.ContainsKey(k)</code> / <code>d.ContainsValue(v)</code></td><td>Existe a chave? (rápido) / Existe o valor? (lento)</td></tr>
+<tr><td><code>d.Remove(k)</code></td><td>Tira o par; devolve <code>bool</code></td></tr>
+<tr><td><code>d.Count</code> / <code>d.Clear()</code></td><td>Quantos pares / tira todos</td></tr>
+<tr><td><code>d.Keys</code> / <code>d.Values</code></td><td>Só as chaves / só os valores</td></tr>
+<tr><td><code>foreach (var (k, v) in d)</code></td><td>Percorre os pares, já desmontados</td></tr>
+<tr><td><code>new Dictionary&lt;string, T&gt;(StringComparer.OrdinalIgnoreCase)</code></td><td>Chaves de texto sem diferenciar maiúsculas</td></tr>
+<tr><td><code>SortedDictionary&lt;TKey, TValue&gt;</code></td><td>Mantém as chaves em ordem</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Ler sem exceção</h3>
+<p>Complete para ler o estoque de <code>"kiwi"</code> sem risco de <code>KeyNotFoundException</code>:</p>
+<div class="ex-code">if (estoque.<input data-answer="TryGetValue" aria-label="método">("kiwi", out int qtd))</div>
+</div>
+
+<div class="exercise">
+<h3>2. Os tipos do dicionário</h3>
+<p>Complete a criação de um dicionário que liga o nome do aluno (texto) à nota (<code>double</code>):</p>
+<div class="ex-code">var notas = new Dictionary&lt;<input data-answer="string, double|string,double" aria-label="tipos">&gt;();</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">3. O dicionário tem <code>["pão"] = 0.75m</code>. O que acontece com <code>precos["pão"] = 0.80m;</code>?</p>
+<label><input type="radio" name="q3"> Lança <code>ArgumentException</code></label>
+<label><input type="radio" name="q3"> Cria um segundo "pão"; o dicionário fica com dois</label>
+<label><input type="radio" name="q3"> Troca o valor do pão para 0,80</label>
+<label><input type="radio" name="q3"> Não compila</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O que <code>Console.WriteLine(precos);</code> mostra, com <code>precos</code> sendo um <code>Dictionary&lt;string, decimal&gt;</code>?</p>
+<label><input type="radio" name="q4"> Todos os pares, entre chaves</label>
+<label><input type="radio" name="q4"> O nome do tipo: <code>System.Collections.Generic.Dictionary`2[System.String,System.Decimal]</code></label>
+<label><input type="radio" name="q4"> Só as chaves</label>
+<label><input type="radio" name="q4"> Um erro de compilação</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. Dentro de um <code>foreach</code> sobre o dicionário <code>d</code>, você chama <code>d.Add("nova", 1)</code>. O que acontece?</p>
+<label><input type="radio" name="q5"> Nada de especial: o laço passa também pela chave nova</label>
+<label><input type="radio" name="q5"> <code>KeyNotFoundException</code></label>
+<label><input type="radio" name="q5"> <code>error CS1503</code></label>
+<label><input type="radio" name="q5"> <code>InvalidOperationException: Collection was modified</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Depois de remover uma chave e acrescentar outra, em que ordem o <code>foreach</code> mostra as chaves de um <code>Dictionary</code>?</p>
+<label><input type="radio" name="q6"> Em nenhuma ordem garantida: se a ordem importa, use <code>SortedDictionary</code> ou ordene antes</label>
+<label><input type="radio" name="q6"> Sempre na ordem de inserção</label>
+<label><input type="radio" name="q6"> Sempre em ordem alfabética</label>
+<label><input type="radio" name="q6"> Na ordem inversa da inserção</label>
+</div>
+
+<h3>Missão final: o caixa conta as frutas</h3>
+
+<div class="trycs" data-goal="out:banana: 3,out:maçã: 2,out:uva: 1,out:Frutas diferentes: 3,exit:0,src:Dictionary\s*&lt;\s*string\s*\,\s*int\s*&gt;">
+<p class="try-task"><strong>Missão:</strong> o caixa da lojinha registrou as vendas do dia no array <code>vendas</code>. Crie um <code>Dictionary&lt;string, int&gt;</code> chamado <code>contagem</code>, conte quantas vezes cada fruta foi vendida e mostre uma linha por fruta no formato <code>banana: 3</code>. No fim, mostre <code>Frutas diferentes: 3</code> usando o <code>Count</code>. A ordem das linhas não importa.</p>
+<pre class="out">banana: 3
+maçã: 2
+uva: 1
+Frutas diferentes: 3</pre>
+<pre class="script">string[] vendas = ["banana", "maçã", "banana", "uva", "maçã", "banana"];
+
+// crie o dicionário contagem aqui
+
+foreach (string fruta in vendas)
+{
+    // conte a fruta
+}
+
+// mostre cada fruta e o total de frutas diferentes
+</pre>
+<pre class="solucao">string[] vendas = ["banana", "maçã", "banana", "uva", "maçã", "banana"];
+
+var contagem = new Dictionary&lt;string, int&gt;();
+
+foreach (string fruta in vendas)
+{
+    contagem[fruta] = contagem.GetValueOrDefault(fruta) + 1;
+}
+
+foreach (var (fruta, vezes) in contagem)
+{
+    Console.WriteLine($"{fruta}: {vezes}");
+}
+Console.WriteLine($"Frutas diferentes: {contagem.Count}");
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um <code>Dictionary&lt;TKey, TValue&gt;</code> liga cada <strong>chave</strong> (única) a um <strong>valor</strong> e acha qualquer chave muito rápido.</li>
+  <li><code>d[k] = v</code> cria ou troca; <code>d.Add(k, v)</code> só cria e lança <code>ArgumentException</code> se a chave já existe.</li>
+  <li>Ler <code>d[k]</code> com uma chave que não existe lança <code>KeyNotFoundException</code>. Quando a chave pode faltar, use <code>TryGetValue</code> ou <code>GetValueOrDefault</code>.</li>
+  <li><code>foreach (var (chave, valor) in d)</code> percorre os pares; <code>Keys</code> e <code>Values</code> dão só as chaves ou só os valores. <code>Console.WriteLine(d)</code> mostra só o nome do tipo.</li>
+  <li>A ordem de um <code>Dictionary</code> não é garantida (uma remoção já a muda). Para ordem de chave, use <code>SortedDictionary</code> ou ordene antes de mostrar.</li>
+  <li>Acrescentar chaves dentro do <code>foreach</code> do próprio dicionário dá <code>InvalidOperationException</code>. Anote numa lista e mude depois do laço.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
