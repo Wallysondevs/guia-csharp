@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# virtual e override — a classe filha troca um método da base | Guia C#</title>
+<meta name="description" content="virtual e override em C# para iniciantes: o método da filha que não é chamado (aviso CS0108), virtual na base e override na filha, o aviso CS0114 e a palavra new, override de ToString e de propriedades, base.Metodo(), sealed override e os erros reais CS0506, CS0115, CS0508, CS0507, CS0621 e CS0239 do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">virtual e override</span></h1>
+
+<p class="intro">Todo animal faz um som, mas cada um faz o seu: o cachorro late, o gato mia. Com <a href="heranca.html">herança</a>, o <code>FazerSom()</code> pode morar na classe <code>Animal</code>, mas aí todos fariam o mesmo som. A solução do C# são duas palavras que trabalham juntas: <code>virtual</code> ("virtual"), na base, diz "este método pode ser trocado"; <code>override</code> ("sobrescrever"), na filha, diz "estou trocando".</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Por que só escrever um método com o mesmo nome na filha não basta (o aviso <code>CS0108</code>).</li>
+  <li><code>virtual</code> na base e <code>override</code> na filha.</li>
+  <li>Que, com <code>override</code>, o método certo roda até numa variável do tipo da base.</li>
+  <li>O aviso <code>CS0114</code> e a palavra <code>new</code>: esconder × sobrescrever.</li>
+  <li>Sobrescrever <code>ToString()</code> e propriedades, e reaproveitar a base com <code>base.Metodo()</code>.</li>
+  <li><code>sealed override</code> e os erros <code>CS0506</code>, <code>CS0115</code>, <code>CS0508</code>, <code>CS0507</code>, <code>CS0621</code> e <code>CS0239</code>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>A ideia: a receita da família</h2>
+<p>A avó da Ana tem uma receita de bolo. Os filhos herdaram a receita, mas ela avisou: "esta aqui vocês podem <strong>adaptar</strong>". A tia trocou o açúcar por mel; o pai da Ana seguiu igualzinho. Quando alguém pede "o bolo da família" na casa da tia, sai o bolo com mel.</p>
+<ul>
+  <li>"Pode adaptar" é o <code>virtual</code>: a base permite que as filhas tenham a sua versão.</li>
+  <li>"Adaptei" é o <code>override</code>: a filha escreve a sua versão, que <strong>substitui</strong> a da base.</li>
+  <li>Quem não adaptou (o pai da Ana) usa a receita original.</li>
+</ul>
+
+<hr>
+
+<h2>O problema: o método da filha que não é chamado</h2>
+<p>A primeira tentativa da Ana: um <code>FazerSom</code> em <code>Animal</code> e outro, com o mesmo nome, em <code>Cachorro</code>.</p>
+
+<pre class="file" data-file="sem-virtual.cs">var rex = new Cachorro { Nome = "Rex" };
+rex.FazerSom();
+
+Animal bicho = rex;
+bicho.FazerSom();
+
+class Animal
+{
+    public string Nome { get; set; } = "";
+
+    public void FazerSom()
+    {
+        Console.WriteLine($"{Nome} faz um som qualquer.");
+    }
+}
+
+class Cachorro : Animal
+{
+    public void FazerSom()
+    {
+        Console.WriteLine($"{Nome}: Au au!");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run sem-virtual.cs
+/home/ana/cs/sem-virtual.cs(19,17): warning CS0108: "Cachorro.FazerSom()" oculta o membro herdado "Animal.FazerSom()". Use a nova palavra-chave se foi pretendido ocultar.
+Rex: Au au!
+Rex faz um som qualquer.          « o mesmo Rex, outro som!</pre>
+
+<p>Duas coisas estranhas:</p>
+<ul>
+  <li>Um <strong>aviso</strong> (<code>warning</code>, não <code>error</code>: o programa rodou). O compilador desconfiou: "o <code>FazerSom</code> do <code>Cachorro</code> <strong>oculta</strong> o de <code>Animal</code>".</li>
+  <li>O mesmo objeto deu duas respostas. Na linha 4, <code>Animal bicho = rex;</code> guarda o Rex numa variável do tipo <code>Animal</code> (todo cachorro é um animal, então pode). Por ela, saiu o som da base.</li>
+</ul>
+<p>Sem <code>virtual</code>, o C# escolhe o método pelo <strong>tipo da variável</strong>, e não pelo objeto que está lá dentro. A variável <code>bicho</code> é <code>Animal</code>, então roda o <code>FazerSom</code> de <code>Animal</code>. Isso quase nunca é o que você quer: o Rex é um cachorro e deveria latir, não importa por qual variável você fale com ele.</p>
+
+<hr>
+
+<h2>virtual na base, override na filha</h2>
+
+<pre class="file" data-file="virtual.cs">var rex = new Cachorro { Nome = "Rex" };
+rex.FazerSom();
+
+Animal bicho = rex;
+bicho.FazerSom();
+
+class Animal
+{
+    public string Nome { get; set; } = "";
+
+    public virtual void FazerSom()
+    {
+        Console.WriteLine($"{Nome} faz um som qualquer.");
+    }
+}
+
+class Cachorro : Animal
+{
+    public override void FazerSom()
+    {
+        Console.WriteLine($"{Nome}: Au au!");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run virtual.cs
+Rex: Au au!
+Rex: Au au!          « agora o Rex late pelas duas variáveis</pre>
+
+<dl class="anatomy">
+  <dt>public virtual void FazerSom()</dt><dd><code>virtual</code> vem depois do modificador de acesso. A base continua tendo uma versão completa do método (o "som qualquer"), mas avisa que as filhas podem trocá-la.</dd>
+  <dt>public override void FazerSom()</dt><dd><code>override</code> diz que este método <strong>substitui</strong> o <code>virtual</code> da base. Nome, parâmetros, tipo de retorno e acesso têm de ser iguais aos da base.</dd>
+  <dt>bicho.FazerSom()</dt><dd>Com <code>virtual</code>/<code>override</code>, o C# olha para o <strong>objeto de verdade</strong> (um <code>Cachorro</code>) na hora de rodar, e não para o tipo da variável. Por isso o Rex late.</dd>
+</dl>
+
+<p>Sem aviso nenhum, e com o comportamento certo. Isso fica poderoso numa lista de animais diferentes:</p>
+
+<pre class="file" data-file="lista.cs">Animal[] bichos =
+{
+    new Cachorro { Nome = "Rex" },
+    new Gato { Nome = "Mia" },
+    new Animal { Nome = "Nemo" },
+};
+
+foreach (Animal bicho in bichos)
+{
+    bicho.FazerSom();
+}
+
+class Animal
+{
+    public string Nome { get; set; } = "";
+
+    public virtual void FazerSom()
+    {
+        Console.WriteLine($"{Nome} faz um som qualquer.");
+    }
+}
+
+class Cachorro : Animal
+{
+    public override void FazerSom()
+    {
+        Console.WriteLine($"{Nome}: Au au!");
+    }
+}
+
+class Gato : Animal
+{
+    public override void FazerSom()
+    {
+        Console.WriteLine($"{Nome}: Miau!");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run lista.cs
+Rex: Au au!
+Mia: Miau!
+Nemo faz um som qualquer.          « o Nemo é um Animal comum: usa a versão da base</pre>
+
+<p>O <code>foreach</code> tem uma linha só, <code>bicho.FazerSom();</code>, e cada objeto responde do seu jeito. Esse é o coração do <a href="polimorfismo.html">polimorfismo</a>, assunto da próxima aula.</p>
+
+<div class="trycs" data-goal="out:Mia: Miau!,semaviso,src:class\s+Gato[\s\S]*override\s+void\s+FazerSom">
+<p class="try-task"><strong>Missão:</strong> o gato está fazendo "um som qualquer", e o compilador dá o aviso <code>CS0114</code>. Rode e leia o aviso. Depois, faça o <code>FazerSom</code> do <code>Gato</code> sobrescrever o da base, para a Mia miar sem aviso nenhum.</p>
+<pre class="script">Animal[] bichos =
+{
+    new Cachorro { Nome = "Rex" },
+    new Gato { Nome = "Mia" },
+};
+
+foreach (Animal bicho in bichos)
+{
+    bicho.FazerSom();
+}
+
+class Animal
+{
+    public string Nome { get; set; } = "";
+
+    public virtual void FazerSom()
+    {
+        Console.WriteLine($"{Nome} faz um som qualquer.");
+    }
+}
+
+class Cachorro : Animal
+{
+    public override void FazerSom()
+    {
+        Console.WriteLine($"{Nome}: Au au!");
+    }
+}
+
+class Gato : Animal
+{
+    public void FazerSom()
+    {
+        Console.WriteLine($"{Nome}: Miau!");
+    }
+}
+</pre>
+<pre class="solucao">Animal[] bichos =
+{
+    new Cachorro { Nome = "Rex" },
+    new Gato { Nome = "Mia" },
+};
+
+foreach (Animal bicho in bichos)
+{
+    bicho.FazerSom();
+}
+
+class Animal
+{
+    public string Nome { get; set; } = "";
+
+    public virtual void FazerSom()
+    {
+        Console.WriteLine($"{Nome} faz um som qualquer.");
+    }
+}
+
+class Cachorro : Animal
+{
+    public override void FazerSom()
+    {
+        Console.WriteLine($"{Nome}: Au au!");
+    }
+}
+
+class Gato : Animal
+{
+    public override void FazerSom()
+    {
+        Console.WriteLine($"{Nome}: Miau!");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>O aviso CS0114 e a palavra new</h2>
+<p>E se a base tem <code>virtual</code>, mas a filha esquece o <code>override</code>? O compilador avisa de novo, agora com o <code>CS0114</code>:</p>
+
+<pre class="file" data-file="cs0114.cs">Animal bicho = new Cachorro { Nome = "Rex" };
+bicho.FazerSom();
+
+class Animal
+{
+    public string Nome { get; set; } = "";
+
+    public virtual void FazerSom()
+    {
+        Console.WriteLine($"{Nome} faz um som qualquer.");
+    }
+}
+
+class Cachorro : Animal
+{
+    public void FazerSom()
+    {
+        Console.WriteLine($"{Nome}: Au au!");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run cs0114.cs
+/home/ana/cs/cs0114.cs(16,17): warning CS0114: "Cachorro.FazerSom()" oculta o membro herdado "Animal.FazerSom()". Para que o membro atual substitua essa implementação, adicione a palavra-chave override. Caso contrário, adicione a palavra-chave new.
+Rex faz um som qualquer.</pre>
+
+<p>A mensagem dá as duas saídas. Em inglês: <code>'Cachorro.FazerSom()' hides inherited member 'Animal.FazerSom()'. To make the current member override that implementation, add the override keyword. Otherwise add the new keyword.</code></p>
+<ul>
+  <li><strong><code>override</code></strong>: "quero substituir". É a resposta certa em 99% dos casos.</li>
+  <li><strong><code>new</code></strong>: "quero mesmo um método <strong>separado</strong>, com o mesmo nome, que esconde o da base". O aviso some, mas o comportamento continua o do exemplo de cima: pela variável <code>Animal</code>, roda o da base.</li>
+</ul>
+
+<pre class="term">$ dotnet run com-new.cs          « o mesmo programa, com public new void FazerSom()
+Rex faz um som qualquer.          « sem aviso, mas ainda o som da base</pre>
+
+<p>Aqui, <code>new</code> não é o <code>new</code> que cria objetos: é a mesma palavra com outro papel, o de <strong>modificador</strong> que diz "escondo de propósito". Ele existe para casos raros, como quando a base vem de uma biblioteca e ganhou, numa versão nova, um método com o mesmo nome de um seu. Se você não tem um motivo assim, use <code>override</code>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na base</th><th>Na filha</th><th>Compilador</th><th><code>Animal bicho = rex; bicho.FazerSom();</code></th></tr>
+<tr><td><code>void FazerSom()</code></td><td><code>void FazerSom()</code></td><td>Aviso <code>CS0108</code></td><td>Versão da base</td></tr>
+<tr><td><code>virtual void FazerSom()</code></td><td><code>void FazerSom()</code></td><td>Aviso <code>CS0114</code></td><td>Versão da base</td></tr>
+<tr><td><code>virtual void FazerSom()</code> (ou não)</td><td><code>new void FazerSom()</code></td><td>Sem aviso</td><td>Versão da base</td></tr>
+<tr><td><code>virtual void FazerSom()</code></td><td><code>override void FazerSom()</code></td><td>Sem aviso</td><td><strong>Versão da filha</strong></td></tr>
+<tr><td><code>void FazerSom()</code></td><td><code>override void FazerSom()</code></td><td>Erro <code>CS0506</code></td><td>(não compila)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Sobrescrevendo ToString()</h2>
+<p>Você já usa um método <code>virtual</code> há muito tempo sem saber: o <code>ToString()</code> de <code>object</code>, a classe base de todas (veja <a href="heranca.html">Herança</a>). <code>Console.WriteLine(obj)</code> e a interpolação <code>$"{obj}"</code> chamam o <code>ToString()</code> do objeto. O padrão só mostra o nome da classe; com <code>override</code>, você decide o texto:</p>
+
+<pre class="file" data-file="tostring.cs">var rex = new Cachorro { Nome = "Rex", Raca = "vira-lata" };
+Console.WriteLine(rex);
+Console.WriteLine($"Meu cachorro: {rex}");
+
+class Cachorro
+{
+    public string Nome { get; set; } = "";
+    public string Raca { get; set; } = "";
+
+    public override string ToString()
+    {
+        return $"{Nome} ({Raca})";
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run tostring.cs
+Rex (vira-lata)
+Meu cachorro: Rex (vira-lata)</pre>
+
+<p>O <code>Cachorro</code> não tem <code>: Animal</code> aqui, e mesmo assim pode fazer <code>override</code>: ele herda de <code>object</code>, que declara <code>public virtual string ToString()</code>. Sem o <code>override</code>, a saída seria <code>Cachorro</code>. Mais em <a href="object.html">A Classe object</a>.</p>
+
+<hr>
+
+<h2>Propriedades também</h2>
+<p>Propriedades podem ser <code>virtual</code> e receber <code>override</code>, do mesmo jeito que métodos:</p>
+
+<pre class="file" data-file="tarifa.cs">Conta[] contas = { new Conta(), new ContaPremium() };
+foreach (Conta c in contas)
+{
+    Console.WriteLine($"{c.GetType().Name}: tarifa de {c.Tarifa:C}");
+}
+
+class Conta
+{
+    public virtual decimal Tarifa =&gt; 12.90m;
+}
+
+class ContaPremium : Conta
+{
+    public override decimal Tarifa =&gt; 0m;
+}
+</pre>
+
+<pre class="term">$ dotnet run tarifa.cs
+Conta: tarifa de R$ 12,90
+ContaPremium: tarifa de R$ 0,00</pre>
+
+<hr>
+
+<h2>Reaproveitando a base: base.Metodo()</h2>
+<p>A versão da filha não precisa jogar fora a da base. Com <code>base.Metodo()</code> (da aula <a href="base.html">base</a>), ela faz o que a base fazia e acrescenta o que é dela. O salário de um gerente é o salário de qualquer funcionário <strong>mais</strong> um bônus:</p>
+
+<pre class="file" data-file="salario.cs">Funcionario[] equipe =
+{
+    new Funcionario { Nome = "Bruno", SalarioBase = 2500m },
+    new Gerente { Nome = "Carla", SalarioBase = 4000m, Bonus = 1500m },
+};
+
+foreach (Funcionario f in equipe)
+{
+    Console.WriteLine($"{f.Nome}: {f.Salario():C}");
+}
+
+class Funcionario
+{
+    public string Nome { get; set; } = "";
+    public decimal SalarioBase { get; set; }
+
+    public virtual decimal Salario()
+    {
+        return SalarioBase;
+    }
+}
+
+class Gerente : Funcionario
+{
+    public decimal Bonus { get; set; }
+
+    public override decimal Salario()
+    {
+        return base.Salario() + Bonus;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run salario.cs
+Bruno: R$ 2.500,00
+Carla: R$ 5.500,00</pre>
+
+<p>Se amanhã a regra do salário de todos mudar (descontar o vale-transporte, por exemplo), só <code>Funcionario.Salario()</code> muda, e o gerente acompanha.</p>
+
+<hr>
+
+<h2>Regras do override</h2>
+<p>O <code>override</code> tem de ser uma troca <strong>exata</strong>. O compilador confere cada detalhe:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Regra</th><th>Se quebrar</th></tr>
+<tr><td>A base tem de ser <code>virtual</code> (ou <code>abstract</code>, ou já <code>override</code>)</td><td><code>CS0506</code></td></tr>
+<tr><td>Tem de existir um método com o mesmo nome e os mesmos parâmetros na base</td><td><code>CS0115</code></td></tr>
+<tr><td>O tipo de retorno tem de ser o mesmo</td><td><code>CS0508</code></td></tr>
+<tr><td>O modificador de acesso tem de ser o mesmo</td><td><code>CS0507</code></td></tr>
+<tr><td>Um método <code>virtual</code> não pode ser <code>private</code> (a filha nem o enxergaria)</td><td><code>CS0621</code></td></tr>
+<tr><td>Métodos <code>static</code> não podem ser <code>virtual</code> nem <code>override</code></td><td>(são da classe, não do objeto)</td></tr>
+</table>
+</div>
+
+<h3>sealed override: daqui para baixo, ninguém troca</h3>
+<p>Uma filha pode fechar a porta para as netas com <code>sealed override</code> ("sobrescrita lacrada"):</p>
+
+<pre class="file" data-file="lacrado.cs — com erro de propósito">class Animal
+{
+    public virtual void FazerSom() { }
+}
+
+class Cachorro : Animal
+{
+    public sealed override void FazerSom() { }
+}
+
+class Filhote : Cachorro
+{
+    public override void FazerSom() { }
+}
+</pre>
+
+<pre class="term">$ dotnet run lacrado.cs
+/home/ana/cs/lacrado.cs(13,26): error CS0239: "Filhote.FazerSom()": não é possível substituir o membro herdado "Cachorro.FazerSom()" porque ele é sealed
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Para lacrar a classe inteira, veja <a href="sealed.html">sealed</a>.</p>
+
+<hr>
+
+<h2>Quando usar virtual</h2>
+<ul>
+  <li>Marque <code>virtual</code> só o que <strong>faz sentido</strong> variar de uma filha para outra: o som do animal, a tarifa da conta, o cálculo do salário.</li>
+  <li>Métodos que não devem mudar (a regra de saque, por exemplo) ficam sem <code>virtual</code>. Ao contrário do Java, em C# os métodos <strong>não</strong> são <code>virtual</code> por padrão: você escolhe o que abre.</li>
+  <li>Quando a base nem tem uma versão que faça sentido ("o som de um animal qualquer"?), o caminho é um método <code>abstract</code>, que obriga cada filha a escrever o seu. Veja <a href="abstratas.html">Classes Abstratas</a>.</li>
+</ul>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>warning CS0108 / CS0114: "…" oculta o membro herdado "…"</strong>
+<p><strong>O que aconteceu:</strong> a filha tem um método com o mesmo nome e os mesmos parâmetros da base, sem <code>override</code>. O programa roda, mas pela variável do tipo da base sai a versão da base.</p>
+<p><strong>Como resolver:</strong> deixe o método da base <code>virtual</code> (no <code>CS0108</code>) e escreva <code>override</code> na filha. Use <code>new</code> só se quiser mesmo dois métodos separados.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS0506: … não é possível substituir o membro herdado "…" porque ele não está marcado como virtual, abstract ou override</strong>
+<pre class="term">$ dotnet run cs0506.cs
+/home/ana/cs/cs0506.cs(11,26): error CS0506: "Cachorro.FazerSom()": não é possível substituir o membro herdado "Animal.FazerSom()" porque ele não está marcado como virtual, abstract ou override
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> <code>override</code> na filha, mas a base não deixou trocar.</p>
+<p><strong>Como resolver:</strong> escreva <code>virtual</code> no método da base. Se a base não é sua (vem de uma biblioteca), ela não foi feita para ser trocada naquele ponto.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS0115: "…": não encontrado nenhum método adequado para substituição</strong>
+<pre class="term">$ dotnet run cs0115.cs          « public override void FazerBarulho(), mas a base tem FazerSom()
+/home/ana/cs/cs0115.cs(11,26): error CS0115: "Cachorro.FazerBarulho()": não encontrado nenhum método adequado para substituição
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> o nome ou os parâmetros não batem com nenhum método da base. Quase sempre é erro de digitação.</p>
+<p><strong>Como resolver:</strong> copie a assinatura exata do método da base.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS0508 / CS0507: tipo de retorno ou acesso diferentes</strong>
+<pre class="term">$ dotnet run cs0508.cs          « public override string FazerSom(), mas a base devolve void
+/home/ana/cs/cs0508.cs(11,28): error CS0508: "Cachorro.FazerSom()": tipo de retorno deve ser "void" para corresponder ao membro substituído "Animal.FazerSom()"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.
+$ dotnet run cs0507.cs          « protected override, mas a base é public
+/home/ana/cs/cs0507.cs(11,29): error CS0507: "Cachorro.FazerSom()": não é possível alterar modificadores de acesso ao substituir "public" membro herdado "Animal.FazerSom()"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>Como resolver:</strong> o <code>override</code> repete o tipo de retorno e o modificador de acesso da base.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS0621: "…": membros virtuais ou abstratos não podem ser privados</strong>
+<pre class="term">$ dotnet run cs0621.cs          « private virtual void FazerSom()
+/home/ana/cs/cs0621.cs(3,26): error CS0621: "Animal.FazerSom()": membros virtuais ou abstratos não podem ser privados
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>Como resolver:</strong> use <code>public</code> ou <code>protected virtual</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>public virtual void M()</code></td><td>Na base: as filhas podem trocar este método</td></tr>
+<tr><td><code>public override void M()</code></td><td>Na filha: substitui o método <code>virtual</code> da base</td></tr>
+<tr><td><code>base.M()</code></td><td>Dentro do <code>override</code>: chama a versão da base</td></tr>
+<tr><td><code>public new void M()</code></td><td>Na filha: método separado que esconde o da base (raro)</td></tr>
+<tr><td><code>public sealed override void M()</code></td><td>Substitui e impede que as netas troquem de novo</td></tr>
+<tr><td><code>public override string ToString()</code></td><td>O texto que <code>Console.WriteLine(obj)</code> mostra</td></tr>
+<tr><td><code>public virtual decimal P =&gt; …;</code></td><td>Propriedade que as filhas podem trocar</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missão final: o salário do gerente</h2>
+<div class="trycs" data-goal="out:Bruno: R$ 2.500\,00,out:Carla: R$ 5.500\,00,semaviso,src:virtual\s+decimal\s+Salario,src:base\.Salario\(\)">
+<p class="try-task"><strong>Missão:</strong> a Carla é gerente, mas está recebendo como funcionária (<code>R$ 4.000,00</code>). Deixe o <code>Salario()</code> de <code>Funcionario</code> <code>virtual</code> e escreva, em <code>Gerente</code>, um <code>override</code> que devolve <code>base.Salario() + Bonus</code>.</p>
+<pre class="script">Funcionario[] equipe =
+{
+    new Funcionario { Nome = "Bruno", SalarioBase = 2500m },
+    new Gerente { Nome = "Carla", SalarioBase = 4000m, Bonus = 1500m },
+};
+
+foreach (Funcionario f in equipe)
+{
+    Console.WriteLine($"{f.Nome}: {f.Salario():C}");
+}
+
+class Funcionario
+{
+    public string Nome { get; set; } = "";
+    public decimal SalarioBase { get; set; }
+
+    public decimal Salario()
+    {
+        return SalarioBase;
+    }
+}
+
+class Gerente : Funcionario
+{
+    public decimal Bonus { get; set; }
+
+    // escreva o override aqui
+}
+</pre>
+<pre class="solucao">Funcionario[] equipe =
+{
+    new Funcionario { Nome = "Bruno", SalarioBase = 2500m },
+    new Gerente { Nome = "Carla", SalarioBase = 4000m, Bonus = 1500m },
+};
+
+foreach (Funcionario f in equipe)
+{
+    Console.WriteLine($"{f.Nome}: {f.Salario():C}");
+}
+
+class Funcionario
+{
+    public string Nome { get; set; } = "";
+    public decimal SalarioBase { get; set; }
+
+    public virtual decimal Salario()
+    {
+        return SalarioBase;
+    }
+}
+
+class Gerente : Funcionario
+{
+    public decimal Bonus { get; set; }
+
+    public override decimal Salario()
+    {
+        return base.Salario() + Bonus;
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Pode trocar</h3>
+<p>Qual palavra, no método da classe base, permite que as filhas o substituam?</p>
+<div class="ex-code"><input data-answer="virtual" aria-label="palavra"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Estou trocando</h3>
+<p>Qual palavra, no método da classe filha, diz que ele substitui o da base?</p>
+<div class="ex-code"><input data-answer="override" aria-label="palavra"></div>
+</div>
+
+<div class="exercise">
+<h3>3. O aviso do override esquecido</h3>
+<p>A base tem <code>virtual</code>, mas a filha esqueceu o <code>override</code>. Qual é o código do aviso?</p>
+<div class="ex-code"><input data-answer="CS0114|cs0114" aria-label="código do aviso"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. <code>Animal bicho = new Gato();</code> e <code>Gato</code> faz <code>override</code> do <code>FazerSom</code> virtual. Qual versão roda em <code>bicho.FazerSom()</code>?</p>
+<label><input type="radio" name="q4"> A de <code>Animal</code>, porque a variável é <code>Animal</code>.</label>
+<label><input type="radio" name="q4"> A de <code>Gato</code>, porque o objeto é um <code>Gato</code>.</label>
+<label><input type="radio" name="q4"> As duas, uma depois da outra.</label>
+<label><input type="radio" name="q4"> Nenhuma: não compila.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. O que faz o modificador <code>new</code> em <code>public new void FazerSom()</code>?</p>
+<label><input type="radio" name="q5"> Cria um objeto novo.</label>
+<label><input type="radio" name="q5"> O mesmo que <code>override</code>.</label>
+<label><input type="radio" name="q5"> Cria um método separado que esconde o da base, sem aviso; pela variável da base, roda a versão da base.</label>
+<label><input type="radio" name="q5"> Apaga o método da base.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que <code>Console.WriteLine(rex)</code> mostra <code>Rex (vira-lata)</code> depois de um <code>override</code> de <code>ToString()</code>?</p>
+<label><input type="radio" name="q6"> Porque <code>ToString()</code> é <code>virtual</code> em <code>object</code>, e <code>Console.WriteLine</code> o chama.</label>
+<label><input type="radio" name="q6"> Porque <code>Console.WriteLine</code> lê todas as propriedades do objeto.</label>
+<label><input type="radio" name="q6"> Porque o cachorro herda de <code>string</code>.</label>
+<label><input type="radio" name="q6"> Porque o <code>override</code> transforma o objeto em texto para sempre.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um método com o mesmo nome na filha, sem mais nada, só <strong>esconde</strong> o da base (aviso <code>CS0108</code> ou <code>CS0114</code>), e pela variável do tipo da base roda a versão da base.</li>
+  <li><code>virtual</code> na base + <code>override</code> na filha: a versão da filha <strong>substitui</strong> a da base, e o C# escolhe pelo objeto de verdade, não pelo tipo da variável.</li>
+  <li><code>new</code> (modificador) esconde de propósito, sem aviso. Use <code>override</code>, salvo motivo forte.</li>
+  <li><code>override</code> de <code>ToString()</code> controla o que <code>Console.WriteLine(obj)</code> mostra. Propriedades também podem ser <code>virtual</code>.</li>
+  <li><code>base.Metodo()</code> reaproveita a versão da base; <code>sealed override</code> impede novas trocas (<code>CS0239</code>).</li>
+  <li>O <code>override</code> copia nome, parâmetros, retorno e acesso da base: <code>CS0506</code>, <code>CS0115</code>, <code>CS0508</code>, <code>CS0507</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
