@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# for — repetir um número conhecido de vezes | Guia C#</title>
+<meta name="description" content="O laço for em C# para quem nunca programou: as três partes (início; condição; passo) e a ordem em que rodam, o contador que só existe dentro do laço (CS0103) e o nome repetido (CS0136), contar para trás, de 2 em 2, somatório, tabuada, percorrer as letras de uma string, o erro do &quot;um a mais&quot; (IndexOutOfRangeException), vírgulas no lugar de ; (CS1002) e o ; depois do for (CS0642), com saídas reais do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">for</span></h1>
+
+<p class="intro">Na aula do <a href="while.html">while</a>, todo laço com contador tinha três peças espalhadas: o <strong>início</strong> antes do laço (<code>int i = 1;</code>), a <strong>condição</strong> nos parênteses (<code>i &lt;= 5</code>) e o <strong>passo</strong> no fim do corpo (<code>i++</code>). O <code>for</code> ("para") junta as três numa linha só. É o laço preferido quando você <strong>sabe quantas voltas</strong> quer: de 1 a 10, 12 meses, cada letra de um nome, cada posição de um array.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>As <strong>três partes</strong> do <code>for</code> e a ordem em que elas rodam.</li>
+  <li>Por que o contador só existe <strong>dentro</strong> do laço (<code>CS0103</code>), e o erro do nome repetido (<code>CS0136</code>).</li>
+  <li>Como contar para trás, de 2 em 2 e com qualquer passo.</li>
+  <li>Como fazer um <strong>somatório</strong>, uma <strong>tabuada</strong> e percorrer as letras de uma <code>string</code>.</li>
+  <li>O erro mais comum de todos os laços: o <strong>"um a mais"</strong> do <code>&lt;=</code>, que aqui vira uma exceção.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana, na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: "dê 10 voltas na quadra"</h2>
+<p>Um professor de educação física diz: "deem 10 voltas na quadra". Cada aluno faz, sem pensar, três coisas:</p>
+<ol class="passo">
+  <li><strong>Começa a contar</strong> do 1 (isso acontece uma vez só, antes da primeira volta).</li>
+  <li>Antes de cada volta, <strong>confere</strong>: já passei de 10? Se não, corre mais uma.</li>
+  <li>No fim de cada volta, <strong>soma um</strong> na contagem.</li>
+</ol>
+<p>O <code>for</code> escreve exatamente isso, nessa ordem, entre os parênteses: <code>for (começa; confere; soma)</code>. Olhando só a primeira linha, você já sabe quantas voltas o laço vai dar.</p>
+
+<hr>
+
+<h2>1. O primeiro <code>for</code></h2>
+
+<pre class="file" data-file="for1.cs">for (int i = 1; i &lt;= 5; i++)
+{
+    Console.WriteLine($"Volta {i}");
+}
+Console.WriteLine("Fim!");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run for1.cs
+Volta 1
+Volta 2
+Volta 3
+Volta 4
+Volta 5
+Fim!</pre>
+
+<dl class="anatomy">
+  <dt>for</dt><dd>A palavra-chave do laço: "para" (para <code>i</code> de 1 até 5…).</dd>
+  <dt>int i = 1;</dt><dd><strong>1ª parte, o início.</strong> Roda <strong>uma vez só</strong>, antes de tudo. Aqui cria o contador <code>i</code> valendo 1.</dd>
+  <dt>i &lt;= 5;</dt><dd><strong>2ª parte, a condição.</strong> Testada <strong>antes de cada volta</strong>, como no <code>while</code>. Tem de dar <code>bool</code>. Se for <code>false</code>, o laço termina.</dd>
+  <dt>i++</dt><dd><strong>3ª parte, o passo.</strong> Roda <strong>no fim de cada volta</strong>, depois do corpo. Repare que <strong>não</strong> tem <code>;</code> depois dele.</dd>
+  <dt>{ … }</dt><dd>O corpo, como em qualquer laço. Chaves sempre.</dd>
+</dl>
+
+<h3>A ordem exata</h3>
+<p>As partes estão escritas lado a lado, mas <strong>não</strong> rodam da esquerda para a direita a cada volta. A ordem é esta:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Passo</th><th>O que roda</th><th><code>i</code> depois</th></tr>
+<tr><td>1</td><td><code>int i = 1</code> (início, só desta vez)</td><td>1</td></tr>
+<tr><td>2</td><td><code>i &lt;= 5</code>? sim → corpo: <code>Volta 1</code> → passo <code>i++</code></td><td>2</td></tr>
+<tr><td>3</td><td><code>i &lt;= 5</code>? sim → corpo: <code>Volta 2</code> → passo <code>i++</code></td><td>3</td></tr>
+<tr><td>…</td><td>…</td><td>…</td></tr>
+<tr><td>6</td><td><code>i &lt;= 5</code>? sim → corpo: <code>Volta 5</code> → passo <code>i++</code></td><td>6</td></tr>
+<tr><td>7</td><td><code>i &lt;= 5</code>? <strong>não</strong> → sai do laço</td><td>6</td></tr>
+</table>
+</div>
+
+<p>Este <code>for</code> faz <strong>exatamente</strong> o mesmo que este <code>while</code> da aula anterior:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th><code>while</code></th><th><code>for</code></th></tr>
+<tr><td><pre class="file">int i = 1;
+while (i &lt;= 5)
+{
+    Console.WriteLine($"Volta {i}");
+    i++;
+}</pre></td><td><pre class="file">for (int i = 1; i &lt;= 5; i++)
+{
+    Console.WriteLine($"Volta {i}");
+}</pre></td></tr>
+</table>
+</div>
+
+<p>A vantagem do <code>for</code>: as três peças ficam juntas no topo, então fica mais difícil esquecer o passo (o laço infinito do <code>while</code>) e mais fácil ver quantas voltas serão.</p>
+
+<hr>
+
+<h2>2. O contador só existe dentro do <code>for</code></h2>
+<p>Uma diferença importante para a versão com <code>while</code>: o <code>i</code> criado <strong>dentro dos parênteses</strong> do <code>for</code> pertence ao laço. Depois dele, não existe mais:</p>
+
+<pre class="file" data-file="depois.cs">for (int i = 1; i &lt;= 5; i++)
+{
+    Console.WriteLine($"Volta {i}");
+}
+Console.WriteLine($"i parou em {i}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run depois.cs
+/home/ana/cs/depois.cs(5,33): error CS0103: O nome "i" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Isso é uma qualidade: o contador não "vaza" para o resto do programa, e você pode usar <code>i</code> de novo num próximo <code>for</code>. Se você <strong>precisa</strong> saber onde o laço parou, declare a variável antes, e o <code>for</code> só dá o valor inicial:</p>
+
+<pre class="file" data-file="fora.cs">int i;
+for (i = 1; i &lt;= 5; i++)
+{
+    Console.WriteLine($"Volta {i}");
+}
+Console.WriteLine($"i parou em {i}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fora.cs
+Volta 1
+Volta 2
+Volta 3
+Volta 4
+Volta 5
+i parou em 6</pre>
+
+<p>O contrário também é proibido: se já existe um <code>i</code> fora, o <code>for</code> não pode criar <strong>outro</strong> <code>i</code>:</p>
+
+<pre class="file" data-file="dupla.cs">int i = 0;
+for (int i = 1; i &lt;= 3; i++)
+{
+    Console.WriteLine(i);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run dupla.cs
+/home/ana/cs/dupla.cs(2,10): error CS0136: Um local ou um parâmetro denominado "i" não pode ser declarado neste escopo porque esse nome é usado em um escopo delimitador de local para definir um local ou parâmetro
+/home/ana/cs/dupla.cs(1,5): warning CS0219: A variável "i" é atribuída, mas seu valor nunca é usado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A mensagem é comprida, mas diz: "não dá para criar um <code>i</code> aqui, porque o nome <code>i</code> já é usado no escopo de fora". Em C isso seria permitido (o <code>i</code> de dentro esconderia o de fora); o C#, como o Java, proíbe para evitar confusão. Conserto: escolha outro nome, ou use o <code>i</code> que já existe (<code>for (i = 1; …)</code>).</p>
+
+<hr>
+
+<h2>3. Contar para trás e mudar o passo</h2>
+<p>As três partes aceitam qualquer coisa que faça sentido. Para contar para trás: comece do maior, teste "maior ou igual" e use <code>--</code>:</p>
+
+<pre class="file" data-file="regressiva.cs">for (int s = 10; s &gt;= 1; s--)
+{
+    Console.Write($"{s} ");
+}
+Console.WriteLine("Feliz Ano Novo!");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run regressiva.cs
+10 9 8 7 6 5 4 3 2 1 Feliz Ano Novo!</pre>
+
+<p>Para andar de 2 em 2, troque o passo por <code>n += 2</code> (aula <a href="operadores-atribuicao.html">Operadores de Atribuição</a>). Começando do 0, saem os números pares:</p>
+
+<pre class="file" data-file="pares.cs">for (int n = 0; n &lt;= 20; n += 2)
+{
+    Console.Write($"{n} ");
+}
+Console.WriteLine();
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pares.cs
+0 2 4 6 8 10 12 14 16 18 20 </pre>
+
+<p>O <code>Console.WriteLine()</code> vazio, no fim, só pula a linha depois dos números.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Quero…</th><th>Escrevo</th><th>Resultado</th></tr>
+<tr><td>De 1 a 10</td><td><code>for (int i = 1; i &lt;= 10; i++)</code></td><td>1 2 3 … 10</td></tr>
+<tr><td>De 0 a 9 (10 voltas)</td><td><code>for (int i = 0; i &lt; 10; i++)</code></td><td>0 1 2 … 9</td></tr>
+<tr><td>De 10 a 1</td><td><code>for (int i = 10; i &gt;= 1; i--)</code></td><td>10 9 … 1</td></tr>
+<tr><td>Pares de 0 a 20</td><td><code>for (int i = 0; i &lt;= 20; i += 2)</code></td><td>0 2 4 … 20</td></tr>
+<tr><td>De 5 em 5</td><td><code>for (int i = 5; i &lt;= 50; i += 5)</code></td><td>5 10 … 50</td></tr>
+</table>
+</div>
+
+<div class="trycs" data-goal="outre:^5 10 15 20 25 30 35 40 45 50 \n$,src:for\s*\(">
+<p class="try-task"><strong>Missão:</strong> mude o <code>for</code> para mostrar os múltiplos de 5, de 5 até 50, na mesma linha:</p>
+<pre class="out">5 10 15 20 25 30 35 40 45 50 </pre>
+<pre class="script">for (int n = 0; n &lt;= 20; n += 2)
+{
+    Console.Write($"{n} ");
+}
+Console.WriteLine();
+</pre>
+<pre class="solucao">for (int n = 5; n &lt;= 50; n += 5)
+{
+    Console.Write($"{n} ");
+}
+Console.WriteLine();
+</pre>
+</div>
+
+<hr>
+
+<h2>4. Somatório e tabuada</h2>
+<p>Os mesmos truques do <code>while</code>, agora mais curtos. A soma de 1 a 100, com o acumulador criado antes do laço:</p>
+
+<pre class="file" data-file="soma.cs">int soma = 0;
+for (int n = 1; n &lt;= 100; n++)
+{
+    soma += n;
+}
+Console.WriteLine($"Soma de 1 a 100: {soma}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run soma.cs
+Soma de 1 a 100: 5050</pre>
+
+<p>E a tabuada do 9, bem alinhada:</p>
+
+<pre class="file" data-file="tabuada.cs">int numero = 9;
+for (int i = 1; i &lt;= 10; i++)
+{
+    Console.WriteLine($"{numero} x {i,2} = {numero * i,3}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tabuada.cs
+9 x  1 =   9
+9 x  2 =  18
+9 x  3 =  27
+9 x  4 =  36
+9 x  5 =  45
+9 x  6 =  54
+9 x  7 =  63
+9 x  8 =  72
+9 x  9 =  81
+9 x 10 =  90</pre>
+
+<p>O <code>{i,2}</code> reserva 2 espaços para o número, alinhado à direita, e o <code>{numero * i,3}</code> reserva 3 (aula <a href="interpolacao.html">Interpolação</a>). Sem isso, o <code>10</code> e o <code>90</code> empurrariam a última linha para a direita.</p>
+
+<hr>
+
+<h2>5. Percorrer as letras de uma <code>string</code></h2>
+<p>Uma <code>string</code> é uma sequência de caracteres, e cada um tem uma <strong>posição</strong> (índice), que começa em <strong>0</strong>. <code>nome[0]</code> é o primeiro caractere, e <code>nome.Length</code> é quantos são (aula <a href="strings.html">Strings</a>). Com um <code>for</code> de 0 até <code>Length - 1</code>, você visita todos:</p>
+
+<pre class="file" data-file="letras.cs">string nome = "Ana Lima";
+for (int i = 0; i &lt; nome.Length; i++)
+{
+    Console.WriteLine($"Posição {i}: '{nome[i]}'");
+}
+Console.WriteLine($"Total: {nome.Length} caracteres");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run letras.cs
+Posição 0: 'A'
+Posição 1: 'n'
+Posição 2: 'a'
+Posição 3: ' '
+Posição 4: 'L'
+Posição 5: 'i'
+Posição 6: 'm'
+Posição 7: 'a'
+Total: 8 caracteres</pre>
+
+<dl class="anatomy">
+  <dt>int i = 0</dt><dd>Começa no <strong>0</strong>, a primeira posição.</dd>
+  <dt>i &lt; nome.Length</dt><dd>Com <strong><code>&lt;</code></strong>, e não <code>&lt;=</code>: são 8 caracteres, nas posições 0 a 7. A posição 8 não existe.</dd>
+  <dt>nome[i]</dt><dd>O caractere (<code>char</code>) da posição <code>i</code>.</dd>
+</dl>
+
+<p>Esse mesmo padrão, <code>for (int i = 0; i &lt; x.Length; i++)</code>, é o jeito de percorrer um <a href="arrays.html">array</a>. Quando você só quer <strong>cada item</strong>, sem precisar da posição, o <a href="foreach.html">foreach</a> da próxima aula é mais simples.</p>
+
+<p>Com um <code>if</code> dentro do <code>for</code>, dá para contar coisas. Quantas vogais tem a frase?</p>
+
+<pre class="file" data-file="vogais.cs">string frase = "programar em csharp";
+int vogais = 0;
+for (int i = 0; i &lt; frase.Length; i++)
+{
+    char c = frase[i];
+    if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u')
+    {
+        vogais++;
+    }
+}
+Console.WriteLine($"\"{frase}\" tem {vogais} vogais.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run vogais.cs
+"programar em csharp" tem 5 vogais.</pre>
+
+<hr>
+
+<h2>6. O erro do "um a mais"</h2>
+<p>O erro mais comum de todos os laços é dar <strong>uma volta a mais</strong> (ou a menos). Em inglês ele tem até nome: <em>off-by-one</em>. Com posições, a volta a mais tenta ler uma posição que não existe:</p>
+
+<pre class="file" data-file="umamais.cs">string nome = "Ana";
+for (int i = 0; i &lt;= nome.Length; i++)
+{
+    Console.WriteLine(nome[i]);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run umamais.cs
+A
+n
+a
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at System.String.get_Chars(Int32 index)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/umamais.cs:line 4
+$ echo $?
+134</pre>
+
+<ol class="passo">
+  <li>"Ana" tem 3 caracteres, nas posições 0, 1 e 2. As três primeiras voltas funcionaram.</li>
+  <li>Com <code>&lt;=</code>, o laço deu uma quarta volta, com <code>i = 3</code> (<code>3 &lt;= 3</code> é <code>true</code>).</li>
+  <li><code>nome[3]</code> não existe. O C# não deixa ler fora da <code>string</code>: ele lança a exceção <code>IndexOutOfRangeException</code> ("o índice estava fora dos limites"), aponta a <strong>linha 4</strong>, e o programa para com o código <strong>134</strong>.</li>
+</ol>
+
+<p>A linha <code>at System.String.get_Chars(Int32 index)</code> mostra onde, <strong>dentro do .NET</strong>, o erro foi descoberto (no código que lê um caractere da <code>string</code>); no editor do guia ela não aparece, mas a linha que importa, a <code>line 4</code> do seu programa, aparece nos dois.</p>
+
+<p>O compilador não tem como ver esse erro: ele só aparece ao rodar. Em C, o programa leria um pedaço qualquer da memória e seguiria em frente, em silêncio; o C# prefere parar e avisar. A regra: <strong>posições vão de 0 a <code>Length - 1</code></strong>, então use <code>i &lt; nome.Length</code>.</p>
+
+<div class="trycs" data-goal="outre:^A\nn\na\n$,exit:0">
+<p class="try-task"><strong>Missão:</strong> rode e veja a exceção. Depois conserte a condição para o programa mostrar as três letras e terminar bem (código de saída 0).</p>
+<pre class="out">A
+n
+a</pre>
+<pre class="script">string nome = "Ana";
+for (int i = 0; i &lt;= nome.Length; i++)
+{
+    Console.WriteLine(nome[i]);
+}
+</pre>
+<pre class="solucao">string nome = "Ana";
+for (int i = 0; i &lt; nome.Length; i++)
+{
+    Console.WriteLine(nome[i]);
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>7. Outras formas do <code>for</code></h2>
+
+<h3>Duas variáveis</h3>
+<p>O início e o passo aceitam várias partes separadas por <strong>vírgula</strong>. Aqui, <code>i</code> sobe e <code>j</code> desce até se encontrarem:</p>
+
+<pre class="file" data-file="dois.cs">for (int i = 0, j = 10; i &lt; j; i += 2, j -= 2)
+{
+    Console.WriteLine($"i = {i}, j = {j}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run dois.cs
+i = 0, j = 10
+i = 2, j = 8
+i = 4, j = 6</pre>
+
+<p>Funciona, mas é raro. Se o <code>for</code> ficar difícil de ler, um <code>while</code> pode ser mais claro.</p>
+
+<h3>Partes vazias e <code>for (;;)</code></h3>
+<p>As três partes são opcionais (os dois <code>;</code>, não). <code>for (;;)</code>, sem nada, é um laço infinito, o mesmo que <code>while (true)</code>. Saia dele com <code>break</code> (aula <a href="break-continue.html">break e continue</a>). Prefira <code>while (true)</code>, que se lê melhor.</p>
+
+<hr>
+
+<h2>Qual laço usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Laço</th></tr>
+<tr><td>Você sabe <strong>quantas voltas</strong> (de 1 a 10, 12 meses)</td><td><code>for</code></td></tr>
+<tr><td>Você precisa da <strong>posição</strong> de cada item (<code>nome[i]</code>, "posição 3")</td><td><code>for</code></td></tr>
+<tr><td>Você quer <strong>cada item</strong> de uma coleção, sem a posição</td><td><a href="foreach.html">foreach</a></td></tr>
+<tr><td>O número de voltas depende do que acontece ("até juntar R$ 1.000")</td><td><a href="while.html">while</a></td></tr>
+<tr><td>A primeira volta é obrigatória (menu, pedir de novo)</td><td><a href="do-while.html">do while</a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.</code></strong>
+<p><strong>O que significa:</strong> o laço tentou ler uma posição que não existe, quase sempre por causa de um <code>&lt;=</code> no lugar de <code>&lt;</code>. A linha no fim da mensagem (<code>line 4</code>) mostra onde.</p>
+<p><strong>Como consertar:</strong> <code>for (int i = 0; i &lt; x.Length; i++)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0103: O nome "i" não existe no contexto atual</code> depois do laço</strong>
+<p><strong>O que significa:</strong> o contador foi criado nos parênteses do <code>for</code> e só existe dentro dele.</p>
+<p><strong>Como consertar:</strong> declare antes do <code>for</code> (<code>int i; for (i = 1; …)</code>) se precisar do valor depois.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0136: Um local ou um parâmetro denominado "i" não pode ser declarado neste escopo…</code></strong>
+<p><strong>O que significa:</strong> já existe uma variável <code>i</code> fora do <code>for</code>, e o <code>for</code> tentou criar outra com o mesmo nome.</p>
+<p><strong>Como consertar:</strong> outro nome para o contador, ou <code>for (i = 1; …)</code> sem o <code>int</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1002: ; esperado</code> dentro dos parênteses</strong>
+<pre class="term" data-cwd="~/cs">$ cat virgula.cs
+for (int i = 1, i &lt;= 3, i++)
+{
+    Console.WriteLine(i);
+}
+$ dotnet run virgula.cs
+/home/ana/cs/virgula.cs(1,15): error CS1002: ; esperado
+/home/ana/cs/virgula.cs(1,23): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> as três partes do <code>for</code> são separadas por <strong>ponto e vírgula</strong>, não por vírgula. O compilador aponta onde esperava cada <code>;</code> (colunas 15 e 23).</p>
+<p><strong>Como consertar:</strong> <code>for (int i = 1; i &lt;= 3; i++)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS0642: Instrução empty possivelmente incorreta</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat pv.cs
+for (int i = 1; i &lt;= 3; i++);
+{
+    Console.WriteLine("Olá!");
+}
+$ dotnet run pv.cs
+/home/ana/cs/pv.cs(1,29): warning CS0642: Instrução empty possivelmente incorreta
+Olá!</pre>
+<p><strong>O que significa:</strong> o <code>;</code> depois do <code>)</code> virou o corpo do laço. O laço deu 3 voltas sem fazer nada, e o bloco de baixo rodou uma vez só, depois.</p>
+<p><strong>Como consertar:</strong> apague o <code>;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>O laço não roda nenhuma vez, ou nunca termina</strong>
+<p><strong>O que significa:</strong> a condição e o passo não combinam. <code>for (int i = 10; i &lt;= 1; i--)</code> não roda (10 já não é <code>&lt;= 1</code>); <code>for (int i = 1; i &lt;= 10; i--)</code> praticamente nunca termina (o <code>i</code> vai para 0, −1, −2… e continua sempre <code>&lt;= 10</code>).</p>
+<p><strong>Como consertar:</strong> contando para cima, <code>&lt;</code>/<code>&lt;=</code> com <code>++</code>; para baixo, <code>&gt;</code>/<code>&gt;=</code> com <code>--</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>O que faz</th></tr>
+<tr><td><code>for (início; condição; passo) { … }</code></td><td>Início uma vez; condição antes de cada volta; passo no fim de cada volta.</td></tr>
+<tr><td><code>for (int i = 1; i &lt;= n; i++)</code></td><td>De 1 a n.</td></tr>
+<tr><td><code>for (int i = 0; i &lt; x.Length; i++)</code></td><td>Cada posição de uma <code>string</code> ou array.</td></tr>
+<tr><td><code>for (int i = n; i &gt;= 1; i--)</code></td><td>De n até 1.</td></tr>
+<tr><td><code>for (…; …; i += 2)</code></td><td>De 2 em 2.</td></tr>
+<tr><td><code>for (int i = 0, j = 10; …; i++, j--)</code></td><td>Duas variáveis.</td></tr>
+<tr><td><code>for (;;)</code></td><td>Laço infinito (prefira <code>while (true)</code>).</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. As três partes</h3>
+<p>Complete o passo para contar de 1 a 10:</p>
+<div class="ex-code">for (int i = 1; i &lt;= 10; <input data-answer="i++|++i|i += 1|i+=1|i = i + 1" aria-label="passo">)</div>
+</div>
+
+<div class="exercise">
+<h3>2. Quantas voltas?</h3>
+<p>Quantas voltas dá <code>for (int i = 0; i &lt; 7; i++)</code>?</p>
+<div class="ex-code">Voltas: <input data-answer="7" aria-label="número"></div>
+</div>
+
+<div class="exercise">
+<h3>3. O separador</h3>
+<p>Qual caractere separa as três partes dentro dos parênteses do <code>for</code>?</p>
+<div class="ex-code"><input data-answer=";" aria-label="caractere" size="2"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Em que ordem rodam as partes de <code>for (A; B; C) { D }</code>?</p>
+<label><input type="radio" name="q4"> A, B, C, D, A, B, C, D…</label>
+<label><input type="radio" name="q4"> A uma vez; depois B, D, C, B, D, C… até B dar false</label>
+<label><input type="radio" name="q4"> A, D, B, C, D, B, C…</label>
+<label><input type="radio" name="q4"> B, A, D, C…</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. Com <code>string s = "oi";</code>, o que acontece em <code>for (int i = 0; i &lt;= s.Length; i++) { Console.WriteLine(s[i]); }</code>?</p>
+<label><input type="radio" name="q5"> Mostra <code>o</code> e <code>i</code></label>
+<label><input type="radio" name="q5"> Não compila</label>
+<label><input type="radio" name="q5"> Mostra <code>o</code>, <code>i</code> e uma linha vazia</label>
+<label><input type="radio" name="q5"> Mostra <code>o</code> e <code>i</code>, e depois para com <code>IndexOutOfRangeException</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que <code>for (int i = 0; i &lt; 3; i++) { } Console.WriteLine(i);</code> não compila?</p>
+<label><input type="radio" name="q6"> Porque <code>i</code> só existe dentro do <code>for</code> (<code>CS0103</code>)</label>
+<label><input type="radio" name="q6"> Porque o corpo está vazio</label>
+<label><input type="radio" name="q6"> Porque falta o <code>;</code> depois do <code>for</code></label>
+<label><input type="radio" name="q6"> Porque <code>i</code> vale 3</label>
+</div>
+
+<h3>Missão final: a poupança rendendo</h3>
+
+<div class="trycs" data-goal="out:Depois de 12 meses: R$ 1.126\,83,src:for\s*\(,semaviso">
+<p class="try-task"><strong>Missão:</strong> a Ana deixou R$ 1.000 numa aplicação que rende 1% ao mês. O programa calcula só <strong>um</strong> mês. Ponha a linha do rendimento dentro de um <code>for</code> que dê <strong>12 voltas</strong>, uma por mês (o rendimento de cada mês é calculado sobre o saldo do mês anterior: são os "juros compostos"). A saída deve ser:</p>
+<pre class="out">Depois de 12 meses: R$ 1.126,83</pre>
+<pre class="script">decimal saldo = 1000m;
+decimal taxa = 0.01m;
+
+saldo += saldo * taxa;
+
+Console.WriteLine($"Depois de 12 meses: R$ {saldo:N2}");
+</pre>
+<pre class="solucao">decimal saldo = 1000m;
+decimal taxa = 0.01m;
+
+for (int mes = 1; mes &lt;= 12; mes++)
+{
+    saldo += saldo * taxa;
+}
+
+Console.WriteLine($"Depois de 12 meses: R$ {saldo:N2}");
+</pre>
+</div>
+
+<p>Depois, mostre o saldo de <strong>cada</strong> mês, com um <code>Console.WriteLine($"Mês {mes}: R$ {saldo:N2}");</code> dentro do laço. E compare: 12 × 1% = 12%, mas o saldo cresceu 12,68%. É o efeito dos juros sobre juros.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>for (início; condição; passo) { … }</code>: o início roda uma vez; a condição, antes de cada volta; o passo, no fim de cada volta.</li>
+  <li>É o mesmo que um <code>while</code> com contador, com as três peças juntas no topo. Use quando souber quantas voltas.</li>
+  <li>O contador criado nos parênteses só existe dentro do laço (<code>CS0103</code> depois), e não pode repetir um nome de fora (<code>CS0136</code>).</li>
+  <li>Para trás: <code>i--</code> com <code>&gt;=</code>. Outros passos: <code>i += 2</code>, <code>i += 5</code>.</li>
+  <li>Posições vão de 0 a <code>Length - 1</code>: use <code>i &lt; x.Length</code>. Com <code>&lt;=</code>, vem a <code>IndexOutOfRangeException</code> (código 134).</li>
+  <li>As partes são separadas por <code>;</code> (com vírgula: <code>CS1002</code>), e nada de <code>;</code> depois do <code>)</code> (<code>CS0642</code>).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
