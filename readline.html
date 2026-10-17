@@ -561,7 +561,7 @@ Ignorado: "dez" não é um preço.
 
 <h3>Missão final: a média sem avisos</h3>
 
-<div class="trycs" data-stdin="7,5&#10;9" data-goal="out:Média: 8\,25,semaviso,src:TryParse">
+<div class="trycs" data-stdin="7,5\n9" data-goal="out:Média: 8\,25,semaviso,src:TryParse">
 <p class="try-task"><strong>Missão:</strong> o programa lê duas notas e mostra a média. Ele funciona com a entrada desta caixa (<code>7,5</code> e <code>9</code>), mas compila com dois avisos <code>CS8604</code> e quebraria com uma nota digitada errado. Reescreva a leitura com <code>decimal.TryParse</code>: se as duas notas forem válidas, mostre <code>Média: 8,25</code>; se não, mostre <code>Nota inválida.</code>. A missão exige <strong>zero avisos</strong>.</p>
 <pre class="out">Primeira nota: Segunda nota: Média: 8,25</pre>
 <pre class="script">Console.Write("Primeira nota: ");
