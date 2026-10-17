@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Cultura — pt-BR × en-US e CultureInfo.InvariantCulture | Guia C#</title>
+<meta name="description" content="Cultura em C# para quem nunca programou: por que Console.WriteLine(3.5) mostra 3,5, CultureInfo.CurrentCulture e a variável LANG, o mesmo número e a mesma data em vários países, ToString(CultureInfo.InvariantCulture), double.Parse(&quot;3.5&quot;) que vira 35 em pt-BR, Parse e TryParse com cultura, new CultureInfo(&quot;en-US&quot;), mudar a cultura do programa, ordenar textos com acentos, e o CSV que quebra com a vírgula, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Cultura</span></h1>
+
+<p class="intro">Desde as primeiras aulas, o <code>Console.WriteLine(3.5)</code> mostra <code>3,5</code>, com vírgula, e o dinheiro aparece como <code>R$ 1.234,50</code>. Nos Estados Unidos, o mesmo programa mostra <code>3.5</code> e <code>$1,234.50</code>. Quem decide é a <strong>cultura</strong>: o conjunto de costumes de um país para escrever números, datas e moedas. Nesta aula você vai ver de onde ela vem, como escrever números do jeito que <strong>outros programas</strong> entendem, e por que <code>double.Parse("3.5")</code> dá <strong>35</strong> num computador brasileiro. Outras aulas do guia trazem você para cá quando aparece esse <code>3,5</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é a cultura, de onde ela vem (<code>CultureInfo.CurrentCulture</code> e a variável <code>LANG</code>) e o que ela muda.</li>
+  <li>Como o mesmo número e a mesma data aparecem em vários países.</li>
+  <li>Escrever números para máquinas com <code>ToString(CultureInfo.InvariantCulture)</code>.</li>
+  <li>Ler números com ponto: <code>double.Parse("3.5", CultureInfo.InvariantCulture)</code> e o <code>TryParse</code> com cultura.</li>
+  <li>Usar a cultura de um país específico: <code>new CultureInfo("en-US")</code>.</li>
+  <li>Mudar a cultura do programa inteiro, e como a cultura muda a ordem de textos com acentos.</li>
+</ul>
+</div>
+
+<p>Esta aula usa <a href="formatacao.html">Formatar Números</a>, <a href="parse.html">Parse e TryParse</a> e <a href="datas.html">Datas e Horas</a>. Os programas rodam com <code>dotnet run</code> na pasta <code>~/cs</code> do computador da Ana, que está em português do Brasil.</p>
+
+<hr>
+
+<h2>A ideia: cada país escreve de um jeito</h2>
+<p>No Brasil, "mil duzentos e trinta e quatro reais e cinquenta centavos" se escreve <code>R$ 1.234,50</code>: <strong>ponto</strong> separa os milhares e <strong>vírgula</strong> separa os centavos. Nos Estados Unidos é o contrário: <code>$1,234.50</code>. E a data de hoje é <code>17/10/2026</code> aqui e <code>10/17/2026</code> lá, com o mês primeiro.</p>
+<p>O número guardado na memória é o mesmo; muda só o jeito de <strong>escrever</strong> e de <strong>ler</strong> o texto. A cultura funciona como um <strong>tradutor de costumes</strong>: cada vez que um número ou uma data vira texto (no <code>WriteLine</code>, no <code>ToString</code>, na interpolação) ou um texto vira número (no <code>Parse</code>), o .NET pergunta ao tradutor como fazer.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>O que a cultura decide</th><th>pt-BR</th><th>en-US</th></tr>
+<tr><td>Separador decimal</td><td><code>3,5</code></td><td><code>3.5</code></td></tr>
+<tr><td>Separador de milhar</td><td><code>1.234</code></td><td><code>1,234</code></td></tr>
+<tr><td>Moeda (<code>"C"</code>)</td><td><code>R$ 1.234,50</code></td><td><code>$1,234.50</code></td></tr>
+<tr><td>Data curta (<code>"d"</code>)</td><td><code>17/10/2026</code></td><td><code>10/17/2026</code></td></tr>
+<tr><td>Nomes de dias e meses</td><td><code>sábado</code>, <code>outubro</code></td><td><code>Saturday</code>, <code>October</code></td></tr>
+<tr><td>Ordem alfabética e maiúsculas</td><td colspan="2">regras de cada língua (seção 6)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. A cultura atual: CultureInfo.CurrentCulture</h2>
+<p>A classe <code>CultureInfo</code> ("informação de cultura") fica no namespace <code>System.Globalization</code> (de "globalização"), que precisa de <code>using</code>:</p>
+
+<pre class="file" data-file="atual.cs">using System.Globalization;
+
+CultureInfo atual = CultureInfo.CurrentCulture;
+Console.WriteLine(atual.Name);
+Console.WriteLine(atual.DisplayName);
+Console.WriteLine($"Decimal: '{atual.NumberFormat.NumberDecimalSeparator}'");
+Console.WriteLine($"Milhar: '{atual.NumberFormat.NumberGroupSeparator}'");
+Console.WriteLine($"Moeda: '{atual.NumberFormat.CurrencySymbol}'");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run atual.cs
+pt-BR
+português (Brasil)
+Decimal: ','
+Milhar: '.'
+Moeda: 'R$'
+$ LANG=en_US.UTF-8 dotnet run atual.cs        « o mesmo programa, "como se" o computador fosse americano
+en-US
+English (United States)
+Decimal: '.'
+Milhar: ','
+Moeda: '$'</pre>
+
+<dl class="anatomy">
+  <dt>CultureInfo.CurrentCulture</dt><dd>"A cultura atual": a que o programa usa quando você não diz nenhuma. Ela vem do sistema operacional. No Linux, da variável de ambiente <code>LANG</code>, que no Ubuntu da Ana vale <code>pt_BR.UTF-8</code>; no Windows e no macOS, das configurações de região.</dd>
+  <dt>atual.Name</dt><dd>O nome da cultura: a língua (<code>pt</code>, português) e o país (<code>BR</code>, Brasil). <code>pt-PT</code> é o português de Portugal, <code>en-US</code> o inglês dos Estados Unidos, <code>en-GB</code> o do Reino Unido.</dd>
+  <dt>atual.DisplayName</dt><dd>O nome para mostrar, na língua da própria cultura.</dd>
+  <dt>atual.NumberFormat</dt><dd>As regras de números da cultura: <code>NumberDecimalSeparator</code> (separador decimal), <code>NumberGroupSeparator</code> (de milhar), <code>CurrencySymbol</code> (símbolo da moeda).</dd>
+  <dt>LANG=en_US.UTF-8 dotnet run atual.cs</dt><dd>No terminal do Linux, <code>VARIAVEL=valor comando</code> roda o comando com a variável trocada, só daquela vez (o Guia Bash explica). Foi o suficiente para o programa virar americano.</dd>
+</dl>
+
+<p>É por isso que um programa pode funcionar no seu computador e dar resultado diferente no de outra pessoa, ou num servidor configurado em inglês: o código é o mesmo, a cultura não.</p>
+
+<hr>
+
+<h2>2. O mesmo valor em vários países</h2>
+<p>O <code>ToString</code> de números e datas aceita, depois do formato, a cultura que você quer usar:</p>
+
+<pre class="file" data-file="paises.cs">using System.Globalization;
+
+decimal preco = 1234.5m;
+DateTime data = new DateTime(2026, 10, 17);
+string[] nomes = ["pt-BR", "pt-PT", "en-US", "en-GB", "es-ES", "de-DE", "ja-JP"];
+foreach (string nome in nomes)
+{
+    CultureInfo c = new CultureInfo(nome);
+    Console.WriteLine($"{nome}: {preco.ToString("N2", c)} | {preco.ToString("C", c)} | {data.ToString("d", c)} | {data.ToString("D", c)}");
+}
+CultureInfo inv = CultureInfo.InvariantCulture;
+Console.WriteLine($"Invariante: {preco.ToString("N2", inv)} | {preco.ToString("C", inv)} | {data.ToString("d", inv)}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run paises.cs
+pt-BR: 1.234,50 | R$ 1.234,50 | 17/10/2026 | sábado, 17 de outubro de 2026
+pt-PT: 1 234,50 | 1 234,50 € | 17/10/2026 | sábado, 17 de outubro de 2026
+en-US: 1,234.50 | $1,234.50 | 10/17/2026 | Saturday, October 17, 2026
+en-GB: 1,234.50 | £1,234.50 | 17/10/2026 | Saturday, 17 October 2026
+es-ES: 1.234,50 | 1.234,50 € | 17/10/2026 | sábado, 17 de octubre de 2026
+de-DE: 1.234,50 | 1.234,50 € | 17.10.2026 | Samstag, 17. Oktober 2026
+ja-JP: 1,234.50 | ￥1,235 | 2026/10/17 | 2026年10月17日土曜日
+Invariante: 1,234.50 | ¤1,234.50 | 10/17/2026</pre>
+
+<dl class="anatomy">
+  <dt>new CultureInfo("en-US")</dt><dd>Cria a cultura pelo nome. (<code>CultureInfo.GetCultureInfo("en-US")</code> faz o mesmo e reaproveita o objeto, bom para usar muitas vezes.)</dd>
+  <dt>preco.ToString("C", c)</dt><dd>O formato <code>"C"</code> (moeda) com as regras da cultura <code>c</code>: símbolo, posição do símbolo e separadores. Repare no Japão: o iene não tem centavos, e <code>1234,5</code> foi arredondado para <code>1,235</code>.</dd>
+  <dt>pt-PT: 1 234,50</dt><dd>Em Portugal, o milhar é separado por um <strong>espaço</strong> especial, que não quebra a linha (não é o espaço comum da barra de espaço).</dd>
+  <dt>CultureInfo.InvariantCulture</dt><dd>A cultura <strong>invariante</strong>, "que não varia": não é de país nenhum. Usa ponto nos decimais, vírgula no milhar, datas mês/dia/ano e o símbolo genérico de moeda <code>¤</code>. Ela é igual em todo computador, em qualquer configuração. Para que serve? Seção 3.</dd>
+</dl>
+
+<p>Atenção: <code>"C"</code> só troca o <strong>desenho</strong> da moeda, não converte o valor. <code>1234,5</code> reais escritos com <code>$</code> continuam sendo 1234,5, e não viram dólares.</p>
+
+<hr>
+
+<h2>3. Escrever para máquinas: InvariantCulture</h2>
+<p>Para <strong>pessoas</strong>, a cultura atual é ótima: cada uma vê os números do jeito do seu país. Mas quando o texto vai para <strong>outro programa</strong> (um arquivo CSV, uma planilha que será importada, um site, um banco de dados), o formato tem de ser sempre o mesmo, em qualquer computador. Para isso existe a cultura invariante:</p>
+
+<pre class="file" data-file="invariante.cs">using System.Globalization;
+
+double nota = 3.5;
+Console.WriteLine(nota);
+Console.WriteLine(nota.ToString());
+Console.WriteLine(nota.ToString(CultureInfo.InvariantCulture));
+Console.WriteLine($"Nota: {nota}");
+Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"Nota: {nota}"));
+Console.WriteLine(FormattableString.Invariant($"Nota: {nota}"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run invariante.cs
+3,5
+3,5
+3.5
+Nota: 3,5
+Nota: 3.5
+Nota: 3.5</pre>
+
+<dl class="anatomy">
+  <dt>Console.WriteLine(nota) e nota.ToString()</dt><dd>Os dois usam a cultura atual: <code>3,5</code>.</dd>
+  <dt>nota.ToString(CultureInfo.InvariantCulture)</dt><dd>Com a cultura invariante: <code>3.5</code>, com ponto, em qualquer computador. Também dá para juntar um formato: <code>nota.ToString("F2", CultureInfo.InvariantCulture)</code> dá <code>3.50</code>.</dd>
+  <dt>$"Nota: {nota}"</dt><dd>A <a href="interpolacao.html">interpolação</a> também usa a cultura atual.</dd>
+  <dt>string.Create(CultureInfo.InvariantCulture, $"…")</dt><dd>Monta a string interpolada inteira com a cultura que você escolher <span class="versao">.NET 6</span>. Todos os números de dentro saem com ponto.</dd>
+  <dt>FormattableString.Invariant($"…")</dt><dd>Um atalho mais antigo para o mesmo, só com a cultura invariante.</dd>
+</dl>
+
+<div class="trycs" data-goal="out:Ana\,8.5,out:Carla\,9.25,src:InvariantCulture">
+<p class="try-task"><strong>Missão:</strong> a Ana quer gerar um CSV, com os campos separados por vírgula, para a escola importar. Mas a vírgula da nota se mistura com a do separador: <code>Ana,8,5</code> parece ter três colunas. Escreva a nota com <code>notas[i].ToString(CultureInfo.InvariantCulture)</code> para as linhas ficarem <code>Ana,8.5</code>, <code>Bruno,7</code> e <code>Carla,9.25</code>.</p>
+<pre class="script" data-file="csv.cs">using System.Globalization;
+
+string[] alunos = ["Ana", "Bruno", "Carla"];
+double[] notas = [8.5, 7, 9.25];
+for (int i = 0; i &lt; alunos.Length; i++)
+{
+    Console.WriteLine($"{alunos[i]},{notas[i]}");
+}
+</pre>
+<pre class="solucao" data-file="csv.cs">using System.Globalization;
+
+string[] alunos = ["Ana", "Bruno", "Carla"];
+double[] notas = [8.5, 7, 9.25];
+for (int i = 0; i &lt; alunos.Length; i++)
+{
+    Console.WriteLine($"{alunos[i]},{notas[i].ToString(CultureInfo.InvariantCulture)}");
+}
+</pre>
+</div>
+
+<p>Outra saída, muito usada nas planilhas brasileiras, é trocar o separador do CSV por <code>;</code>, como nas aulas <a href="arquivos.html">Arquivos</a> e <a href="streams.html">Ler e Escrever</a>. Mesmo assim, um arquivo que vai para outro programa fica mais seguro com a cultura invariante, porque assim ele é igual em qualquer computador.</p>
+
+<hr>
+
+<h2>4. Ler números: Parse com cultura</h2>
+<p>O caminho de volta tem a mesma regra: o <code>Parse</code> lê o texto com os costumes da cultura atual, se você não disser outra. E é aqui que mora o erro mais traiçoeiro desta aula:</p>
+
+<pre class="file" data-file="ler.cs">using System.Globalization;
+
+Console.WriteLine(double.Parse("3,5"));
+Console.WriteLine(double.Parse("3.5"));
+Console.WriteLine(double.Parse("1.234,5"));
+Console.WriteLine(double.Parse("3.5", CultureInfo.InvariantCulture));
+
+if (double.TryParse("3.5", NumberStyles.Float, CultureInfo.InvariantCulture, out double x))
+{
+    Console.WriteLine($"Li {x}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ler.cs
+3,5
+35
+1234,5
+3,5
+Li 3,5</pre>
+
+<dl class="anatomy">
+  <dt>double.Parse("3,5")</dt><dd>Em pt-BR, a vírgula é o separador decimal: três e meio.</dd>
+  <dt>double.Parse("3.5") → 35</dt><dd>Em pt-BR, o ponto é o separador de <strong>milhar</strong>, e o <code>Parse</code> aceita e ignora separadores de milhar (como em <code>1.234</code>). Sobrou <code>35</code>. Nenhum erro, nenhum aviso: só um número dez vezes maior. Uma nota 8.5 vira 85, um preço de 2.50 vira 250.</dd>
+  <dt>double.Parse("1.234,5")</dt><dd>O formato brasileiro completo, com milhar e decimal: <code>1234,5</code>.</dd>
+  <dt>double.Parse("3.5", CultureInfo.InvariantCulture)</dt><dd>Diz ao <code>Parse</code> que o texto está no formato invariante, com ponto: três e meio, mostrado depois como <code>3,5</code> pelo <code>WriteLine</code>.</dd>
+  <dt>double.TryParse("3.5", NumberStyles.Float, CultureInfo.InvariantCulture, out double x)</dt><dd>A versão segura, sem exceção. Com cultura, o <code>TryParse</code> pede também o <strong>estilo</strong> (<code>NumberStyles</code>): <code>Float</code> aceita sinal, decimais e expoente (<code>1e3</code>); <code>Number</code> aceita também o separador de milhar. Para <code>decimal</code>, use <code>NumberStyles.Number</code>.</dd>
+</dl>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>O texto vem de…</th><th>Leia com</th></tr>
+<tr><td>Uma pessoa, digitando no seu programa</td><td>A cultura atual: <code>double.TryParse(texto, out double x)</code></td></tr>
+<tr><td>Um arquivo, um site ou outro programa, com ponto</td><td><code>CultureInfo.InvariantCulture</code></td></tr>
+<tr><td>Um sistema de um país conhecido</td><td>A cultura dele: <code>new CultureInfo("en-US")</code></td></tr>
+<tr><td>JSON</td><td>O <code>System.Text.Json</code> já usa ponto sempre (aula <a href="json.html">JSON</a>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>5. A cultura de um país: new CultureInfo</h2>
+<p>A lojinha da Ana comprou de um fornecedor dos Estados Unidos, e o pedido veio no formato de lá, com vírgula no milhar e ponto nos centavos:</p>
+
+<pre class="term" data-cwd="~/cs">$ cat pedido.txt
+Notebook;1,299.90
+Mouse;49.90</pre>
+
+<pre class="file" data-file="fornecedor.cs">using System.Globalization;
+
+CultureInfo eua = new CultureInfo("en-US");
+decimal total = 0;
+foreach (string linha in File.ReadAllLines("pedido.txt"))
+{
+    string[] campos = linha.Split(';');
+    decimal preco = decimal.Parse(campos[1], eua);
+    Console.WriteLine($"{campos[0]}: {preco:C}");
+    total += preco;
+}
+Console.WriteLine($"Total: {total:C}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fornecedor.cs
+Notebook: R$ 1.299,90
+Mouse: R$ 49,90
+Total: R$ 1.349,80</pre>
+
+<dl class="anatomy">
+  <dt>decimal.Parse(campos[1], eua)</dt><dd>Lê o texto com os costumes americanos: em <code>1,299.90</code>, a vírgula é o milhar e o ponto é o decimal.</dd>
+  <dt>{preco:C}</dt><dd>Mostra com a cultura atual, a brasileira: <code>R$ 1.299,90</code>. Ler com uma cultura e mostrar com outra é normal: o número no meio não tem cultura nenhuma.</dd>
+</dl>
+
+<hr>
+
+<h2>6. Mudar a cultura do programa, e os textos</h2>
+<p>Você pode trocar a cultura atual de dentro do programa. Tudo o que vier depois usa a nova:</p>
+
+<pre class="file" data-file="trocar.cs">using System.Globalization;
+
+Console.WriteLine(1234.5m.ToString("C"));
+CultureInfo.CurrentCulture = new CultureInfo("en-US");
+Console.WriteLine(3.5);
+Console.WriteLine(1234.5m.ToString("C"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run trocar.cs
+R$ 1.234,50
+3.5
+$1,234.50</pre>
+
+<p>Faça isso só quando o programa inteiro deve seguir um país (por exemplo, um relatório que sempre sai em formato brasileiro, até no servidor em inglês). Para um ponto só do programa, passe a cultura no <code>ToString</code> e no <code>Parse</code>, como nas seções anteriores: fica claro para quem lê o código.</p>
+
+<h3>Ordenar e comparar textos</h3>
+<p>A cultura também conhece as regras de ordem alfabética da língua, inclusive os acentos. Já a comparação <strong>ordinal</strong> ("pela ordem dos números") compara os códigos das letras, sem conhecer língua nenhuma:</p>
+
+<pre class="file" data-file="ordem.cs">string[] nomes = ["Zé", "ana", "Álvaro", "Bruno", "Érica", "carla"];
+Console.WriteLine(string.Join(" ", nomes.Order()));
+Console.WriteLine(string.Join(" ", nomes.Order(StringComparer.Ordinal)));
+Console.WriteLine(string.Equals("SÃO PAULO", "são paulo", StringComparison.CurrentCultureIgnoreCase));
+Console.WriteLine(string.Equals("foto.JPG", "foto.jpg", StringComparison.OrdinalIgnoreCase));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ordem.cs
+Álvaro ana Bruno carla Érica Zé
+Bruno Zé ana carla Álvaro Érica
+True
+True</pre>
+
+<dl class="anatomy">
+  <dt>nomes.Order()</dt><dd>Ordena com a cultura atual: a ordem de um dicionário em português, com <code>Álvaro</code> junto dos <code>A</code> e sem separar maiúsculas de minúsculas.</dd>
+  <dt>Order(StringComparer.Ordinal)</dt><dd>Pelos códigos das letras: todas as maiúsculas sem acento vêm antes das minúsculas, e as letras acentuadas vão para o fim. Para mostrar a pessoas, parece errado.</dd>
+  <dt>StringComparison.CurrentCultureIgnoreCase</dt><dd>Compara com as regras da língua, sem diferenciar maiúsculas: <code>SÃO PAULO</code> é igual a <code>são paulo</code>.</dd>
+  <dt>StringComparison.OrdinalIgnoreCase</dt><dd>Compara os códigos, sem diferenciar maiúsculas. É o certo para coisas de computador: nomes de arquivo, extensões, comandos, chaves. É mais rápido e não muda de país para país.</dd>
+</dl>
+
+<div class="tip">
+<strong>Um servidor sem culturas</strong>
+<p>Alguns servidores e contêineres (como imagens Docker bem pequenas) rodam o .NET no <strong>modo de globalização invariante</strong>, sem os dados das culturas. Nele, a cultura atual é sempre a invariante, e o programa mostra <code>3.5</code> mesmo com <code>LANG=pt_BR.UTF-8</code>. Dá para ver esse modo com a variável <code>DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1</code>:</p>
+<pre class="term" data-cwd="~/cs">$ DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet run invariante.cs
+3.5
+3.5
+3.5
+Nota: 3.5
+Nota: 3.5
+Nota: 3.5</pre>
+<p>Mais um motivo para passar a cultura sempre que o formato importa.</p>
+</div>
+
+<hr>
+
+<h2>Qual cultura usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Cultura</th><th>Exemplo</th></tr>
+<tr><td>Mostrar para a pessoa que usa o programa</td><td>A atual (não passe nada)</td><td><code>$"{preco:C}"</code></td></tr>
+<tr><td>Ler o que a pessoa digitou</td><td>A atual</td><td><code>decimal.TryParse(texto, out decimal p)</code></td></tr>
+<tr><td>Gravar ou ler arquivos, CSV, dados para outros programas</td><td><code>CultureInfo.InvariantCulture</code></td><td><code>nota.ToString(CultureInfo.InvariantCulture)</code></td></tr>
+<tr><td>Dados de um país específico</td><td><code>new CultureInfo("en-US")</code></td><td><code>decimal.Parse(texto, eua)</code></td></tr>
+<tr><td>Comparar nomes de arquivo, extensões, códigos</td><td>Ordinal</td><td><code>StringComparison.OrdinalIgnoreCase</code></td></tr>
+<tr><td>Ordenar nomes de pessoas para mostrar</td><td>A atual</td><td><code>nomes.Order()</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>O 3.5 virou 35 (e ninguém avisou)</strong>
+<pre class="file" data-file="media.cs">string[] textos = ["8.5", "7.0", "9.5"];
+double soma = 0;
+foreach (string t in textos)
+{
+    soma += double.Parse(t);
+}
+Console.WriteLine($"Média: {soma / textos.Length}");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run media.cs
+Média: 83,33333333333333
+$ LANG=en_US.UTF-8 dotnet run media.cs
+Média: 8.333333333333334</pre>
+<p><strong>O que aconteceu:</strong> no computador da Ana, em pt-BR, o ponto de <code>8.5</code> é lido como separador de milhar, e as notas viram 85, 70 e 95. Num computador americano, o mesmo programa acerta. É o erro "funciona na minha máquina" clássico: não há exceção, só um resultado errado.</p>
+<p><strong>Como resolver:</strong> diga o formato do texto: <code>double.Parse(t, CultureInfo.InvariantCulture)</code>, com <code>using System.Globalization;</code>. A média passa a ser <code>8,333333333333334</code> nos dois computadores (mostrada com vírgula aqui e com ponto lá).</p>
+</div>
+
+<div class="cenario">
+<strong><code>FormatException</code>: o texto no formato do outro país</strong>
+<p>A Ana esqueceu de passar a cultura americana no <code>fornecedor.cs</code> e trocou <code>decimal.Parse(campos[1], eua)</code> por <code>decimal.Parse(campos[1])</code>:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run fornecedor.cs
+Unhandled exception. System.FormatException: The input string '1,299.90' was not in a correct format.
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+   at System.Number.ParseDecimal[TChar](ReadOnlySpan`1 value, NumberStyles styles, NumberFormatInfo info)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/fornecedor.cs:line 8</pre>
+<p><strong>O que aconteceu:</strong> "O texto não está num formato correto". Em pt-BR, <code>1,299.90</code> teria a vírgula decimal antes de um ponto de milhar, o que não faz sentido. O mesmo acontece ao contrário: <code>double.Parse("1.234,5", CultureInfo.InvariantCulture)</code> lança <code>The input string '1.234,5' was not in a correct format.</code></p>
+<p><strong>Como resolver:</strong> descubra de que país (ou de que programa) vem o texto e passe a cultura certa. Se o texto pode vir errado, use <code>TryParse</code> e avise o usuário.</p>
+</div>
+
+<div class="cenario">
+<strong>O CSV ganhou colunas a mais</strong>
+<pre class="file" data-file="juntar.cs">double[] notas = [8.5, 7, 9.25];
+Console.WriteLine(string.Join(",", notas));
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run juntar.cs
+8,5,7,9,25</pre>
+<p><strong>O que aconteceu:</strong> o <code>string.Join</code> transformou cada número em texto com a cultura atual, e as vírgulas decimais se misturaram com as vírgulas que separam os itens. Quem ler essa linha vai achar cinco números: 8, 5, 7, 9 e 25.</p>
+<p><strong>Como resolver:</strong> transforme os números com a cultura invariante antes de juntar: <code>string.Join(",", notas.Select(n =&gt; n.ToString(CultureInfo.InvariantCulture)))</code> dá <code>8.5,7,9.25</code> (o <code>Select</code> é da aula <a href="linq-filtrar.html">Filtrar e Projetar</a>). Ou use <code>;</code> como separador.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>using System.Globalization;</code></td><td>Traz <code>CultureInfo</code> e <code>NumberStyles</code></td></tr>
+<tr><td><code>CultureInfo.CurrentCulture</code></td><td>A cultura atual (no Linux, vem do <code>LANG</code>)</td></tr>
+<tr><td><code>CultureInfo.InvariantCulture</code></td><td>A cultura que não muda: ponto decimal, igual em todo lugar</td></tr>
+<tr><td><code>new CultureInfo("en-US")</code> / <code>CultureInfo.GetCultureInfo("en-US")</code></td><td>A cultura de um país</td></tr>
+<tr><td><code>x.ToString(cultura)</code> / <code>x.ToString("N2", cultura)</code></td><td>Número ou data → texto, com a cultura escolhida</td></tr>
+<tr><td><code>string.Create(cultura, $"…")</code></td><td>Interpolação com a cultura escolhida</td></tr>
+<tr><td><code>double.Parse(t, CultureInfo.InvariantCulture)</code></td><td>Lê <code>"3.5"</code> como três e meio</td></tr>
+<tr><td><code>double.TryParse(t, NumberStyles.Float, cultura, out double x)</code></td><td>A versão segura, com cultura</td></tr>
+<tr><td><code>CultureInfo.CurrentCulture = new CultureInfo("en-US");</code></td><td>Muda a cultura do programa daqui em diante</td></tr>
+<tr><td><code>c.NumberFormat.NumberDecimalSeparator</code>, <code>CurrencySymbol</code></td><td>As regras de números da cultura</td></tr>
+<tr><td><code>StringComparison.OrdinalIgnoreCase</code> / <code>CurrentCultureIgnoreCase</code></td><td>Comparar textos por código / pelas regras da língua</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A cultura que não muda</h3>
+<p>Complete para o número sair com ponto em qualquer computador:</p>
+<div class="ex-code">string texto = nota.ToString(CultureInfo.<input data-answer="InvariantCulture" aria-label="propriedade">);</div>
+</div>
+
+<div class="exercise">
+<h3>2. Os Estados Unidos</h3>
+<p>Complete o nome da cultura do inglês dos Estados Unidos:</p>
+<div class="ex-code">CultureInfo eua = new CultureInfo("<input data-answer="en-US" aria-label="nome">");</div>
+</div>
+
+<div class="exercise">
+<h3>3. Quanto vale?</h3>
+<p>Num computador em pt-BR, o que <code>Console.WriteLine(double.Parse("2.5"))</code> mostra?</p>
+<div class="ex-code"><input data-answer="25" aria-label="saída"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. De onde o .NET tira a cultura atual no Linux?</p>
+<label><input type="radio" name="q4"> Do fuso horário.</label>
+<label><input type="radio" name="q4"> Do idioma do teclado.</label>
+<label><input type="radio" name="q4"> Da variável de ambiente <code>LANG</code>.</label>
+<label><input type="radio" name="q4"> É sempre <code>en-US</code>.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. O programa grava preços num arquivo que será lido por um sistema de outra empresa. Qual cultura usar ao gravar?</p>
+<label><input type="radio" name="q5"> <code>CultureInfo.InvariantCulture</code></label>
+<label><input type="radio" name="q5"> A cultura atual.</label>
+<label><input type="radio" name="q5"> <code>pt-BR</code>, porque a lojinha é brasileira.</label>
+<label><input type="radio" name="q5"> Tanto faz.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">6. Para comparar a extensão de um arquivo (<code>.JPG</code> e <code>.jpg</code>), qual comparação é a indicada?</p>
+<label><input type="radio" name="q6"> <code>StringComparison.CurrentCulture</code></label>
+<label><input type="radio" name="q6"> <code>StringComparison.OrdinalIgnoreCase</code></label>
+<label><input type="radio" name="q6"> <code>==</code></label>
+<label><input type="radio" name="q6"> <code>StringComparison.Ordinal</code></label>
+</div>
+
+<h3>Missão final: o pedido do fornecedor</h3>
+<div class="trycs" data-goal="out:Notebook: R$ 1.299\,90,out:Total: R$ 1.349\,80,src:en-US">
+<p class="try-task"><strong>Missão:</strong> o <code>pedido.txt</code> (na outra aba) veio de um fornecedor dos Estados Unidos, com os preços no formato de lá. Rode e veja a <code>FormatException</code>. Conserte criando a cultura <code>new CultureInfo("en-US")</code> e passando-a para o <code>decimal.Parse</code>. A saída deve ser:</p>
+<pre class="out">Notebook: R$ 1.299,90
+Mouse: R$ 49,90
+Total: R$ 1.349,80</pre>
+<pre class="script" data-file="fornecedor.cs">using System.Globalization;
+
+decimal total = 0;
+foreach (string linha in File.ReadAllLines("pedido.txt"))
+{
+    string[] campos = linha.Split(';');
+    decimal preco = decimal.Parse(campos[1]);
+    Console.WriteLine($"{campos[0]}: {preco:C}");
+    total += preco;
+}
+Console.WriteLine($"Total: {total:C}");
+</pre>
+<pre class="script" data-file="pedido.txt">Notebook;1,299.90
+Mouse;49.90
+</pre>
+<pre class="solucao" data-file="fornecedor.cs">using System.Globalization;
+
+CultureInfo eua = new CultureInfo("en-US");
+decimal total = 0;
+foreach (string linha in File.ReadAllLines("pedido.txt"))
+{
+    string[] campos = linha.Split(';');
+    decimal preco = decimal.Parse(campos[1], eua);
+    Console.WriteLine($"{campos[0]}: {preco:C}");
+    total += preco;
+}
+Console.WriteLine($"Total: {total:C}");
+</pre>
+</div>
+
+<p>Se quiser ir além: mostre também o total no formato do fornecedor, com <code>total.ToString("C", eua)</code>, que dá <code>$1,349.80</code> (só o desenho muda; o valor continua em reais).</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>A cultura decide como números e datas viram texto e como texto vira número: separadores, moeda, formato de data, nomes de dias e meses, ordem alfabética.</li>
+  <li>A cultura atual (<code>CultureInfo.CurrentCulture</code>) vem do sistema; no Linux, da variável <code>LANG</code>. No computador da Ana, <code>pt-BR</code>: <code>3,5</code> e <code>R$ 1.234,50</code>.</li>
+  <li>Para pessoas, use a cultura atual. Para arquivos e outros programas, <code>CultureInfo.InvariantCulture</code>: <code>x.ToString(CultureInfo.InvariantCulture)</code> dá <code>3.5</code> em qualquer computador.</li>
+  <li>Em pt-BR, <code>double.Parse("3.5")</code> dá <strong>35</strong>, sem erro. Para ler texto com ponto: <code>double.Parse("3.5", CultureInfo.InvariantCulture)</code>.</li>
+  <li>Dados de um país: <code>new CultureInfo("en-US")</code> no <code>Parse</code> ou no <code>ToString</code>. Ler com uma cultura e mostrar com outra é normal.</li>
+  <li>Textos: <code>Order()</code> segue a língua; <code>StringComparison.OrdinalIgnoreCase</code> é para nomes de arquivo e códigos.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
