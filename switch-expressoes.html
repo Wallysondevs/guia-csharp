@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Expressões switch — escolher um valor entre vários | Guia C#</title>
+<meta name="description" content="A expressão switch do C# 8 para quem nunca programou: valor switch { padrão =&gt; resultado, _ =&gt; padrão }, comparações (&lt;, &gt;=), and, or, o descarte _, o aviso CS8509 e a SwitchExpressionException, o braço inacessível (CS8510), default no lugar de _ (CS8505), tipos dos braços (CS8506) e CS0201, com saídas reais do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Expressões switch</span></h1>
+
+<p class="intro">Muitas vezes, um <a href="switch.html">switch</a> só existe para dar <strong>um valor</strong> a uma variável: o nome do dia, o conceito da nota, o desconto da forma de pagamento. Escrito com <code>case</code> e <code>break</code>, isso ocupa três linhas por opção. A <strong>expressão switch</strong> <span class="versao">C# 8</span> faz o mesmo trabalho numa tabela compacta: cada linha diz "se for isto, o valor é aquilo". É o <a href="ternario.html">operador ternário</a> para muitas opções.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como escrever <code>valor switch { padrão =&gt; resultado, … }</code>.</li>
+  <li>O <strong>descarte</strong> <code>_</code> ("qualquer outra coisa") e o que acontece sem ele (aviso <code>CS8509</code> e uma exceção).</li>
+  <li>Padrões simples: valores, <code>&lt;</code>, <code>&gt;=</code>, <code>and</code> e <code>or</code>.</li>
+  <li>Por que, aqui, o compilador <strong>avisa</strong> quando a ordem está errada (<code>CS8510</code>).</li>
+  <li>Os erros mais comuns: <code>default</code> no lugar de <code>_</code>, <code>:</code> no lugar de <code>=&gt;</code>, tipos diferentes nos braços.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana, na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: a tabela de preços na parede</h2>
+<p>Na lanchonete, a tabela na parede diz: "Pastel → R$ 8; Coxinha → R$ 6; Suco → R$ 7; Outros → pergunte no caixa". Ninguém lê isso como uma lista de ordens ("se for pastel, faça isto, depois saia"). É uma <strong>tabela de consulta</strong>: você procura o item e lê o valor ao lado.</p>
+<p>A expressão switch é essa tabela. Do lado esquerdo da seta <code>=&gt;</code>, o que procurar; do lado direito, o valor. E a última linha, "outros", é o <code>_</code>.</p>
+
+<hr>
+
+<h2>1. A primeira expressão switch</h2>
+
+<pre class="file" data-file="dia.cs">int dia = 3;
+string nome = dia switch
+{
+    1 =&gt; "domingo",
+    2 =&gt; "segunda-feira",
+    3 =&gt; "terça-feira",
+    4 =&gt; "quarta-feira",
+    5 =&gt; "quinta-feira",
+    6 =&gt; "sexta-feira",
+    7 =&gt; "sábado",
+    _ =&gt; "dia inválido"
+};
+Console.WriteLine($"Hoje é {nome}.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run dia.cs
+Hoje é terça-feira.</pre>
+
+<dl class="anatomy">
+  <dt>dia switch</dt><dd>O valor que vai ser consultado vem <strong>antes</strong> da palavra <code>switch</code>, e sem parênteses. (Na instrução <code>switch</code>, era o contrário: <code>switch (dia)</code>.)</dd>
+  <dt>{ … }</dt><dd>As chaves envolvem os <strong>braços</strong> (em inglês, <em>arms</em>): as linhas da tabela.</dd>
+  <dt>3 =&gt; "terça-feira"</dt><dd>Um braço: à esquerda da seta <code>=&gt;</code>, o <strong>padrão</strong> (o que procurar); à direita, o <strong>valor</strong> que a expressão inteira vale quando o padrão combina.</dd>
+  <dt>,</dt><dd>Os braços são separados por <strong>vírgula</strong>. A vírgula depois do último braço é opcional.</dd>
+  <dt>_ =&gt; "dia inválido"</dt><dd>O <strong>descarte</strong> <code>_</code> combina com <strong>qualquer</strong> valor. É o "outros" da tabela, o equivalente do <code>default</code>. Fica sempre por último.</dd>
+  <dt>};</dt><dd>Depois da chave, o <strong>ponto e vírgula</strong>: a linha toda é uma declaração <code>string nome = …;</code>, e o <code>switch</code> é só o valor do lado direito.</dd>
+</dl>
+
+<p>Não existe <code>case</code>, nem <code>break</code>, nem a chance de "cair" no braço seguinte: o primeiro braço que combina dá o valor, e pronto.</p>
+
+<h3>A mesma coisa com a instrução <code>switch</code></h3>
+<p>Para comparar, este é o começo do mesmo programa escrito com a instrução <code>switch</code> da aula anterior:</p>
+
+<pre class="file">string nome;
+switch (dia)
+{
+    case 1:
+        nome = "domingo";
+        break;
+    case 2:
+        nome = "segunda-feira";
+        break;
+    // … mais 5 casos iguais …
+    default:
+        nome = "dia inválido";
+        break;
+}
+</pre>
+
+<p>Vinte e oito linhas contra onze, e com <code>nome =</code> repetido em todo caso. Quando o objetivo é <strong>um valor</strong>, a expressão switch é a ferramenta certa. Quando cada caso <strong>faz coisas</strong> diferentes (várias linhas, várias ações), continue com a instrução <code>switch</code>.</p>
+
+<div class="trycs" data-goal="out:Hoje é sexta-feira.">
+<p class="try-task"><strong>Missão:</strong> a tabela da Ana parou na quinta-feira, e o dia 6 está caindo no "dia inválido". Acrescente os braços do 6 (<code>"sexta-feira"</code>) e do 7 (<code>"sábado"</code>), <strong>antes</strong> do <code>_</code>.</p>
+<pre class="out">Hoje é sexta-feira.</pre>
+<pre class="script">int dia = 6;
+string nome = dia switch
+{
+    1 =&gt; "domingo",
+    2 =&gt; "segunda-feira",
+    3 =&gt; "terça-feira",
+    4 =&gt; "quarta-feira",
+    5 =&gt; "quinta-feira",
+    _ =&gt; "dia inválido"
+};
+Console.WriteLine($"Hoje é {nome}.");
+</pre>
+<pre class="solucao">int dia = 6;
+string nome = dia switch
+{
+    1 =&gt; "domingo",
+    2 =&gt; "segunda-feira",
+    3 =&gt; "terça-feira",
+    4 =&gt; "quarta-feira",
+    5 =&gt; "quinta-feira",
+    6 =&gt; "sexta-feira",
+    7 =&gt; "sábado",
+    _ =&gt; "dia inválido"
+};
+Console.WriteLine($"Hoje é {nome}.");
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Comparações: <code>&lt;</code>, <code>&gt;=</code> e companhia <span class="versao">C# 9</span></h2>
+<p>O lado esquerdo do braço não precisa ser um valor exato. Ele pode ser uma <strong>comparação</strong>, sem repetir o nome da variável: <code>&gt;= 9</code> quer dizer "se a nota for maior ou igual a 9". Assim, a cadeia de <a href="else-if.html">else if</a> do conceito vira:</p>
+
+<pre class="file" data-file="conceito.cs">double nota = 7.5;
+string conceito = nota switch
+{
+    &gt;= 9 =&gt; "A",
+    &gt;= 7 =&gt; "B",
+    &gt;= 5 =&gt; "C",
+    _ =&gt; "D"
+};
+Console.WriteLine($"Nota {nota}: conceito {conceito}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run conceito.cs
+Nota 7,5: conceito B</pre>
+
+<p>Os braços são testados <strong>de cima para baixo</strong>, como na cadeia de <code>else if</code>: 7,5 não é <code>&gt;= 9</code>, mas é <code>&gt;= 7</code>, então o valor é <code>"B"</code>. Valem <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code> e <code>&gt;=</code>, sempre comparando com uma <strong>constante</strong> (um número escrito no código).</p>
+
+<p>Repare na seta de cada braço: <code>&gt;= 9 =&gt; "A"</code> tem um <code>&gt;=</code> ("maior ou igual") e depois um <code>=&gt;</code> ("vale"). São coisas diferentes, só parecidas.</p>
+
+<h3>Aqui, o compilador pega a ordem errada</h3>
+<p>Na aula de <code>else if</code>, a ordem errada (do menor para o maior) dava conceito C para a nota 9,5, sem nenhum aviso. Na expressão switch, o compilador percebe:</p>
+
+<pre class="file" data-file="ordem.cs">double nota = 7.5;
+string conceito = nota switch
+{
+    &gt;= 5 =&gt; "C",
+    &gt;= 7 =&gt; "B",
+    &gt;= 9 =&gt; "A",
+    _ =&gt; "D"
+};
+Console.WriteLine(conceito);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ordem.cs
+/home/ana/cs/ordem.cs(5,5): error CS8510: O padrão não está acessível. Ele já foi manipulado por um ARM anterior da expressão do comutador ou não é possível fazer a correspondência.
+/home/ana/cs/ordem.cs(6,5): error CS8510: O padrão não está acessível. Ele já foi manipulado por um ARM anterior da expressão do comutador ou não é possível fazer a correspondência.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A tradução é estranha ("ARM" é o <em>arm</em>, braço, que ficou em inglês e maiúsculo; "comutador" é o <code>switch</code>), mas a ideia é clara: "este padrão é inalcançável: um <strong>braço anterior</strong> já pegou todos os valores dele". Toda nota <code>&gt;= 7</code> (linha 5) também é <code>&gt;= 5</code>, então o braço da linha 4 sempre ganha. Em inglês: <code>The pattern is unreachable. It has already been handled by a previous arm of the switch expression or it is impossible to match.</code> Conserto: do maior para o menor, como na seção anterior.</p>
+
+<div class="trycs" data-goal="out:Você ganhou 10% de desconto,semaviso">
+<p class="try-task"><strong>Missão:</strong> o programa não compila (rode e veja o <code>CS8510</code>). Coloque os braços na ordem certa para que uma compra de R$ 250 ganhe 10%.</p>
+<pre class="out">Você ganhou 10% de desconto</pre>
+<pre class="script">decimal compra = 250m;
+int desconto = compra switch
+{
+    &gt;= 100m =&gt; 5,
+    &gt;= 200m =&gt; 10,
+    &gt;= 500m =&gt; 15,
+    _ =&gt; 0
+};
+Console.WriteLine($"Você ganhou {desconto}% de desconto");
+</pre>
+<pre class="solucao">decimal compra = 250m;
+int desconto = compra switch
+{
+    &gt;= 500m =&gt; 15,
+    &gt;= 200m =&gt; 10,
+    &gt;= 100m =&gt; 5,
+    _ =&gt; 0
+};
+Console.WriteLine($"Você ganhou {desconto}% de desconto");
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Juntar padrões: <code>and</code> e <code>or</code> <span class="versao">C# 9</span></h2>
+<p>Dentro de um padrão, <code>or</code> quer dizer "ou" e <code>and</code> quer dizer "e". São palavras, não os <code>||</code> e <code>&amp;&amp;</code> das condições comuns. A Ana quer separar as notas que não fazem sentido (abaixo de 0 ou acima de 10):</p>
+
+<pre class="file" data-file="invalida.cs">int nota = 11;
+string situacao = nota switch
+{
+    &lt; 0 or &gt; 10 =&gt; "nota inválida",
+    &gt;= 6 =&gt; "aprovada",
+    _ =&gt; "reprovada"
+};
+Console.WriteLine($"Nota {nota}: {situacao}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run invalida.cs
+Nota 11: nota inválida        « 11 &gt; 10: o primeiro braço pegou</pre>
+
+<p>Com <code>and</code>, dá para escrever uma faixa completa: <code>&gt;= 2 and &lt;= 6 =&gt; "dia útil"</code>. E o <code>or</code> funciona com valores exatos e textos também. A lojinha da Ana dá 5% de desconto no Pix e no dinheiro:</p>
+
+<pre class="file" data-file="desconto.cs">string forma = "dinheiro";
+decimal total = 200m;
+decimal fator = forma switch
+{
+    "pix" or "dinheiro" =&gt; 0.95m,
+    "cartão" =&gt; 1.00m,
+    _ =&gt; 1.00m
+};
+Console.WriteLine($"A pagar: R$ {total * fator:N2}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run desconto.cs
+A pagar: R$ 190,00</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Padrão</th><th>Combina quando o valor…</th></tr>
+<tr><td><code>3</code>, <code>"pix"</code>, <code>'s'</code>, <code>true</code></td><td>é exatamente esse</td></tr>
+<tr><td><code>&lt; 0</code>, <code>&gt;= 9</code></td><td>passa na comparação</td></tr>
+<tr><td><code>1 or 7</code></td><td>é um dos dois</td></tr>
+<tr><td><code>&gt;= 2 and &lt;= 6</code></td><td>passa nas duas comparações (está na faixa)</td></tr>
+<tr><td><code>not 0</code></td><td>não é esse</td></tr>
+<tr><td><code>_</code></td><td>qualquer coisa</td></tr>
+</table>
+</div>
+
+<p>Esses são os padrões do dia a dia. Existem muitos outros (por tipo, por propriedade, por posição), e a aula <a href="pattern-matching.html">Pattern Matching</a> mostra todos.</p>
+
+<hr>
+
+<h2>4. Esqueceu o <code>_</code>? Aviso e exceção</h2>
+<p>Uma expressão switch <strong>tem</strong> de dar um valor: a variável do lado esquerdo do <code>=</code> precisa receber alguma coisa. Se nenhum braço combinar, não há valor para dar. O compilador avisa antes:</p>
+
+<pre class="file" data-file="semdescarte.cs">int dia = 9;
+string nome = dia switch
+{
+    1 =&gt; "domingo",
+    7 =&gt; "sábado"
+};
+Console.WriteLine(nome);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run semdescarte.cs
+/home/ana/cs/semdescarte.cs(2,19): warning CS8509: A expressão switch não manipula todos os valores possíveis do tipo de entrada (ela não é exaustiva). Por exemplo, o padrão '0' não é coberto.
+Unhandled exception. System.Runtime.CompilerServices.SwitchExpressionException: Non-exhaustive switch expression failed to match its input.
+Unmatched value was 9.
+   at &lt;PrivateImplementationDetails&gt;.ThrowSwitchExpressionException(Object unmatchedValue)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/semdescarte.cs:line 2
+$ echo $?
+134</pre>
+
+<ol class="passo">
+  <li><strong>O aviso <code>CS8509</code></strong>, na compilação: "a expressão switch não trata todos os valores possíveis (não é <strong>exaustiva</strong>). Por exemplo, o 0 não está coberto". Como é só um aviso, o programa roda.</li>
+  <li><strong>A exceção</strong>, ao rodar: com o dia 9, nenhum braço combinou, e o programa parou com <code>SwitchExpressionException</code> ("a expressão switch não exaustiva não encontrou o valor de entrada. O valor sem par foi 9"). O <code>line 2</code> aponta a linha do <code>switch</code>. As exceções saem em inglês no Linux.</li>
+  <li><strong>O código de saída 134</strong>: o jeito do Linux dizer que o programa foi abortado. Um programa que termina bem sai com 0.</li>
+</ol>
+
+<p>Conserto: um último braço <code>_ =&gt; "dia inválido"</code>. Trate o aviso <code>CS8509</code> como erro: ele quase sempre quer dizer que o programa vai quebrar com algum valor.</p>
+
+<hr>
+
+<h2>5. Os braços precisam combinar</h2>
+<p>Como no ternário, a expressão inteira tem <strong>um</strong> tipo só. Todos os braços precisam dar valores do mesmo tipo (ou de tipos que se convertem):</p>
+
+<pre class="file" data-file="tipos.cs">int estoque = 0;
+var texto = estoque switch
+{
+    0 =&gt; "esgotado",
+    _ =&gt; estoque
+};
+Console.WriteLine(texto);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tipos.cs
+/home/ana/cs/tipos.cs(2,21): error CS8506: Não foi encontrado um tipo melhor para a expressão switch.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Um braço dá <code>string</code>, o outro dá <code>int</code>, e o compilador "não encontrou um tipo" que sirva para os dois. Conserto: <code>_ =&gt; estoque.ToString()</code>, ou <code>_ =&gt; $"{estoque} unidades"</code>.</p>
+
+<hr>
+
+<h2>6. Expressão switch é para valores, não para ações</h2>
+<p>Igual ao ternário: a expressão switch <strong>produz um valor</strong>, e não pode ficar sozinha numa linha.</p>
+
+<pre class="file" data-file="sozinho.cs">int opcao = 1;
+opcao switch
+{
+    1 =&gt; Console.WriteLine("Ver saldo"),
+    _ =&gt; Console.WriteLine("Opção inválida")
+};
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sozinho.cs
+/home/ana/cs/sozinho.cs(2,1): error CS0201: Somente as expressões de atribuição, chamada, incremento, diminuição, espera e novo objeto podem ser utilizadas como uma instrução
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Para <strong>fazer coisas</strong> em cada caso, use a instrução <a href="switch.html">switch</a>. Ou escolha o texto com a expressão e faça <strong>uma</strong> ação com ele:</p>
+
+<pre class="file">Console.WriteLine(opcao switch
+{
+    1 =&gt; "Ver saldo",
+    _ =&gt; "Opção inválida"
+});
+</pre>
+
+<p>Ela também funciona direto numa interpolação (aqui com uma interpolação dentro da outra, no último braço):</p>
+
+<pre class="file" data-file="interp.cs">int itens = 3;
+Console.WriteLine($"Carrinho: {itens switch { 0 =&gt; "vazio", 1 =&gt; "1 item", _ =&gt; $"{itens} itens" }}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run interp.cs
+Carrinho: 3 itens</pre>
+
+<p>Funciona, mas numa linha tão comprida fica difícil de ler. Guardar o resultado numa variável antes, como nos outros exemplos, quase sempre é mais claro.</p>
+
+<hr>
+
+<h2>Qual usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>Escolher entre <strong>dois</strong> valores</td><td><a href="ternario.html">Ternário</a>: <code>n == 1 ? "item" : "itens"</code></td></tr>
+<tr><td>Escolher um valor entre <strong>três ou mais</strong> (valores exatos ou faixas)</td><td><strong>Expressão switch</strong> (esta aula)</td></tr>
+<tr><td><strong>Fazer coisas</strong> diferentes em cada caso</td><td><a href="switch.html">Instrução switch</a></td></tr>
+<tr><td>Condições que não são sobre <strong>um mesmo valor</strong> (<code>temChuva &amp;&amp; idade &gt; 60</code>)</td><td><a href="else-if.html">if / else if</a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>warning CS8509: A expressão switch não manipula todos os valores possíveis…</code> e <code>SwitchExpressionException</code></strong>
+<p><strong>O que significa:</strong> falta o braço "qualquer outra coisa". Se aparecer um valor que nenhum braço cobre, o programa para com a exceção <code>System.Runtime.CompilerServices.SwitchExpressionException</code> e o código de saída 134.</p>
+<p><strong>Como consertar:</strong> acrescente <code>_ =&gt; …</code> como último braço.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8510: O padrão não está acessível…</code></strong>
+<p><strong>O que significa:</strong> um braço nunca vai ser usado, porque um braço anterior já pega todos os valores dele. Quase sempre: faixas fora de ordem, ou um <code>_</code> que não ficou no fim.</p>
+<p><strong>Como consertar:</strong> com <code>&gt;=</code>, do maior para o menor; o <code>_</code> sempre por último.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8505: Um literal padrão 'default' não é válido como um padrão…</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run default.cs
+/home/ana/cs/default.cs(6,5): error CS8505: Um literal padrão 'default' não é válido como um padrão. Use outro literal (por exemplo, '0' ou 'null') conforme o necessário. Para corresponder a tudo, use um padrão de descarte '_'.
+/home/ana/cs/default.cs(6,5): error CS9060: Não é possível usar uma constante numérica ou padrão relacional em "int" porque herda ou estende "INumberBase&lt;T&gt;". Considere usar um padrão de tipo para restringir a um tipo numérico específico.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> você escreveu <code>default =&gt; "outro dia"</code>, como na instrução <code>switch</code>. Na expressão, não existe <code>default</code>. A própria mensagem dá a resposta: "para combinar com tudo, use o descarte <code>_</code>". O segundo erro, <code>CS9060</code>, é o compilador confuso com o mesmo <code>default</code>: ignore-o.</p>
+<p><strong>Como consertar:</strong> <code>_ =&gt; "outro dia"</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1003: Erro de sintaxe, "=&gt;" esperado</code></strong>
+<p><strong>O que significa:</strong> você usou <code>1: "domingo"</code> (os dois-pontos do <code>case</code>) no lugar da seta. Aparece um erro por braço.</p>
+<p><strong>Como consertar:</strong> <code>1 =&gt; "domingo"</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1003: Erro de sintaxe, "," esperado</code> depois da chave</strong>
+<pre class="term" data-cwd="~/cs">$ cat semponto.cs
+int dia = 1;
+string nome = dia switch
+{
+    1 =&gt; "domingo",
+    _ =&gt; "outro dia"
+}
+Console.WriteLine(nome);
+$ dotnet run semponto.cs
+/home/ana/cs/semponto.cs(6,2): error CS1003: Erro de sintaxe, "," esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> faltou o <code>;</code> depois da chave que fecha o <code>switch</code> (linha 6, coluna 2, logo depois da <code>}</code>). A mensagem fala em vírgula porque o compilador acha que a declaração continua (como em <code>int a = 1, b = 2;</code>); o que falta mesmo é o ponto e vírgula.</p>
+<p><strong>Como consertar:</strong> <code>};</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8506: Não foi encontrado um tipo melhor para a expressão switch.</code></strong>
+<p><strong>O que significa:</strong> os braços dão valores de tipos que não combinam (texto num, número no outro).</p>
+<p><strong>Como consertar:</strong> deixe todos do mesmo tipo, com <code>ToString()</code> ou uma interpolação.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>O que faz</th></tr>
+<tr><td><code>var r = x switch { 1 =&gt; "a", 2 =&gt; "b", _ =&gt; "c" };</code></td><td>Valor de <code>r</code> conforme <code>x</code>. Braços testados de cima para baixo; o primeiro que combina ganha.</td></tr>
+<tr><td><code>&gt;= 9 =&gt; "A"</code></td><td>Braço com comparação <span class="versao">C# 9</span>.</td></tr>
+<tr><td><code>1 or 7 =&gt; …</code></td><td>Um ou outro valor.</td></tr>
+<tr><td><code>&gt;= 2 and &lt;= 6 =&gt; …</code></td><td>Faixa.</td></tr>
+<tr><td><code>_ =&gt; …</code></td><td>Qualquer outro valor. Sempre o último.</td></tr>
+<tr><td>Sem <code>_</code></td><td>Aviso <code>CS8509</code>; com um valor não coberto, <code>SwitchExpressionException</code>.</td></tr>
+<tr><td>Braço depois de outro que já cobre tudo</td><td>Erro <code>CS8510</code>.</td></tr>
+<tr><td><code>case</code>, <code>break</code>, <code>default</code></td><td>Não existem na expressão switch (são da instrução).</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A seta</h3>
+<p>Complete com o símbolo que separa o padrão do valor:</p>
+<div class="ex-code">string s = n switch { 0 <input data-answer="=&gt;|=>" aria-label="símbolo" size="3"> "zero", _ =&gt; "outro" };</div>
+</div>
+
+<div class="exercise">
+<h3>2. Qualquer outro</h3>
+<p>Complete com o padrão que combina com qualquer valor:</p>
+<div class="ex-code">string s = n switch { 0 =&gt; "zero", <input data-answer="_" aria-label="padrão" size="2"> =&gt; "outro" };</div>
+</div>
+
+<div class="exercise">
+<h3>3. O que aparece?</h3>
+<p>Com <code>int t = 28;</code>, qual é o valor de <code>t switch { &lt; 15 =&gt; "frio", &lt; 25 =&gt; "agradável", _ =&gt; "calor" }</code>?</p>
+<div class="ex-code">Resposta: <input data-answer="calor" aria-label="valor"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O que acontece ao rodar uma expressão switch sem <code>_</code> quando nenhum braço combina?</p>
+<label><input type="radio" name="q4"> A variável fica com <code>null</code></label>
+<label><input type="radio" name="q4"> O programa para com <code>SwitchExpressionException</code></label>
+<label><input type="radio" name="q4"> O último braço é usado</label>
+<label><input type="radio" name="q4"> Nada: o programa continua</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. Por que <code>x switch { &gt; 0 =&gt; "positivo", &gt; 10 =&gt; "grande", _ =&gt; "outro" }</code> não compila?</p>
+<label><input type="radio" name="q5"> Porque falta o <code>default</code></label>
+<label><input type="radio" name="q5"> Porque não se pode usar <code>&gt;</code> num braço</label>
+<label><input type="radio" name="q5"> Porque falta o <code>break</code></label>
+<label><input type="radio" name="q5"> Porque todo valor <code>&gt; 10</code> também é <code>&gt; 0</code>: o segundo braço nunca seria usado (<code>CS8510</code>)</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Qual é a forma certa de dizer "1 ou 7" num padrão?</p>
+<label><input type="radio" name="q6"> <code>1 or 7</code></label>
+<label><input type="radio" name="q6"> <code>1 || 7</code></label>
+<label><input type="radio" name="q6"> <code>1, 7</code></label>
+<label><input type="radio" name="q6"> <code>case 1: case 7:</code></label>
+</div>
+
+<h3>Missão final: o ingresso do cinema</h3>
+
+<div class="trycs" data-goal="out:Ingresso: R$ 15\,00,src:switch\s*\{,src:=&gt;,semaviso">
+<p class="try-task"><strong>Missão:</strong> o cinema da Ana cobra <strong>R$ 15</strong> de crianças com menos de 12 anos, <strong>R$ 30</strong> de quem tem de 12 a 59 e <strong>R$ 15</strong> de quem tem 60 ou mais. Troque o <code>30m</code> fixo por uma expressão switch com comparações (<code>&lt; 12</code>, <code>&lt; 60</code> e o <code>_</code>). Sem avisos. Com 8 anos, a saída deve ser:</p>
+<pre class="out">Ingresso: R$ 15,00</pre>
+<pre class="script">int idade = 8;
+decimal preco = 30m;  // troque por uma expressão switch
+Console.WriteLine($"Ingresso: R$ {preco:N2}");
+</pre>
+<pre class="solucao">int idade = 8;
+decimal preco = idade switch
+{
+    &lt; 12 =&gt; 15m,
+    &lt; 60 =&gt; 30m,
+    _ =&gt; 15m
+};
+Console.WriteLine($"Ingresso: R$ {preco:N2}");
+</pre>
+</div>
+
+<p>Teste com 12, 59 e 60, os limites. Desafio: faça a idade negativa dar <code>0m</code> e escreva a mensagem "idade inválida" (dica: um braço <code>&lt; 0</code> no começo).</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>valor switch { padrão =&gt; resultado, …, _ =&gt; padrão }</code> <span class="versao">C# 8</span> escolhe um <strong>valor</strong> numa tabela. Sem <code>case</code>, sem <code>break</code>, braços separados por vírgula e <code>;</code> no fim.</li>
+  <li>Os braços são testados em ordem; o primeiro que combina dá o valor.</li>
+  <li>Padrões simples: valores, <code>&lt;</code>/<code>&gt;=</code> <span class="versao">C# 9</span>, <code>and</code>, <code>or</code>, <code>not</code> e o descarte <code>_</code>.</li>
+  <li>Sem <code>_</code>: aviso <code>CS8509</code> e, com um valor não coberto, <code>SwitchExpressionException</code> (saída 134). Braço impossível de alcançar: erro <code>CS8510</code>.</li>
+  <li>Todos os braços com o mesmo tipo (<code>CS8506</code>). Para ações, use a instrução <code>switch</code> (<code>CS0201</code>).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
