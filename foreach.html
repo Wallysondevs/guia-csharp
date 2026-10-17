@@ -267,7 +267,7 @@ Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
 
 <div class="cenario">
 <strong><code>error CS1515: 'in' esperado</code> e <code>error CS1003: Erro de sintaxe, "foreach" esperado</code></strong>
-<p><strong>O que significa:</strong> o costume de outras linguagens. <code>foreach (var item of compras)</code> (o <code>of</code> do JavaScript) dá <code>CS1515: 'in' esperado</code> e mais três erros na mesma linha (no editor do guia, mais dois <code>CS0103</code>, para <code>of</code> e <code>item</code>). <code>for (var item in compras)</code> (o <code>for … in</code> do Python e do JavaScript) dá <code>CS1003: Erro de sintaxe, "foreach" esperado</code>: o compilador até adivinha o que você queria.</p>
+<p><strong>O que significa:</strong> o costume de outras linguagens. <code>foreach (var item of compras)</code> (o <code>of</code> do JavaScript) dá <code>CS1515: 'in' esperado</code> e mais três erros de sintaxe na mesma linha (no editor do guia, os mesmos quatro). <code>for (var item in compras)</code> (o <code>for … in</code> do Python e do JavaScript) dá <code>CS1003: Erro de sintaxe, "foreach" esperado</code>: o compilador até adivinha o que você queria.</p>
 <p><strong>Como consertar:</strong> <code>foreach (var item in compras)</code>.</p>
 </div>
 
