@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Sobrecarga — vários métodos com o mesmo nome | Guia C#</title>
+<meta name="description" content="Sobrecarga de métodos em C# para quem nunca programou: o mesmo nome com listas de parâmetros diferentes, o que conta na assinatura (e o que não conta), como o compilador escolhe a versão, por que funções locais não podem ser sobrecarregadas, e os erros reais do dotnet 10 (CS0128, CS0111, CS0121, CS1503), com missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Sobrecarga</span></h1>
+
+<p class="intro">O <code>Console.WriteLine</code> aceita um número, um texto, um <code>bool</code>, nada… Como um método só aceita tantos tipos diferentes? Ele não é um método só: são <strong>vários métodos com o mesmo nome</strong>, cada um com uma lista de parâmetros. Isso se chama <strong>sobrecarga</strong> (<em>overload</em>), e o compilador escolhe a versão certa olhando os argumentos de cada chamada. Nesta aula você vai escrever as suas sobrecargas, ver o que torna duas versões diferentes e descobrir uma pegadinha: as funções locais do fim do arquivo <strong>não</strong> podem ser sobrecarregadas.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é sobrecarga e onde você já usou uma.</li>
+  <li>Por que, para sobrecarregar, os métodos precisam morar numa classe (e não ser funções locais).</li>
+  <li>Sobrecarga pelo <strong>tipo</strong> e pela <strong>quantidade</strong> de parâmetros.</li>
+  <li>O que conta na <strong>assinatura</strong> do método, e o que não conta (o tipo de retorno e os nomes dos parâmetros).</li>
+  <li>Como o compilador escolhe a versão, e quando ele não consegue escolher.</li>
+  <li>Quando usar sobrecarga, parâmetros opcionais ou <code>params</code>.</li>
+  <li>Os erros <code>CS0128</code>, <code>CS0111</code>, <code>CS0121</code> e <code>CS1503</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram na máquina fictícia da Ana, na pasta <code>~/cs</code>, com o <strong>.NET 10</strong> e o comando <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: uma palavra, vários sentidos</h2>
+<p>Em português, "abrir" serve para muita coisa: abrir a porta, abrir uma conta, abrir o guarda-chuva. Ninguém se confunde, porque o <strong>complemento</strong> diz qual "abrir" é: com uma chave, é a porta; com documentos, é a conta.</p>
+<p>A sobrecarga é isso. Os métodos têm o mesmo nome, e o que vai entre os parênteses decide qual deles roda:</p>
+
+<pre class="file" data-file="writelineover.cs">Console.WriteLine(42);
+Console.WriteLine(3.5);
+Console.WriteLine(true);
+Console.WriteLine('A');
+Console.WriteLine("texto");
+Console.WriteLine();
+Console.WriteLine("{0} + {1} = {2}", 2, 3, 5);
+int quantas = 0;
+foreach (var m in typeof(Console).GetMethods())
+    if (m.Name == "WriteLine") quantas++;
+Console.WriteLine($"Console.WriteLine tem {quantas} sobrecargas");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run writelineover.cs
+42
+3,5
+True
+A
+texto
+
+2 + 3 = 5
+Console.WriteLine tem 20 sobrecargas</pre>
+
+<p>As últimas três linhas do programa contam quantos métodos chamados <code>WriteLine</code> a classe <code>Console</code> tem (é um truque avançado; você não precisa entendê-lo agora). São 20: um para <code>int</code>, um para <code>double</code>, um para <code>bool</code>, um para <code>char</code>, um para <code>string</code>, um sem nada, um com texto e valores para encaixar… Você sempre escreveu só <code>Console.WriteLine</code>, e o compilador sempre escolheu.</p>
+
+<hr>
+
+<h2>1. A pegadinha: funções locais não se sobrecarregam</h2>
+<p>A primeira tentativa natural é escrever as duas versões no fim do arquivo, como nas aulas anteriores:</p>
+
+<pre class="file" data-file="sobrelocal.cs">Console.WriteLine(Dobro(4));
+Console.WriteLine(Dobro(2.5));
+
+int Dobro(int n) =&gt; n * 2;
+double Dobro(double n) =&gt; n * 2;
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sobrelocal.cs
+/home/ana/cs/sobrelocal.cs(2,25): error CS1503: Argumento 1: não é possível converter de "double" para "int"
+/home/ana/cs/sobrelocal.cs(5,8): error CS0128: Uma variável de local ou função denominada 'Dobro' já está definida neste escopo
+/home/ana/cs/sobrelocal.cs(5,8): warning CS8321: A função local 'Dobro' está declarada, mas nunca é usada
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Lembra de <a href="metodos.html">Métodos</a>? Num arquivo com instruções de nível superior, os métodos do fim do arquivo são <strong>funções locais</strong> do <code>Main</code> escondido. E uma função local se comporta como uma variável: dentro de um bloco, cada nome só pode existir <strong>uma vez</strong>. O <code>CS0128</code> é o mesmo erro de declarar duas variáveis <code>int x</code>. Os outros dois são consequência: o compilador só ficou com o primeiro <code>Dobro</code> (o de <code>int</code>), por isso <code>Dobro(2.5)</code> deu <code>CS1503</code>, e o segundo ficou "sem uso".</p>
+
+<div class="tip">
+<strong>Regra: sobrecarga é coisa de método de classe</strong>
+<p>Para ter duas versões com o mesmo nome, os métodos precisam morar numa <strong>classe</strong>, na forma com <code>static</code> que você viu em <a href="metodos.html">Métodos</a>. É a forma que esta aula usa daqui para a frente. Se você prefere ficar com as funções locais, dê nomes diferentes (<code>DobroInt</code>, <code>DobroDouble</code>) ou use um parâmetro opcional.</p>
+</div>
+
+<hr>
+
+<h2>2. Sobrecarga pelo tipo</h2>
+
+<pre class="file" data-file="sobre1.cs">class Program
+{
+    static void Main()
+    {
+        Console.WriteLine(Dobro(4));
+        Console.WriteLine(Dobro(2.5));
+        Console.WriteLine(Dobro("la"));
+    }
+
+    static int Dobro(int n)
+    {
+        return n * 2;
+    }
+
+    static double Dobro(double n)
+    {
+        return n * 2;
+    }
+
+    static string Dobro(string texto)
+    {
+        return texto + texto;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sobre1.cs
+8
+5
+lala</pre>
+
+<dl class="anatomy">
+  <dt>static int Dobro(int n)</dt><dd>A versão para inteiros. <code>Dobro(4)</code> casa com ela: o argumento é <code>int</code>.</dd>
+  <dt>static double Dobro(double n)</dt><dd>A versão para números com vírgula. <code>Dobro(2.5)</code> casa com ela, e devolve 5,0 (que o <code>WriteLine</code> mostra como <code>5</code>).</dd>
+  <dt>static string Dobro(string texto)</dt><dd>Uma versão que faz outra coisa: repete o texto. O mesmo nome, porque a ideia é a mesma ("dobro"), mas o trabalho depende do tipo.</dd>
+</dl>
+
+<p>Os três métodos moram dentro de <code>class Program</code>, ao lado do <code>Main</code>, como irmãos. Para o compilador, eles são três métodos diferentes que por acaso têm o mesmo nome.</p>
+
+<h2>3. Sobrecarga pela quantidade</h2>
+<p>As versões também podem ter quantidades diferentes de parâmetros. A área de um quadrado precisa de um lado; a de um retângulo, de dois:</p>
+
+<pre class="file" data-file="area.cs">class Program
+{
+    static void Main()
+    {
+        Console.WriteLine(Area(3));
+        Console.WriteLine(Area(3, 5));
+    }
+
+    static double Area(double lado)
+    {
+        return lado * lado;
+    }
+
+    static double Area(double largura, double altura)
+    {
+        return largura * altura;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run area.cs
+9
+15</pre>
+
+<p><code>Area(3)</code> tem um argumento: só a primeira versão serve. <code>Area(3, 5)</code> tem dois: só a segunda. Repare que os argumentos são <code>int</code> e os parâmetros, <code>double</code>: tudo bem, um <code>int</code> vira <code>double</code> sozinho (<a href="conversao-tipos.html">Conversão de Tipos</a>).</p>
+
+<h3>Uma versão pode chamar a outra</h3>
+<p>Quando a versão curta é só "a longa com um valor fixo", não repita o código: faça a curta chamar a longa.</p>
+
+<pre class="file" data-file="encadear.cs">class Program
+{
+    static void Main()
+    {
+        MostrarPreco(12.5m);
+        MostrarPreco("Caderno", 12.5m);
+    }
+
+    static void MostrarPreco(decimal preco)
+    {
+        MostrarPreco("Produto", preco);
+    }
+
+    static void MostrarPreco(string produto, decimal preco)
+    {
+        Console.WriteLine($"{produto}: {preco:C}");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run encadear.cs
+Produto: R$ 12,50
+Caderno: R$ 12,50</pre>
+
+<p>O formato da linha está escrito num lugar só. Se a Ana mudar o formato, as duas versões mudam juntas.</p>
+
+<div class="trycs" data-goal="outre:^5\n9\n$,src:static\s+int\s+Somar\s*\([^)]*\)[\s\S]*static\s+int\s+Somar\s*\(">
+<p class="try-task"><strong>Missão:</strong> a segunda chamada passa três números, e o programa não compila (<code>CS1501</code>). Escreva, dentro da classe, uma <strong>segunda versão</strong> de <code>Somar</code>, com três parâmetros <code>int</code>. A saída deve ser:</p>
+<pre class="out">5
+9</pre>
+<pre class="script">class Program
+{
+    static void Main()
+    {
+        Console.WriteLine(Somar(2, 3));
+        Console.WriteLine(Somar(2, 3, 4));
+    }
+
+    static int Somar(int a, int b)
+    {
+        return a + b;
+    }
+}
+</pre>
+<pre class="solucao">class Program
+{
+    static void Main()
+    {
+        Console.WriteLine(Somar(2, 3));
+        Console.WriteLine(Somar(2, 3, 4));
+    }
+
+    static int Somar(int a, int b)
+    {
+        return a + b;
+    }
+
+    static int Somar(int a, int b, int c)
+    {
+        return a + b + c;
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>4. O que conta na assinatura</h2>
+<p>O compilador diferencia as versões pela <strong>assinatura</strong>: o nome do método e a <strong>lista de tipos</strong> dos parâmetros (quantos são, de que tipo, em que ordem, e se têm <code>ref</code>, <code>out</code> ou <code>in</code>). Duas coisas <strong>não</strong> entram na assinatura:</p>
+
+<h3>O tipo de retorno não conta</h3>
+
+<pre class="file" data-file="soretorno.cs">class Program
+{
+    static void Main()
+    {
+        Console.WriteLine(Ler());
+    }
+
+    static int Ler() =&gt; 1;
+    static string Ler() =&gt; "um";
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run soretorno.cs
+/home/ana/cs/soretorno.cs(9,19): error CS0111: Tipo "Program" já define um membro chamado "Ler" com os mesmos tipos de parâmetro
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Na chamada <code>Ler()</code> não há nada que diga qual das duas você quer: o compilador escolhe pelos argumentos, nunca pelo que você vai fazer com o resultado. As duas têm a mesma lista de parâmetros (vazia), e isso é proibido. Em inglês: <em>Type 'Program' already defines a member called 'Ler' with the same parameter types</em>.</p>
+
+<h3>Os nomes dos parâmetros não contam</h3>
+
+<pre class="file" data-file="sonome.cs">class Program
+{
+    static void Main()
+    {
+        Console.WriteLine(Area(3, 5));
+    }
+
+    static double Area(double largura, double altura) =&gt; largura * altura;
+    static double Area(double base_, double h) =&gt; base_ * h / 2;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sonome.cs
+/home/ana/cs/sonome.cs(9,19): error CS0111: Tipo "Program" já define um membro chamado "Area" com os mesmos tipos de parâmetro
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A segunda versão queria ser a área de um triângulo, mas as duas são <code>(double, double)</code>. A solução aqui é um nome melhor: <code>AreaRetangulo</code> e <code>AreaTriangulo</code>. Sobrecarga serve para a <strong>mesma ideia</strong> com entradas diferentes; ideias diferentes merecem nomes diferentes.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Diferença entre as versões</th><th>Pode sobrecarregar?</th><th>Exemplo</th></tr>
+<tr><td>Quantidade de parâmetros</td><td>Sim</td><td><code>Area(double)</code> × <code>Area(double, double)</code></td></tr>
+<tr><td>Tipo de algum parâmetro</td><td>Sim</td><td><code>Dobro(int)</code> × <code>Dobro(double)</code></td></tr>
+<tr><td>Ordem dos tipos</td><td>Sim (mas cuidado, seção 5)</td><td><code>M(int, double)</code> × <code>M(double, int)</code></td></tr>
+<tr><td><code>ref</code>/<code>out</code>/<code>in</code> num parâmetro</td><td>Sim</td><td><code>Mudar(int)</code> × <code>Mudar(ref int)</code></td></tr>
+<tr><td>Só o tipo de retorno</td><td><strong>Não</strong> (<code>CS0111</code>)</td><td><code>int Ler()</code> × <code>string Ler()</code></td></tr>
+<tr><td>Só os nomes dos parâmetros</td><td><strong>Não</strong> (<code>CS0111</code>)</td><td><code>Area(double largura, …)</code> × <code>Area(double base_, …)</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>5. Como o compilador escolhe</h2>
+<p>Em cada chamada, o compilador olha os tipos dos argumentos e procura a versão que <strong>combina melhor</strong>. Se houver uma com os tipos exatos, é ela. Se não, ele procura uma em que os argumentos <strong>caibam</strong> com uma conversão implícita.</p>
+
+<pre class="file" data-file="escolha.cs">class Program
+{
+    static void Main()
+    {
+        Mostrar(5);
+        Mostrar(5.0);
+        Mostrar(5m);
+        Mostrar('5');
+    }
+
+    static void Mostrar(int n) =&gt; Console.WriteLine($"int: {n}");
+    static void Mostrar(double n) =&gt; Console.WriteLine($"double: {n}");
+    static void Mostrar(decimal n) =&gt; Console.WriteLine($"decimal: {n}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run escolha.cs
+int: 5
+double: 5
+decimal: 5
+int: 53                              « o caractere '5' virou o número 53</pre>
+
+<p>As três primeiras são exatas: <code>5</code> é <code>int</code>, <code>5.0</code> é <code>double</code>, <code>5m</code> é <code>decimal</code>. A quarta é uma surpresa: não existe versão para <code>char</code>, e um <code>char</code> cabe num <code>int</code> (cada caractere tem um número; o do <code>'5'</code> é 53, veja <a href="char-bool.html">char e bool</a>). O compilador escolheu a versão <code>int</code> sem avisar.</p>
+
+<h3>Quando ele não consegue escolher</h3>
+<p>Às vezes duas versões servem igualmente bem, e nenhuma é melhor que a outra. O compilador se recusa a adivinhar:</p>
+
+<pre class="file" data-file="ambiguo.cs">class Program
+{
+    static void Main()
+    {
+        Juntar(1, 2);
+    }
+
+    static void Juntar(int a, double b) =&gt; Console.WriteLine("int, double");
+    static void Juntar(double a, int b) =&gt; Console.WriteLine("double, int");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ambiguo.cs
+/home/ana/cs/ambiguo.cs(5,9): error CS0121: A chamada é ambígua entre os seguintes métodos ou propriedades: "Program.Juntar(int, double)" e "Program.Juntar(double, int)"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p><code>Juntar(1, 2)</code> tem dois <code>int</code>. Na primeira versão, o segundo precisa virar <code>double</code>; na segunda, o primeiro. Um empate. <em>A chamada é ambígua</em> (<em>The call is ambiguous</em>): o compilador mostra as duas candidatas. Conserto na chamada: deixe o tipo claro (<code>Juntar(1, 2.0)</code>). Conserto melhor: não crie sobrecargas que só trocam a ordem dos tipos.</p>
+
+<p>O mesmo acontece no <code>escolha.cs</code> com um <code>long</code>: <code>Mostrar(5L)</code> não cabe no <code>int</code>, mas cabe no <code>double</code> e no <code>decimal</code>, e nenhum dos dois é melhor.</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run longo.cs                « Mostrar(5L) com as mesmas três versões
+/home/ana/cs/longo.cs(5,9): error CS0121: A chamada é ambígua entre os seguintes métodos ou propriedades: "Program.Mostrar(double)" e "Program.Mostrar(decimal)"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<hr>
+
+<h2>Formas diferentes</h2>
+
+<h3>Sobrecarga num arquivo com instruções de nível superior</h3>
+<p>Se você quer continuar com as instruções soltas no topo, pode pôr as sobrecargas numa classe <strong>separada</strong>, no fim do arquivo, e chamar com o nome da classe na frente:</p>
+
+<pre class="file" data-file="topclasse.cs">Console.WriteLine(Calc.Dobro(4));
+Console.WriteLine(Calc.Dobro(2.5));
+
+static class Calc
+{
+    public static int Dobro(int n) =&gt; n * 2;
+    public static double Dobro(double n) =&gt; n * 2;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run topclasse.cs
+8
+5</pre>
+
+<p>É assim que funcionam <code>Math.Max</code> e <code>Console.WriteLine</code>: <code>Math</code> e <code>Console</code> são classes, e os métodos são chamados com o nome delas na frente. O <code>public</code> ("público") deixa o método ser usado de fora da classe; ele é explicado em <a href="modificadores-acesso.html">public, private e internal</a>, e a <code>static class</code>, em <a href="static.html">static</a>.</p>
+
+<h3>Sobrecarga, opcionais ou <code>params</code>?</h3>
+<p>As três ferramentas deixam "o mesmo método" aceitar chamadas diferentes. Cada uma tem o seu caso:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>Uma versão é a outra com um valor padrão (<code>quantidade</code> = 1)</td><td><a href="parametros-opcionais.html">Parâmetro opcional</a>: um método só</td></tr>
+<tr><td>Quantidade variável de valores do mesmo tipo</td><td><a href="params.html"><code>params</code></a></td></tr>
+<tr><td>Tipos diferentes pedem trabalhos diferentes (<code>int</code> × <code>string</code>)</td><td>Sobrecarga</td></tr>
+<tr><td>Quantidades diferentes com significados diferentes (quadrado × retângulo)</td><td>Sobrecarga</td></tr>
+<tr><td>Funções locais no fim do arquivo</td><td>Opcionais, <code>params</code> ou nomes diferentes (sobrecarga não é possível)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0128: Uma variável de local ou função denominada 'Dobro' já está definida neste escopo</code></strong>
+<p><strong>O que significa:</strong> você tentou sobrecarregar funções locais (os métodos do fim de um arquivo com instruções de nível superior). Funções locais não podem repetir o nome.</p>
+<p><strong>Como consertar:</strong> leve os métodos para uma classe (a forma com <code>static</code>), use nomes diferentes, ou troque as duas versões por uma com parâmetro opcional.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0111: Tipo "Program" já define um membro chamado "Ler" com os mesmos tipos de parâmetro</code></strong>
+<p><strong>O que significa:</strong> duas versões têm a mesma lista de tipos de parâmetros. Elas só mudam no tipo de retorno ou nos nomes dos parâmetros, e isso não conta.</p>
+<p><strong>Como consertar:</strong> se as duas fazem coisas diferentes, dê nomes diferentes (<code>LerNumero</code>, <code>LerTexto</code>). Se fazem a mesma coisa, apague uma.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0121: A chamada é ambígua entre os seguintes métodos ou propriedades…</code></strong>
+<p><strong>O que significa:</strong> duas versões servem para os argumentos da chamada, e nenhuma é melhor.</p>
+<p><strong>Como consertar:</strong> deixe o tipo do argumento claro (<code>2.0</code>, <code>2m</code>, <code>(double)x</code>), ou repense as sobrecargas para não haver empate.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1503: Argumento 1: não é possível converter de "string" para "double"</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run nenhuma.cs              « Area("3") com Area(double) e Area(double, double)
+/home/ana/cs/nenhuma.cs(5,32): error CS1503: Argumento 1: não é possível converter de "string" para "double"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> nenhuma versão aceita os argumentos. O compilador mostra o erro comparando com a versão que tem a mesma quantidade de parâmetros. Com uma quantidade que nenhuma versão tem, o erro é o <code>CS1501</code>.</p>
+<p><strong>Como consertar:</strong> passe o tipo certo (<code>Area(3)</code>), converta antes (<code>double.TryParse</code>) ou crie a versão que falta.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Termo</th><th>O que é</th></tr>
+<tr><td>Sobrecarga (<em>overload</em>)</td><td>Vários métodos com o mesmo nome e listas de parâmetros diferentes</td></tr>
+<tr><td>Assinatura</td><td>Nome + tipos dos parâmetros (quantidade, tipo, ordem, <code>ref</code>/<code>out</code>/<code>in</code>)</td></tr>
+<tr><td>Não entram na assinatura</td><td>Tipo de retorno e nomes dos parâmetros</td></tr>
+<tr><td>Escolha da versão</td><td>Pelos tipos dos argumentos: exata primeiro, depois a que aceita com conversão implícita</td></tr>
+<tr><td>Onde é possível</td><td>Métodos de classe (<code>static</code> ao lado do <code>Main</code>, ou numa <code>static class</code>). Funções locais, não</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O nome técnico</h3>
+<p>Como se chama ter vários métodos com o mesmo nome e parâmetros diferentes? (uma palavra)</p>
+<div class="ex-code"><input data-answer="sobrecarga|Sobrecarga|overload" aria-label="nome"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Qual roda?</h3>
+<p>Com <code>static string Tipo(int n) =&gt; "int";</code> e <code>static string Tipo(double n) =&gt; "double";</code>, o que <code>Tipo(7)</code> devolve?</p>
+<div class="ex-code"><input data-answer="int|&quot;int&quot;" aria-label="resultado"></div>
+</div>
+
+<div class="exercise">
+<h3>3. E agora?</h3>
+<p>Com as mesmas duas versões, o que <code>Tipo(7.0)</code> devolve?</p>
+<div class="ex-code"><input data-answer="double|&quot;double&quot;" aria-label="resultado"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Qual par de métodos, numa classe, dá <code>CS0111</code>?</p>
+<label><input type="radio" name="q4"> <code>void M(int a)</code> e <code>void M(int a, int b)</code></label>
+<label><input type="radio" name="q4"> <code>void M(int a)</code> e <code>void M(string a)</code></label>
+<label><input type="radio" name="q4"> <code>int M(int a)</code> e <code>double M(int a)</code></label>
+<label><input type="radio" name="q4"> <code>void M(int a)</code> e <code>void M(ref int a)</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Num arquivo com instruções de nível superior, a Ana escreve no fim <code>int Dobro(int n)</code> e <code>double Dobro(double n)</code>. O que acontece?</p>
+<label><input type="radio" name="q5"> Funciona: é uma sobrecarga</label>
+<label><input type="radio" name="q5"> Erro <code>CS0128</code>: são funções locais, e o nome não pode se repetir</label>
+<label><input type="radio" name="q5"> Erro <code>CS0111</code></label>
+<label><input type="radio" name="q5"> Só a última versão vale</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Com <code>Mostrar(int)</code> e <code>Mostrar(double)</code>, o que acontece em <code>Mostrar('A')</code>?</p>
+<label><input type="radio" name="q6"> Roda a versão <code>int</code>, com o número do caractere (65)</label>
+<label><input type="radio" name="q6"> Erro: não há versão para <code>char</code></label>
+<label><input type="radio" name="q6"> Erro <code>CS0121</code>: ambígua</label>
+<label><input type="radio" name="q6"> Roda a versão <code>double</code></label>
+</div>
+
+<h3>Missão final: as etiquetas da lojinha</h3>
+
+<div class="trycs" data-goal="outre:^\[Caderno\]\n\[Caderno - R\$ 12\,50\]\n\[Caneta x3\]\n$,src:static\s+string\s+Etiqueta\s*\(\s*string\s+\w+\s*\),src:static\s+string\s+Etiqueta\s*\(\s*string\s+\w+\s*\,\s*decimal\s+\w+\s*\),src:static\s+string\s+Etiqueta\s*\(\s*string\s+\w+\s*\,\s*int\s+\w+\s*\)">
+<p class="try-task"><strong>Missão:</strong> escreva, dentro da classe, três versões de <code>static string Etiqueta</code>, que <strong>devolvem</strong> o texto da etiqueta:</p>
+<ul class="try-task">
+  <li><code>Etiqueta(string produto)</code>: <code>[Caderno]</code>;</li>
+  <li><code>Etiqueta(string produto, decimal preco)</code>: <code>[Caderno - R$ 12,50]</code> (preço com <code>:C</code>);</li>
+  <li><code>Etiqueta(string produto, int quantidade)</code>: <code>[Caneta x3]</code>.</li>
+</ul>
+<p class="try-task">O <code>Main</code> já está pronto. A saída deve ser:</p>
+<pre class="out">[Caderno]
+[Caderno - R$ 12,50]
+[Caneta x3]</pre>
+<pre class="script">class Program
+{
+    static void Main()
+    {
+        Console.WriteLine(Etiqueta("Caderno"));
+        Console.WriteLine(Etiqueta("Caderno", 12.50m));
+        Console.WriteLine(Etiqueta("Caneta", 3));
+    }
+
+    // escreva aqui as três versões de Etiqueta
+}
+</pre>
+<pre class="solucao">class Program
+{
+    static void Main()
+    {
+        Console.WriteLine(Etiqueta("Caderno"));
+        Console.WriteLine(Etiqueta("Caderno", 12.50m));
+        Console.WriteLine(Etiqueta("Caneta", 3));
+    }
+
+    static string Etiqueta(string produto)
+    {
+        return $"[{produto}]";
+    }
+
+    static string Etiqueta(string produto, decimal preco)
+    {
+        return $"[{produto} - {preco:C}]";
+    }
+
+    static string Etiqueta(string produto, int quantidade)
+    {
+        return $"[{produto} x{quantidade}]";
+    }
+}
+</pre>
+</div>
+
+<p>Repare que <code>Etiqueta("Caneta", 3)</code> escolheu a versão <code>int</code>, e não a <code>decimal</code>, embora um <code>int</code> também caiba num <code>decimal</code>: a versão exata vence.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><strong>Sobrecarga</strong>: vários métodos com o mesmo nome e listas de parâmetros diferentes. O compilador escolhe a versão pelos argumentos de cada chamada.</li>
+  <li>Só métodos de <strong>classe</strong> podem ser sobrecarregados. As funções locais do fim do arquivo, não (<code>CS0128</code>).</li>
+  <li>A <strong>assinatura</strong> é o nome mais os tipos dos parâmetros. O tipo de retorno e os nomes dos parâmetros não contam (<code>CS0111</code>).</li>
+  <li>A versão exata vence; senão, vale a que aceita com conversão implícita (um <code>char</code> pode ir parar no <code>int</code>). Empate dá <code>CS0121</code>.</li>
+  <li>Use sobrecarga para a mesma ideia com entradas diferentes. Para um valor padrão, prefira um parâmetro opcional; para "quantos vierem", <code>params</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
