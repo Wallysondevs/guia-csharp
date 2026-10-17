@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Métodos de String — Trim, Contains, IndexOf, Substring, Replace, Split | Guia C#</title>
+<meta name="description" content="Os métodos de string do C# para quem nunca programou: ToUpper, Trim, Contains, StartsWith, IndexOf (e o -1), Substring e intervalos [..2], Replace, Split e string.Join, PadLeft e PadRight, encadear métodos, e as exceções reais ArgumentOutOfRangeException e os erros CS1503 e CS0029 do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Métodos de String</span></h1>
+
+<p class="intro">Na aula <a href="strings.html">Strings</a> você aprendeu a criar, medir e comparar textos. Agora vem a caixa de ferramentas: tirar espaços que o usuário digitou sem querer, procurar uma palavra, recortar o dia de uma data, trocar uma palavra por outra, separar uma lista em itens. Cada uma dessas tarefas é um <strong>método</strong> da string, uma ação que você pede escrevendo <code>texto.Metodo(...)</code>. Nesta aula você vai conhecer os mais usados, o que cada um devolve e como eles quebram quando recebem uma posição que não existe.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Limpar: <code>Trim</code>, <code>TrimStart</code>, <code>TrimEnd</code> e as maiúsculas com <code>ToUpper</code>/<code>ToLower</code>.</li>
+  <li>Procurar: <code>Contains</code>, <code>StartsWith</code>, <code>EndsWith</code>, <code>IndexOf</code> e o famoso <code>-1</code>.</li>
+  <li>Recortar: <code>Substring</code> e os intervalos <code>data[..2]</code>.</li>
+  <li>Trocar e dividir: <code>Replace</code>, <code>Split</code>, <code>string.Join</code>, <code>PadLeft</code>/<code>PadRight</code>, <code>Insert</code>/<code>Remove</code>.</li>
+  <li>Encadear métodos (<code>texto.Trim().ToLower()</code>) e os erros reais quando a posição não existe.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: pedir para a string fazer algo</h2>
+<p>Pense na string como um funcionário que sabe fazer várias tarefas com o próprio texto. Você chama pelo nome e pede: "<code>nome</code>, me dá você em maiúsculas" (<code>nome.ToUpper()</code>), "<code>frase</code>, você contém a palavra roupa?" (<code>frase.Contains("roupa")</code>).</p>
+<p>Duas regras valem para <strong>todos</strong> os métodos desta aula:</p>
+<ol class="passo">
+  <li><strong>O ponto liga o texto ao método</strong>, e os parênteses vêm sempre, mesmo vazios: <code>nome.Trim()</code>. O que vai dentro dos parênteses são os <strong>argumentos</strong>, os detalhes do pedido: <code>frase.Replace("café", "chá")</code>.</li>
+  <li><strong>A string original nunca muda.</strong> Strings são imutáveis (aula <a href="strings.html">Strings</a>): o método <strong>devolve</strong> um resultado novo. Se você quer usar esse resultado depois, guarde numa variável: <code>email = email.Trim();</code>.</li>
+</ol>
+
+<hr>
+
+<h2>1. Maiúsculas e minúsculas</h2>
+
+<pre class="file" data-file="caixa.cs">string nome = "Ana Souza";
+Console.WriteLine(nome.ToUpper());
+Console.WriteLine(nome.ToLower());
+Console.WriteLine(nome);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run caixa.cs
+ANA SOUZA
+ana souza
+Ana Souza     « a original não mudou</pre>
+
+<p><code>ToUpper</code> ("para cima") e <code>ToLower</code> ("para baixo") seguem as regras do idioma do computador e conhecem os acentos (<code>"ação"</code> vira <code>"AÇÃO"</code>). Os detalhes, inclusive o "i" turco e o <code>ToUpperInvariant</code>, estão em <a href="strings.html">Strings</a>.</p>
+
+<hr>
+
+<h2>2. Limpar espaços: <code>Trim</code></h2>
+<p>Quando alguém digita um e-mail, é comum sobrar um espaço no começo ou no fim. Para o computador, <code>" ana@email.com"</code> e <code>"ana@email.com"</code> são textos diferentes. O <code>Trim</code> ("aparar") tira os espaços das pontas:</p>
+
+<pre class="file" data-file="trim.cs">string digitado = "   ana@email.com  ";
+Console.WriteLine("[" + digitado + "]");
+Console.WriteLine("[" + digitado.Trim() + "]");
+Console.WriteLine("[" + digitado.TrimStart() + "]");
+Console.WriteLine("[" + digitado.TrimEnd() + "]");
+Console.WriteLine("[" + "...oi!!!".Trim('.', '!') + "]");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run trim.cs
+[   ana@email.com  ]
+[ana@email.com]        « Trim: as duas pontas
+[ana@email.com  ]      « TrimStart: só o começo
+[   ana@email.com]     « TrimEnd: só o fim
+[oi]                   « Trim com caracteres escolhidos</pre>
+
+<dl class="anatomy">
+  <dt>"[" + … + "]"</dt><dd>Os colchetes são só um truque para <strong>ver</strong> os espaços na tela. Sem eles, espaços no fim da linha são invisíveis.</dd>
+  <dt>Trim()</dt><dd>Tira espaços, tabulações e quebras de linha do começo e do fim. Os espaços <strong>do meio</strong> ficam: <code>" Ana Souza ".Trim()</code> dá <code>"Ana Souza"</code>.</dd>
+  <dt>Trim('.', '!')</dt><dd>Com argumentos, tira das pontas os caracteres que você escolheu (em aspas simples, porque são <code>char</code>).</dd>
+</dl>
+
+<hr>
+
+<h2>3. Procurar: <code>Contains</code>, <code>StartsWith</code>, <code>EndsWith</code>, <code>IndexOf</code></h2>
+
+<pre class="file" data-file="procurar.cs">string frase = "O rato roeu a roupa do rei de Roma";
+Console.WriteLine(frase.Contains("roupa"));
+Console.WriteLine(frase.Contains("Roupa"));
+Console.WriteLine(frase.Contains("ROMA", StringComparison.OrdinalIgnoreCase));
+Console.WriteLine(frase.StartsWith("O rato"));
+Console.WriteLine(frase.EndsWith("Roma"));
+Console.WriteLine(frase.IndexOf("ro"));
+Console.WriteLine(frase.LastIndexOf("ro"));
+Console.WriteLine(frase.IndexOf('R'));
+Console.WriteLine(frase.IndexOf("gato"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run procurar.cs
+True     « "roupa" aparece na frase
+False    « maiúsculas contam: "Roupa" não aparece
+True     « ignorando maiúsculas, "ROMA" aparece
+True     « começa com "O rato"
+True     « termina com "Roma"
+7        « o primeiro "ro" (de "roeu") começa na posição 7
+14       « o último "ro" (de "roupa") começa na posição 14
+30       « o 'R' de "Roma"
+-1       « "gato" não está na frase</pre>
+
+<dl class="anatomy">
+  <dt>Contains("roupa")</dt><dd>"Contém?" Responde <code>true</code> ou <code>false</code>. Diferencia maiúsculas, a não ser que você passe <code>StringComparison.OrdinalIgnoreCase</code> como segundo argumento.</dd>
+  <dt>StartsWith / EndsWith</dt><dd>"Começa com?" e "termina com?". Muito usados com nomes de arquivo: <code>arquivo.EndsWith(".txt")</code>.</dd>
+  <dt>IndexOf("ro")</dt><dd>"Em que posição está?" Devolve a posição do <strong>primeiro</strong> caractere da primeira ocorrência, contando do zero. <code>LastIndexOf</code> procura a última. Aceita uma string (<code>"ro"</code>) ou um <code>char</code> (<code>'R'</code>).</dd>
+  <dt>-1</dt><dd>Quando o texto <strong>não</strong> é encontrado, <code>IndexOf</code> devolve <code>-1</code>, uma posição que não existe. Sempre confira o <code>-1</code> antes de usar a posição; senão, o próximo método quebra (veja <a href="#erros">Quando dá errado</a>).</dd>
+</dl>
+
+<hr>
+
+<h2>4. Recortar: <code>Substring</code> e intervalos</h2>
+<p>Para pegar um pedaço do texto, diga onde ele começa e quantos caracteres tem:</p>
+
+<pre class="file" data-file="recortar.cs">string data = "17/10/2026";
+string dia = data.Substring(0, 2);
+string mes = data.Substring(3, 2);
+string ano = data.Substring(6);
+Console.WriteLine(dia + " | " + mes + " | " + ano);
+Console.WriteLine(data[..2]);
+Console.WriteLine(data[3..5]);
+Console.WriteLine(data[6..]);
+Console.WriteLine(data[^4..]);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run recortar.cs
+17 | 10 | 2026
+17
+10
+2026
+2026</pre>
+
+<figure>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Posição</th><td><code>0</code></td><td><code>1</code></td><td><code>2</code></td><td><code>3</code></td><td><code>4</code></td><td><code>5</code></td><td><code>6</code></td><td><code>7</code></td><td><code>8</code></td><td><code>9</code></td></tr>
+<tr><th>Caractere</th><td><code>1</code></td><td><code>7</code></td><td><code>/</code></td><td><code>1</code></td><td><code>0</code></td><td><code>/</code></td><td><code>2</code></td><td><code>0</code></td><td><code>2</code></td><td><code>6</code></td></tr>
+</table>
+</div>
+<figcaption>A string <code>"17/10/2026"</code>: o mês começa na posição 3 e tem 2 caracteres.</figcaption>
+</figure>
+
+<dl class="anatomy">
+  <dt>Substring(0, 2)</dt><dd>"Pedaço a partir da posição 0, com <strong>2 caracteres</strong>". O segundo número é o <strong>tamanho</strong>, não a posição final: <code>Substring(3, 2)</code> pega as posições 3 e 4.</dd>
+  <dt>Substring(6)</dt><dd>Com um número só: da posição 6 até o fim.</dd>
+  <dt>data[..2] <span class="versao">C# 8</span></dt><dd>O <strong>intervalo</strong> (<em>range</em>) diz "do começo até a posição 2, <strong>sem incluir</strong> a 2". <code>data[3..5]</code> pega 3 e 4; <code>data[6..]</code>, da 6 até o fim; <code>data[^4..]</code>, os 4 últimos. Aqui os dois números são <strong>posições</strong> (início e fim), não posição e tamanho. Os detalhes estão em <a href="indices-intervalos.html">Índices e Intervalos</a>.</dd>
+</dl>
+
+<p><strong>Qual usar?</strong> Os dois funcionam. O intervalo é mais curto e ótimo para "os 3 primeiros" (<code>[..3]</code>) e "os 4 últimos" (<code>[^4..]</code>). O <code>Substring</code> aparece em todo código antigo e é o que você vai ver em muitos tutoriais.</p>
+
+<hr>
+
+<h2>5. Trocar, inserir e remover</h2>
+
+<pre class="file" data-file="trocar.cs">string frase = "Eu gosto de café. Café é bom.";
+Console.WriteLine(frase.Replace("café", "chá"));
+Console.WriteLine(frase.Replace("Café", "Chá").Replace("café", "chá"));
+Console.WriteLine("1.234,50".Replace(".", "").Replace(",", "."));
+Console.WriteLine("a-b-c".Replace("-", ""));
+Console.WriteLine("Ana Souza".Remove(3));
+Console.WriteLine("Ana Souza".Insert(3, " M."));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run trocar.cs
+Eu gosto de chá. Café é bom.     « só o "café" minúsculo foi trocado
+Eu gosto de chá. Chá é bom.      « dois Replace seguidos
+1234.50                          « tirou o ponto e trocou a vírgula por ponto
+abc                              « trocar por "" é apagar
+Ana                              « Remove(3): apaga da posição 3 até o fim
+Ana M. Souza                     « Insert(3, …): enfia o texto na posição 3</pre>
+
+<dl class="anatomy">
+  <dt>Replace("café", "chá")</dt><dd>"Troque <strong>todas</strong> as ocorrências do primeiro pelo segundo". Diferencia maiúsculas.</dd>
+  <dt>.Replace(…).Replace(…)</dt><dd>Como o <code>Replace</code> devolve uma string, dá para chamar outro método direto nela. Isso se chama <strong>encadear</strong>; veja a seção 8.</dd>
+  <dt>Remove(3) e Insert(3, " M.")</dt><dd>Apagar a partir de uma posição e enfiar um texto numa posição. Menos usados, mas úteis.</dd>
+</dl>
+
+<hr>
+
+<h2>6. Dividir e juntar: <code>Split</code> e <code>string.Join</code></h2>
+<p>A lista de compras da Ana chegou num texto só, separado por ponto e vírgula. O <code>Split</code> ("dividir") corta o texto em pedaços e devolve um <strong>array</strong> de strings (uma fileira de textos numerados, aula <a href="arrays.html">Arrays</a>). O <code>string.Join</code> ("juntar") faz o contrário:</p>
+
+<pre class="file" data-file="split.cs">string compras = "arroz;feijão;café;leite";
+string[] itens = compras.Split(';');
+Console.WriteLine(itens.Length);
+Console.WriteLine(itens[0]);
+Console.WriteLine(itens[3]);
+Console.WriteLine(string.Join(", ", itens));
+Console.WriteLine(string.Join(" | ", itens));
+string frase = "  muitos   espaços  aqui ";
+string[] palavras = frase.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+Console.WriteLine(palavras.Length);
+Console.WriteLine(string.Join("-", palavras));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run split.cs
+4                              « quatro itens
+arroz                          « o primeiro, posição 0
+leite                          « o último, posição 3
+arroz, feijão, café, leite
+arroz | feijão | café | leite
+3                              « sem as "palavras vazias" entre espaços seguidos
+muitos-espaços-aqui</pre>
+
+<dl class="anatomy">
+  <dt>string[] itens = compras.Split(';');</dt><dd><code>string[]</code> é "array de strings". O <code>';'</code> é o separador (um <code>char</code>, entre aspas simples), e ele <strong>some</strong> do resultado. <code>itens.Length</code> diz quantos pedaços saíram; <code>itens[0]</code> é o primeiro.</dd>
+  <dt>string.Join(", ", itens)</dt><dd>Junta todos os itens, com <code>", "</code> entre eles (não no fim). Repare que é <code>string.Join</code>, chamado no tipo, e não <code>itens.Join</code>.</dd>
+  <dt>StringSplitOptions.RemoveEmptyEntries</dt><dd>"Remova as entradas vazias". Sem isso, cada par de espaços seguidos geraria um pedaço vazio (<code>""</code>) no array.</dd>
+</dl>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> acrescente itens à lista, troque o separador do <code>Join</code> por <code>" e "</code> ou <code>"\n"</code> (quebra de linha), e mostre quantos itens há. O que acontece se a lista terminar com <code>;</code>?</p>
+<pre class="script" data-file="lista.cs">string compras = "arroz;feijão;café";
+string[] itens = compras.Split(';');
+Console.WriteLine("Itens: " + itens.Length);
+Console.WriteLine(string.Join(", ", itens));
+Console.WriteLine("Primeiro: " + itens[0].ToUpper());
+</pre>
+</div>
+
+<hr>
+
+<h2>7. Preencher: <code>PadLeft</code> e <code>PadRight</code></h2>
+<p>Para alinhar colunas, os métodos <code>Pad</code> ("enchimento") completam o texto até um tamanho:</p>
+
+<pre class="file" data-file="pad.cs">Console.WriteLine("Arroz".PadRight(10, '.') + "R$ 5,90");
+Console.WriteLine("Feijão".PadRight(10, '.') + "R$ 8,50");
+Console.WriteLine("7".PadLeft(3, '0'));
+Console.WriteLine("[" + "oi".PadLeft(5) + "]");
+Console.WriteLine(new string('=', 20));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pad.cs
+Arroz.....R$ 5,90
+Feijão....R$ 8,50
+007
+[   oi]
+====================</pre>
+
+<dl class="anatomy">
+  <dt>PadRight(10, '.')</dt><dd>Completa <strong>à direita</strong> com pontos até o texto ter 10 caracteres. <code>"Arroz"</code> tem 5, então ganha 5 pontos; <code>"Feijão"</code> tem 6, ganha 4. Os preços ficam alinhados.</dd>
+  <dt>PadLeft(3, '0')</dt><dd>Completa <strong>à esquerda</strong>. Bom para números com zeros na frente: <code>007</code>.</dd>
+  <dt>PadLeft(5)</dt><dd>Sem o segundo argumento, completa com espaços.</dd>
+  <dt>new string('=', 20)</dt><dd>Não é um método, mas é útil aqui: cria uma string com o caractere <code>'='</code> repetido 20 vezes, ótimo para linhas de separação.</dd>
+</dl>
+<p>Para alinhar números e preços, a formatação com <code>{preco,10:C}</code> é ainda mais prática (aula <a href="formatacao.html">Formatar Números</a>).</p>
+
+<hr>
+
+<h2>8. Encadear métodos</h2>
+<p>Como cada método devolve uma string nova, você pode chamar o próximo método direto no resultado, da esquerda para a direita:</p>
+
+<pre class="file" data-file="cadeia.cs">string resposta = "  SIM  ";
+string limpa = resposta.Trim().ToLower();
+Console.WriteLine("[" + limpa + "]");
+Console.WriteLine(limpa == "sim");
+Console.WriteLine("  Ana Souza ".Trim().ToUpper().Replace(" ", "_"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run cadeia.cs
+[sim]
+True
+ANA_SOUZA</pre>
+
+<ol class="passo">
+  <li><code>resposta.Trim()</code> devolve <code>"SIM"</code>.</li>
+  <li><code>"SIM".ToLower()</code> devolve <code>"sim"</code>, que vai para <code>limpa</code>.</li>
+  <li>Na última linha: <code>"Ana Souza"</code> → <code>"ANA SOUZA"</code> → <code>"ANA_SOUZA"</code>.</li>
+</ol>
+<p>Encadear é ótimo para duas ou três etapas. Com mais, quebre em variáveis com nomes claros: fica mais fácil achar onde está um erro.</p>
+
+<div class="trycs" data-goal="out:[sim],src:Trim\(\)">
+<p class="try-task"><strong>Missão:</strong> a pessoa respondeu <code>"  SIM  "</code>, com espaços e em maiúsculas, e o programa precisa da resposta limpa: <code>[sim]</code>. Encadeie <code>Trim()</code> e <code>ToLower()</code> na linha marcada.</p>
+<pre class="out">[sim]
+Confirmou? True</pre>
+<pre class="script" data-file="resposta.cs">string resposta = "  SIM  ";
+string limpa = resposta;     // limpe aqui
+Console.WriteLine("[" + limpa + "]");
+Console.WriteLine("Confirmou? " + (limpa == "sim"));
+</pre>
+<pre class="solucao" data-file="resposta.cs">string resposta = "  SIM  ";
+string limpa = resposta.Trim().ToLower();
+Console.WriteLine("[" + limpa + "]");
+Console.WriteLine("Confirmou? " + (limpa == "sim"));
+</pre>
+</div>
+
+<hr>
+
+<h2>Formas diferentes de fazer a mesma coisa</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tarefa</th><th>Formas</th><th>Qual usar</th></tr>
+<tr><td>Os 3 primeiros caracteres</td><td><code>s.Substring(0, 3)</code> · <code>s[..3]</code></td><td><code>s[..3]</code> no código novo; as duas quebram se o texto tiver menos de 3.</td></tr>
+<tr><td>Contém, sem ligar para maiúsculas</td><td><code>s.ToLower().Contains("ana")</code> · <code>s.Contains("ana", StringComparison.OrdinalIgnoreCase)</code></td><td>A segunda: não cria uma string nova e não depende do idioma.</td></tr>
+<tr><td>Trocar <code>;</code> por <code>, </code></td><td><code>s.Replace(";", ", ")</code> · <code>string.Join(", ", s.Split(';'))</code></td><td><code>Replace</code>: mais simples. Use <code>Split</code> quando precisar mexer em cada item.</td></tr>
+<tr><td>Saber se existe</td><td><code>s.IndexOf("x") != -1</code> · <code>s.Contains("x")</code></td><td><code>Contains</code>. Use <code>IndexOf</code> quando precisar da posição.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="erros">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>System.ArgumentOutOfRangeException: Index and length must refer to a location within the string.</code></strong>
+<pre class="file" data-file="em1.cs">string nome = "Ana";
+Console.WriteLine(nome.Substring(1, 5));
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run em1.cs
+Unhandled exception. System.ArgumentOutOfRangeException: Index and length must refer to a location within the string. (Parameter 'length')
+   at System.String.ThrowSubstringArgumentOutOfRange(Int32 startIndex, Int32 length)
+   at System.String.Substring(Int32 startIndex, Int32 length)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/em1.cs:line 2</pre>
+<p><strong>O que significa:</strong> "a posição e o tamanho precisam caber dentro da string". A partir da posição 1 de <code>"Ana"</code> só há 2 caracteres, e você pediu 5. O <code>(Parameter 'length')</code> aponta o culpado: o argumento do tamanho. As linhas <code>at System.String…</code> são de dentro do .NET; a sua é a última, <code>line 2</code>.</p>
+<p><strong>Como consertar:</strong> confira o tamanho antes (<code>nome.Length</code>) ou use <code>Substring(1)</code>, "até o fim".</p>
+</div>
+
+<div class="cenario">
+<strong><code>System.ArgumentOutOfRangeException: length ('-1') must be a non-negative value.</code> depois de um <code>IndexOf</code></strong>
+<pre class="file" data-file="em2.cs">string email = "ana.email.com";
+int arroba = email.IndexOf('@');
+Console.WriteLine(arroba);
+Console.WriteLine(email.Substring(arroba + 1));
+Console.WriteLine(email.Substring(0, arroba));
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run em2.cs
+-1                « não tem @ no texto
+ana.email.com     « Substring(-1 + 1) = Substring(0): o texto todo, sem erro, mas errado
+Unhandled exception. System.ArgumentOutOfRangeException: length ('-1') must be a non-negative value. (Parameter 'length')
+Actual value was -1.
+   at System.ArgumentOutOfRangeException.ThrowNegative[T](T value, String paramName)
+   at System.ArgumentOutOfRangeException.ThrowIfNegative[T](T value, String paramName)
+   at System.String.ThrowSubstringArgumentOutOfRange(Int32 startIndex, Int32 length)
+   at System.String.Substring(Int32 startIndex, Int32 length)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/em2.cs:line 5</pre>
+<p><strong>O que significa:</strong> o e-mail não tinha <code>@</code>, o <code>IndexOf</code> devolveu <code>-1</code>, e esse -1 foi usado como tamanho: "o tamanho (-1) precisa ser não negativo". Pior: a linha 4 não quebrou, só deu um resultado errado.</p>
+<p><strong>Como consertar:</strong> confira o <code>-1</code> antes de usar a posição: <code>if (arroba == -1) { … }</code> (aula <a href="if-else.html">if e else</a>), ou use <code>email.Contains('@')</code> antes.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1503: Argumento 1: não é possível converter de "grupo de métodos" para "bool"</code></strong>
+<pre class="file" data-file="em3.cs">string nome = "Ana";
+Console.WriteLine(nome.ToUpper);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run em3.cs
+/home/ana/cs/em3.cs(2,19): error CS1503: Argumento 1: não é possível converter de "grupo de métodos" para "bool"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> faltaram os parênteses. Sem eles, <code>nome.ToUpper</code> é o <strong>nome</strong> do método (um "grupo de métodos"), e não o resultado de chamá-lo. A mensagem fala em <code>bool</code> porque o compilador tentou encaixar isso na primeira versão do <code>WriteLine</code> que encontrou.</p>
+<p><strong>Como consertar:</strong> <code>nome.ToUpper()</code>. Métodos sempre levam parênteses; propriedades, como <code>Length</code>, não.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0029: Não é possível converter implicitamente tipo "string[]" em "string"</code></strong>
+<pre class="file" data-file="em4.cs">string compras = "arroz;feijão";
+string itens = compras.Split(';');
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run em4.cs
+/home/ana/cs/em4.cs(2,16): error CS0029: Não é possível converter implicitamente tipo "string[]" em "string"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>Split</code> devolve <strong>vários</strong> textos (um <code>string[]</code>), e você tentou guardar numa variável de <strong>um</strong> texto.</p>
+<p><strong>Como consertar:</strong> <code>string[] itens = compras.Split(';');</code> (ou <code>var itens = …</code>, aula <a href="var.html">var</a>).</p>
+</div>
+
+<div class="cenario">
+<strong>O <code>Trim</code> (ou o <code>Replace</code>) "não funcionou"</strong>
+<p><strong>O que significa:</strong> você escreveu <code>email.Trim();</code> numa linha sozinha e depois usou <code>email</code>. O resultado foi jogado fora.</p>
+<p><strong>Como consertar:</strong> <code>email = email.Trim();</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>Devolve</th><th>Exemplo → resultado</th></tr>
+<tr><td><code>ToUpper()</code>, <code>ToLower()</code></td><td>string</td><td><code>"Ana".ToUpper()</code> → <code>"ANA"</code></td></tr>
+<tr><td><code>Trim()</code>, <code>TrimStart()</code>, <code>TrimEnd()</code></td><td>string</td><td><code>" oi ".Trim()</code> → <code>"oi"</code></td></tr>
+<tr><td><code>Contains(x)</code></td><td>bool</td><td><code>"banana".Contains("nan")</code> → <code>true</code></td></tr>
+<tr><td><code>StartsWith(x)</code>, <code>EndsWith(x)</code></td><td>bool</td><td><code>"foto.png".EndsWith(".png")</code> → <code>true</code></td></tr>
+<tr><td><code>IndexOf(x)</code>, <code>LastIndexOf(x)</code></td><td>int (ou -1)</td><td><code>"banana".IndexOf('n')</code> → <code>2</code></td></tr>
+<tr><td><code>Substring(inicio, tamanho)</code></td><td>string</td><td><code>"banana".Substring(1, 3)</code> → <code>"ana"</code></td></tr>
+<tr><td><code>s[inicio..fim]</code></td><td>string</td><td><code>"banana"[1..4]</code> → <code>"ana"</code></td></tr>
+<tr><td><code>Replace(velho, novo)</code></td><td>string</td><td><code>"banana".Replace("a", "o")</code> → <code>"bonono"</code></td></tr>
+<tr><td><code>Insert(pos, x)</code>, <code>Remove(pos)</code></td><td>string</td><td><code>"oi".Insert(2, "!")</code> → <code>"oi!"</code></td></tr>
+<tr><td><code>Split(sep)</code></td><td>string[]</td><td><code>"a;b".Split(';')</code> → <code>["a", "b"]</code></td></tr>
+<tr><td><code>string.Join(sep, itens)</code></td><td>string</td><td><code>string.Join("-", itens)</code> → <code>"a-b"</code></td></tr>
+<tr><td><code>PadLeft(n, c)</code>, <code>PadRight(n, c)</code></td><td>string</td><td><code>"7".PadLeft(3, '0')</code> → <code>"007"</code></td></tr>
+<tr><td><code>new string(c, n)</code></td><td>string</td><td><code>new string('-', 3)</code> → <code>"---"</code></td></tr>
+</table>
+</div>
+<p>Muitos aceitam um <code>StringComparison</code> no fim para ignorar maiúsculas: <code>Contains</code>, <code>StartsWith</code>, <code>EndsWith</code>, <code>IndexOf</code>, <code>Replace</code>. A lista completa, com <code>StringBuilder</code>, está em <a href="ref-string.html">string e StringBuilder</a>.</p>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Tirar os espaços</h3>
+<p>Complete para tirar os espaços do começo e do fim:</p>
+<div class="ex-code">nome = nome.<input data-answer="Trim()" aria-label="método">;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Não achou</h3>
+<p>O que <code>"banana".IndexOf("uva")</code> devolve?</p>
+<div class="ex-code">Resposta: <input data-answer="-1" aria-label="resultado"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Recortar</h3>
+<p>Complete para pegar <code>"10"</code> de <code>"17/10/2026"</code> com <code>Substring</code>:</p>
+<div class="ex-code">data.Substring(<input data-answer="3, 2|3,2" aria-label="argumentos">)</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O que <code>"a,b,,c".Split(',').Length</code> devolve?</p>
+<label><input type="radio" name="q4"> 3</label>
+<label><input type="radio" name="q4"> 4, porque entre as duas vírgulas seguidas há um pedaço vazio</label>
+<label><input type="radio" name="q4"> 5</label>
+<label><input type="radio" name="q4"> 6</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Depois de <code>string s = " oi "; s.Trim();</code>, quanto vale <code>s.Length</code>?</p>
+<label><input type="radio" name="q5"> 2</label>
+<label><input type="radio" name="q5"> 0</label>
+<label><input type="radio" name="q5"> 4, porque o resultado do <code>Trim()</code> não foi guardado</label>
+<label><input type="radio" name="q5"> Dá erro de compilação.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Em <code>Substring(3, 2)</code>, o que é o <code>2</code>?</p>
+<label><input type="radio" name="q6"> A quantidade de caracteres do pedaço.</label>
+<label><input type="radio" name="q6"> A posição final.</label>
+<label><input type="radio" name="q6"> A posição inicial.</label>
+<label><input type="radio" name="q6"> Quantas vezes procurar.</label>
+</div>
+
+<h3>Missão final: separar o e-mail</h3>
+
+<div class="trycs" data-goal="out:Usuário: ana.souza,out:Domínio: email.com,src:IndexOf|Split">
+<p class="try-task"><strong>Missão:</strong> a Ana recebeu o e-mail <code>"  Ana.Souza@Email.COM "</code>, com espaços e maiúsculas misturadas. Limpe (<code>Trim</code> e <code>ToLower</code>) e separe a parte antes do <code>@</code> (o usuário) da parte depois (o domínio), usando <code>IndexOf</code> e <code>Substring</code> (ou <code>Split</code>). Não escreva os resultados à mão.</p>
+<pre class="out">Usuário: ana.souza
+Domínio: email.com</pre>
+<pre class="script" data-file="email.cs">string email = "  Ana.Souza@Email.COM ";
+// 1. limpe o e-mail
+// 2. ache a posição do @
+string usuario = "?";
+string dominio = "?";
+Console.WriteLine("Usuário: " + usuario);
+Console.WriteLine("Domínio: " + dominio);
+</pre>
+<pre class="solucao" data-file="email.cs">string email = "  Ana.Souza@Email.COM ";
+email = email.Trim().ToLower();
+int arroba = email.IndexOf('@');
+string usuario = email.Substring(0, arroba);
+string dominio = email.Substring(arroba + 1);
+Console.WriteLine("Usuário: " + usuario);
+Console.WriteLine("Domínio: " + dominio);
+</pre>
+</div>
+
+<p>Com <code>Split</code>, a solução fica: <code>string[] partes = email.Trim().ToLower().Split('@');</code> e depois <code>partes[0]</code> e <code>partes[1]</code>. Teste também um e-mail sem <code>@</code> e veja qual exceção aparece.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Métodos se chamam com ponto e parênteses: <code>texto.Trim()</code>. Eles <strong>devolvem</strong> um resultado novo; a string original não muda.</li>
+  <li>Limpar: <code>Trim</code>; maiúsculas: <code>ToUpper</code>/<code>ToLower</code>.</li>
+  <li>Procurar: <code>Contains</code>, <code>StartsWith</code>, <code>EndsWith</code> (dão <code>bool</code>) e <code>IndexOf</code> (dá a posição, ou <strong>-1</strong> se não achar).</li>
+  <li>Recortar: <code>Substring(inicio, tamanho)</code> ou <code>s[inicio..fim]</code> (o fim não entra). Fora dos limites: <code>ArgumentOutOfRangeException</code>.</li>
+  <li>Trocar: <code>Replace</code>. Dividir e juntar: <code>Split</code> (devolve <code>string[]</code>) e <code>string.Join</code>.</li>
+  <li>Alinhar: <code>PadLeft</code>/<code>PadRight</code>. Repetir: <code>new string('-', 20)</code>.</li>
+  <li>Encadeie poucos métodos (<code>s.Trim().ToLower()</code>) e sempre confira o <code>-1</code> do <code>IndexOf</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
