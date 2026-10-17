@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Constantes — const, valores que nunca mudam | Guia C#</title>
+<meta name="description" content="Constantes em C# para quem nunca programou: const para valores fixos (taxas, limites, nomes), nomes em PascalCase, o fim dos números mágicos, contas e textos constantes (até com interpolação), constantes numa classe, const × readonly, e os erros CS0131, CS0145, CS0133, CS0283 e CS0822, com saídas reais do .NET 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Constantes</span></h1>
+
+<p class="intro">Algumas informações de um programa nunca mudam enquanto ele roda: a taxa de entrega da lojinha, a idade mínima para comprar um ingresso, quantos dias tem a semana. Para elas, o C# tem a <strong>constante</strong>: uma caixa com nome, como a variável, mas com o valor <strong>trancado</strong>. Nesta aula você vai criar constantes com <code>const</code>, ver o erro que aparece quando alguém tenta mudá-las e entender por que elas deixam o código mais fácil de ler e de manter.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Criar uma constante com <code>const</code> e por que o nome vai em PascalCase (<code>TaxaEntrega</code>).</li>
+  <li>O erro de tentar mudar uma constante (<code>CS0131</code>) e o de esquecer o valor (<code>CS0145</code>).</li>
+  <li>Por que trocar "números mágicos" por constantes.</li>
+  <li>Constantes feitas de contas e de textos, até com interpolação <span class="versao">C# 10</span>.</li>
+  <li>O que pode e o que não pode ser <code>const</code> (<code>CS0133</code>, <code>CS0283</code>, <code>CS0822</code>).</li>
+  <li>Constantes numa classe, e a diferença entre <code>const</code> e <code>readonly</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: a placa pintada na parede</h2>
+<p>Na lojinha da Ana há um quadro-negro com a promoção do dia, que ela apaga e reescreve toda manhã: isso é uma <strong>variável</strong>. E há uma placa pintada na parede: "Lojinha da Ana, desde 2020". Ninguém apaga a placa. Para mudá-la, é preciso repintar a loja: isso é uma <strong>constante</strong>.</p>
+<p>No C#, "repintar" quer dizer mudar o código e compilar de novo. Enquanto o programa roda, o valor de uma constante é sempre o mesmo, e o compilador garante isso.</p>
+
+<hr>
+
+<h2>1. Criando constantes com <code>const</code></h2>
+
+<pre class="file" data-file="const1.cs">const decimal TaxaEntrega = 7.50m;
+const int DiasNaSemana = 7;
+const string NomeDaLoja = "Lojinha da Ana";
+
+decimal compra = 42.00m;
+Console.WriteLine(NomeDaLoja);
+Console.WriteLine($"Compra: {compra}");
+Console.WriteLine($"Entrega: {TaxaEntrega}");
+Console.WriteLine($"Total: {compra + TaxaEntrega}");
+Console.WriteLine($"Entregamos {DiasNaSemana} dias por semana");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run const1.cs
+Lojinha da Ana
+Compra: 42,00
+Entrega: 7,50
+Total: 49,50
+Entregamos 7 dias por semana</pre>
+
+<dl class="anatomy">
+  <dt>const</dt><dd>Abreviação de <em>constant</em>, "constante". Vem antes do tipo e diz: "este valor nunca muda".</dd>
+  <dt>decimal TaxaEntrega = 7.50m;</dt><dd>O resto é igual a uma variável: tipo, nome e valor. O valor é <strong>obrigatório</strong> e tem de estar ali, na mesma linha.</dd>
+  <dt>TaxaEntrega · DiasNaSemana · NomeDaLoja</dt><dd>Os nomes das constantes vão em <strong>PascalCase</strong>: cada palavra começa com maiúscula, inclusive a primeira. É a convenção do .NET (em C e Java, se usa <code>TAXA_ENTREGA</code>, todo em maiúsculas; no C# isso funciona, mas foge do padrão). Veja <a href="identificadores.html">Nomes e Convenções</a>.</dd>
+  <dt>compra + TaxaEntrega</dt><dd>Uma constante se usa como qualquer variável: em contas, em textos, no <code>Console.WriteLine</code>.</dd>
+</dl>
+
+<h3>Tentar mudar uma constante</h3>
+
+<pre class="file" data-file="consterro1.cs">const decimal TaxaEntrega = 7.50m;
+TaxaEntrega = 9.90m;
+Console.WriteLine(TaxaEntrega);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run consterro1.cs
+/home/ana/cs/consterro1.cs(2,1): error CS0131: O lado esquerdo de uma atribuição deve ser uma variável, uma propriedade ou um indexador
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O <code>=</code> guarda o valor da direita na caixa da esquerda (aula <a href="operadores-atribuicao.html">Operadores de Atribuição</a>). Só que <code>TaxaEntrega</code> não é uma caixa que aceita valores novos: é uma constante. O erro diz que, à esquerda do <code>=</code>, só pode haver uma variável (ou uma propriedade, ou um indexador, que você verá mais adiante). Em inglês: <code>The left-hand side of an assignment must be a variable, property or indexer</code>. Para a taxa mudar, mude a linha do <code>const</code>.</p>
+
+<h3>Esquecer o valor</h3>
+
+<pre class="file" data-file="consterro2.cs">const int Limite;
+Console.WriteLine(Limite);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run consterro2.cs
+/home/ana/cs/consterro2.cs(1,11): error CS0145: O campo const requer um valor a ser fornecido
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Uma variável pode nascer vazia e ganhar valor depois. Uma constante, não: como ela nunca muda, o único momento de dar o valor é na criação. Em inglês: <code>A const field requires a value to be provided</code>.</p>
+
+<hr>
+
+<h2>2. Por que usar constantes: o fim dos números mágicos</h2>
+<p>Olhe esta linha, escrita há meses por outra pessoa:</p>
+
+<pre class="file" data-file="magico.cs">decimal salario = 3000m;
+decimal desconto = salario * 0.075m;
+Console.WriteLine(desconto);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run magico.cs
+225,000</pre>
+
+<p>O que é <code>0.075</code>? Um imposto? Uma taxa do banco? Um número solto no meio do código, sem explicação, é chamado de <strong>número mágico</strong>: funciona, mas ninguém sabe por quê. Com uma constante, o nome explica:</p>
+
+<pre class="file" data-file="trecho">const decimal AliquotaInss = 0.075m;
+decimal desconto = salario * AliquotaInss;</pre>
+
+<p>E há uma segunda vantagem: quando a alíquota mudar, você muda <strong>uma linha</strong>, em vez de procurar todos os <code>0.075m</code> do programa (e torcer para não esquecer nenhum, nem trocar sem querer um <code>0.075m</code> que era outra coisa). A missão final desta aula é exatamente isso.</p>
+
+<div class="tip">
+<strong>Quando criar uma constante</strong>
+<p>Quando o valor tem um significado (taxa, limite, nome da loja) e é o mesmo durante todo o programa. Números óbvios, como o <code>2</code> de "dividir por 2" ou o <code>0</code> de "começar do zero", não precisam de nome.</p>
+</div>
+
+<hr>
+
+<h2>3. Constantes feitas de contas e de textos</h2>
+<p>O valor de uma constante pode ser uma conta, desde que ela só use outras constantes. O compilador faz a conta na hora de compilar:</p>
+
+<pre class="file" data-file="constexpr.cs">const int SegundosPorMinuto = 60;
+const int SegundosPorHora = SegundosPorMinuto * 60;
+const int SegundosPorDia = SegundosPorHora * 24;
+const string Loja = "Lojinha";
+const string Saudacao = $"Bem-vindo à {Loja}!";
+const string Rodape = Loja + " - desde 2020";
+Console.WriteLine(SegundosPorDia);
+Console.WriteLine(Saudacao);
+Console.WriteLine(Rodape);
+Console.WriteLine(Math.PI);
+Console.WriteLine(int.MaxValue);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run constexpr.cs
+86400
+Bem-vindo à Lojinha!
+Lojinha - desde 2020
+3,141592653589793
+2147483647</pre>
+
+<dl class="anatomy">
+  <dt>SegundosPorMinuto * 60 · SegundosPorHora * 24</dt><dd>Contas só com constantes e números fixos: valem. <code>SegundosPorDia</code> é 86 400, calculado pelo compilador.</dd>
+  <dt>$"Bem-vindo à {Loja}!"</dt><dd>Uma string interpolada também pode ser constante <span class="versao">C# 10</span>, se tudo dentro das chaves for uma constante <code>string</code>.</dd>
+  <dt>Loja + " - desde 2020"</dt><dd>Juntar strings constantes com <code>+</code> também vale.</dd>
+  <dt>Math.PI · int.MaxValue</dt><dd>O próprio .NET está cheio de constantes: <code>Math.PI</code> (o π, aula <a href="math.html">Matemática</a>), <code>int.MaxValue</code> (aula <a href="inteiros.html">Inteiros</a>).</dd>
+</dl>
+
+<p>Como o compilador faz essas contas, ele também confere os limites: <code>const int MaisUm = int.MaxValue + 1;</code> dá o erro <code>CS0220</code> (estouro na compilação), e uma divisão por uma constante que vale zero dá <code>CS0020: Divisão por zero constante</code>.</p>
+
+<h3>A conta tem de ser só de constantes</h3>
+
+<pre class="file" data-file="consterro3.cs">int minutos = 60;
+const int SegundosPorHora = minutos * 60;
+Console.WriteLine(SegundosPorHora);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run consterro3.cs
+/home/ana/cs/consterro3.cs(2,29): error CS0133: A expressão que está sendo atribuída a "SegundosPorHora" deve ser constante
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p><code>minutos</code> é uma variável: o compilador não pode confiar no valor dela, porque ela poderia mudar. Em inglês: <code>The expression being assigned to 'SegundosPorHora' must be constant</code>. O mesmo erro aparece com qualquer coisa que só se conhece com o programa rodando: o que o usuário digitou, a data de hoje, o tamanho de um arquivo.</p>
+
+<div class="trycs" data-goal="out:3600,src:const\s+int\s+SegundosPorMinuto\s*=\s*60\s*;">
+<p class="try-task"><strong>Missão:</strong> o programa não compila (<code>CS0133</code>), porque a constante usa uma variável. Transforme a variável em constante: <code>const int SegundosPorMinuto = 60;</code> (repare no nome em PascalCase; troque também o nome na segunda linha) para mostrar <code>3600</code>.</p>
+<pre class="script" data-file="hora.cs">int segundosPorMinuto = 60;
+const int SegundosPorHora = segundosPorMinuto * 60;
+Console.WriteLine(SegundosPorHora);
+</pre>
+<pre class="solucao" data-file="hora.cs">const int SegundosPorMinuto = 60;
+const int SegundosPorHora = SegundosPorMinuto * 60;
+Console.WriteLine(SegundosPorHora);
+</pre>
+</div>
+
+<hr>
+
+<h2>4. O que pode ser <code>const</code></h2>
+<p>Só tipos cujo valor o compilador sabe escrever direto no programa: os números (<code>int</code>, <code>long</code>, <code>double</code>, <code>decimal</code>…), <code>char</code>, <code>bool</code>, <code>string</code> e os <a href="enums.html">enums</a>. Uma data, por exemplo, não pode:</p>
+
+<pre class="file" data-file="consterro4.cs">const DateTime Inauguracao = new DateTime(2020, 3, 1);
+Console.WriteLine(Inauguracao);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run consterro4.cs
+/home/ana/cs/consterro4.cs(1,7): error CS0283: O tipo "DateTime" não pode ser declarado const
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Um array também não (<code>const int[] Notas = { 7, 8, 9 };</code> dá <code>CS0133</code>, porque um array é criado com o programa rodando). Para esses casos existe o <code>readonly</code> (seção 6).</p>
+
+<p>E <code>const</code> não combina com <code>var</code>: o tipo de uma constante tem de ser escrito.</p>
+
+<pre class="file" data-file="consterro6.cs">const var Pi = 3.14;
+Console.WriteLine(Pi);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run consterro6.cs
+/home/ana/cs/consterro6.cs(1,7): error CS0822: Variáveis de tipo implícito não podem ser constantes
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<hr>
+
+<h2>5. Constantes numa classe</h2>
+<p>Até aqui as constantes estavam soltas no programa: são <strong>constantes locais</strong>, que só existem naquele trecho. Quando várias partes do programa usam a mesma regra, o costume é guardá-las numa classe, com <code>public</code> para todo mundo enxergar:</p>
+
+<pre class="file" data-file="constclasse.cs">Console.WriteLine(Regras.IdadeMinima);
+Console.WriteLine(Regras.Desconto);
+decimal preco = 100m;
+Console.WriteLine(preco - preco * Regras.Desconto);
+
+static class Regras
+{
+    public const int IdadeMinima = 18;
+    public const decimal Desconto = 0.10m;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run constclasse.cs
+18
+0,10
+90,00</pre>
+
+<dl class="anatomy">
+  <dt>static class Regras { … }</dt><dd>Uma classe que só serve de "caixa de regras". As classes começam em <a href="classes-objetos.html">Classes e Objetos</a>, e o <code>static</code> em <a href="static.html">static</a>. Num arquivo com instruções soltas, as classes ficam no fim.</dd>
+  <dt>public const int IdadeMinima = 18;</dt><dd><code>public</code> ("público") deixa a constante visível fora da classe (aula <a href="modificadores-acesso.html">public, private e internal</a>).</dd>
+  <dt>Regras.IdadeMinima</dt><dd>Fora da classe, a constante é chamada pelo nome da classe, um ponto e o nome dela. É o mesmo jeito de <code>Math.PI</code> e <code>int.MaxValue</code>.</dd>
+</dl>
+
+<hr>
+
+<h2>6. <code>const</code> × <code>readonly</code></h2>
+<p>O <code>readonly</code> ("somente leitura") também tranca um valor, mas de um jeito diferente: o valor é decidido <strong>quando o programa roda</strong>, e depois não muda mais. Por isso ele aceita datas, arrays e valores calculados.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th><code>const</code></th><th><code>readonly</code></th></tr>
+<tr><td>Quando o valor é decidido</td><td>Na compilação</td><td>Quando o programa roda (na criação do objeto)</td></tr>
+<tr><td>Tipos</td><td>Números, <code>char</code>, <code>bool</code>, <code>string</code>, enums</td><td>Qualquer tipo</td></tr>
+<tr><td>Pode vir de uma conta com variáveis, de <code>DateTime.Now</code>, do teclado?</td><td>Não</td><td>Sim</td></tr>
+<tr><td>Onde</td><td>Dentro do programa (local) ou numa classe</td><td>Só numa classe (é um campo)</td></tr>
+<tr><td>Exemplo</td><td><code>const int DiasNaSemana = 7;</code></td><td><code>readonly DateTime Criada = DateTime.Now;</code></td></tr>
+</table>
+</div>
+
+<p>Regra prática: se o valor é o mesmo para sempre e você sabe escrevê-lo no código, <code>const</code>. Senão, <code>readonly</code>. Os detalhes estão em <a href="readonly.html">readonly e init</a>.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0131: O lado esquerdo de uma atribuição deve ser uma variável, uma propriedade ou um indexador</code></strong>
+<p><strong>O que significa:</strong> o programa tenta guardar um valor novo numa constante (<code>TaxaEntrega = 9.90m;</code>).</p>
+<p><strong>Como consertar:</strong> se o valor muda durante o programa, ele não é constante: tire o <code>const</code>. Se é a regra que mudou, mude o valor na linha do <code>const</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0145: O campo const requer um valor a ser fornecido</code></strong>
+<p><strong>O que significa:</strong> <code>const int Limite;</code> sem valor.</p>
+<p><strong>Como consertar:</strong> dê o valor na mesma linha: <code>const int Limite = 10;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0133: A expressão que está sendo atribuída a "…" deve ser constante</code></strong>
+<p><strong>O que significa:</strong> o valor da constante usa uma variável, um método, um array ou qualquer coisa que só existe com o programa rodando.</p>
+<p><strong>Como consertar:</strong> use só constantes e valores fixos na conta, ou troque o <code>const</code> por uma variável comum (ou por <code>readonly</code>, numa classe).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0283: O tipo "DateTime" não pode ser declarado const</code></strong>
+<p><strong>O que significa:</strong> o tipo não pode ser constante (só números, <code>char</code>, <code>bool</code>, <code>string</code> e enums podem).</p>
+<p><strong>Como consertar:</strong> use <code>static readonly</code> numa classe: <code>static readonly DateTime Inauguracao = new DateTime(2020, 3, 1);</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0822: Variáveis de tipo implícito não podem ser constantes</code></strong>
+<p><strong>O que significa:</strong> <code>const var</code>. O <code>var</code> não vale para constantes.</p>
+<p><strong>Como consertar:</strong> escreva o tipo: <code>const double Pi = 3.14;</code> (ou use o <code>Math.PI</code>, que já existe).</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS0219: A variável "Nunca" é atribuída, mas seu valor nunca é usado</code></strong>
+<p><strong>O que significa:</strong> uma constante local foi criada e nunca usada. É só um aviso: o programa roda (aula <a href="avisos.html">Avisos do Compilador</a>).</p>
+<p><strong>Como consertar:</strong> use a constante onde ela devia estar, ou apague a linha.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que é</th></tr>
+<tr><td><code>const decimal TaxaEntrega = 7.50m;</code></td><td>Constante local: tipo escrito, valor obrigatório, nome em PascalCase</td></tr>
+<tr><td><code>const int SegundosPorDia = 60 * 60 * 24;</code></td><td>Constante feita de conta (calculada na compilação)</td></tr>
+<tr><td><code>const string Saudacao = $"Olá, {Loja}";</code></td><td>Interpolação constante <span class="versao">C# 10</span> (só com constantes <code>string</code> dentro)</td></tr>
+<tr><td><code>public const int IdadeMinima = 18;</code></td><td>Constante numa classe; uso: <code>Regras.IdadeMinima</code></td></tr>
+<tr><td><code>Math.PI</code>, <code>int.MaxValue</code></td><td>Constantes do .NET</td></tr>
+<tr><td><code>readonly</code></td><td>Trancado na execução; aceita qualquer tipo (só em classes)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A palavra que tranca</h3>
+<p>Complete para criar uma constante:</p>
+<div class="ex-code"><input data-answer="const" aria-label="palavra"> int IdadeMinima = 18;</div>
+</div>
+
+<div class="exercise">
+<h3>2. O nome no padrão do .NET</h3>
+<p>Escreva o nome <em>taxa de juros</em> em PascalCase, sem acento:</p>
+<div class="ex-code">const decimal <input data-answer="TaxaDeJuros|TaxaJuros" aria-label="nome"> = 0.02m;</div>
+</div>
+
+<div class="exercise">
+<h3>3. O erro de mudar</h3>
+<p>Qual é o código do erro que aparece em <code>Limite = 20;</code>, se <code>Limite</code> é uma constante?</p>
+<div class="ex-code"><input data-answer="CS0131" aria-label="código do erro"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Qual destas constantes compila?</p>
+<label><input type="radio" name="q4"> <code>const DateTime Hoje = DateTime.Now;</code></label>
+<label><input type="radio" name="q4"> <code>const int SegundosPorDia = 60 * 60 * 24;</code></label>
+<label><input type="radio" name="q4"> <code>const int Total;</code></label>
+<label><input type="radio" name="q4"> <code>const var Nome = "Ana";</code></label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Por que trocar <code>salario * 0.075m</code> por <code>salario * AliquotaInss</code>?</p>
+<label><input type="radio" name="q5"> O programa fica mais rápido</label>
+<label><input type="radio" name="q5"> O resultado fica mais exato</label>
+<label><input type="radio" name="q5"> O nome explica o número e, se a alíquota mudar, só uma linha muda</label>
+<label><input type="radio" name="q5"> O C# não aceita números com vírgula em contas</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Você precisa guardar, sem mudar depois, a hora em que o programa começou. O que usar?</p>
+<label><input type="radio" name="q6"> <code>readonly</code> (numa classe) ou uma variável comum: o valor só é conhecido com o programa rodando</label>
+<label><input type="radio" name="q6"> <code>const</code></label>
+<label><input type="radio" name="q6"> <code>const var</code></label>
+<label><input type="radio" name="q6"> Não é possível</label>
+</div>
+
+<h3>Missão final: a taxa de entrega subiu</h3>
+
+<div class="trycs" data-goal="outre:Pedido 1: 51\,90\nPedido 2: 28\,40\nPedido 3: 39\,90,src:const\s+decimal\s+TaxaEntrega\s*=\s*9\.90[mM]\s*;">
+<p class="try-task"><strong>Missão:</strong> a taxa de entrega subiu de R$ 7,50 para R$ 9,90, e ela aparece em três lugares. Crie a constante <code>const decimal TaxaEntrega = 9.90m;</code> no começo do programa e use-a nas três linhas, no lugar do <code>7.50m</code>. A saída deve ser <code>Pedido 1: 51,90</code>, <code>Pedido 2: 28,40</code> e <code>Pedido 3: 39,90</code>.</p>
+<pre class="script" data-file="entregas.cs">decimal pedido1 = 42.00m;
+decimal pedido2 = 18.50m;
+decimal pedido3 = 30.00m;
+Console.WriteLine($"Pedido 1: {pedido1 + 7.50m}");
+Console.WriteLine($"Pedido 2: {pedido2 + 7.50m}");
+Console.WriteLine($"Pedido 3: {pedido3 + 7.50m}");
+</pre>
+<pre class="solucao" data-file="entregas.cs">const decimal TaxaEntrega = 9.90m;
+decimal pedido1 = 42.00m;
+decimal pedido2 = 18.50m;
+decimal pedido3 = 30.00m;
+Console.WriteLine($"Pedido 1: {pedido1 + TaxaEntrega}");
+Console.WriteLine($"Pedido 2: {pedido2 + TaxaEntrega}");
+Console.WriteLine($"Pedido 3: {pedido3 + TaxaEntrega}");
+</pre>
+</div>
+
+<p>Da próxima vez que a taxa mudar, basta mudar a primeira linha.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>const</code> cria uma caixa com valor trancado: <code>const decimal TaxaEntrega = 7.50m;</code>. Nome em PascalCase.</li>
+  <li>O valor é obrigatório na criação (<code>CS0145</code>) e nunca muda (<code>CS0131</code>).</li>
+  <li>Constantes acabam com os números mágicos: o nome explica o valor, e uma mudança mexe em uma linha só.</li>
+  <li>O valor pode ser uma conta ou um texto feito só de constantes (inclusive <code>$"…"</code>, <span class="versao">C# 10</span>); com variáveis, <code>CS0133</code>.</li>
+  <li>Só números, <code>char</code>, <code>bool</code>, <code>string</code> e enums podem ser <code>const</code> (<code>CS0283</code>), e nunca com <code>var</code> (<code>CS0822</code>).</li>
+  <li>Constantes de uma classe: <code>public const</code>, usadas como <code>Regras.IdadeMinima</code>. Para valores decididos na execução, <code>readonly</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
