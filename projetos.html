@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Sobre os Projetos — programas completos, passo a passo | Guia C#</title>
+<meta name="description" content="Os projetos do Guia C#: calculadora, jogo de adivinhação, boletim de notas, agenda de contatos com JSON, conta bancária com classes, estoque com LINQ e lista de tarefas. Como cada projeto é construído em versões, que aulas ele pratica, como rodar no editor do guia e no terminal (dotnet run arquivo.cs e dotnet new console) e o que fazer quando o seu código não bate com o da página.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Sobre os Projetos</span></h1>
+
+<p class="intro">Nas aulas, cada página ensina <strong>um</strong> assunto. Nos projetos, você junta vários assuntos para construir um programa inteiro, do arquivo vazio até a versão final. É aqui que as peças se encaixam: o <code>Console.ReadLine</code> conversa com o <code>TryParse</code>, que alimenta um <code>switch</code>, que chama um método que você mesmo escreveu.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como os projetos do guia são construídos, em <strong>versões</strong> pequenas.</li>
+  <li>Que aulas cada projeto pratica e em que ordem fazê-los.</li>
+  <li>Como rodar cada versão: no editor do guia e no terminal (<code>dotnet run arquivo.cs</code> ou um projeto com <code>dotnet new console</code>).</li>
+  <li>Como mandar a entrada de um arquivo para o programa, sem digitar tudo de novo.</li>
+  <li>O que fazer quando o seu código não bate com o da página.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>A ideia: montar um móvel seguindo o manual</h2>
+<p>Quem monta um armário não aparafusa todas as peças de uma vez para só no fim descobrir que a porta ficou torta. O manual divide em passos: primeiro a base, depois as laterais, confere se está firme, depois as prateleiras. Ao fim de cada passo, o que já foi montado <strong>fica de pé</strong>.</p>
+<p>Os projetos do guia são iguais. Cada um é dividido em <strong>versões</strong> (versão 1, 2, 3…), e cada versão acrescenta <strong>uma</strong> coisa nova à anterior. No fim de toda versão, o programa <strong>compila e roda</strong>. Você nunca fica com um monte de código "que ainda não funciona".</p>
+
+<p>Toda página de projeto segue o mesmo roteiro:</p>
+<ol class="passo">
+  <li><strong>O que vamos construir.</strong> Uma sessão real do programa pronto, para você ver aonde vai chegar.</li>
+  <li><strong>Antes de começar.</strong> As aulas que você precisa ter visto e a pasta onde o projeto vai morar.</li>
+  <li><strong>As versões.</strong> Cada uma mostra o código, explica o que mudou, mostra a saída real (rodada com o .NET 10 na máquina da Ana) e termina com uma caixa <em>Experimente</em> em que <strong>você</strong> faz a parte nova.</li>
+  <li><strong>Quando dá errado.</strong> Os erros que aparecem de verdade naquele projeto, com a mensagem completa e o conserto.</li>
+  <li><strong>O programa completo e os desafios.</strong> A versão final, inteira, e ideias para você continuar sozinho.</li>
+</ol>
+
+<hr>
+
+<h2>Os projetos</h2>
+<p>Estão em ordem de dificuldade. Os primeiros usam o <a href="index.html">Nível 1</a> e um pouco de <a href="metodos.html">métodos</a>; os últimos pedem classes, coleções, arquivos e LINQ.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Projeto</th><th>O que é</th><th>Aulas que ele pratica</th><th>Faça depois de</th></tr>
+<tr><td><a href="projeto-calculadora.html">Calculadora</a></td><td>Lê dois números e uma operação e mostra o resultado; repete até você digitar <code>sair</code>.</td><td><a href="readline.html">ReadLine</a>, <a href="parse.html">Parse e TryParse</a>, <a href="switch.html">switch</a>, <a href="while.html">while</a>, <a href="break-continue.html">break e continue</a>, <a href="metodos.html">Métodos</a></td><td>Nível 1 + <a href="metodos.html">Métodos</a></td></tr>
+<tr><td><a href="projeto-adivinhacao.html">Jogo de Adivinhação</a></td><td>O computador sorteia um número de 1 a 100 e você tenta adivinhar, com dicas "maior" e "menor", limite de tentativas e "jogar de novo".</td><td><a href="aleatorios.html">Random</a>, <a href="while.html">while</a>, <a href="do-while.html">do while</a>, <a href="if-else.html">if e else</a>, <a href="constantes.html">const</a></td><td>Nível 1</td></tr>
+<tr><td><a href="projeto-notas.html">Boletim de Notas</a></td><td>Lê os alunos e as notas de uma turma e mostra a média, a maior e a menor nota, os aprovados e uma tabela alinhada.</td><td><a href="arrays.html">Arrays</a>, <a href="foreach.html">foreach</a>, <a href="records.html">Records</a>, <a href="switch-expressoes.html">Expressões switch</a>, <a href="formatacao.html">Formatar Números</a></td><td>Nível 1 + <a href="records.html">Records</a></td></tr>
+<tr><td><a href="projeto-agenda.html">Agenda de Contatos (JSON)</a></td><td>Cadastra, lista, busca e remove contatos, e guarda tudo num arquivo <code>.json</code> para a próxima vez.</td><td><a href="list.html">List&lt;T&gt;</a>, <a href="records.html">Records</a>, <a href="metodos-string.html">Métodos de String</a>, <a href="json.html">JSON</a>, <a href="try-catch.html">try e catch</a>, <a href="projetos-console.html">dotnet new console</a></td><td>Nível 2 + <a href="list.html">List&lt;T&gt;</a> e <a href="json.html">JSON</a></td></tr>
+<tr><td><a href="projeto-banco.html">Conta Bancária (classes)</a></td><td>Contas com depósito, saque, extrato e poupança, em vários arquivos, com as regras protegidas dentro das classes.</td><td><a href="classes-objetos.html">Classes</a>, <a href="encapsulamento.html">Encapsulamento</a>, <a href="construtores.html">Construtores</a>, <a href="throw.html">throw</a>, <a href="heranca.html">Herança</a>, <a href="decimais.html">decimal</a></td><td>Nível 2</td></tr>
+<tr><td><a href="projeto-estoque.html">Estoque da Lojinha (LINQ)</a></td><td>Os produtos da lojinha da Ana, consultados com LINQ: o que está acabando, quanto vale o estoque, o mais vendido.</td><td><a href="linq.html">LINQ</a>, <a href="linq-filtrar.html">Where e Select</a>, <a href="linq-ordenar.html">OrderBy</a>, <a href="linq-agrupar.html">GroupBy</a></td><td><a href="linq.html">LINQ</a></td></tr>
+<tr><td><a href="projeto-tarefas.html">Lista de Tarefas</a></td><td>Um programa de linha de comando para anotar, concluir e listar tarefas.</td><td><a href="args.html">args</a>, <a href="arquivos.html">Arquivos</a>, <a href="list.html">List&lt;T&gt;</a> e o que você aprendeu no Nível 3</td><td>Nível 3</td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>Não precisa ter terminado o nível inteiro</strong>
+<p>A coluna "Faça depois de" é o mínimo. Se alguma versão usar algo que você ainda não viu, o texto tem o link para a aula: abra numa aba nova, leia e volte.</p>
+</div>
+
+<hr>
+
+<h2>Onde rodar: duas formas</h2>
+
+<h3>1. No editor do guia (o mais fácil)</h3>
+<p>Toda versão tem uma caixa <strong>Experimente</strong> com o código da versão anterior. Você edita, clica em <strong>Rodar</strong> e vê a saída. O editor usa o <strong>compilador C# de verdade</strong>, o mesmo do <code>dotnet</code>, e roda o programa dentro do navegador (veja <a href="simulador.html">O Editor do Guia</a>).</p>
+<p>Quase todo projeto lê o teclado com <code>Console.ReadLine()</code>. Nas missões, a <strong>entrada já vem pronta</strong> (o texto da missão diz qual é), e o programa a lê como se você tivesse digitado. Repare que, como ninguém digitou de verdade, as respostas não aparecem na saída: as perguntas ficam grudadas umas nas outras (<code>Primeiro número: Segundo número: …</code>). Nas caixas sem entrada pronta, você mesmo digita.</p>
+
+<p>Experimente agora. Este é o "esqueleto" de todo projeto: uma linha com o título do programa.</p>
+
+<div class="trycs" data-goal="out:=== Meu Primeiro Projeto ===">
+<p class="try-task"><strong>Missão:</strong> troque o título para <code>=== Meu Primeiro Projeto ===</code> e clique em Rodar.</p>
+<pre class="script" data-file="projeto.cs">Console.WriteLine("=== Título ===");
+</pre>
+<pre class="solucao" data-file="projeto.cs">Console.WriteLine("=== Meu Primeiro Projeto ===");
+</pre>
+</div>
+
+<h3>2. No terminal do seu computador</h3>
+<p>Para guardar o seu trabalho, cada projeto ganha uma pasta. Os três primeiros (calculadora, adivinhação e boletim) são um <strong>arquivo só</strong>, e a Ana roda com <code>dotnet run arquivo.cs</code>, como aprendeu em <a href="dotnet-run.html">Rodar com dotnet run</a>. Esta é a primeira versão da calculadora:</p>
+
+<pre class="term">$ mkdir -p cs/calculadora              « cria a pasta do projeto (e a cs, se não existir)
+$ cd cs/calculadora
+$ ls
+calculadora.cs                         « o arquivo que a Ana escreveu no editor
+$ dotnet run calculadora.cs
+=== Calculadora da Ana ===
+Primeiro número: 10                    « 10 e 5 foram digitados pela Ana
+Segundo número: 5
+10 + 5 = 15</pre>
+
+<p>Os projetos maiores (agenda, banco, estoque e tarefas) têm <strong>vários arquivos</strong> ou usam recursos que pedem um projeto de verdade, com o arquivo <code>.csproj</code>. A Ana cria cada um com <code>dotnet new console</code> (veja <a href="projetos-console.html">Projetos</a>) e roda com <code>dotnet run</code>, sem nome de arquivo:</p>
+
+<pre class="term">$ mkdir -p projetos
+$ cd projetos
+$ dotnet new console -o Agenda
+O modelo "Aplicativo do Console" foi criado com êxito.
+
+Processando ações pós-criação...
+Restaurando /home/ana/projetos/Agenda/Agenda.csproj:
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Agenda/Agenda.csproj restaurado (em 104 ms).
+A restauração foi bem-sucedida.
+
+$ cd Agenda
+$ ls
+Agenda.csproj  obj  Program.cs
+$ dotnet run                           « compila todos os .cs da pasta e roda</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Comando</th><th>Quando usar</th></tr>
+<tr><td>Editor do guia</td><td>botão Rodar</td><td>Para fazer as versões rapidamente, em qualquer computador ou no celular.</td></tr>
+<tr><td>Arquivo solto</td><td><code>dotnet run calculadora.cs</code></td><td>Projetos de um arquivo: <a href="projeto-calculadora.html">calculadora</a>, <a href="projeto-adivinhacao.html">adivinhação</a> e <a href="projeto-notas.html">boletim</a>.</td></tr>
+<tr><td>Projeto</td><td><code>dotnet new console -o Nome</code>, depois <code>dotnet run</code></td><td>Vários arquivos, JSON e pacotes: <a href="projeto-agenda.html">agenda</a>, <a href="projeto-banco.html">banco</a>, <a href="projeto-estoque.html">estoque</a> e <a href="projeto-tarefas.html">tarefas</a>.</td></tr>
+</table>
+</div>
+
+<h3>Entrada de um arquivo: sem digitar tudo de novo</h3>
+<p>Testar a calculadora dez vezes é digitar dez vezes os mesmos números. Em vez disso, a Ana guardou a entrada num arquivo de texto e mandou o arquivo para o programa com <code>&lt;</code> (é o mesmo que a caixa Experimente faz com a entrada da missão). Como ninguém digitou, os números não aparecem depois das perguntas:</p>
+
+<pre class="term" data-cwd="~/cs/calculadora">$ cat entrada.txt
+10
+5
+$ dotnet run calculadora.cs &lt; entrada.txt
+=== Calculadora da Ana ===
+Primeiro número: Segundo número: 10 + 5 = 15</pre>
+
+<hr>
+
+<h2>Como estudar um projeto</h2>
+<ol class="passo">
+  <li><strong>Leia a versão inteira antes de digitar.</strong> Entenda o que muda e por quê.</li>
+  <li><strong>Digite o código, não copie e cole.</strong> Parece mais lento, mas é digitando que você erra, lê a mensagem do compilador e aprende a consertar.</li>
+  <li><strong>Rode depois de cada versão</strong> e compare com a saída da página. Se for diferente, ache a diferença antes de seguir.</li>
+  <li><strong>Mude alguma coisa.</strong> Troque uma mensagem, um número, uma condição, e tente prever o que vai acontecer antes de rodar.</li>
+  <li><strong>Só então vá para a próxima versão.</strong></li>
+</ol>
+
+<div class="cenario">
+<strong>"O meu não funciona e o da página funciona"</strong>
+<p>Quase sempre é um <code>;</code> esquecido, uma letra maiúscula trocada ou uma chave <code>}</code> a mais ou a menos. A Ana digitou isto:</p>
+<pre class="file" data-file="ola.cs">Console.Write("Seu nome: ");
+string nome = Console.ReadLine() ?? "";
+console.WriteLine($"Olá, {nome}! Vamos programar.")
+</pre>
+<pre class="term" data-cwd="~/cs/ola">$ dotnet run ola.cs
+/home/ana/cs/ola/ola.cs(3,52): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p>A mensagem diz o arquivo, a <strong>linha 3</strong> e a <strong>coluna 52</strong> (o fim da linha): falta o <code>;</code>. Ela pôs o ponto e vírgula e rodou de novo:</p>
+<pre class="term" data-cwd="~/cs/ola">$ dotnet run ola.cs
+/home/ana/cs/ola/ola.cs(3,1): error CS0103: O nome "console" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p>Agora apareceu um segundo erro, que estava escondido atrás do primeiro: <code>console</code> com <strong>c minúsculo</strong>. Para o C#, <code>console</code> e <code>Console</code> são nomes diferentes. Trocando para <code>Console</code>, o programa roda.</p>
+<p><strong>A lição:</strong> conserte o <strong>primeiro</strong> erro da lista e rode de novo; às vezes um erro esconde outro. Como ler cada parte dessas mensagens está em <a href="erros-compilacao.html">Lendo Erros do Compilador</a>, e os códigos mais comuns, em <a href="ref-erros.html">Erros do Compilador (CS…)</a>.</p>
+</div>
+
+<p>Para aquecer, um programa que lê do teclado, como quase todos os projetos fazem. A entrada <code>Ana</code> já vem pronta na missão.</p>
+
+<div class="trycs" data-stdin="Ana\n" data-goal="out:Olá\, Ana! Vamos programar.,src:\{nome\}">
+<p class="try-task"><strong>Missão:</strong> complete o programa para que, depois de ler o nome, ele mostre <code>Olá, Ana! Vamos programar.</code>. Use a variável <code>nome</code> dentro de uma <a href="interpolacao.html">interpolação</a> (<code>$"… {nome} …"</code>), sem escrever "Ana" no código. Se precisar, revise <a href="readline.html">Ler do Teclado</a>.</p>
+<pre class="script" data-file="ola.cs">Console.Write("Seu nome: ");
+string nome = Console.ReadLine() ?? "";
+// escreva aqui a saudação
+</pre>
+<pre class="solucao" data-file="ola.cs">Console.Write("Seu nome: ");
+string nome = Console.ReadLine() ?? "";
+Console.WriteLine($"Olá, {nome}! Vamos programar.");
+</pre>
+</div>
+
+<pre class="term" data-cwd="~/cs/ola">$ dotnet run ola.cs
+Seu nome: Ana
+Olá, Ana! Vamos programar.</pre>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">1. Por que os projetos são feitos em versões?</p>
+<label><input type="radio" name="q1"> Porque o compilador só aceita programas pequenos.</label>
+<label><input type="radio" name="q1"> Para o programa ficar mais rápido.</label>
+<label><input type="radio" name="q1"> Para que, ao fim de cada passo, o programa compile e rode, e um erro apareça logo, perto de onde foi feito.</label>
+<label><input type="radio" name="q1"> Porque cada versão usa uma linguagem diferente.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">2. A Agenda tem vários arquivos <code>.cs</code>. Como a Ana a cria e roda no terminal?</p>
+<label><input type="radio" name="q2"> <code>dotnet run Program.cs</code> e mais nada.</label>
+<label><input type="radio" name="q2"> <code>dotnet new console -o Agenda</code>, depois <code>cd Agenda</code> e <code>dotnet run</code>.</label>
+<label><input type="radio" name="q2"> <code>dotnet build agenda.json</code>.</label>
+<label><input type="radio" name="q2"> Só dá para rodar no editor do guia.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">3. O compilador mostrou três erros. Qual consertar primeiro?</p>
+<label><input type="radio" name="q3"> O último, porque é o mais recente.</label>
+<label><input type="radio" name="q3"> Nenhum: rode de novo até sumirem.</label>
+<label><input type="radio" name="q3"> O que tiver o código CS maior.</label>
+<label><input type="radio" name="q3"> O primeiro: às vezes ele causa ou esconde os outros.</label>
+</div>
+
+<div class="exercise">
+<p>4. Complete o comando que manda o conteúdo de <code>entrada.txt</code> para a entrada do programa:</p>
+<div class="ex-code">$ dotnet run calculadora.cs <input data-answer="&lt;" aria-label="símbolo" size="2"> entrada.txt</div>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Cada projeto é construído em versões; ao fim de cada uma, o programa compila e roda.</li>
+  <li>Toda página de projeto tem: o resultado final, os pré-requisitos, as versões com missões, os erros reais e os desafios.</li>
+  <li>Calculadora, adivinhação e boletim são um arquivo só: <code>dotnet run arquivo.cs</code>. Agenda, banco, estoque e tarefas são projetos: <code>dotnet new console -o Nome</code> e <code>dotnet run</code>.</li>
+  <li><code>dotnet run arquivo.cs &lt; entrada.txt</code> manda a entrada de um arquivo, como as missões do editor.</li>
+  <li>Quando der erro, leia a primeira mensagem: arquivo, linha, coluna e código <code>CS…</code>.</li>
+</ul>
+<p>Comece pelo primeiro: <a href="projeto-calculadora.html">Calculadora</a>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
