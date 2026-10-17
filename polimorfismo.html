@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Polimorfismo — uma variável, muitas formas | Guia C#</title>
+<meta name="description" content="Polimorfismo em C# para iniciantes: uma variável Animal guardando um Cachorro, qual método roda (despacho dinâmico), métodos e arrays que aceitam qualquer animal, o exemplo dos pagamentos da lojinha, cast para a classe derivada, is com padrão, as e switch por tipo, com os erros reais CS1061, CS0266 e InvalidCastException do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Polimorfismo</span></h1>
+
+<p class="intro"><strong>Polimorfismo</strong> vem do grego e quer dizer "muitas formas". Em C#, é a capacidade de escrever um código que fala com um <code>Animal</code> e funciona com <strong>qualquer</strong> animal: cachorro, gato ou um bicho que ainda nem foi inventado. Cada objeto responde do seu jeito à mesma instrução. É o terceiro pilar da orientação a objetos, e ele junta tudo o que você viu em <a href="heranca.html">Herança</a> e <a href="virtual-override.html">virtual e override</a>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Que uma variável do tipo da base pode guardar um objeto de qualquer classe derivada.</li>
+  <li>Qual método roda quando você chama um método por essa variável (o despacho dinâmico).</li>
+  <li>O que o tipo da variável <strong>não</strong> deixa fazer (<code>CS1061</code>).</li>
+  <li>Onde o polimorfismo brilha: métodos e arrays que aceitam qualquer animal, e os pagamentos da lojinha.</li>
+  <li>Como voltar ao tipo da classe derivada: cast (<code>CS0266</code>, <code>InvalidCastException</code>), <code>is</code> com padrão, <code>as</code> e <code>switch</code> por tipo.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>A ideia: "traga o seu animal"</h2>
+<p>A clínica veterinária do bairro tem uma placa: "Consultas para animais". A recepcionista não pergunta "é cachorro?" antes de marcar. Ela marca para <strong>qualquer animal</strong>, e o veterinário faz sempre a mesma coisa: "deixa eu ouvir você". O cachorro late, o gato mia, o papagaio fala. A instrução é uma só; a resposta depende de quem está na mesa.</p>
+<p>Em código:</p>
+<ul>
+  <li>A placa "para animais" é um parâmetro (ou uma variável) do tipo <code>Animal</code>.</li>
+  <li>"Deixa eu ouvir você" é a chamada <code>paciente.FazerSom()</code>.</li>
+  <li>Cada um responder do seu jeito é o <code>override</code> de cada classe.</li>
+</ul>
+
+<hr>
+
+<h2>Uma variável Animal guardando um Cachorro</h2>
+<p>Todos os exemplos desta aula usam estas três classes, já conhecidas da aula anterior. O <code>Cachorro</code> ganhou um método só dele, <code>BuscarBolinha</code>:</p>
+
+<pre class="file" data-file="as três classes (no fim de cada exemplo)">class Animal
+{
+    public string Nome { get; set; } = "";
+
+    public virtual void FazerSom()
+    {
+        Console.WriteLine($"{Nome} faz um som qualquer.");
+    }
+}
+
+class Cachorro : Animal
+{
+    public override void FazerSom()
+    {
+        Console.WriteLine($"{Nome}: Au au!");
+    }
+
+    public void BuscarBolinha()
+    {
+        Console.WriteLine($"{Nome} trouxe a bolinha.");
+    }
+}
+
+class Gato : Animal
+{
+    public override void FazerSom()
+    {
+        Console.WriteLine($"{Nome}: Miau!");
+    }
+}
+</pre>
+
+<p>Agora, o programa (as classes vêm logo abaixo, no mesmo arquivo):</p>
+
+<pre class="file" data-file="variavel.cs (início)">Animal bicho = new Cachorro { Nome = "Rex" };
+bicho.FazerSom();
+bicho = new Gato { Nome = "Mia" };
+bicho.FazerSom();
+</pre>
+
+<pre class="term">$ dotnet run variavel.cs
+Rex: Au au!
+Mia: Miau!</pre>
+
+<dl class="anatomy">
+  <dt>Animal bicho = new Cachorro { … };</dt><dd>A variável é do tipo <code>Animal</code>, e o objeto é um <code>Cachorro</code>. Pode, porque todo cachorro <strong>é um</strong> animal. O C# faz essa conversão sozinho, sem você pedir.</dd>
+  <dt>bicho.FazerSom();</dt><dd>O Rex late: roda o <code>override</code> do <code>Cachorro</code>.</dd>
+  <dt>bicho = new Gato { … };</dt><dd>A <strong>mesma</strong> variável agora guarda um gato. Também pode: todo gato é um animal.</dd>
+  <dt>bicho.FazerSom();</dt><dd>A mesma linha de antes, e agora a Mia mia. A instrução não mudou; o objeto mudou.</dd>
+</dl>
+
+<p>O contrário não vale: <code>Cachorro rex = new Animal();</code> não compila, porque nem todo animal é um cachorro.</p>
+
+<hr>
+
+<h2>Qual método roda? O despacho dinâmico</h2>
+<p>Quando o programa chega em <code>bicho.FazerSom()</code>, existem duas perguntas, e o C# responde cada uma num momento diferente:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Pergunta</th><th>Quem responde</th><th>Olhando o quê</th></tr>
+<tr><td>Esse método <strong>existe</strong>? Posso chamá-lo?</td><td>O compilador, antes de rodar</td><td>O tipo da <strong>variável</strong> (<code>Animal</code>)</td></tr>
+<tr><td>Qual <strong>versão</strong> do método roda?</td><td>O .NET, com o programa rodando</td><td>O tipo do <strong>objeto</strong> (<code>Cachorro</code> ou <code>Gato</code>), se o método é <code>virtual</code></td></tr>
+</table>
+</div>
+
+<p>Escolher a versão com o programa já rodando, pelo objeto de verdade, se chama <strong>despacho dinâmico</strong>. É o que <code>virtual</code> e <code>override</code> ligam. Sem <code>virtual</code>, a escolha é feita pelo tipo da variável, como você viu no aviso <code>CS0108</code> da <a href="virtual-override.html">aula anterior</a>.</p>
+
+<h3>O que o tipo da variável não deixa fazer</h3>
+<p>A primeira pergunta é a que pega quem está começando. O Rex sabe buscar a bolinha, mas, pela variável <code>Animal</code>, o compilador não sabe que ali dentro há um cachorro:</p>
+
+<pre class="file" data-file="cs1061.cs (início) — com erro de propósito">Animal bicho = new Cachorro { Nome = "Rex" };
+bicho.BuscarBolinha();
+</pre>
+
+<pre class="term">$ dotnet run cs1061.cs
+/home/ana/cs/cs1061.cs(2,7): error CS1061: ‘Animal’ não contém uma definição para "BuscarBolinha" e não foi possível encontrar nenhum método de extensão "BuscarBolinha" que aceite um primeiro argumento do tipo ‘Animal’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"<code>Animal</code> não contém uma definição": o compilador olhou o tipo da variável, e <code>Animal</code> não tem <code>BuscarBolinha</code>. Faz sentido: na linha 2, o <code>bicho</code> poderia ser um gato (ele acabou de ser um, no exemplo anterior). Pela variável <code>Animal</code>, você só usa o que <strong>todo</strong> animal tem. Mais abaixo você vê como perguntar "é cachorro?" antes de pedir a bolinha.</p>
+
+<hr>
+
+<h2>Onde o polimorfismo brilha</h2>
+
+<h3>Um método para qualquer animal</h3>
+
+<pre class="file" data-file="veterinario.cs (início)">Consultar(new Cachorro { Nome = "Rex" });
+Consultar(new Gato { Nome = "Mia" });
+
+void Consultar(Animal paciente)
+{
+    Console.WriteLine($"Veterinário: agora é a vez de {paciente.Nome}.");
+    paciente.FazerSom();
+}
+</pre>
+
+<pre class="term">$ dotnet run veterinario.cs
+Veterinário: agora é a vez de Rex.
+Rex: Au au!
+Veterinário: agora é a vez de Mia.
+Mia: Miau!</pre>
+
+<p>O <code>Consultar</code> foi escrito <strong>uma vez</strong>, para <code>Animal</code>, e atende cachorros e gatos. Se a Ana criar <code>class Papagaio : Animal</code> amanhã, o <code>Consultar</code> atende papagaios sem mudar uma vírgula. Isso é o principal ganho do polimorfismo: o código que <strong>usa</strong> os animais não precisa conhecer cada tipo de animal.</p>
+
+<h3>Um array com animais diferentes</h3>
+<p>Um array do tipo <code>Animal[]</code> guarda qualquer mistura de animais, e um <code>foreach</code> trata todos do mesmo jeito. Você viu isso na aula anterior. Agora, experimente acrescentar um bicho novo:</p>
+
+<div class="trycs" data-goal="out:Mimosa: Muuu!,src:class\s+Vaca\s*:\s*Animal">
+<p class="try-task"><strong>Missão:</strong> crie a classe <code>Vaca</code>, que herda de <code>Animal</code> e faz <code>override</code> do <code>FazerSom</code> mostrando o nome seguido de <code>: Muuu!</code>. Depois, acrescente <code>new Vaca { Nome = "Mimosa" }</code> no array. Repare que o <code>foreach</code> não muda.</p>
+<pre class="script">Animal[] bichos =
+{
+    new Cachorro { Nome = "Rex" },
+    new Gato { Nome = "Mia" },
+};
+
+foreach (Animal bicho in bichos)
+{
+    bicho.FazerSom();
+}
+
+class Animal
+{
+    public string Nome { get; set; } = "";
+
+    public virtual void FazerSom()
+    {
+        Console.WriteLine($"{Nome} faz um som qualquer.");
+    }
+}
+
+class Cachorro : Animal
+{
+    public override void FazerSom()
+    {
+        Console.WriteLine($"{Nome}: Au au!");
+    }
+}
+
+class Gato : Animal
+{
+    public override void FazerSom()
+    {
+        Console.WriteLine($"{Nome}: Miau!");
+    }
+}
+</pre>
+<pre class="solucao">Animal[] bichos =
+{
+    new Cachorro { Nome = "Rex" },
+    new Gato { Nome = "Mia" },
+    new Vaca { Nome = "Mimosa" },
+};
+
+foreach (Animal bicho in bichos)
+{
+    bicho.FazerSom();
+}
+
+class Animal
+{
+    public string Nome { get; set; } = "";
+
+    public virtual void FazerSom()
+    {
+        Console.WriteLine($"{Nome} faz um som qualquer.");
+    }
+}
+
+class Cachorro : Animal
+{
+    public override void FazerSom()
+    {
+        Console.WriteLine($"{Nome}: Au au!");
+    }
+}
+
+class Gato : Animal
+{
+    public override void FazerSom()
+    {
+        Console.WriteLine($"{Nome}: Miau!");
+    }
+}
+
+class Vaca : Animal
+{
+    public override void FazerSom()
+    {
+        Console.WriteLine($"{Nome}: Muuu!");
+    }
+}
+</pre>
+</div>
+
+<h3>Um caso de verdade: os pagamentos da lojinha</h3>
+<p>Bichos são bons para entender; agora, algo que a Ana usa de verdade. A lojinha aceita Pix, cartão e boleto, e cada um cobra uma taxa diferente. Sem polimorfismo, o código ficaria cheio de "se for cartão, faça isso; se for boleto, faça aquilo". Com polimorfismo, cada forma de pagamento sabe a sua taxa:</p>
+
+<pre class="file" data-file="pagamento.cs">Pagamento[] pagamentos =
+{
+    new Pix { Valor = 100m },
+    new Cartao { Valor = 100m },
+    new Boleto { Valor = 100m },
+};
+
+decimal totalTaxas = 0m;
+foreach (Pagamento p in pagamentos)
+{
+    decimal taxa = p.Taxa();
+    totalTaxas += taxa;
+    Console.WriteLine($"{p.Descricao,-8} {p.Valor:C}  taxa {taxa:C}");
+}
+Console.WriteLine($"Total de taxas: {totalTaxas:C}");
+
+class Pagamento
+{
+    public decimal Valor { get; set; }
+    public virtual string Descricao =&gt; "Dinheiro";
+
+    public virtual decimal Taxa()
+    {
+        return 0m;
+    }
+}
+
+class Pix : Pagamento
+{
+    public override string Descricao =&gt; "Pix";
+}
+
+class Cartao : Pagamento
+{
+    public override string Descricao =&gt; "Cartão";
+
+    public override decimal Taxa()
+    {
+        return Valor * 0.03m;
+    }
+}
+
+class Boleto : Pagamento
+{
+    public override string Descricao =&gt; "Boleto";
+
+    public override decimal Taxa()
+    {
+        return 3.50m;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run pagamento.cs
+Pix      R$ 100,00  taxa R$ 0,00
+Cartão   R$ 100,00  taxa R$ 3,00
+Boleto   R$ 100,00  taxa R$ 3,50
+Total de taxas: R$ 6,50</pre>
+
+<dl class="anatomy">
+  <dt>Pagamento[] pagamentos</dt><dd>Um array do tipo da base, com um objeto de cada classe derivada.</dd>
+  <dt>p.Taxa()</dt><dd>Uma linha só. O Pix usa a versão da base (0), o cartão cobra 3% do valor, o boleto cobra R$ 3,50 fixos.</dd>
+  <dt>{p.Descricao,-8}</dt><dd>Mostra a descrição ocupando 8 colunas, alinhada à esquerda, para a tabela ficar reta (veja <a href="formatacao.html">Formatar Números</a>).</dd>
+  <dt>class Pix : Pagamento</dt><dd>Não fez <code>override</code> de <code>Taxa</code>: herdou a versão da base, que devolve 0.</dd>
+</dl>
+
+<p>Quando o banco da Ana lançar o "Pix parcelado", ela cria uma classe nova com a taxa dele. O <code>foreach</code>, o total e o resto do programa não mudam.</p>
+
+<hr>
+
+<h2>Voltando para o tipo da classe derivada</h2>
+<p>Às vezes você tem um <code>Animal</code> e precisa de algo que só o <code>Cachorro</code> tem, como o <code>BuscarBolinha</code>. Há quatro jeitos, do mais arriscado ao mais seguro.</p>
+
+<h3>1. Atribuir direto: não compila</h3>
+
+<pre class="file" data-file="cs0266.cs (início) — com erro de propósito">Animal bicho = new Cachorro { Nome = "Rex" };
+Cachorro rex = bicho;
+rex.BuscarBolinha();
+</pre>
+
+<pre class="term">$ dotnet run cs0266.cs
+/home/ana/cs/cs0266.cs(2,16): error CS0266: Não é possível converter implicitamente tipo "Animal" em "Cachorro". Existe uma conversão explícita (há uma conversão ausente?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O compilador não deixa, porque um <code>Animal</code> pode não ser um cachorro. A mensagem dá a dica: "existe uma conversão <strong>explícita</strong>", isto é, você pode pedir a conversão com todas as letras.</p>
+
+<h3>2. O cast: (Cachorro)bicho</h3>
+
+<pre class="file" data-file="cast.cs (início)">Animal bicho = new Cachorro { Nome = "Rex" };
+Cachorro rex = (Cachorro)bicho;
+rex.BuscarBolinha();
+</pre>
+
+<pre class="term">$ dotnet run cast.cs
+Rex trouxe a bolinha.</pre>
+
+<p>O <code>(Cachorro)</code> antes da variável é um <strong>cast</strong> (conversão explícita, como em <a href="conversao-tipos.html">Conversão de Tipos</a>). Você está dizendo ao compilador: "confie em mim, aqui dentro tem um cachorro". Ele confia, e o .NET confere quando o programa roda. Se você estiver errado:</p>
+
+<pre class="file" data-file="invalid.cs (início) — com erro de propósito">Animal bicho = new Gato { Nome = "Mia" };
+Cachorro rex = (Cachorro)bicho;
+rex.BuscarBolinha();
+</pre>
+
+<pre class="term">$ dotnet run invalid.cs
+Unhandled exception. System.InvalidCastException: Unable to cast object of type 'Gato' to type 'Cachorro'.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/invalid.cs:line 2
+$ echo $?
+134</pre>
+
+<p>Compilou, mas o programa caiu na linha 2: "não é possível converter um objeto do tipo <code>Gato</code> para o tipo <code>Cachorro</code>". Use o cast só quando você tem <strong>certeza</strong> do tipo.</p>
+
+<h3>3. is com padrão: pergunte antes <span class="versao">C# 7</span></h3>
+<p>O jeito seguro e moderno é perguntar e converter de uma vez só:</p>
+
+<pre class="file" data-file="is.cs (início)">Animal[] bichos = { new Cachorro { Nome = "Rex" }, new Gato { Nome = "Mia" } };
+
+foreach (Animal bicho in bichos)
+{
+    bicho.FazerSom();
+    if (bicho is Cachorro cachorro)
+    {
+        cachorro.BuscarBolinha();
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run is.cs
+Rex: Au au!
+Rex trouxe a bolinha.
+Mia: Miau!          « a Mia não é cachorro: o if foi pulado</pre>
+
+<dl class="anatomy">
+  <dt>bicho is Cachorro cachorro</dt><dd>Pergunta "o <code>bicho</code> é um <code>Cachorro</code>?". Se for, devolve <code>true</code> <strong>e</strong> cria a variável <code>cachorro</code>, já do tipo <code>Cachorro</code>, apontando para o mesmo objeto. Se não for, devolve <code>false</code>, e nada quebra.</dd>
+  <dt>cachorro.BuscarBolinha();</dt><dd>Dentro do <code>if</code>, <code>cachorro</code> é um <code>Cachorro</code>, então o compilador deixa chamar <code>BuscarBolinha</code>.</dd>
+</dl>
+
+<h3>4. as: converta ou devolva null</h3>
+<p>O operador <code>as</code> tenta converter e, se não der, devolve <code>null</code> em vez de lançar exceção:</p>
+
+<pre class="file" data-file="as.cs (início)">Animal bicho = new Gato { Nome = "Mia" };
+Cachorro? rex = bicho as Cachorro;
+Console.WriteLine(rex is null ? "Não é cachorro." : $"É o {rex.Nome}.");
+</pre>
+
+<pre class="term">$ dotnet run as.cs
+Não é cachorro.</pre>
+
+<p>O <code>?</code> em <code>Cachorro?</code> avisa que a variável pode ficar <code>null</code> (veja <a href="referencias-anulaveis.html">Referências Anuláveis</a>). Você tem de conferir antes de usar. Hoje, o <code>is</code> com padrão faz o mesmo em menos linhas, e é o preferido.</p>
+
+<h3>Bônus: switch por tipo</h3>
+<p>Com vários tipos para separar, uma <a href="switch-expressoes.html">expressão switch</a> deixa tudo num lugar só:</p>
+
+<pre class="file" data-file="switch.cs (início)">Animal[] bichos = { new Cachorro { Nome = "Rex" }, new Gato { Nome = "Mia" }, new Animal { Nome = "Nemo" } };
+
+foreach (Animal bicho in bichos)
+{
+    string tipo = bicho switch
+    {
+        Cachorro =&gt; "cachorro",
+        Gato =&gt; "gato",
+        _ =&gt; "outro bicho",
+    };
+    Console.WriteLine($"{bicho.Nome} é {tipo}.");
+}
+</pre>
+
+<pre class="term">$ dotnet run switch.cs
+Rex é cachorro.
+Mia é gato.
+Nemo é outro bicho.</pre>
+
+<p>Mais formas de perguntar pelo tipo em <a href="pattern-matching.html">Pattern Matching</a>.</p>
+
+<div class="warning"><strong>Perguntar o tipo é a exceção, não a regra.</strong> Se o seu código está cheio de <code>if (x is Cachorro) … else if (x is Gato) …</code> para decidir o que fazer, quase sempre o certo é um método <code>virtual</code> na base com um <code>override</code> em cada classe. Foi o que os pagamentos fizeram: ninguém perguntou "é boleto?".</div>
+
+<hr>
+
+<h2>Qual usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>Todos os tipos fazem a mesma coisa, cada um do seu jeito</td><td>Método <code>virtual</code> + <code>override</code> (polimorfismo de verdade)</td></tr>
+<tr><td>Só alguns tipos têm um recurso extra</td><td><code>if (x is Cachorro c) { … }</code></td></tr>
+<tr><td>Escolher um valor diferente para cada tipo</td><td><code>x switch { Cachorro =&gt; …, Gato =&gt; …, _ =&gt; … }</code></td></tr>
+<tr><td>Você tem certeza absoluta do tipo</td><td>Cast: <code>(Cachorro)x</code></td></tr>
+<tr><td>Código antigo, ou quer <code>null</code> quando não é</td><td><code>x as Cachorro</code></td></tr>
+</table>
+</div>
+
+<div class="note"><strong>E a sobrecarga?</strong> Ter vários métodos com o mesmo nome e parâmetros diferentes (veja <a href="sobrecarga.html">Sobrecarga</a>) às vezes é chamado de "polimorfismo de compilação", porque o compilador escolhe a versão antes de rodar. O polimorfismo desta aula, com <code>override</code>, é o "de execução": a escolha acontece com o programa rodando, pelo objeto.</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>error CS1061: ‘Animal’ não contém uma definição para "…"</strong>
+<p><strong>O que aconteceu:</strong> você chamou, por uma variável do tipo da base, um método que só a classe derivada tem.</p>
+<p><strong>Como resolver:</strong> se todos os animais deveriam ter o método, coloque-o (<code>virtual</code>) na base. Se não, pergunte antes: <code>if (bicho is Cachorro c) c.BuscarBolinha();</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS0266: Não é possível converter implicitamente tipo "Animal" em "Cachorro". Existe uma conversão explícita…</strong>
+<p><strong>O que aconteceu:</strong> você guardou uma variável da base numa variável da derivada.</p>
+<p><strong>Como resolver:</strong> use <code>is</code> com padrão (seguro) ou um cast <code>(Cachorro)</code> (se tem certeza).</p>
+</div>
+
+<div class="cenario">
+<strong>System.InvalidCastException: Unable to cast object of type '…' to type '…'.</strong>
+<p><strong>O que aconteceu:</strong> o cast compilou, mas o objeto não era daquele tipo. O programa para com o código de saída 134.</p>
+<p><strong>Como resolver:</strong> troque o cast por <code>if (bicho is Cachorro rex) { … }</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Sempre roda a versão da base</strong>
+<p><strong>O que aconteceu:</strong> o método da base não é <code>virtual</code>, ou a filha esqueceu o <code>override</code>. Confira os avisos <code>CS0108</code> e <code>CS0114</code>.</p>
+<p><strong>Como resolver:</strong> <code>virtual</code> na base, <code>override</code> na filha. Veja <a href="virtual-override.html">virtual e override</a>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>Animal a = new Cachorro();</code></td><td>Variável da base guardando um objeto da derivada (automático)</td></tr>
+<tr><td><code>void M(Animal a) { … }</code></td><td>Método que aceita qualquer animal</td></tr>
+<tr><td><code>Animal[] bichos = { … };</code></td><td>Array com animais de vários tipos</td></tr>
+<tr><td><code>(Cachorro)a</code></td><td>Cast: converte ou lança <code>InvalidCastException</code></td></tr>
+<tr><td><code>a is Cachorro c</code> <span class="versao">C# 7</span></td><td>Pergunta e, se for, cria <code>c</code> do tipo <code>Cachorro</code></td></tr>
+<tr><td><code>a as Cachorro</code></td><td>Converte ou devolve <code>null</code></td></tr>
+<tr><td><code>a switch { Cachorro =&gt; …, _ =&gt; … }</code></td><td>Escolhe um valor pelo tipo do objeto</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missão final: as taxas da lojinha</h2>
+<div class="trycs" data-goal="out:taxa R$ 3\,00,out:taxa R$ 3\,50,out:Total de taxas: R$ 6\,50,src:override\s+decimal\s+Taxa">
+<p class="try-task"><strong>Missão:</strong> o cartão e o boleto estão saindo sem taxa (<code>Total de taxas: R$ 0,00</code>). Escreva, na classe <code>Cartao</code>, um <code>override</code> de <code>Taxa()</code> que devolve 3% do valor (<code>Valor * 0.03m</code>) e, na classe <code>Boleto</code>, um que devolve <code>3.50m</code>. O <code>foreach</code> não muda.</p>
+<pre class="script">Pagamento[] pagamentos =
+{
+    new Pix { Valor = 100m },
+    new Cartao { Valor = 100m },
+    new Boleto { Valor = 100m },
+};
+
+decimal totalTaxas = 0m;
+foreach (Pagamento p in pagamentos)
+{
+    decimal taxa = p.Taxa();
+    totalTaxas += taxa;
+    Console.WriteLine($"{p.Descricao,-8} {p.Valor:C}  taxa {taxa:C}");
+}
+Console.WriteLine($"Total de taxas: {totalTaxas:C}");
+
+class Pagamento
+{
+    public decimal Valor { get; set; }
+    public virtual string Descricao =&gt; "Dinheiro";
+
+    public virtual decimal Taxa()
+    {
+        return 0m;
+    }
+}
+
+class Pix : Pagamento
+{
+    public override string Descricao =&gt; "Pix";
+}
+
+class Cartao : Pagamento
+{
+    public override string Descricao =&gt; "Cartão";
+}
+
+class Boleto : Pagamento
+{
+    public override string Descricao =&gt; "Boleto";
+}
+</pre>
+<pre class="solucao">Pagamento[] pagamentos =
+{
+    new Pix { Valor = 100m },
+    new Cartao { Valor = 100m },
+    new Boleto { Valor = 100m },
+};
+
+decimal totalTaxas = 0m;
+foreach (Pagamento p in pagamentos)
+{
+    decimal taxa = p.Taxa();
+    totalTaxas += taxa;
+    Console.WriteLine($"{p.Descricao,-8} {p.Valor:C}  taxa {taxa:C}");
+}
+Console.WriteLine($"Total de taxas: {totalTaxas:C}");
+
+class Pagamento
+{
+    public decimal Valor { get; set; }
+    public virtual string Descricao =&gt; "Dinheiro";
+
+    public virtual decimal Taxa()
+    {
+        return 0m;
+    }
+}
+
+class Pix : Pagamento
+{
+    public override string Descricao =&gt; "Pix";
+}
+
+class Cartao : Pagamento
+{
+    public override string Descricao =&gt; "Cartão";
+
+    public override decimal Taxa()
+    {
+        return Valor * 0.03m;
+    }
+}
+
+class Boleto : Pagamento
+{
+    public override string Descricao =&gt; "Boleto";
+
+    public override decimal Taxa()
+    {
+        return 3.50m;
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Pergunte antes</h3>
+<p>Complete o <code>if</code> para perguntar se <code>bicho</code> é um <code>Gato</code> e, se for, criar a variável <code>g</code>: <code>if (bicho ___)</code></p>
+<div class="ex-code"><input data-answer="is Gato g" aria-label="padrão"></div>
+</div>
+
+<div class="exercise">
+<h3>2. O cast</h3>
+<p>Escreva o cast que converte a variável <code>bicho</code> para <code>Cachorro</code> (sem ponto e vírgula).</p>
+<div class="ex-code"><input data-answer="(Cachorro)bicho|(Cachorro) bicho" aria-label="cast"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Muitas formas</h3>
+<p>Qual palavra, de origem grega, quer dizer "muitas formas"?</p>
+<div class="ex-code"><input data-answer="polimorfismo|Polimorfismo" aria-label="palavra"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Em <code>Animal bicho = new Gato();</code>, quem decide se <code>bicho.FazerSom()</code> pode ser chamado, e quem decide qual versão roda?</p>
+<label><input type="radio" name="q4"> O tipo do objeto decide as duas coisas.</label>
+<label><input type="radio" name="q4"> O tipo da variável (<code>Animal</code>) decide se pode; o tipo do objeto (<code>Gato</code>) decide a versão, se o método é <code>virtual</code>.</label>
+<label><input type="radio" name="q4"> O tipo da variável decide as duas coisas.</label>
+<label><input type="radio" name="q4"> O programador decide, com um cast.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. O que acontece com <code>Cachorro rex = (Cachorro)bicho;</code> quando <code>bicho</code> guarda um <code>Gato</code>?</p>
+<label><input type="radio" name="q5"> Erro de compilação <code>CS0266</code>.</label>
+<label><input type="radio" name="q5"> <code>rex</code> fica <code>null</code>.</label>
+<label><input type="radio" name="q5"> Compila, e o programa cai com <code>InvalidCastException</code>.</label>
+<label><input type="radio" name="q5"> O gato vira cachorro.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Qual é a maior vantagem de um método <code>Consultar(Animal paciente)</code>?</p>
+<label><input type="radio" name="q6"> Ele funciona com qualquer animal, inclusive classes criadas depois, sem mudar.</label>
+<label><input type="radio" name="q6"> Ele é mais rápido que um método por animal.</label>
+<label><input type="radio" name="q6"> Ele pode chamar <code>BuscarBolinha</code> direto.</label>
+<label><input type="radio" name="q6"> Ele dispensa o <code>override</code>.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma variável (ou parâmetro, ou array) do tipo da base guarda objetos de qualquer classe derivada: <code>Animal bicho = new Cachorro();</code>.</li>
+  <li>O tipo da <strong>variável</strong> diz o que pode ser chamado (<code>CS1061</code>); o tipo do <strong>objeto</strong> diz qual versão roda, quando o método é <code>virtual</code> (despacho dinâmico).</li>
+  <li>Código escrito para a base (<code>Consultar(Animal)</code>, o <code>foreach</code> dos pagamentos) funciona com qualquer derivada, até com as que ainda vão ser criadas.</li>
+  <li>Para usar algo só da derivada: <code>if (x is Cachorro c)</code> (seguro), <code>(Cachorro)x</code> (pode lançar <code>InvalidCastException</code>), <code>x as Cachorro</code> (pode dar <code>null</code>) ou <code>switch</code> por tipo.</li>
+  <li>Muitos <code>if (x is …)</code> são sinal de que falta um método <code>virtual</code> na base.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
