@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# params — métodos que aceitam quantos argumentos vierem | Guia C#</title>
+<meta name="description" content="params em C# para quem nunca programou: um método que recebe 0, 1 ou 100 argumentos, por que dentro dele é um array, params depois de parâmetros comuns, o cuidado com zero argumentos, os params de coleções do C# 13 (Span, List) e os erros reais do dotnet 10 (CS0231, CS1503, DivideByZeroException), com missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">params</span></h1>
+
+<p class="intro">O <code>string.Join(", ", "arroz", "feijão", "café")</code> aceita dois, três, dez textos. Como um método aceita "quantos argumentos vierem", se cada parâmetro precisa de um argumento? Com a palavra <code>params</code>. Ela transforma os argumentos que sobram num <strong>array</strong>, montado pelo compilador. Nesta aula você vai escrever métodos assim, ver as regras do <code>params</code> e o cuidado que ele exige quando chegam zero argumentos.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O problema que o <code>params</code> resolve: o mesmo método com 2, 3 ou 10 valores.</li>
+  <li>Como declarar <code>params int[] numeros</code> e por que, dentro do método, <code>numeros</code> é um array comum.</li>
+  <li>Que dá para chamar com valores soltos, com um array pronto ou com nada.</li>
+  <li>Como misturar parâmetros comuns e <code>params</code> (e por que o <code>params</code> vem por último).</li>
+  <li>O cuidado com <strong>zero</strong> argumentos, com a exceção real.</li>
+  <li>Os <code>params</code> de coleções, novos no <span class="versao">C# 13</span>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram na máquina fictícia da Ana, na pasta <code>~/cs</code>, com o <strong>.NET 10</strong> e o comando <code>dotnet run arquivo.cs</code>. Você vai precisar de <a href="arrays.html">Arrays</a> e de <a href="foreach.html">foreach</a>.</p>
+
+<hr>
+
+<h2>A ideia: a sacola</h2>
+<p>No caixa da lojinha, cada cliente traz uma quantidade diferente de produtos. O caixa não tem "uma mão para cada produto": ele pega uma <strong>sacola</strong> e põe nela tudo o que o cliente trouxe, um produto, cinco, nenhum. Depois trabalha com a sacola inteira.</p>
+<p>O <code>params</code> é essa sacola. Quem chama passa os valores soltos, separados por vírgula; o C# junta todos num array, e o método recebe esse array.</p>
+
+<hr>
+
+<h2>1. O problema: um número fixo de parâmetros</h2>
+<p>Para somar as notas de um aluno, a Ana poderia escrever <code>Somar(int a, int b)</code>, depois <code>Somar(int a, int b, int c)</code>, depois com quatro… sem fim. O caminho natural é receber um array:</p>
+
+<pre class="file" data-file="semparams.cs">Console.WriteLine(Somar(new int[] { 7, 8 }));
+Console.WriteLine(Somar(new int[] { 7, 8, 10, 5 }));
+
+int Somar(int[] numeros)
+{
+    int total = 0;
+    foreach (int n in numeros)
+    {
+        total += n;
+    }
+    return total;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run semparams.cs
+15
+30</pre>
+
+<p>Funciona com qualquer quantidade, mas toda chamada precisa montar o array: <code>new int[] { … }</code>. É comprido e esconde o que importa, os números.</p>
+
+<hr>
+
+<h2>2. A palavra <code>params</code></h2>
+<p>Basta uma palavra a mais na declaração:</p>
+
+<pre class="file" data-file="params1.cs">Console.WriteLine(Somar(7, 8));
+Console.WriteLine(Somar(7, 8, 10, 5));
+Console.WriteLine(Somar(42));
+Console.WriteLine(Somar());
+
+int[] notas = { 6, 9, 3 };
+Console.WriteLine(Somar(notas));
+
+int Somar(params int[] numeros)
+{
+    Console.Write($"[{numeros.Length}] ");
+    int total = 0;
+    foreach (int n in numeros)
+    {
+        total += n;
+    }
+    return total;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run params1.cs
+[2] 15
+[4] 30
+[1] 42
+[0] 0
+[3] 18</pre>
+
+<dl class="anatomy">
+  <dt>params int[] numeros</dt><dd>"Junte todos os argumentos <code>int</code> que vierem num array chamado <code>numeros</code>". O tipo tem de ser um array (<code>int[]</code>, <code>string[]</code>, <code>decimal[]</code>…) ou uma das coleções da seção 5.</dd>
+  <dt>Somar(7, 8)</dt><dd>Valores soltos. O compilador transforma a chamada em <code>Somar(new int[] { 7, 8 })</code>: é a mesma coisa da seção 1, só que escrita por ele.</dd>
+  <dt>Somar(42) e Somar()</dt><dd>Um valor só vira um array de 1 elemento. Nenhum valor vira um array <strong>vazio</strong> (<code>Length</code> = 0), e não <code>null</code>.</dd>
+  <dt>Somar(notas)</dt><dd>Um array pronto também serve: ele é usado direto, sem ser copiado para outro array.</dd>
+  <dt>numeros.Length, foreach</dt><dd>Dentro do método, <code>numeros</code> é um array comum. O <code>[N]</code> que o programa mostra é o tamanho dele em cada chamada.</dd>
+</dl>
+
+<div class="trycs" data-goal="outre:^15\n10\n$,src:params\s+int\s*\[\s*\]">
+<p class="try-task"><strong>Missão:</strong> as chamadas passam números soltos, e o programa não compila (<code>CS1501</code>). Acrescente <strong>uma palavra</strong> na declaração do método para que elas funcionem. A saída deve ser:</p>
+<pre class="out">15
+10</pre>
+<pre class="script">Console.WriteLine(Somar(5, 10));
+Console.WriteLine(Somar(1, 2, 3, 4));
+
+int Somar(int[] numeros)
+{
+    int total = 0;
+    foreach (int n in numeros)
+    {
+        total += n;
+    }
+    return total;
+}
+</pre>
+<pre class="solucao">Console.WriteLine(Somar(5, 10));
+Console.WriteLine(Somar(1, 2, 3, 4));
+
+int Somar(params int[] numeros)
+{
+    int total = 0;
+    foreach (int n in numeros)
+    {
+        total += n;
+    }
+    return total;
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Parâmetros comuns antes do <code>params</code></h2>
+<p>Um método pode ter parâmetros comuns e, no fim, um <code>params</code>. Os primeiros argumentos vão para os comuns, por posição, e <strong>todos os que sobrarem</strong> vão para a sacola:</p>
+
+<pre class="file" data-file="titulo.cs">MostrarLista("Compras", "arroz", "feijão", "café");
+MostrarLista("Material", "caderno");
+MostrarLista("Vazia");
+
+void MostrarLista(string titulo, params string[] itens)
+{
+    Console.WriteLine($"== {titulo} ({itens.Length}) ==");
+    foreach (string item in itens)
+    {
+        Console.WriteLine($"- {item}");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run titulo.cs
+== Compras (3) ==
+- arroz
+- feijão
+- café
+== Material (1) ==
+- caderno
+== Vazia (0) ==</pre>
+
+<p>Na primeira chamada, <code>"Compras"</code> foi para <code>titulo</code>, e os outros três para <code>itens</code>. Na última, só o título: <code>itens</code> veio vazio, e o <code>foreach</code> não rodou nenhuma vez.</p>
+
+<h3>O <code>params</code> tem de ser o último</h3>
+<p>Se o <code>params</code> viesse antes, o compilador não teria como saber onde a sacola termina:</p>
+
+<pre class="file" data-file="paramsfim.cs">MostrarLista("arroz", "feijão", "Compras");
+
+void MostrarLista(params string[] itens, string titulo)
+{
+    Console.WriteLine(titulo);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run paramsfim.cs
+/home/ana/cs/paramsfim.cs(1,1): error CS1501: Nenhuma sobrecarga para o método "MostrarLista" leva 3 argumentos
+/home/ana/cs/paramsfim.cs(3,19): error CS0231: Um parâmetro params deve ser o último parâmetro em uma lista de parâmetros
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O erro que importa é o <code>CS0231</code> (<em>A params parameter must be the last parameter in a parameter list</em>), na declaração. O <code>CS1501</code> da chamada é consequência. Pela mesma razão, um método só pode ter <strong>um</strong> <code>params</code>.</p>
+
+<h3>Todos os valores têm de ser do tipo da sacola</h3>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run paramstipo.cs           « Somar(7, 8, "10") com params int[]
+/home/ana/cs/paramstipo.cs(1,31): error CS1503: Argumento 3: não é possível converter de "string" para "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Cada valor solto é conferido como se fosse um argumento comum. Aqui, o terceiro é um texto, e a sacola é de <code>int</code>.</p>
+
+<hr>
+
+<h2>4. O cuidado com zero argumentos</h2>
+<p>Como <code>Somar()</code> compila, alguém vai chamar o seu método sem nada. Para uma soma, tudo bem: dá 0. Para uma média, não:</p>
+
+<pre class="file" data-file="media0.cs">Console.WriteLine(Media(7, 8, 9));
+Console.WriteLine(Media());
+
+int Media(params int[] notas)
+{
+    int soma = 0;
+    foreach (int n in notas) soma += n;
+    return soma / notas.Length;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run media0.cs
+8
+Unhandled exception. System.DivideByZeroException: Attempted to divide by zero.
+   at Program.&lt;&lt;Main&gt;$&gt;g__Media|0_0(Int32[] notas) in /home/ana/cs/media0.cs:line 8
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/media0.cs:line 2
+$ echo $?
+134</pre>
+
+<p>A primeira média deu 8. Na segunda, <code>notas.Length</code> é 0, e a divisão de inteiros por zero derruba o programa (<em>Attempted to divide by zero</em>, "tentou dividir por zero"), com o código de saída 134. Repare no caminho: <code>g__Media</code>, a função local, chamada da linha 2. Com <code>double</code>, o programa não quebra, mas mostra <code>NaN</code> ("não é um número"), o que também não ajuda ninguém.</p>
+
+<p>O conserto é testar o tamanho antes:</p>
+
+<pre class="file" data-file="trecho">int Media(params int[] notas)
+{
+    if (notas.Length == 0)
+    {
+        return 0;
+    }
+    int soma = 0;
+    foreach (int n in notas) soma += n;
+    return soma / notas.Length;
+}
+</pre>
+
+<p>Outra saída é obrigar pelo menos um valor, com um parâmetro comum antes: <code>int Media(int primeira, params int[] outras)</code>. Assim, <code>Media()</code> nem compila.</p>
+
+<hr>
+
+<h2>5. Você já usou <code>params</code></h2>
+<p>Vários métodos do .NET usam <code>params</code>:</p>
+
+<pre class="file" data-file="biblioparams.cs">Console.WriteLine(string.Join(", ", "arroz", "feijão", "café"));
+Console.WriteLine(string.Concat("Lo", "ji", "nha"));
+Console.WriteLine(Path.Combine("/home", "ana", "cs", "ola.cs"));
+Console.WriteLine(Math.Max(3, 9));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run biblioparams.cs
+arroz, feijão, café
+Lojinha
+/home/ana/cs/ola.cs
+9</pre>
+
+<p><code>string.Join</code>, <code>string.Concat</code> e <code>Path.Combine</code> aceitam quantos textos você quiser. O <code>Math.Max</code>, não: ele recebe exatamente dois números. <code>Math.Max(3, 9, 5)</code> dá <code>CS1501</code>. Para o maior de vários, use <code>new[] { 3, 9, 5 }.Max()</code> (aula <a href="linq.html">LINQ</a>).</p>
+
+<h3>Coleções no <code>params</code> <span class="versao">C# 13</span></h3>
+<p>Até o C# 12, o <code>params</code> só aceitava arrays. Desde o C# 13 (.NET 9), ele aceita também outras coleções, como <code>List&lt;T&gt;</code> e <code>ReadOnlySpan&lt;T&gt;</code>:</p>
+
+<pre class="file" data-file="paramsspan.cs">Console.WriteLine(Somar(7, 8, 10));
+Console.WriteLine(Contar("a", "b"));
+
+int Somar(params ReadOnlySpan&lt;int&gt; numeros)
+{
+    int total = 0;
+    foreach (int n in numeros) total += n;
+    return total;
+}
+
+int Contar(params List&lt;string&gt; itens) =&gt; itens.Count;
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run paramsspan.cs
+25
+2</pre>
+
+<p>A chamada é igual. A diferença está dentro do método: com <code>List&lt;string&gt;</code>, o tamanho é <code>Count</code> (<a href="list.html">List</a>); com <code>ReadOnlySpan&lt;int&gt;</code>, o .NET pode evitar criar um array novo a cada chamada, o que deixa métodos muito usados mais rápidos. É por isso que, no .NET 9 e 10, métodos como <code>string.Join</code> ganharam versões com <code>params ReadOnlySpan</code>. Para os seus programas, <code>params int[]</code> continua sendo a escolha simples.</p>
+
+<hr>
+
+<h2>Formas diferentes</h2>
+<p>Na forma com classe, o <code>params</code> funciona igual:</p>
+
+<pre class="file" data-file="classeparams.cs">class Program
+{
+    static void Main()
+    {
+        Console.WriteLine(Maior(4, 17, 9, 12));
+    }
+
+    static int Maior(params int[] numeros)
+    {
+        int maior = numeros[0];
+        foreach (int n in numeros)
+        {
+            if (n &gt; maior) maior = n;
+        }
+        return maior;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run classeparams.cs
+17</pre>
+
+<p>Atenção: <code>Maior()</code>, sem nada, compilaria e quebraria em <code>numeros[0]</code> com <code>IndexOutOfRangeException</code>. É o cuidado da seção 4 de novo.</p>
+
+<h3>Qual usar?</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>Quem chama vai escrever poucos valores soltos, em quantidade variável</td><td><code>params T[]</code></td></tr>
+<tr><td>Quem chama já tem os valores numa lista ou array</td><td>Parâmetro comum <code>T[]</code> ou <code>List&lt;T&gt;</code> (o <code>params</code> também aceita, mas não ajuda)</td></tr>
+<tr><td>Precisa de pelo menos um valor</td><td><code>(T primeiro, params T[] outros)</code></td></tr>
+<tr><td>Método muito chamado, em que cada array conta</td><td><code>params ReadOnlySpan&lt;T&gt;</code> <span class="versao">C# 13</span></td></tr>
+<tr><td>Sempre o mesmo número de valores</td><td>Parâmetros comuns</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0231: Um parâmetro params deve ser o último parâmetro em uma lista de parâmetros</code></strong>
+<p><strong>O que significa:</strong> há um parâmetro depois do <code>params</code>, ou dois <code>params</code> no mesmo método.</p>
+<p><strong>Como consertar:</strong> leve o <code>params</code> para o fim e deixe só um. Se você precisa de duas listas, use dois parâmetros array comuns.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1503: Argumento 3: não é possível converter de "string" para "int"</code></strong>
+<p><strong>O que significa:</strong> um dos valores soltos não é do tipo da sacola.</p>
+<p><strong>Como consertar:</strong> passe o valor do tipo certo (<code>10</code>, e não <code>"10"</code>). Se o valor vem do teclado, converta antes com <code>int.TryParse</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1501: Nenhuma sobrecarga para o método "Somar" leva 2 argumentos</code></strong>
+<p><strong>O que significa:</strong> você chamou com valores soltos um método que recebe um array comum, sem <code>params</code>. É o erro da primeira missão.</p>
+<p><strong>Como consertar:</strong> acrescente <code>params</code> na declaração, ou monte o array na chamada (<code>new int[] { 5, 10 }</code>, ou <code>[5, 10]</code> com as expressões de coleção do <span class="versao">C# 12</span>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>System.DivideByZeroException</code> ou <code>IndexOutOfRangeException</code> com zero argumentos</strong>
+<p><strong>O que significa:</strong> o método foi chamado sem nenhum valor, a sacola veio vazia, e o código dividiu por <code>Length</code> ou leu a posição <code>[0]</code>.</p>
+<p><strong>Como consertar:</strong> teste <code>if (numeros.Length == 0)</code> no começo do método, ou exija um primeiro valor com um parâmetro comum antes do <code>params</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>int Somar(params int[] numeros)</code></td><td>Aceita 0 ou mais <code>int</code>; dentro, <code>numeros</code> é um array</td></tr>
+<tr><td><code>Somar(1, 2, 3)</code></td><td>O compilador monta <code>new int[] { 1, 2, 3 }</code></td></tr>
+<tr><td><code>Somar()</code></td><td>Array vazio (<code>Length</code> = 0), nunca <code>null</code></td></tr>
+<tr><td><code>Somar(meuArray)</code></td><td>Usa o array pronto</td></tr>
+<tr><td><code>void M(string t, params string[] r)</code></td><td>O primeiro vai para <code>t</code>; os que sobram, para <code>r</code></td></tr>
+<tr><td><code>params ReadOnlySpan&lt;int&gt;</code>, <code>params List&lt;T&gt;</code></td><td>Coleções no <code>params</code> (C# 13)</td></tr>
+<tr><td>Regras</td><td>Só um <code>params</code>, sempre o último parâmetro</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A palavra</h3>
+<p>Complete a declaração para aceitar quantos nomes vierem:</p>
+<div class="ex-code">void Convidar(<input data-answer="params" aria-label="palavra"> string[] nomes)</div>
+</div>
+
+<div class="exercise">
+<h3>2. Quantos?</h3>
+<p>Com <code>void M(string titulo, params int[] v)</code>, quanto vale <code>v.Length</code> na chamada <code>M("x", 4, 5, 6)</code>?</p>
+<div class="ex-code"><input data-answer="3" aria-label="tamanho"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Nada</h3>
+<p>Com <code>int Contar(params int[] v) =&gt; v.Length;</code>, o que <code>Contar()</code> devolve?</p>
+<div class="ex-code"><input data-answer="0" aria-label="valor"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Qual declaração compila?</p>
+<label><input type="radio" name="q4"> <code>void M(params int[] a, string b)</code></label>
+<label><input type="radio" name="q4"> <code>void M(string b, params int[] a)</code></label>
+<label><input type="radio" name="q4"> <code>void M(params int[] a, params int[] b)</code></label>
+<label><input type="radio" name="q4"> <code>void M(params int a)</code></label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Dentro de <code>void M(params string[] itens)</code>, o que é <code>itens</code> quando a chamada é <code>M()</code>?</p>
+<label><input type="radio" name="q5"> <code>null</code></label>
+<label><input type="radio" name="q5"> Um array com um texto vazio</label>
+<label><input type="radio" name="q5"> Um array vazio, com <code>Length</code> 0</label>
+<label><input type="radio" name="q5"> Não compila</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que <code>Media()</code> derrubou o programa com <code>DivideByZeroException</code>?</p>
+<label><input type="radio" name="q6"> Porque a sacola veio vazia e o método dividiu a soma por <code>notas.Length</code>, que era 0</label>
+<label><input type="radio" name="q6"> Porque <code>params</code> não aceita zero argumentos</label>
+<label><input type="radio" name="q6"> Porque <code>notas</code> era <code>null</code></label>
+<label><input type="radio" name="q6"> Porque faltou o <code>return</code></label>
+</div>
+
+<h3>Missão final: o recibo de cada cliente</h3>
+
+<div class="trycs" data-goal="outre:^Cliente: Ana \| itens: 3 \| total: R\$ 18\,25\nCliente: Bruno \| itens: 1 \| total: R\$ 4\,50\nCliente: Carla \| itens: 0 \| total: R\$ 0\,00\n$,src:params\s+decimal\s*\[\s*\]">
+<p class="try-task"><strong>Missão:</strong> escreva o método <code>MostrarRecibo</code>. O primeiro parâmetro é o nome do cliente (<code>string</code>); depois vêm os preços dos produtos, quantos forem, num <code>params decimal[]</code>. Ele mostra uma linha com o nome, quantos itens vieram e o total, com <code>:C</code>. As chamadas já estão prontas. A saída deve ser:</p>
+<pre class="out">Cliente: Ana | itens: 3 | total: R$ 18,25
+Cliente: Bruno | itens: 1 | total: R$ 4,50
+Cliente: Carla | itens: 0 | total: R$ 0,00</pre>
+<pre class="script">MostrarRecibo("Ana", 12.50m, 3m, 2.75m);
+MostrarRecibo("Bruno", 4.50m);
+MostrarRecibo("Carla");
+
+// escreva o método MostrarRecibo aqui
+</pre>
+<pre class="solucao">MostrarRecibo("Ana", 12.50m, 3m, 2.75m);
+MostrarRecibo("Bruno", 4.50m);
+MostrarRecibo("Carla");
+
+void MostrarRecibo(string cliente, params decimal[] precos)
+{
+    decimal total = 0;
+    foreach (decimal preco in precos)
+    {
+        total += preco;
+    }
+    Console.WriteLine($"Cliente: {cliente} | itens: {precos.Length} | total: {total:C}");
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>params</code> deixa um método aceitar quantos argumentos vierem: o compilador junta os valores soltos num array.</li>
+  <li>Dentro do método, o parâmetro é um array comum (<code>Length</code>, <code>foreach</code>). A chamada pode passar valores soltos, um array pronto ou nada (array vazio, nunca <code>null</code>).</li>
+  <li>Parâmetros comuns vêm antes; o <code>params</code> é o último e único (<code>CS0231</code>). Cada valor tem de ser do tipo da sacola (<code>CS1503</code>).</li>
+  <li>Cuide do caso de zero argumentos: dividir por <code>Length</code> dá <code>DivideByZeroException</code>; ler <code>[0]</code> dá <code>IndexOutOfRangeException</code>.</li>
+  <li>Desde o <span class="versao">C# 13</span>, o <code>params</code> aceita coleções como <code>List&lt;T&gt;</code> e <code>ReadOnlySpan&lt;T&gt;</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
