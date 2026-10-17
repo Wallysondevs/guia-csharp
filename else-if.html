@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# else if — escolher entre vários caminhos | Guia C#</title>
+<meta name="description" content="else if em C# para quem nunca programou: uma cadeia de decisões em que só o primeiro caminho verdadeiro roda, por que a ordem das condições importa, o else final, faixas com &amp;&amp;, else if × vários if separados, elseif e elif (CS1002), else fora do lugar (CS8641) e CS0165, com saídas reais do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">else if</span></h1>
+
+<p class="intro">Com <a href="if-else.html">if e else</a>, o programa escolhe entre <strong>dois</strong> caminhos. Mas muitas decisões têm mais de dois: a nota vira conceito A, B, C ou D; a compra ganha 15%, 10%, 5% ou nenhum desconto; a temperatura é "frio", "agradável" ou "calor". Para isso existe o <code>else if</code> ("senão, se"): uma <strong>cadeia</strong> de perguntas, feitas uma de cada vez, em que só o primeiro caminho verdadeiro roda.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como montar uma cadeia <code>if</code> … <code>else if</code> … <code>else</code>.</li>
+  <li>Por que <strong>só o primeiro</strong> caminho verdadeiro roda, e por que a <strong>ordem</strong> das condições importa.</li>
+  <li>Quando o <code>else</code> final é necessário (e o erro <code>CS0165</code> sem ele).</li>
+  <li>A diferença entre <code>else if</code> e vários <code>if</code> separados.</li>
+  <li>Os erros de quem escreve <code>elseif</code> ou <code>elif</code>, ou põe o <code>else</code> no lugar errado.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana, na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: a fila de perguntas</h2>
+<p>Pense no porteiro de um parque de diversões que confere a altura das crianças, com uma lista de perguntas na mão:</p>
+<ol class="passo">
+  <li>"Tem 1,40 m ou mais?" Se sim: "pode ir na montanha-russa". <strong>Acabou</strong>, ele não lê o resto.</li>
+  <li>Se não: "tem 1,20 m ou mais?" Se sim: "pode ir no carrinho de bate-bate". Acabou.</li>
+  <li>Se não: "tem 1,00 m ou mais?" Se sim: "pode ir no carrossel". Acabou.</li>
+  <li>Se nenhuma deu certo: "só o parquinho, por enquanto".</li>
+</ol>
+<p>Duas coisas importam aqui: ele para na <strong>primeira</strong> resposta "sim", e a lista está na <strong>ordem certa</strong>, da exigência maior para a menor. Uma cadeia de <code>else if</code> funciona exatamente assim.</p>
+
+<hr>
+
+<h2>1. A primeira cadeia</h2>
+<p>A escola da Ana transforma a nota (de 0 a 10) num conceito: 9 ou mais é A, 7 ou mais é B, 5 ou mais é C, e abaixo disso é D.</p>
+
+<pre class="file" data-file="conceito.cs">double nota = 7.5;
+if (nota &gt;= 9)
+{
+    Console.WriteLine($"Nota {nota}: conceito A");
+}
+else if (nota &gt;= 7)
+{
+    Console.WriteLine($"Nota {nota}: conceito B");
+}
+else if (nota &gt;= 5)
+{
+    Console.WriteLine($"Nota {nota}: conceito C");
+}
+else
+{
+    Console.WriteLine($"Nota {nota}: conceito D");
+}
+Console.WriteLine("Boletim gerado.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run conceito.cs
+Nota 7,5: conceito B         « 7,5 &gt;= 9? não. 7,5 &gt;= 7? sim: para aqui
+Boletim gerado.</pre>
+
+<dl class="anatomy">
+  <dt>if (nota &gt;= 9)</dt><dd>A primeira pergunta. Se for <code>true</code>, roda o bloco do A e pula <strong>todo o resto</strong> da cadeia.</dd>
+  <dt>else if (nota &gt;= 7)</dt><dd>"Senão, se…": só é perguntado quando a anterior deu <code>false</code>. Por isso não precisa escrever <code>nota &lt; 9 &amp;&amp; nota &gt;= 7</code>: se o programa chegou aqui, a nota já é menor que 9.</dd>
+  <dt>else if (nota &gt;= 5)</dt><dd>Mais uma pergunta. Você pode pôr quantos <code>else if</code> quiser.</dd>
+  <dt>else</dt><dd>O último caminho, sem condição: roda quando <strong>todas</strong> as perguntas deram <code>false</code>. É opcional (seção 3).</dd>
+  <dt>Boletim gerado.</dt><dd>Depois da cadeia, o programa continua normalmente, seja qual for o caminho que rodou.</dd>
+</dl>
+
+<p>O <code>7,5</code> com vírgula na saída é a cultura brasileira da máquina da Ana: no código, o número se escreve com ponto (<code>7.5</code>); ao mostrar, o .NET usa a vírgula (aula <a href="decimais.html">float, double e decimal</a>).</p>
+
+<p>Como o programa caminha, para algumas notas:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Nota</th><th><code>&gt;= 9</code>?</th><th><code>&gt;= 7</code>?</th><th><code>&gt;= 5</code>?</th><th>Resultado</th></tr>
+<tr><td>9,5</td><td><strong>sim</strong></td><td>(não pergunta)</td><td>(não pergunta)</td><td>A</td></tr>
+<tr><td>7,5</td><td>não</td><td><strong>sim</strong></td><td>(não pergunta)</td><td>B</td></tr>
+<tr><td>5</td><td>não</td><td>não</td><td><strong>sim</strong></td><td>C</td></tr>
+<tr><td>3</td><td>não</td><td>não</td><td>não</td><td>D (o <code>else</code>)</td></tr>
+</table>
+</div>
+
+<div class="trycs" data-goal="outre:^Agradável\n$,src:else\s+if">
+<p class="try-task"><strong>Missão:</strong> o programa diz "Calor" a partir de 30 graus e "Frio" até 15 graus, mas para 22 graus ele mostra "Frio", errado. Transforme o <code>else</code> num <code>else if (temperatura &lt;= 15)</code> e acrescente um <code>else</code> final que mostre <code>Agradável</code>.</p>
+<pre class="out">Agradável</pre>
+<pre class="script">int temperatura = 22;
+if (temperatura &gt;= 30)
+{
+    Console.WriteLine("Calor");
+}
+else
+{
+    Console.WriteLine("Frio");
+}
+</pre>
+<pre class="solucao">int temperatura = 22;
+if (temperatura &gt;= 30)
+{
+    Console.WriteLine("Calor");
+}
+else if (temperatura &lt;= 15)
+{
+    Console.WriteLine("Frio");
+}
+else
+{
+    Console.WriteLine("Agradável");
+}
+</pre>
+</div>
+
+<p>Depois de passar, troque o 22 por 35, por 10, por 30 e por 15. Os limites (30 e 15) caem em "Calor" e "Frio", por causa do <code>&gt;=</code> e do <code>&lt;=</code>.</p>
+
+<hr>
+
+<h2>2. A ordem importa</h2>
+<p>Como a cadeia para na primeira condição verdadeira, a ordem das perguntas muda o resultado. Veja o que acontece se a Ana escrever as faixas de baixo para cima:</p>
+
+<pre class="file" data-file="ordem.cs">double nota = 9.5;
+if (nota &gt;= 5)
+{
+    Console.WriteLine("Conceito C");
+}
+else if (nota &gt;= 7)
+{
+    Console.WriteLine("Conceito B");
+}
+else if (nota &gt;= 9)
+{
+    Console.WriteLine("Conceito A");
+}
+else
+{
+    Console.WriteLine("Conceito D");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ordem.cs
+Conceito C          « a melhor nota da turma ganhou C!</pre>
+
+<p>9,5 é maior ou igual a 5, então a <strong>primeira</strong> pergunta já deu <code>true</code>, e o programa nem chegou às outras. Com essa ordem, nenhuma nota a partir de 5 consegue B ou A: esses dois blocos ficaram impossíveis de alcançar. E o compilador não avisa nada, porque ele não sabe o que você queria.</p>
+
+<div class="tip">
+<strong>Regra prática</strong>
+<p>Com <code>&gt;=</code>, comece pelo <strong>maior</strong> limite e desça (9, 7, 5). Com <code>&lt;</code> ou <code>&lt;=</code>, comece pelo <strong>menor</strong> e suba (<code>&lt; 5</code>, <code>&lt; 7</code>, <code>&lt; 9</code>). Se as faixas estiverem certas, cada pergunta "corta" um pedaço, e o que sobra vai para a próxima.</p>
+</div>
+
+<hr>
+
+<h2>3. O <code>else</code> final é opcional</h2>
+<p>Sem o <code>else</code> no fim, pode acontecer de <strong>nenhum</strong> caminho rodar:</p>
+
+<pre class="file" data-file="semelse.cs">int temperatura = 22;
+if (temperatura &gt;= 30)
+{
+    Console.WriteLine("Calor");
+}
+else if (temperatura &lt;= 15)
+{
+    Console.WriteLine("Frio");
+}
+Console.WriteLine("Fim da previsão.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run semelse.cs
+Fim da previsão.        « 22 não é calor nem frio: nenhum bloco rodou</pre>
+
+<p>Às vezes é isso mesmo que você quer (só avisar nos extremos). Mas quando a cadeia precisa <strong>sempre</strong> produzir um resultado, o <code>else</code> é obrigatório. O compilador sabe disso, e reclama quando uma variável pode ficar sem valor:</p>
+
+<pre class="file" data-file="semvalor.cs">int nota = 8;
+string conceito;
+if (nota &gt;= 9)
+{
+    conceito = "A";
+}
+else if (nota &gt;= 7)
+{
+    conceito = "B";
+}
+Console.WriteLine($"Conceito {conceito}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run semvalor.cs
+/home/ana/cs/semvalor.cs(11,31): error CS0165: Uso de variável local não atribuída "conceito"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Se a nota fosse 4, nenhuma das duas perguntas daria <code>true</code> e <code>conceito</code> ficaria sem valor. O compilador olha todos os caminhos, não só a nota 8 de agora. Acrescente <code>else { conceito = "C ou D"; }</code> e o erro some: agora todo caminho dá um valor.</p>
+
+<hr>
+
+<h2>4. <code>else if</code> não é uma palavra nova</h2>
+<p>Uma curiosidade que ajuda a entender: o C# não tem uma instrução <code>else if</code>. É só um <code>else</code> cujo bloco é <strong>outro</strong> <code>if</code>. A cadeia da seção 1 é exatamente este programa, escrito com <code>if</code>s "um dentro do outro":</p>
+
+<pre class="file" data-file="aninhado.cs">double nota = 7.5;
+if (nota &gt;= 9)
+{
+    Console.WriteLine("Conceito A");
+}
+else
+{
+    if (nota &gt;= 7)
+    {
+        Console.WriteLine("Conceito B");
+    }
+    else
+    {
+        if (nota &gt;= 5)
+        {
+            Console.WriteLine("Conceito C");
+        }
+        else
+        {
+            Console.WriteLine("Conceito D");
+        }
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run aninhado.cs
+Conceito B</pre>
+
+<p>Mesmo resultado, mas o código vai "entortando" para a direita a cada faixa. Escrever <code>else if</code> numa linha só é a forma de manter a cadeia reta e fácil de ler. É por isso que a regra "chaves sempre" da aula anterior tem uma única exceção aceita por todo mundo: entre o <code>else</code> e o <code>if</code>, não vão chaves.</p>
+
+<hr>
+
+<h2>5. Faixas com <code>&amp;&amp;</code></h2>
+<p>Às vezes fica mais claro escrever a faixa inteira, com <code>&amp;&amp;</code> ("e"). O cinema da Ana cobra meia-entrada de crianças com menos de 12 anos e de quem tem 60 ou mais:</p>
+
+<pre class="file" data-file="faixa.cs">int idade = 35;
+if (idade &lt; 12)
+{
+    Console.WriteLine("Criança: meia-entrada");
+}
+else if (idade &gt;= 12 &amp;&amp; idade &lt; 60)
+{
+    Console.WriteLine("Inteira");
+}
+else
+{
+    Console.WriteLine("60+: meia-entrada");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run faixa.cs
+Inteira</pre>
+
+<p>O <code>idade &gt;= 12</code> é redundante: se o programa chegou ao <code>else if</code>, a idade já não é menor que 12. Funciona igual com ou sem ele. Algumas pessoas preferem escrever a faixa completa porque ela se explica sozinha; outras preferem a forma curta. As duas estão certas.</p>
+
+<hr>
+
+<h2>6. <code>else if</code> ou vários <code>if</code>?</h2>
+<p>Parece a mesma coisa escrever três <code>if</code> separados, mas não é. Cada <code>if</code> separado é uma pergunta <strong>nova</strong>, feita sempre, e mais de um bloco pode rodar:</p>
+
+<pre class="file" data-file="separados.cs">double nota = 9.5;
+if (nota &gt;= 9)
+{
+    Console.WriteLine("Conceito A");
+}
+if (nota &gt;= 7)
+{
+    Console.WriteLine("Conceito B");
+}
+if (nota &gt;= 5)
+{
+    Console.WriteLine("Conceito C");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run separados.cs
+Conceito A          « 9,5 &gt;= 9
+Conceito B          « 9,5 &gt;= 7 também
+Conceito C          « e 9,5 &gt;= 5 também: três conceitos para uma nota!</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Cadeia <code>if</code> / <code>else if</code></th><th>Vários <code>if</code> separados</th></tr>
+<tr><td>Quantos blocos rodam</td><td>No máximo um (exatamente um, se tiver <code>else</code>)</td><td>Zero, um ou vários</td></tr>
+<tr><td>Quando usar</td><td>As opções se <strong>excluem</strong>: um conceito, uma faixa de desconto</td><td>As perguntas são <strong>independentes</strong>: "tem ovos?", "tem leite?", "tem pão?" (cada resposta gera um aviso)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Formas diferentes + qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>Dois caminhos</td><td><code>if</code> / <code>else</code> (<a href="if-else.html">if e else</a>)</td></tr>
+<tr><td>Três ou mais caminhos com <strong>faixas</strong> (<code>&gt;=</code>, <code>&lt;</code>) ou condições diferentes</td><td><code>if</code> / <code>else if</code> / <code>else</code> (esta aula)</td></tr>
+<tr><td>Vários caminhos que comparam <strong>a mesma variável</strong> com valores exatos (1, 2, 3; "pix", "cartão")</td><td><a href="switch.html">switch</a></td></tr>
+<tr><td>Escolher um <strong>valor</strong> por faixas, numa expressão</td><td><a href="switch-expressoes.html">Expressões switch</a> (<code>nota switch { &gt;= 9 =&gt; "A", … }</code>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>elseif</code> ou <code>elif</code>: <code>error CS1002: ; esperado</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat elseif.cs
+int nota = 8;
+if (nota &gt;= 9)
+{
+    Console.WriteLine("A");
+}
+elseif (nota &gt;= 7)
+{
+    Console.WriteLine("B");
+}
+$ dotnet run elseif.cs
+/home/ana/cs/elseif.cs(6,19): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> em C#, são <strong>duas</strong> palavras: <code>else if</code>. Grudadas, <code>elseif</code> vira um nome qualquer, e <code>elseif (nota &gt;= 7)</code> parece a chamada de um método chamado <code>elseif</code>. Uma chamada termina com <code>;</code>, e o compilador reclama que o <code>;</code> faltou no fim da linha 6 (coluna 19). Com o <code>elif</code> do Python, a mesma coisa: <code>elif.cs(6,17): error CS1002: ; esperado</code>.</p>
+<p><strong>Como consertar:</strong> <code>else if (nota &gt;= 7)</code>, com espaço. (Também existe <code>#elif</code> em C#, mas é outra coisa: uma diretiva do pré-processador, que você não vai usar agora.)</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8641: 'else' não pode iniciar uma instrução.</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat elseantes.cs
+int nota = 8;
+if (nota &gt;= 9)
+{
+    Console.WriteLine("A");
+}
+else
+{
+    Console.WriteLine("C");
+}
+else if (nota &gt;= 7)
+{
+    Console.WriteLine("B");
+}
+$ dotnet run elseantes.cs
+/home/ana/cs/elseantes.cs(9,2): error CS8641: 'else' não pode iniciar uma instrução.
+/home/ana/cs/elseantes.cs(9,2): error CS1003: Erro de sintaxe, "(" esperado
+/home/ana/cs/elseantes.cs(9,2): error CS1525: Termo de expressão inválido "else"
+/home/ana/cs/elseantes.cs(9,2): error CS1026: ) esperado
+/home/ana/cs/elseantes.cs(9,2): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>else</code> sem condição <strong>fecha</strong> a cadeia. Depois dele, a cadeia acabou, e o <code>else if</code> seguinte ficou sem <code>if</code> para se pendurar. Os quatro erros depois do primeiro são consequência dele.</p>
+<p><strong>Como consertar:</strong> o <code>else</code> sozinho vai sempre por <strong>último</strong>. Mova o <code>else if</code> para antes dele.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0165: Uso de variável local não atribuída</code> depois de uma cadeia</strong>
+<p><strong>O que significa:</strong> a cadeia não tem <code>else</code>, então existe um caminho em que a variável não recebe valor.</p>
+<p><strong>Como consertar:</strong> acrescente o <code>else</code> final dando um valor, ou dê um valor inicial na declaração.</p>
+</div>
+
+<div class="cenario">
+<strong>O programa compila, mas escolhe o caminho errado</strong>
+<p><strong>O que significa:</strong> quase sempre, a <strong>ordem</strong> das condições (seção 2) ou um <code>&gt;</code> no lugar de <code>&gt;=</code> nos limites. O compilador não tem como saber.</p>
+<p><strong>Como consertar:</strong> teste o programa com os valores <strong>dos limites</strong> (9, 7, 5) e com um valor de cada faixa. Se as faixas usam <code>&gt;=</code>, confira se elas estão do maior para o menor.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Estrutura</th><th>O que faz</th></tr>
+<tr><td><code>if (c1) { A } else if (c2) { B } else { C }</code></td><td>Roda A se <code>c1</code>; senão, B se <code>c2</code>; senão, C. Exatamente um dos três.</td></tr>
+<tr><td><code>if (c1) { A } else if (c2) { B }</code></td><td>Sem <code>else</code>: pode não rodar nenhum.</td></tr>
+<tr><td>Ordem das faixas com <code>&gt;=</code></td><td>Do maior limite para o menor.</td></tr>
+<tr><td>Ordem das faixas com <code>&lt;</code></td><td>Do menor limite para o maior.</td></tr>
+<tr><td><code>else</code> sozinho</td><td>Sempre o último da cadeia.</td></tr>
+<tr><td><code>elseif</code>, <code>elif</code></td><td>Não existem em C# (<code>CS1002</code>). Escreva <code>else if</code>.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Senão, se</h3>
+<p>Complete com as duas palavras que continuam a cadeia:</p>
+<div class="ex-code">if (x &gt; 0) { Console.WriteLine("positivo"); } <input data-answer="else if" aria-label="palavras"> (x &lt; 0) { Console.WriteLine("negativo"); } else { Console.WriteLine("zero"); }</div>
+</div>
+
+<div class="exercise">
+<h3>2. O que aparece?</h3>
+<p>Com <code>int pontos = 70;</code>, o que este código mostra?</p>
+<pre class="file">if (pontos &gt;= 90) { Console.WriteLine("Ouro"); }
+else if (pontos &gt;= 60) { Console.WriteLine("Prata"); }
+else if (pontos &gt;= 30) { Console.WriteLine("Bronze"); }
+else { Console.WriteLine("Sem medalha"); }
+</pre>
+<div class="ex-code">Saída: <input data-answer="Prata" aria-label="saída"></div>
+</div>
+
+<div class="exercise">
+<h3>3. O último da cadeia</h3>
+<p>Qual palavra, sozinha e sem condição, fecha uma cadeia de <code>else if</code>?</p>
+<div class="ex-code"><input data-answer="else" aria-label="palavra"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Com <code>int idade = 70;</code>, o que mostra <code>if (idade &gt;= 18) { Console.WriteLine("Adulto"); } else if (idade &gt;= 60) { Console.WriteLine("Idoso"); }</code>?</p>
+<label><input type="radio" name="q4"> <code>Idoso</code></label>
+<label><input type="radio" name="q4"> <code>Adulto</code></label>
+<label><input type="radio" name="q4"> <code>Adulto</code> e <code>Idoso</code></label>
+<label><input type="radio" name="q4"> Nada</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Qual é a diferença entre uma cadeia <code>if</code>/<code>else if</code> e vários <code>if</code> separados?</p>
+<label><input type="radio" name="q5"> Nenhuma: as duas formas rodam os mesmos blocos</label>
+<label><input type="radio" name="q5"> Vários <code>if</code> separados não compilam</label>
+<label><input type="radio" name="q5"> Na cadeia, no máximo um bloco roda; com <code>if</code> separados, vários podem rodar</label>
+<label><input type="radio" name="q5"> Na cadeia, todos os blocos verdadeiros rodam</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. O que o compilador responde a <code>elif (x &gt; 0)</code>?</p>
+<label><input type="radio" name="q6"> Um erro: <code>elif</code> não existe em C# (aparece como <code>CS1002: ; esperado</code>)</label>
+<label><input type="radio" name="q6"> Nada: <code>elif</code> é o mesmo que <code>else if</code></label>
+<label><input type="radio" name="q6"> Só um aviso</label>
+<label><input type="radio" name="q6"> Ele troca sozinho por <code>else if</code></label>
+</div>
+
+<h3>Missão final: o desconto progressivo</h3>
+
+<div class="trycs" data-goal="out:Desconto: 10%,out:Total: R$ 225\,00,src:else\s+if,semaviso">
+<p class="try-task"><strong>Missão:</strong> a lojinha da Ana dá desconto pelo valor da compra: <strong>15%</strong> a partir de R$ 500, <strong>10%</strong> a partir de R$ 200, <strong>5%</strong> a partir de R$ 100 e nenhum desconto abaixo disso. Monte a cadeia de <code>if</code> / <code>else if</code> / <code>else</code> que dá o valor certo a <code>desconto</code>. (Repare que <code>int desconto;</code> está sem valor: se faltar o <code>else</code>, você vai ver o <code>CS0165</code>.) Com a compra de 250, a saída deve ser:</p>
+<pre class="out">Desconto: 10%
+Total: R$ 225,00</pre>
+<pre class="script">decimal compra = 250m;
+int desconto;
+
+// escreva a cadeia aqui
+
+decimal total = compra - compra * desconto / 100;
+Console.WriteLine($"Desconto: {desconto}%");
+Console.WriteLine($"Total: R$ {total:N2}");
+</pre>
+<pre class="solucao">decimal compra = 250m;
+int desconto;
+
+if (compra &gt;= 500m)
+{
+    desconto = 15;
+}
+else if (compra &gt;= 200m)
+{
+    desconto = 10;
+}
+else if (compra &gt;= 100m)
+{
+    desconto = 5;
+}
+else
+{
+    desconto = 0;
+}
+
+decimal total = compra - compra * desconto / 100;
+Console.WriteLine($"Desconto: {desconto}%");
+Console.WriteLine($"Total: R$ {total:N2}");
+</pre>
+</div>
+
+<p>Teste com os limites: 500 (15%), 499,99 (10%), 200 (10%), 100 (5%) e 99,90 (0%). Se algum der errado, confira a ordem da cadeia.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>if</code> … <code>else if</code> … <code>else</code> escolhe entre vários caminhos. As perguntas são feitas em ordem, e <strong>só o primeiro</strong> caminho verdadeiro roda.</li>
+  <li>A <strong>ordem importa</strong>: com <code>&gt;=</code>, do maior limite para o menor. O compilador não avisa quando a ordem está errada.</li>
+  <li>O <code>else</code> final é opcional e vai sempre por último. Sem ele, pode não rodar nada, e uma variável pode ficar sem valor (<code>CS0165</code>).</li>
+  <li><code>else if</code> é um <code>else</code> cujo bloco é outro <code>if</code>; são duas palavras. <code>elseif</code> e <code>elif</code> não existem (<code>CS1002</code>).</li>
+  <li>Use a cadeia quando as opções se excluem; use <code>if</code>s separados quando as perguntas são independentes.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

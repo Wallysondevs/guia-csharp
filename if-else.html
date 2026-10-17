@@ -248,7 +248,7 @@ if (nota &gt;= 6) {          // estilo do C, do Java e do JavaScript: chave na m
 <h2>5. Duas armadilhas: <code>=</code> e <code>;</code></h2>
 
 <h3><code>if (x = 0)</code>: guardar no lugar de comparar</h3>
-<p>Um <code>=</code> sozinho <strong>guarda</strong> um valor; dois, <code>==</code>, <strong>comparam</strong> (aula <a href="operadores-comparacao.html">Operadores de Comparação</a>). Em C, <code>if (vidas = 0)</code> compila e zera as vidas sem avisar. Em C#, a regra da seção 3 pega o erro: <code>vidas = 0</code> dá um <code>int</code>, e o <code>if</code> exige <code>bool</code>.</p>
+<p>Um <code>=</code> sozinho <strong>guarda</strong> um valor; dois, <code>==</code>, <strong>comparam</strong> (aula <a href="operadores-comparacao.html">Operadores de Comparação</a>). Em C, <code>if (vidas = 0)</code> compila (no máximo com um aviso) e zera as vidas. Em C#, a regra da seção 3 pega o erro: <code>vidas = 0</code> dá um <code>int</code>, e o <code>if</code> exige <code>bool</code>.</p>
 
 <pre class="file" data-file="igual.cs">int vidas = 3;
 if (vidas = 0)
