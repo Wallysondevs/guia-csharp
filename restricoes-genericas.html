@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Restrições (where) — limitar o T de um genérico | Guia C#</title>
+<meta name="description" content="Restrições de generics em C# para quem nunca programou: where T : IComparable<T> para comparar, where T : ClasseBase para usar as propriedades, new() para criar objetos, class, struct e notnull, INumber<T> para somar qualquer número (generic math), várias restrições juntas e os erros reais CS0019, CS1061, CS0311, CS0315, CS0304, CS0310, CS0452, CS0453, CS0401 e CS8714, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Restrições</span> (where)</h1>
+
+<p class="intro">Na aula <a href="generics.html">Generics</a>, o método <code>Maior&lt;T&gt;</code> não compilou: o compilador não sabia se o <code>T</code> que ia chegar podia ser comparado com <code>&gt;</code>. Um <code>T</code> "livre" pode ser qualquer coisa, então só deixa você fazer o que qualquer coisa sabe fazer. Uma <strong>restrição</strong> (<code>where</code>) muda isso: ela diz quais tipos podem ocupar o <code>T</code> e, em troca, libera o que esses tipos sabem fazer.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma restrição e como escrevê-la: <code>where T : …</code>.</li>
+  <li><code>where T : IComparable&lt;T&gt;</code>: comparar qualquer tipo comparável.</li>
+  <li><code>where T : Animal</code>: usar as propriedades e os métodos de uma classe base.</li>
+  <li><code>where T : new()</code>: criar objetos do tipo <code>T</code>.</li>
+  <li><code>class</code>, <code>struct</code> e <code>notnull</code>.</li>
+  <li><code>where T : INumber&lt;T&gt;</code>: um método que soma <code>int</code>, <code>decimal</code> e <code>double</code> <span class="versao">C# 11</span>.</li>
+  <li>Várias restrições juntas, e todos os erros reais que elas provocam.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> na máquina da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Você pode repetir cada um no editor do guia.</p>
+
+<hr>
+
+<h2>A ideia: os requisitos de uma vaga</h2>
+<p>Um anúncio de emprego diz: "Vaga de motorista. <strong>Requisito: carteira de habilitação</strong>." A vaga é para "qualquer pessoa", mas só pode ser ocupada por quem cumpre o requisito. E, por causa do requisito, a empresa pode mandar quem for contratado <strong>dirigir</strong>, sem precisar perguntar se a pessoa sabe.</p>
+
+<p>Uma restrição é o requisito do <code>T</code>:</p>
+
+<pre class="syntax">  T Maior&lt;T&gt;(T a, T b) where T : IComparable&lt;T&gt;
+                       └──────────┬──────────┘
+         "T pode ser qualquer tipo, DESDE QUE seja comparável"</pre>
+
+<ul>
+  <li><strong>Para quem usa</strong> o genérico, ela é um limite: tipos que não cumprem o requisito são recusados <strong>na compilação</strong>.</li>
+  <li><strong>Para quem escreve</strong> o genérico, ela é uma garantia: dentro do método, você pode usar tudo o que o requisito promete (aqui, o <code>CompareTo</code>).</li>
+</ul>
+
+<hr>
+
+<h2>1. Comparar: <code>where T : IComparable&lt;T&gt;</code></h2>
+<p>Este é o <code>Maior</code> que não compilava na aula passada, agora com a restrição:</p>
+
+<pre class="file" data-file="maior.cs">Console.WriteLine(Maior(3, 7));
+Console.WriteLine(Maior("Ana", "Carla"));
+Console.WriteLine(Maior(2.5m, 1.5m));
+
+T Maior&lt;T&gt;(T a, T b) where T : IComparable&lt;T&gt;
+{
+    if (a.CompareTo(b) &gt; 0)
+        return a;
+    return b;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run maior.cs
+7
+Carla               « "Carla" vem depois de "Ana": é a "maior"
+2,5</pre>
+
+<dl class="anatomy">
+  <dt>where T : IComparable&lt;T&gt;</dt><dd>"Onde <code>T</code> é um tipo que sabe se comparar com outro <code>T</code>." O <code>where</code> ("onde") vem depois dos parâmetros do método e antes da chave <code>{</code>. Em classes, vem depois do nome: <code>class Ranking&lt;T&gt; where T : IComparable&lt;T&gt;</code>.</dd>
+  <dt>a.CompareTo(b) &gt; 0</dt><dd>A restrição garante que todo <code>T</code> tem <code>CompareTo</code> (aula <a href="comparacao.html">IComparable e IComparer</a>). Positivo quer dizer "<code>a</code> vem depois de <code>b</code>", ou seja, <code>a</code> é o maior.</dd>
+  <dt>Maior(3, 7), Maior("Ana", "Carla")…</dt><dd><code>int</code>, <code>string</code> e <code>decimal</code> implementam <code>IComparable</code>, então cumprem o requisito.</dd>
+</dl>
+
+<p>E um tipo que não sabe se comparar? Ele é barrado antes de o programa rodar:</p>
+
+<pre class="file" data-file="naoserve.cs">Console.WriteLine(Maior(new Aluno("Ana"), new Aluno("Bruno")));
+
+T Maior&lt;T&gt;(T a, T b) where T : IComparable&lt;T&gt;
+{
+    return a.CompareTo(b) &gt; 0 ? a : b;
+}
+
+record Aluno(string Nome);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run naoserve.cs
+/home/ana/cs/naoserve.cs(1,19): error CS0311: O tipo "Aluno" não pode ser usado como parâmetro de tipo "T" no tipo ou método genérico "Maior&lt;T&gt;(T, T)". Não há conversão de referência implícita de "Aluno" em "System.IComparable&lt;Aluno&gt;".
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Compare com a aula <a href="comparacao.html#falha">IComparable e IComparer</a>: lá, ordenar alunos que não sabiam se comparar compilava e explodia com <code>InvalidOperationException</code> <strong>durante a execução</strong>. Com a restrição, o mesmo engano vira um erro de compilação, apontando a linha 1. A mensagem diz: o <code>Aluno</code> não "é um" <code>IComparable&lt;Aluno&gt;</code>. O conserto é implementar a interface no <code>Aluno</code>.</p>
+
+<div class="trycs" data-goal="outre:^9\nuva\n0\,5\n$,src:where\s+T\s*:\s*IComparable">
+<p class="try-task"><strong>Missão:</strong> o método <code>Menor</code> não compila (<code>CS0019</code>: o <code>&lt;</code> não funciona com <code>T</code>). Acrescente a restrição <code>where T : IComparable&lt;T&gt;</code> e troque <code>a &lt; b</code> por <code>a.CompareTo(b) &lt; 0</code>.</p>
+<pre class="out">9
+uva
+0,5</pre>
+<pre class="script">Console.WriteLine(Menor(12, 9));
+Console.WriteLine(Menor("uva", "vagem"));
+Console.WriteLine(Menor(0.5m, 3.0m));
+
+T Menor&lt;T&gt;(T a, T b)
+{
+    if (a &lt; b)
+        return a;
+    return b;
+}
+</pre>
+<pre class="solucao">Console.WriteLine(Menor(12, 9));
+Console.WriteLine(Menor("uva", "vagem"));
+Console.WriteLine(Menor(0.5m, 3.0m));
+
+T Menor&lt;T&gt;(T a, T b) where T : IComparable&lt;T&gt;
+{
+    if (a.CompareTo(b) &lt; 0)
+        return a;
+    return b;
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Uma classe base: <code>where T : Animal</code></h2>
+<p>Sem restrição, o compilador não deixa usar nenhuma propriedade "do <code>T</code>", porque não sabe quais ele tem:</p>
+
+<pre class="file" data-file="semwhere.cs">var abrigo = new Abrigo&lt;string&gt;();
+
+class Abrigo&lt;T&gt;
+{
+    private readonly List&lt;T&gt; animais = [];
+
+    public void Chamada()
+    {
+        foreach (T animal in animais)
+            Console.WriteLine(animal.Nome);
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run semwhere.cs
+/home/ana/cs/semwhere.cs(10,38): error CS1061: ‘T’ não contém uma definição para "Nome" e não foi possível encontrar nenhum método de extensão "Nome" que aceite um primeiro argumento do tipo ‘T’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>De fato: alguém poderia criar um <code>Abrigo&lt;string&gt;</code>, como na primeira linha, e um texto não tem <code>Nome</code>. Com a restrição <code>where T : Animal</code>, o <code>T</code> só pode ser <code>Animal</code> ou uma classe filha dele (veja <a href="heranca.html">Herança</a>), e tudo o que o <code>Animal</code> tem fica liberado:</p>
+
+<pre class="file" data-file="base.cs">var gatos = new Abrigo&lt;Gato&gt;();
+gatos.Receber(new Gato { Nome = "Mingau" });
+gatos.Receber(new Gato { Nome = "Frajola" });
+gatos.Chamada();
+
+var caes = new Abrigo&lt;Cachorro&gt;();
+caes.Receber(new Cachorro { Nome = "Rex" });
+caes.Chamada();
+
+class Abrigo&lt;T&gt; where T : Animal
+{
+    private readonly List&lt;T&gt; animais = [];
+
+    public void Receber(T animal) =&gt; animais.Add(animal);
+
+    public void Chamada()
+    {
+        foreach (T animal in animais)
+            Console.WriteLine($"{animal.Nome}: {animal.Som()}");
+    }
+}
+
+abstract class Animal
+{
+    public string Nome { get; init; } = "";
+    public abstract string Som();
+}
+
+class Gato : Animal
+{
+    public override string Som() =&gt; "miau";
+}
+
+class Cachorro : Animal
+{
+    public override string Som() =&gt; "au au";
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run base.cs
+Mingau: miau
+Frajola: miau
+Rex: au au</pre>
+
+<dl class="anatomy">
+  <dt>class Abrigo&lt;T&gt; where T : Animal</dt><dd>"Um abrigo de <code>T</code>, onde <code>T</code> é algum tipo de animal."</dd>
+  <dt>animal.Nome, animal.Som()</dt><dd>Liberados pela restrição: todo <code>Animal</code> tem <code>Nome</code> e <code>Som()</code>. O <code>Som()</code> chamado é o da classe filha (o <code>override</code>; veja <a href="polimorfismo.html">Polimorfismo</a>).</dd>
+  <dt>new Abrigo&lt;Gato&gt;()</dt><dd>Um abrigo <strong>só de gatos</strong>: <code>gatos.Receber(new Cachorro { … })</code> daria <code>CS1503</code>. É isso que o genérico traz a mais do que um simples <code>List&lt;Animal&gt;</code>.</dd>
+</dl>
+
+<p>E <code>new Abrigo&lt;string&gt;()</code>, com a restrição? Agora quem recusa é a primeira linha: <code>error CS0311: O tipo "string" não pode ser usado como parâmetro de tipo "T" no tipo ou método genérico "Abrigo&lt;T&gt;". Não há conversão de referência implícita de "string" em "Animal".</code></p>
+
+<hr>
+
+<h2>3. Criar objetos: <code>where T : new()</code></h2>
+<p>Dentro de um genérico, <code>new T()</code> também é proibido: nem todo tipo tem um construtor sem parâmetros.</p>
+
+<pre class="file" data-file="novo.cs">var lista = CriarVarios&lt;Contador&gt;(3);
+Console.WriteLine(lista.Count);
+
+List&lt;T&gt; CriarVarios&lt;T&gt;(int quantos)
+{
+    var itens = new List&lt;T&gt;();
+    for (int i = 0; i &lt; quantos; i++)
+        itens.Add(new T());
+    return itens;
+}
+
+class Contador
+{
+    public int Valor { get; set; }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run novo.cs
+/home/ana/cs/novo.cs(8,19): error CS0304: Não é possível criar uma instância do tipo de variável "T" porque ela não tem a restrição new()
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A própria mensagem dá o conserto: a restrição <code>new()</code>, "o <code>T</code> tem de ter um construtor público sem parâmetros":</p>
+
+<pre class="file" data-file="novo2.cs">var lista = CriarVarios&lt;Contador&gt;(3);
+lista[0].Valor = 10;
+Console.WriteLine($"{lista.Count} contadores: {string.Join(", ", lista.Select(c =&gt; c.Valor))}");
+
+List&lt;T&gt; CriarVarios&lt;T&gt;(int quantos) where T : new()
+{
+    var itens = new List&lt;T&gt;();
+    for (int i = 0; i &lt; quantos; i++)
+        itens.Add(new T());
+    return itens;
+}
+
+class Contador
+{
+    public int Valor { get; set; }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run novo2.cs
+3 contadores: 10, 0, 0      « três objetos diferentes: só o primeiro mudou</pre>
+
+<p>O <code>Contador</code> não escreve construtor nenhum, então ganha o construtor vazio automático e cumpre o requisito. Uma classe cujo único construtor pede parâmetros, como <code>public Aluno(string nome)</code>, é recusada: <code>error CS0310: "Aluno" deve ser um tipo non-abstract com um construtor público sem-parâmetros para que possa ser usado como parâmetro "T"…</code>.</p>
+
+<hr>
+
+<h2>4. <code>class</code>, <code>struct</code> e <code>notnull</code></h2>
+<p>Três restrições dizem só "de que família" o tipo é:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Restrição</th><th>O <code>T</code> tem de ser…</th><th>Aceita</th><th>Recusa</th></tr>
+<tr><td><code>where T : class</code></td><td>um tipo de <strong>referência</strong> (classe, <code>string</code>, record, interface, array)</td><td><code>string</code>, <code>Aluno</code></td><td><code>int</code>, <code>decimal</code> (<code>CS0452</code>)</td></tr>
+<tr><td><code>where T : struct</code></td><td>um tipo de <strong>valor</strong> não anulável (veja <a href="valor-referencia.html">Valor × Referência</a>)</td><td><code>int</code>, <code>bool</code>, <code>DateTime</code>, enums</td><td><code>string</code>, <code>int?</code> (<code>CS0453</code>)</td></tr>
+<tr><td><code>where T : notnull</code></td><td>um tipo que não aceita <code>null</code></td><td><code>int</code>, <code>string</code></td><td><code>string?</code>, <code>int?</code> (só um <strong>aviso</strong>, <code>CS8714</code>)</td></tr>
+</table>
+</div>
+
+<pre class="term" data-cwd="~/cs">$ cat classstruct.cs
+var a = new SoReferencia&lt;int&gt;();
+var b = new SoValor&lt;string&gt;();
+
+class SoReferencia&lt;T&gt; where T : class { }
+class SoValor&lt;T&gt; where T : struct { }
+$ dotnet run classstruct.cs
+/home/ana/cs/classstruct.cs(1,26): error CS0452: O tipo "int" deve ser um tipo de referência para que seja usado como parâmetro "T" no tipo ou método genérico "SoReferencia&lt;T&gt;"
+/home/ana/cs/classstruct.cs(2,21): error CS0453: O tipo 'string' deve ser um tipo de valor não anulável para que seja usado como parâmetro 'T' no tipo ou método genérico 'SoValor&lt;T&gt;'
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O <code>notnull</code> é o que o próprio <code>Dictionary&lt;TKey, TValue&gt;</code> usa na chave: <code>where TKey : notnull</code>. Por isso uma chave <code>null</code> dá <code>ArgumentNullException</code> e o compilador avisa quando a chave pode ser <code>null</code>.</p>
+
+<hr>
+
+<h2>5. Somar qualquer número: <code>where T : INumber&lt;T&gt;</code> <span class="versao">C# 11</span></h2>
+<p>Até o C# 10, não havia como escrever um único <code>Somar</code> para <code>int</code>, <code>decimal</code> e <code>double</code>: o <code>+</code> não funciona com <code>T</code>. Desde o .NET 7, todos os tipos numéricos implementam a interface <code>INumber&lt;T&gt;</code> ("número"), que promete os operadores <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, as comparações e valores como <code>T.Zero</code>. É a chamada <em>generic math</em>, "matemática genérica":</p>
+
+<pre class="file" data-file="numeros.cs">using System.Numerics;
+
+List&lt;int&gt; quantidades = [3, 4, 5];
+List&lt;decimal&gt; precos = [18.90m, 5.49m, 6.76m];
+List&lt;double&gt; pesos = [1.5, 0.25];
+
+Console.WriteLine(Somar(quantidades));
+Console.WriteLine(Somar(precos));
+Console.WriteLine(Somar(pesos));
+
+T Somar&lt;T&gt;(List&lt;T&gt; valores) where T : INumber&lt;T&gt;
+{
+    T total = T.Zero;
+    foreach (T v in valores)
+        total += v;
+    return total;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run numeros.cs
+12
+31,15
+1,75</pre>
+
+<dl class="anatomy">
+  <dt>using System.Numerics;</dt><dd>O <em>namespace</em> do <code>INumber</code>. Ele <strong>não</strong> vem nos <code>using</code> automáticos. Sem esta linha: <code>error CS0246: O nome do tipo ou do namespace "INumber&lt;&gt;" não pode ser encontrado</code>.</dd>
+  <dt>where T : INumber&lt;T&gt;</dt><dd>"<code>T</code> é algum tipo de número." <code>int</code>, <code>long</code>, <code>decimal</code>, <code>double</code>, <code>float</code>… todos servem.</dd>
+  <dt>T total = T.Zero;</dt><dd>O zero "do tipo <code>T</code>": <code>0</code> para <code>int</code>, <code>0m</code> para <code>decimal</code>. Repare: é <code>T.Zero</code>, um membro chamado <strong>no próprio tipo</strong> (um membro estático de interface, novidade do C# 11).</dd>
+  <dt>total += v;</dt><dd>Liberado pela restrição: todo <code>INumber</code> sabe somar.</dd>
+</dl>
+
+<p>É assim que o <code>Sum()</code> do <a href="linq-agregar.html">LINQ</a> funciona para qualquer tipo de número.</p>
+
+<hr>
+
+<h2>6. Várias restrições juntas</h2>
+<p>Um mesmo <code>T</code> pode ter vários requisitos, separados por vírgula, e cada parâmetro de tipo tem o seu próprio <code>where</code>:</p>
+
+<pre class="file" data-file="varias.cs">class Cadastro&lt;TChave, TItem&gt;
+    where TChave : notnull
+    where TItem : class, IComparable&lt;TItem&gt;, new()
+{
+}
+</pre>
+
+<p>Leia: "a chave não pode ser nula; o item tem de ser uma classe, comparável, com construtor vazio". A <strong>ordem</strong> dentro de um <code>where</code> é fixa:</p>
+<ol>
+  <li>primeiro, a família: <code>class</code>, <code>struct</code>, <code>notnull</code> ou <code>unmanaged</code> (no máximo uma), ou uma classe base;</li>
+  <li>depois, as interfaces, quantas quiser;</li>
+  <li>por último, o <code>new()</code>.</li>
+</ol>
+
+<p>Fora dessa ordem, o compilador reclama. Com <code>where T : new(), class</code>:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run ordem.cs
+/home/ana/cs/ordem.cs(1,28): error CS0401: A restrição new() deve ser a última restrição restritiva especificada
+/home/ana/cs/ordem.cs(1,35): error CS0449: As restrições 'class', 'struct', 'unmanaged', 'notnull' e 'default' não podem ser combinadas nem duplicadas e precisam ser especificadas primeiro na lista de restrições.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<div class="tip">
+<strong>Quanto pedir?</strong>
+<p>Peça o <strong>mínimo</strong> de que o código precisa. Cada restrição a mais recusa tipos que poderiam funcionar. Se o método só compara, <code>IComparable&lt;T&gt;</code> basta; não exija também <code>class</code> e <code>new()</code> "por garantia".</p>
+</div>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0019: O operador "&gt;" não pode ser aplicado a operandos dos tipos "T" e "T"</code></strong> / <strong><code>error CS1061: ‘T’ não contém uma definição para "Nome"…</code></strong>
+<p><strong>O que significa:</strong> você usou com <code>T</code> algo que nem todo tipo tem: um operador ou uma propriedade.</p>
+<p><strong>Como consertar:</strong> acrescente a restrição que garante aquilo: <code>IComparable&lt;T&gt;</code> (e use <code>CompareTo</code>), <code>INumber&lt;T&gt;</code> (operadores de conta) ou uma classe base que tenha a propriedade.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0311</code> / <code>error CS0315: O tipo "…" não pode ser usado como parâmetro de tipo "T"… Não há conversão de referência implícita (ou boxing) de "…" em "…"</code></strong>
+<p><strong>O que significa:</strong> o tipo que você passou não cumpre o requisito do <code>where</code>. O <code>CS0311</code> aparece com classes; o <code>CS0315</code>, com tipos de valor como <code>int</code>. O fim da mensagem diz qual requisito falhou.</p>
+<p><strong>Como consertar:</strong> implemente a interface ou herde da classe pedida, ou use outro tipo.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0304: Não é possível criar uma instância do tipo de variável "T" porque ela não tem a restrição new()</code></strong>
+<p><strong>O que significa:</strong> há um <code>new T()</code> num genérico sem <code>where T : new()</code>.</p>
+<p><strong>Como consertar:</strong> acrescente <code>new()</code> no fim do <code>where</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0310: "Aluno" deve ser um tipo non-abstract com um construtor público sem-parâmetros…</code></strong>
+<p><strong>O que significa:</strong> o genérico pede <code>new()</code>, e o tipo passado só tem construtores com parâmetros (ou é abstrato).</p>
+<p><strong>Como consertar:</strong> dê à classe um construtor público sem parâmetros, ou repense se o genérico precisa mesmo criar objetos.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0452</code> (precisa ser referência) / <code>error CS0453</code> (precisa ser valor não anulável)</strong>
+<p><strong>O que significa:</strong> o genérico tem <code>where T : class</code> e recebeu um <code>int</code>, ou tem <code>where T : struct</code> e recebeu um <code>string</code> (ou um <code>int?</code>).</p>
+<p><strong>Como consertar:</strong> use um tipo da família pedida.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0401: A restrição new() deve ser a última restrição restritiva especificada</code></strong> (e <code>CS0449</code>)
+<p><strong>O que significa:</strong> as restrições estão fora de ordem.</p>
+<p><strong>Como consertar:</strong> família primeiro (<code>class</code>, <code>struct</code>…), interfaces no meio, <code>new()</code> no fim.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS8714: O tipo 'string?' não pode ser usado como parâmetro de tipo 'TChave'… A nulidade do argumento de tipo 'string?' não corresponde à restrição 'notnull'.</code></strong>
+<p><strong>O que significa:</strong> a restrição é <code>notnull</code>, e você passou um tipo anulável. É só um aviso, mas um <code>null</code> ali pode virar exceção depois.</p>
+<p><strong>Como consertar:</strong> tire o <code>?</code> (<code>Cadastro&lt;string&gt;</code>).</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Restrição</th><th>Exige</th><th>Libera</th></tr>
+<tr><td><code>where T : IComparable&lt;T&gt;</code></td><td>Tipo comparável</td><td><code>a.CompareTo(b)</code></td></tr>
+<tr><td><code>where T : UmaInterface</code></td><td>Implementa a interface</td><td>Os membros da interface</td></tr>
+<tr><td><code>where T : ClasseBase</code></td><td>É a classe ou uma filha</td><td>Os membros da classe base</td></tr>
+<tr><td><code>where T : new()</code></td><td>Construtor público sem parâmetros</td><td><code>new T()</code></td></tr>
+<tr><td><code>where T : class</code></td><td>Tipo de referência</td><td>Comparar com <code>null</code>, <code>T?</code> como referência anulável</td></tr>
+<tr><td><code>where T : struct</code></td><td>Tipo de valor não anulável</td><td><code>T?</code> como <code>Nullable&lt;T&gt;</code></td></tr>
+<tr><td><code>where T : notnull</code></td><td>Tipo não anulável</td><td>Usar como chave de dicionário sem aviso</td></tr>
+<tr><td><code>where T : INumber&lt;T&gt;</code> <span class="versao">C# 11</span></td><td>Tipo numérico (<code>using System.Numerics;</code>)</td><td><code>+ - * /</code>, <code>T.Zero</code>, <code>T.One</code>, comparações</td></tr>
+<tr><td><code>where T : class, IX, new()</code></td><td>Várias juntas</td><td>Ordem: família, interfaces, <code>new()</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A palavra da restrição</h3>
+<p>Complete para exigir que <code>T</code> seja comparável:</p>
+<div class="ex-code">T Maior&lt;T&gt;(T a, T b) <input data-answer="where" aria-label="palavra-chave"> T : IComparable&lt;T&gt;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Poder criar</h3>
+<p>Complete para o método poder fazer <code>new T()</code>:</p>
+<div class="ex-code">T Criar&lt;T&gt;() where T : <input data-answer="new()" aria-label="restrição"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">3. Com <code>class Abrigo&lt;T&gt; where T : Animal</code>, o que acontece com <code>new Abrigo&lt;string&gt;()</code>?</p>
+<label><input type="radio" name="q3"> Compila e dá exceção ao rodar</label>
+<label><input type="radio" name="q3"> Compila normalmente</label>
+<label><input type="radio" name="q3"> Erro de compilação <code>CS0311</code>: <code>string</code> não é um <code>Animal</code></label>
+<label><input type="radio" name="q3"> Erro <code>CS0304</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">4. Qual restrição permite usar <code>+</code> e <code>T.Zero</code> num método genérico?</p>
+<label><input type="radio" name="q4"> <code>where T : INumber&lt;T&gt;</code></label>
+<label><input type="radio" name="q4"> <code>where T : struct</code></label>
+<label><input type="radio" name="q4"> <code>where T : IComparable&lt;T&gt;</code></label>
+<label><input type="radio" name="q4"> <code>where T : new()</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Qual destas está na ordem certa?</p>
+<label><input type="radio" name="q5"> <code>where T : new(), class</code></label>
+<label><input type="radio" name="q5"> <code>where T : class, IComparable&lt;T&gt;, new()</code></label>
+<label><input type="radio" name="q5"> <code>where T : IComparable&lt;T&gt;, class</code></label>
+<label><input type="radio" name="q5"> <code>where T : new(), IComparable&lt;T&gt;</code></label>
+</div>
+
+<h3>Missão final: o total de qualquer coisa</h3>
+
+<div class="trycs" data-goal="out:Itens: 12,out:Total: R$ 31\,15,out:Peso: 1\,75 kg,exit:0,src:INumber\s*&lt;\s*T\s*&gt;">
+<p class="try-task"><strong>Missão:</strong> o caixa da lojinha soma quantidades (<code>int</code>), preços (<code>decimal</code>) e pesos (<code>double</code>), mas o <code>Somar</code> só aceita <code>int</code>. Torne-o genérico com <code>where T : INumber&lt;T&gt;</code> (não esqueça o <code>using System.Numerics;</code>), começando o total em <code>T.Zero</code>.</p>
+<pre class="out">Itens: 12
+Total: R$ 31,15
+Peso: 1,75 kg</pre>
+<pre class="script">List&lt;int&gt; quantidades = [3, 4, 5];
+List&lt;decimal&gt; precos = [18.90m, 5.49m, 6.76m];
+List&lt;double&gt; pesos = [1.5, 0.25];
+
+Console.WriteLine($"Itens: {Somar(quantidades)}");
+Console.WriteLine($"Total: {Somar(precos):C}");
+Console.WriteLine($"Peso: {Somar(pesos)} kg");
+
+int Somar(List&lt;int&gt; valores)
+{
+    int total = 0;
+    foreach (int v in valores)
+        total += v;
+    return total;
+}
+</pre>
+<pre class="solucao">using System.Numerics;
+
+List&lt;int&gt; quantidades = [3, 4, 5];
+List&lt;decimal&gt; precos = [18.90m, 5.49m, 6.76m];
+List&lt;double&gt; pesos = [1.5, 0.25];
+
+Console.WriteLine($"Itens: {Somar(quantidades)}");
+Console.WriteLine($"Total: {Somar(precos):C}");
+Console.WriteLine($"Peso: {Somar(pesos)} kg");
+
+T Somar&lt;T&gt;(List&lt;T&gt; valores) where T : INumber&lt;T&gt;
+{
+    T total = T.Zero;
+    foreach (T v in valores)
+        total += v;
+    return total;
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma restrição (<code>where T : …</code>) diz quais tipos podem ocupar o <code>T</code> e libera, dentro do genérico, o que esses tipos garantem.</li>
+  <li>Tipos que não cumprem o requisito são recusados na compilação (<code>CS0311</code>, <code>CS0315</code>, <code>CS0310</code>, <code>CS0452</code>, <code>CS0453</code>), e não com exceção durante a execução.</li>
+  <li><code>IComparable&lt;T&gt;</code> libera o <code>CompareTo</code>; uma classe base libera as propriedades e métodos dela; <code>new()</code> libera o <code>new T()</code>.</li>
+  <li><code>class</code>, <code>struct</code> e <code>notnull</code> dizem a família do tipo.</li>
+  <li><code>INumber&lt;T&gt;</code> (de <code>System.Numerics</code>) libera as contas e o <code>T.Zero</code>: um <code>Somar</code> para todos os números.</li>
+  <li>Várias restrições vão na ordem família, interfaces, <code>new()</code> (<code>CS0401</code>). Peça só o necessário.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
