@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Saída — Console.WriteLine e Console.Write | Guia C#</title>
+<meta name="description" content="Mostrar coisas no terminal em C#: Console.WriteLine, linha em branco, Console.Write sem pular linha, números e a vírgula do pt-BR, juntar textos com +, a armadilha do &quot;Total: &quot; + 2 + 3, \n e \t, a saída de erro Console.Error e os erros CS1501, CS0103 e CS0117, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Saída (Console.WriteLine)</span></h1>
+
+<p class="intro">Um programa que não mostra nada é como uma calculadora sem visor: pode até fazer a conta, mas ninguém fica sabendo o resultado. Desde a primeira aula você usa o <code>Console.WriteLine</code> para escrever no terminal. Nesta aula você conhece de perto ele e o seu irmão, o <code>Console.Write</code>: como pular linha (ou não), como mostrar números, como juntar textos e números numa frase só, e as armadilhas que fazem um programa mostrar <code>23</code> quando você esperava <code>5</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O <code>Console.WriteLine</code>, com texto e sem nada (a linha em branco).</li>
+  <li>O <code>Console.Write</code>, que escreve sem pular linha, e como os dois se combinam.</li>
+  <li>Como o C# mostra números, contas, <code>true</code>/<code>false</code> e caracteres, e por que sai <code>3,5</code> com vírgula.</li>
+  <li>Juntar textos com <code>+</code>, e a armadilha do <code>"Total: " + 2 + 3</code>.</li>
+  <li>Uma primeira olhada no <code>$"…{ }…"</code> e nos escapes <code>\n</code> e <code>\t</code>.</li>
+  <li>A saída de erro, <code>Console.Error.WriteLine</code>.</li>
+  <li>Os erros mais comuns: nome errado, aspas esquecidas, vírgula no lugar do <code>+</code>.</li>
+</ul>
+</div>
+
+<p>Os programas desta aula foram rodados na máquina fictícia da Ana com o <strong>.NET 10 SDK</strong> (C# 14), na pasta <code>~/cs/saida</code>, com <code>dotnet run arquivo.cs</code>. A máquina está em português do Brasil, e isso aparece nos números. As saídas foram copiadas da tela.</p>
+
+<hr>
+
+<h2>A ideia: o letreiro e a máquina de escrever</h2>
+<p>Pense numa <strong>máquina de escrever</strong> antiga. Você digita as letras, e o papel anda para a esquerda. Quando a linha acaba, você puxa a alavanca, e o papel <strong>desce uma linha</strong> e volta para o começo.</p>
+
+<p>O terminal funciona assim. O <code>Console</code> (a "máquina") tem duas teclas principais:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>Na máquina de escrever</th><th>Tradução do nome</th></tr>
+<tr><td><code>Console.Write("…")</code></td><td>Digita o texto e <strong>fica</strong> na mesma linha</td><td><em>write</em> = "escrever"</td></tr>
+<tr><td><code>Console.WriteLine("…")</code></td><td>Digita o texto e <strong>puxa a alavanca</strong>: a próxima escrita começa na linha de baixo</td><td><em>write line</em> = "escrever linha"</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. <code>Console.WriteLine</code></h2>
+<p>Cada <code>WriteLine</code> escreve o que estiver entre os parênteses e termina a linha. Sem nada entre os parênteses, ele só termina a linha: o resultado é uma <strong>linha em branco</strong>.</p>
+
+<pre class="file" data-file="writeline.cs">Console.WriteLine("Lojinha da Ana");
+Console.WriteLine();
+Console.WriteLine("Aberta de segunda a sábado.");
+</pre>
+
+<pre class="term" data-cwd="~/cs/saida">$ dotnet run writeline.cs
+Lojinha da Ana
+
+Aberta de segunda a sábado.</pre>
+
+<dl class="anatomy">
+  <dt>Console</dt><dd>A classe do .NET que representa o terminal (o "console"). Tudo o que se faz com o terminal começa com <code>Console.</code>.</dd>
+  <dt>.WriteLine</dt><dd>O método "escrever linha": escreve e pula para a linha de baixo. Escrito exatamente assim, com <strong>W</strong> e <strong>L</strong> maiúsculos (aula <a href="sintaxe.html">Sintaxe</a>).</dd>
+  <dt>("Lojinha da Ana")</dt><dd>O que vai ser escrito. Entre aspas, é um <strong>texto</strong> (uma <code>string</code>, aula <a href="strings.html">Strings</a>) e sai exatamente como está, acentos e espaços incluídos.</dd>
+  <dt>Console.WriteLine();</dt><dd>Sem nada entre os parênteses: escreve só a quebra de linha. Os parênteses continuam obrigatórios.</dd>
+</dl>
+
+<hr>
+
+<h2>2. <code>Console.Write</code>: escrever sem pular linha</h2>
+<p>O <code>Write</code> escreve e deixa o "cursor" parado logo depois do texto. O próximo <code>Write</code> ou <code>WriteLine</code> continua <strong>na mesma linha</strong>:</p>
+
+<pre class="file" data-file="write.cs">Console.Write("Arroz");
+Console.Write(", feijão");
+Console.Write(", café");
+Console.WriteLine(".");
+Console.WriteLine("Fim da lista.");
+</pre>
+
+<pre class="term" data-cwd="~/cs/saida">$ dotnet run write.cs
+Arroz, feijão, café.
+Fim da lista.</pre>
+
+<ol class="passo">
+  <li><code>Write("Arroz")</code> escreve <code>Arroz</code> e fica ali.</li>
+  <li><code>Write(", feijão")</code> continua: <code>Arroz, feijão</code>. O espaço depois da vírgula está <strong>dentro</strong> das aspas; o <code>Write</code> não põe espaço nenhum por conta própria.</li>
+  <li><code>Write(", café")</code>: <code>Arroz, feijão, café</code>.</li>
+  <li><code>WriteLine(".")</code> escreve o ponto e, agora sim, termina a linha.</li>
+  <li><code>WriteLine("Fim da lista.")</code> começa na linha de baixo.</li>
+</ol>
+
+<p>A regra: <strong>o <code>WriteLine</code> pula a linha depois do texto, nunca antes.</strong> Quem escolhe onde a linha acaba é sempre o último a escrever nela.</p>
+
+<h3>O último <code>Write</code> do programa</h3>
+<p>Se o programa termina com um <code>Write</code>, a linha fica sem fim, e o terminal escreve o prompt dele grudado no seu texto:</p>
+
+<pre class="file" data-file="semfim.cs">Console.Write("Tchau!");
+</pre>
+
+<pre class="term" data-cwd="~/cs/saida">$ dotnet run semfim.cs
+Tchau!ana@notebook:~/cs/saida$          « o prompt colou no Tchau!</pre>
+
+<p>Não é um erro do programa, mas fica feio. Por isso a última escrita de um programa é quase sempre um <code>WriteLine</code>.</p>
+
+<div class="tip">
+<strong>Para que serve o <code>Write</code>, então?</strong>
+<p>Para montar uma linha aos pedaços, como no <code>write.cs</code>, e principalmente para fazer <strong>perguntas</strong>: <code>Console.Write("Seu nome: ");</code> deixa o cursor esperando na mesma linha, logo depois dos dois-pontos, para a pessoa digitar a resposta com o <code>Console.ReadLine()</code> (aula <a href="readline.html">Ler do Teclado</a>).</p>
+</div>
+
+<div class="trycs" data-goal="outre:^Compras: arroz\, feijão\, café\.\n$,src:Console\.Write\(">
+<p class="try-task"><strong>Missão:</strong> o programa escreve cada item numa linha. Faça a lista sair <strong>numa linha só</strong>: <code>Compras: arroz, feijão, café.</code>. Troque os <code>WriteLine</code> que devem continuar na mesma linha por <code>Write</code> e acerte as vírgulas e os espaços dentro das aspas.</p>
+<pre class="script">Console.WriteLine("Compras: ");
+Console.WriteLine("arroz");
+Console.WriteLine("feijão");
+Console.WriteLine("café");
+</pre>
+<pre class="solucao">Console.Write("Compras: ");
+Console.Write("arroz, ");
+Console.Write("feijão, ");
+Console.WriteLine("café.");
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Números, contas e outros valores</h2>
+<p>O <code>WriteLine</code> não escreve só textos. Ele aceita números, contas e outros valores, e transforma cada um em texto para mostrar:</p>
+
+<pre class="file" data-file="numeros.cs">Console.WriteLine(29);
+Console.WriteLine(3.5);
+Console.WriteLine(10 + 5);
+Console.WriteLine(10 / 4);
+Console.WriteLine(10.0 / 4);
+Console.WriteLine(true);
+Console.WriteLine('A');
+Console.WriteLine(12.50m);
+</pre>
+
+<pre class="term" data-cwd="~/cs/saida">$ dotnet run numeros.cs
+29
+3,5
+15
+2
+2,5
+True
+A
+12,50</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>No código</th><th>Na tela</th><th>Por quê</th></tr>
+<tr><td><code>29</code></td><td><code>29</code></td><td>Um número inteiro, sem aspas.</td></tr>
+<tr><td><code>3.5</code></td><td><code>3,5</code></td><td>No código, a casa decimal é sempre com <strong>ponto</strong>. Na tela, o .NET usa o costume do país do computador, e no Brasil é <strong>vírgula</strong>. (Num computador em inglês, sairia <code>3.5</code>. A aula <a href="cultura.html">Cultura</a> explica como escolher.)</td></tr>
+<tr><td><code>10 + 5</code></td><td><code>15</code></td><td>Sem aspas, é uma conta: o C# calcula primeiro e mostra o resultado.</td></tr>
+<tr><td><code>10 / 4</code></td><td><code>2</code></td><td>Divisão entre <strong>inteiros</strong> dá um inteiro: a parte depois da vírgula é jogada fora. Surpresa comum, explicada em <a href="operadores-aritmeticos.html">Operadores Aritméticos</a>.</td></tr>
+<tr><td><code>10.0 / 4</code></td><td><code>2,5</code></td><td>Com um número decimal na conta, o resultado é decimal.</td></tr>
+<tr><td><code>true</code></td><td><code>True</code></td><td>Um valor "verdadeiro" (<code>bool</code>). Repare: no código é <code>true</code>, minúsculo; na tela sai <code>True</code>, com maiúscula. Aula <a href="char-bool.html">char e bool</a>.</td></tr>
+<tr><td><code>'A'</code></td><td><code>A</code></td><td>Um caractere (<code>char</code>), entre aspas simples.</td></tr>
+<tr><td><code>12.50m</code></td><td><code>12,50</code></td><td>Um <code>decimal</code>, o tipo do dinheiro (o <code>m</code> marca o tipo). Ele guarda o zero do fim. Aula <a href="decimais.html">float, double e decimal</a>.</td></tr>
+</table>
+</div>
+
+<p>Você não precisa entender todos os tipos agora; eles têm aulas próprias, a partir de <a href="tipos-dados.html">Tipos de Dados</a>. O importante é: <strong>com aspas, o C# mostra o texto como está; sem aspas, ele calcula o valor e mostra o resultado.</strong></p>
+
+<hr>
+
+<h2>4. Juntar texto e número com <code>+</code></h2>
+<p>Para escrever uma frase com um número no meio, junte as partes com <code>+</code>. Entre dois textos (ou entre um texto e um número), o <code>+</code> não soma: ele <strong>emenda</strong>. Isso se chama <strong>concatenação</strong>:</p>
+
+<pre class="file" data-file="juntar.cs">Console.WriteLine("Idade: " + 29);
+Console.WriteLine("2" + "3");
+Console.WriteLine(2 + 3);
+Console.WriteLine("Total: " + 2 + 3);
+Console.WriteLine("Total: " + (2 + 3));
+Console.WriteLine(2 + 3 + " itens");
+</pre>
+
+<pre class="term" data-cwd="~/cs/saida">$ dotnet run juntar.cs
+Idade: 29
+23
+5
+Total: 23                « opa!
+Total: 5
+5 itens</pre>
+
+<dl class="anatomy">
+  <dt>"Idade: " + 29</dt><dd>Texto + número: o número vira texto e é emendado. O espaço depois dos dois-pontos está dentro das aspas.</dd>
+  <dt>"2" + "3"</dt><dd>Dois <strong>textos</strong>: emenda, e dá o texto <code>23</code>.</dd>
+  <dt>2 + 3</dt><dd>Dois <strong>números</strong>: soma, e dá <code>5</code>.</dd>
+  <dt>"Total: " + 2 + 3</dt><dd>A armadilha. O C# faz as contas da <strong>esquerda para a direita</strong>: primeiro <code>"Total: " + 2</code>, que dá o texto <code>"Total: 2"</code>; depois <code>"Total: 2" + 3</code>, que emenda mais um <code>3</code>. Resultado: <code>Total: 23</code>.</dd>
+  <dt>"Total: " + (2 + 3)</dt><dd>O conserto: os <strong>parênteses</strong> mandam fazer a soma antes. <code>2 + 3</code> vira <code>5</code>, e só depois é emendado.</dd>
+  <dt>2 + 3 + " itens"</dt><dd>Aqui a conta vem primeiro, da esquerda: <code>2 + 3</code> dá <code>5</code>, e então <code>5 + " itens"</code> emenda.</dd>
+</dl>
+
+<div class="trycs" data-goal="out:Total: 5 itens,src:\+\s*\(">
+<p class="try-task"><strong>Missão:</strong> a Ana comprou 2 cadernos e 3 canetas e quer ver <code>Total: 5 itens</code>, mas o programa mostra <code>Total: 23 itens</code>. Conserte com parênteses, sem tirar o <code>2 + 3</code> do código.</p>
+<pre class="script">Console.WriteLine("Total: " + 2 + 3 + " itens");
+</pre>
+<pre class="solucao">Console.WriteLine("Total: " + (2 + 3) + " itens");
+</pre>
+</div>
+
+<h3>Um jeito mais fácil: <code>$"…"</code></h3>
+<p>Emendar muitas partes com <code>+</code> cansa e dá margem a erro. O C# tem um jeito mais limpo, a <strong>interpolação</strong>: um <code>$</code> antes das aspas, e os valores entre chaves <code>{ }</code> no meio do texto. O que está entre chaves é calculado:</p>
+
+<pre class="file" data-file="interp.cs">Console.WriteLine($"A Ana tem {29} anos e {10 + 5} maçãs.");
+</pre>
+
+<pre class="term" data-cwd="~/cs/saida">$ dotnet run interp.cs
+A Ana tem 29 anos e 15 maçãs.</pre>
+
+<p>Com variáveis (a próxima parte do guia, a partir de <a href="variaveis.html">Variáveis</a>), essa forma fica ainda mais útil: <code>$"Olá, {nome}!"</code>. Ela é a preferida no C# moderno e tem aula própria: <a href="interpolacao.html">Interpolação</a>. Você ainda vai encontrar, em código antigo, a forma com números entre chaves, <code>Console.WriteLine("{0} tem {1} anos.", "Ana", 29);</code>, que mostra <code>Ana tem 29 anos.</code>; o <code>{0}</code> é trocado pelo primeiro valor depois do texto, o <code>{1}</code> pelo segundo.</p>
+
+<hr>
+
+<h2>5. Quebras de linha e tabulação dentro do texto</h2>
+<p>Dentro das aspas, a barra invertida <code>\</code> começa uma <strong>sequência de escape</strong>: um código para um caractere que não dá para digitar direto. As três mais usadas:</p>
+
+<pre class="file" data-file="escapes.cs">Console.WriteLine("Arroz\nFeijão");
+Console.WriteLine("Item\tPreço");
+Console.WriteLine("Ela disse \"oi\".");
+</pre>
+
+<pre class="term" data-cwd="~/cs/saida">$ dotnet run escapes.cs
+Arroz
+Feijão
+Item	Preço
+Ela disse "oi".</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escape</th><th>Vira</th></tr>
+<tr><td><code>\n</code></td><td>Uma quebra de linha (<em>new line</em>), no meio do texto</td></tr>
+<tr><td><code>\t</code></td><td>Uma tabulação (<em>tab</em>), um espaço largo que alinha colunas</td></tr>
+<tr><td><code>\"</code></td><td>Uma aspa dentro do texto, sem fechá-lo</td></tr>
+</table>
+</div>
+
+<p>A lista completa, e os textos de várias linhas com <code>"""</code>, estão em <a href="escapes.html">Escapes e Strings Literais</a>. Para começar, prefira um <code>WriteLine</code> por linha: é mais fácil de ler que um texto cheio de <code>\n</code>.</p>
+
+<hr>
+
+<h2>6. A saída de erro: <code>Console.Error</code></h2>
+<p>Todo programa tem, na verdade, <strong>duas</strong> saídas: a <strong>saída padrão</strong> (<em>standard output</em>), para os resultados, e a <strong>saída de erro</strong> (<em>standard error</em>), para avisos e mensagens de problema. O <code>Console.WriteLine</code> escreve na primeira; o <code>Console.Error.WriteLine</code>, na segunda:</p>
+
+<pre class="file" data-file="erro.cs">Console.WriteLine("Calculando...");
+Console.Error.WriteLine("Atenção: estoque baixo!");
+Console.WriteLine("Pronto.");
+</pre>
+
+<pre class="term" data-cwd="~/cs/saida">$ dotnet run erro.cs
+Calculando...
+Atenção: estoque baixo!
+Pronto.
+$ dotnet run erro.cs 2&gt;/dev/null
+Calculando...
+Pronto.                  « a saída de erro foi descartada
+$ dotnet run erro.cs &gt;/dev/null
+Atenção: estoque baixo!  « só sobrou a saída de erro</pre>
+
+<p>Na tela, as duas aparecem misturadas e parecem iguais. A diferença surge quando a saída é redirecionada: o <code>2&gt;/dev/null</code> do terminal joga fora só a saída de erro, e o <code>&gt;/dev/null</code> joga fora só a padrão. Assim, quem guarda os resultados de um programa num arquivo não recebe os avisos misturados. (Os redirecionamentos são do terminal, não do C#; no editor do guia, as duas saídas aparecem juntas, na ordem.) Por enquanto, use o <code>Console.WriteLine</code> para tudo; o <code>Console.Error</code> volta a aparecer com as <a href="excecoes.html">Exceções</a>.</p>
+
+<hr>
+
+<h2>Write ou WriteLine: qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>Uma linha completa de texto</td><td><code>Console.WriteLine("…")</code></td></tr>
+<tr><td>Uma linha em branco</td><td><code>Console.WriteLine()</code></td></tr>
+<tr><td>Uma pergunta, com a resposta na mesma linha</td><td><code>Console.Write("Nome: ")</code></td></tr>
+<tr><td>Uma linha montada aos pedaços</td><td>vários <code>Write</code> e um <code>WriteLine</code> no fim</td></tr>
+<tr><td>Uma frase com valores no meio</td><td><code>Console.WriteLine($"… {valor} …")</code></td></tr>
+<tr><td>A última escrita do programa</td><td><code>WriteLine</code>, para o prompt não grudar</td></tr>
+<tr><td>Um aviso de problema</td><td><code>Console.Error.WriteLine("…")</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0117: "Console" não contém uma definição para "Writeln"</code></strong>
+<p><strong>O que significa:</strong> o nome do método está errado. Os enganos mais comuns são <code>Writeln</code> (de outras linguagens), <code>Writeline</code> e <code>writeline</code>:</p>
+<pre class="term" data-cwd="~/cs/saida">$ dotnet run writeln.cs
+/home/ana/cs/saida/writeln.cs(1,9): error CS0117: "Console" não contém uma definição para "Writeln"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>Como consertar:</strong> <code>WriteLine</code>, com <strong>W</strong> e <strong>L</strong> maiúsculos, ou <code>Write</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0103: O nome "print" não existe no contexto atual</code></strong>
+<p><strong>O que significa:</strong> quem vem do Python escreve <code>print("Olá");</code>. Em C#, não existe um <code>print</code> solto: tudo o que escreve no terminal está dentro do <code>Console</code>.</p>
+<p><strong>Como consertar:</strong> <code>Console.WriteLine("Olá");</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0103: O nome "Olá" não existe no contexto atual</code></strong>
+<p><strong>O que significa:</strong> faltaram as aspas. Sem elas, o C# acha que <code>Olá</code> é o nome de alguma coisa (uma variável, por exemplo) e não acha nada com esse nome:</p>
+<pre class="term" data-cwd="~/cs/saida">$ dotnet run semaspas.cs                « Console.WriteLine(Olá);
+/home/ana/cs/saida/semaspas.cs(1,19): error CS0103: O nome "Olá" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>Como consertar:</strong> texto vai entre aspas duplas: <code>Console.WriteLine("Olá");</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1501: Nenhuma sobrecarga para o método "Write" leva 0 argumentos</code></strong>
+<p><strong>O que significa:</strong> <code>Console.Write();</code>, vazio. O <code>WriteLine()</code> vazio existe (escreve uma linha em branco), mas o <code>Write()</code> vazio não faria nada, e por isso não existe. "Sobrecarga" é cada uma das versões de um método (aula <a href="sobrecarga.html">Sobrecarga</a>); "argumento" é o que vai entre os parênteses. Em inglês: <code>No overload for method 'Write' takes 0 arguments</code>.</p>
+<p><strong>Como consertar:</strong> ponha o que escrever, ou troque por <code>Console.WriteLine();</code> se queria uma linha em branco.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1003: Erro de sintaxe, "," esperado</code></strong>
+<p><strong>O que significa:</strong> dois textos lado a lado, sem nada entre eles: <code>Console.WriteLine("Arroz" "Feijão");</code>.</p>
+<pre class="term" data-cwd="~/cs/saida">$ dotnet run dois.cs
+/home/ana/cs/saida/dois.cs(1,27): error CS1003: Erro de sintaxe, "," esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>Como consertar:</strong> o compilador sugere uma vírgula, mas o que você quer é <strong>emendar</strong>: use <code>+</code> (<code>"Arroz" + "Feijão"</code>). E veja o próximo cenário: com a vírgula, compila, mas não faz o que você quer.</p>
+</div>
+
+<div class="cenario">
+<strong>Compila, mas o número não aparece: <code>Console.WriteLine("Idade:", 29);</code></strong>
+<p><strong>O que significa:</strong> com uma vírgula, o <code>29</code> não é emendado: ele vira um valor extra para o <code>{0}</code> da forma antiga (seção 4). Como o texto não tem <code>{0}</code>, o valor é ignorado, sem erro e sem aviso:</p>
+<pre class="term" data-cwd="~/cs/saida">$ dotnet run virgula.cs
+Idade:                   « cadê o 29?
+Ana tem 29 anos.</pre>
+<p>A segunda linha do <code>virgula.cs</code> é <code>Console.WriteLine("{0} tem {1} anos.", "Ana", 29);</code>: com os <code>{0}</code> e <code>{1}</code>, a vírgula funciona.</p>
+<p><strong>Como consertar:</strong> use <code>+</code> (<code>"Idade: " + 29</code>) ou, melhor, a interpolação: <code>$"Idade: {29}"</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Aparece <code>23</code> no lugar de <code>5</code></strong>
+<p><strong>O que significa:</strong> uma conta depois de um texto, com <code>+</code>: <code>"Total: " + 2 + 3</code> emenda o 2 e depois o 3 (seção 4).</p>
+<p><strong>Como consertar:</strong> parênteses em volta da conta, <code>"Total: " + (2 + 3)</code>, ou interpolação, <code>$"Total: {2 + 3}"</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Mostra</th></tr>
+<tr><td><code>Console.WriteLine("Olá");</code></td><td><code>Olá</code> e pula a linha</td></tr>
+<tr><td><code>Console.WriteLine();</code></td><td>Uma linha em branco</td></tr>
+<tr><td><code>Console.Write("Olá");</code></td><td><code>Olá</code>, sem pular a linha</td></tr>
+<tr><td><code>Console.WriteLine(10 + 5);</code></td><td><code>15</code></td></tr>
+<tr><td><code>Console.WriteLine(3.5);</code></td><td><code>3,5</code> (computador em pt-BR)</td></tr>
+<tr><td><code>Console.WriteLine("Idade: " + 29);</code></td><td><code>Idade: 29</code></td></tr>
+<tr><td><code>Console.WriteLine("Total: " + (2 + 3));</code></td><td><code>Total: 5</code></td></tr>
+<tr><td><code>Console.WriteLine($"Total: {2 + 3}");</code></td><td><code>Total: 5</code></td></tr>
+<tr><td><code>Console.WriteLine("{0} e {1}", "A", "B");</code></td><td><code>A e B</code> (forma antiga)</td></tr>
+<tr><td><code>"…\n…"</code> / <code>"…\t…"</code> / <code>"…\"…"</code></td><td>Quebra de linha / tabulação / aspas</td></tr>
+<tr><td><code>Console.Error.WriteLine("…");</code></td><td>Escreve na saída de erro</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Sem pular linha</h3>
+<p>Complete o método que escreve sem pular a linha:</p>
+<div class="ex-code">Console.<input data-answer="Write" aria-label="método">("Nome: ");</div>
+</div>
+
+<div class="exercise">
+<h3>2. Linha em branco</h3>
+<p>Complete a instrução que escreve uma linha em branco:</p>
+<div class="ex-code">Console.WriteLine<input data-answer="();|()" aria-label="resto da instrução"></div>
+</div>
+
+<div class="exercise">
+<h3>3. A conta</h3>
+<p>O que aparece na tela com <code>Console.WriteLine(7 + 3);</code>?</p>
+<div class="ex-code"><input data-answer="10" aria-label="saída"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. O que mostra <code>Console.WriteLine("7" + "3");</code>?</p>
+<label><input type="radio" name="q4"> <code>10</code></label>
+<label><input type="radio" name="q4"> <code>7 + 3</code></label>
+<label><input type="radio" name="q4"> <code>73</code></label>
+<label><input type="radio" name="q4"> Um erro de compilação</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Quantas linhas aparecem? <code>Console.Write("A"); Console.Write("B"); Console.WriteLine("C"); Console.WriteLine("D");</code></p>
+<label><input type="radio" name="q5"> 4: uma para cada letra</label>
+<label><input type="radio" name="q5"> 2: <code>ABC</code> e <code>D</code></label>
+<label><input type="radio" name="q5"> 1: <code>ABCD</code></label>
+<label><input type="radio" name="q5"> 3: <code>AB</code>, <code>C</code> e <code>D</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Num computador em português do Brasil, o que mostra <code>Console.WriteLine(2.5);</code>?</p>
+<label><input type="radio" name="q6"> <code>2,5</code></label>
+<label><input type="radio" name="q6"> <code>2.5</code></label>
+<label><input type="radio" name="q6"> <code>2</code></label>
+<label><input type="radio" name="q6"> Um erro: no código deveria ser <code>2,5</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">7. O que mostra <code>Console.WriteLine("Pontos: " + 4 + 1);</code>?</p>
+<label><input type="radio" name="q7"> <code>Pontos: 5</code></label>
+<label><input type="radio" name="q7"> <code>Pontos: 4 + 1</code></label>
+<label><input type="radio" name="q7"> Um erro de compilação</label>
+<label><input type="radio" name="q7"> <code>Pontos: 41</code></label>
+</div>
+
+<h3>Missão final: o cupom da lojinha</h3>
+
+<div class="trycs" data-goal="outre:^Cupom da Lojinha\n=+\n\nCaderno: 12\,50\nCaneta: 3\,20\nTotal: 15\,70\n$,src:Console\.WriteLine\(\),src:12\.50m\s*\+\s*3\.20m">
+<p class="try-task"><strong>Missão:</strong> monte o cupom da lojinha da Ana. O começo já está pronto. Depois do título, faça uma linha em branco com <code>Console.WriteLine()</code>. Em cada linha de produto, use <code>Console.Write</code> para o nome e <code>Console.WriteLine</code> para o preço. No total, deixe o C# fazer a conta: <code>12.50m + 3.20m</code>. A saída deve ser:</p>
+<pre class="out">Cupom da Lojinha
+================
+
+Caderno: 12,50
+Caneta: 3,20
+Total: 15,70</pre>
+<pre class="script">Console.WriteLine("Cupom da Lojinha");
+Console.WriteLine("================");
+// linha em branco
+
+Console.Write("Caderno: ");
+Console.WriteLine(12.50m);
+// a caneta custa 3.20m
+
+// o total: deixe o C# somar
+</pre>
+<pre class="solucao">Console.WriteLine("Cupom da Lojinha");
+Console.WriteLine("================");
+Console.WriteLine();
+
+Console.Write("Caderno: ");
+Console.WriteLine(12.50m);
+Console.Write("Caneta: ");
+Console.WriteLine(3.20m);
+
+Console.Write("Total: ");
+Console.WriteLine(12.50m + 3.20m);
+</pre>
+</div>
+
+<p>Repare que o preço sai com vírgula (<code>12,50</code>), mas no código é escrito com ponto (<code>12.50m</code>). E o C# acertou a soma do dinheiro sem nenhum erro de arredondamento, porque o tipo <code>decimal</code> foi feito para isso.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>Console.WriteLine(…)</code> escreve e pula a linha <strong>depois</strong>; <code>Console.WriteLine()</code> faz uma linha em branco.</li>
+  <li><code>Console.Write(…)</code> escreve e fica na mesma linha. Ótimo para perguntas e linhas montadas aos pedaços. Termine o programa com um <code>WriteLine</code>.</li>
+  <li>Com aspas, o texto sai como está; sem aspas, o C# calcula. No código o decimal é com ponto (<code>3.5</code>); na tela, num computador em pt-BR, sai com vírgula (<code>3,5</code>). <code>true</code> aparece como <code>True</code>.</li>
+  <li><code>+</code> entre texto e número <strong>emenda</strong>, da esquerda para a direita: <code>"Total: " + 2 + 3</code> dá <code>Total: 23</code>. Use parênteses ou, melhor, <code>$"Total: {2 + 3}"</code>.</li>
+  <li>Dentro das aspas: <code>\n</code> quebra a linha, <code>\t</code> tabula, <code>\"</code> é uma aspa.</li>
+  <li><code>Console.Error.WriteLine</code> escreve na saída de erro, separada da saída padrão.</li>
+  <li>Erros comuns: <code>Writeln</code>/<code>writeline</code> (<code>CS0117</code>), <code>print</code> e texto sem aspas (<code>CS0103</code>), <code>Write()</code> vazio (<code>CS1501</code>) e a vírgula no lugar do <code>+</code>, que compila e esconde o valor.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
