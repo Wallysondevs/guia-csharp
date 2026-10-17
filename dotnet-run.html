@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Rodar com dotnet run — arquivos .cs soltos no .NET 10 | Guia C#</title>
+<meta name="description" content="Tudo sobre dotnet run arquivo.cs, os file-based apps do .NET 10: o que acontece por dentro, a pasta escondida runfile, por que a primeira vez demora, avisos que só aparecem quando compila, --no-cache, argumentos e o --, o código de saída (0, 1, 134), as diretivas #:package e #:property, rodar como script com #!/usr/bin/env dotnet, dotnet project convert e os erros mais comuns, com saídas reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Rodar com dotnet run</span></h1>
+
+<p class="intro">Na aula anterior, você rodou o primeiro programa com <code>dotnet run ola.cs</code>. Esse comando é a ferramenta que você vai usar em todo o Nível 1 e no Nível 2, então vale conhecê-lo bem. Nesta aula você descobre o que ele faz por dentro, por que a primeira vez demora e a segunda não, como passar informações para o programa, o que é o código de saída e como transformar um arquivo <code>.cs</code> num script que roda sozinho.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que são os <strong>aplicativos de arquivo único</strong> (<em>file-based apps</em>), a novidade do <span class="versao">.NET 10</span>.</li>
+  <li>O que o <code>dotnet run ola.cs</code> faz por dentro e onde ele guarda o programa compilado.</li>
+  <li>Por que a primeira vez demora, e por que os <strong>avisos</strong> do compilador só aparecem quando ele compila de novo.</li>
+  <li>Como passar <strong>argumentos</strong> ao programa, e para que serve o <code>--</code>.</li>
+  <li>Os códigos de saída <code>0</code>, <code>1</code> e <code>134</code>.</li>
+  <li>As diretivas <code>#:package</code> e <code>#:property</code>, no topo do arquivo.</li>
+  <li>Como rodar um <code>.cs</code> como script, com <code>#!/usr/bin/env dotnet</code>.</li>
+  <li>Quando é hora de transformar o arquivo num projeto.</li>
+</ul>
+</div>
+
+<p>As saídas são da máquina da Ana, com o <strong>.NET SDK 10.0.112</strong>, na pasta <code>~/cs</code>. Os projetos com <code>dotnet new console</code> têm aula própria: <a href="projetos-console.html">Projetos (dotnet new console)</a>.</p>
+
+<hr>
+
+<h2>A ideia: a padaria que guarda o bolo</h2>
+<p>Imagine uma padaria que recebe a sua receita, assa o bolo e entrega. Se amanhã você aparecer com a <strong>mesma</strong> receita, a padaria não assa de novo: ela já guardou um bolo igual na geladeira e entrega na hora. Se você riscar uma linha da receita, ela percebe e assa um bolo novo.</p>
+
+<p>O <code>dotnet run ola.cs</code> é essa padaria. Na primeira vez, ele <strong>compila</strong> o arquivo e guarda o programa pronto numa pasta escondida. Nas outras vezes, ele confere se o <code>ola.cs</code> mudou: se não mudou, roda o programa guardado; se mudou, compila de novo.</p>
+
+<hr>
+
+<h2>1. O comando</h2>
+<pre class="term" data-cwd="~/cs">$ dotnet run ola.cs
+Olá, mundo!</pre>
+
+<dl class="anatomy">
+  <dt>dotnet</dt><dd>O comando do .NET SDK.</dd>
+  <dt>run</dt><dd>"Rodar": compila (se precisar) e roda.</dd>
+  <dt>ola.cs</dt><dd>O arquivo com o programa. Ele tem de estar na pasta atual (ou você escreve o caminho: <code>dotnet run ~/cs/ola.cs</code>).</dd>
+</dl>
+
+<p>Até o .NET 9, o <code>dotnet run</code> só sabia rodar <strong>projetos</strong>: uma pasta com um arquivo <code>.csproj</code> que descreve o programa (aula <a href="projetos-console.html">Projetos</a>). O <span class="versao">.NET 10</span> aprendeu a rodar um arquivo <code>.cs</code> sozinho, sem projeto. A Microsoft chama isso de <strong>aplicativo baseado em arquivo</strong> (<em>file-based app</em>). É o jeito mais simples de começar, e é o que o guia usa nos Níveis 1 e 2.</p>
+
+<h3>Três jeitos de escrever</h3>
+<pre class="term" data-cwd="~/cs">$ dotnet run ola.cs                             « o jeito do guia
+Olá, mundo!
+$ dotnet ola.cs                                 « atalho: sem o run
+Olá, mundo!
+$ dotnet run --file ola.cs                      « explícito: "isto é um arquivo"
+Olá, mundo!</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Quando usar</th></tr>
+<tr><td><code>dotnet run ola.cs</code></td><td><strong>Sempre</strong>, no guia. Deixa claro que você está rodando.</td></tr>
+<tr><td><code>dotnet ola.cs</code></td><td>Atalho para quem já está acostumado. Faz o mesmo.</td></tr>
+<tr><td><code>dotnet run --file ola.cs</code></td><td>Quando a pasta também tem um projeto e você quer deixar claro que é o arquivo (veja <a href="#errado">Quando dá errado</a>).</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>2. O que acontece por dentro</h2>
+<p>Quando você roda <code>dotnet run ola.cs</code>, o SDK faz isto:</p>
+
+<ol class="passo">
+  <li><strong>Monta um projeto invisível</strong> para o arquivo, com as configurações padrão do .NET 10 (parecidas com as de um projeto <code>dotnet new console</code>).</li>
+  <li><strong>Confere se precisa compilar.</strong> Se o programa já foi compilado e o <code>ola.cs</code> não mudou, pula para o passo 4.</li>
+  <li><strong>Compila</strong> com o Roslyn. Se houver erro, mostra a mensagem e para aqui.</li>
+  <li><strong>Roda</strong> o programa compilado, que escreve na tela.</li>
+</ol>
+
+<h3>Onde fica o programa compilado</h3>
+<p>Na pasta da Ana, nada muda: só o <code>ola.cs</code> continua lá. O programa compilado vai para uma pasta escondida. O <code>dotnet build</code>, que compila sem rodar, mostra o endereço:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet build ola.cs
+  Determinando os projetos a serem restaurados...
+  Todos os projetos estão atualizados para restauração.
+  ola -> /home/ana/.local/share/dotnet/runfile/ola-d3e0b993ea942ae2aa43a2c132f9667a87cb5c1410a99c454aae33ed39b33823/bin/debug/ola.dll</pre>
+
+<p>Cada arquivo que você roda ganha uma pasta própria em <code>~/.local/share/dotnet/runfile</code>, com o nome do arquivo e um código comprido, calculado a partir do <strong>caminho</strong> do arquivo (por isso dois <code>ola.cs</code> em pastas diferentes não se misturam):</p>
+
+<pre class="term">$ ls ~/.local/share/dotnet/runfile | head -3
+antigo-dd3e9aa2d82fb4bbb24b83889955c931d21639ff05141ce927617435495868b8
+args-538ef144dfff177e98d916b3ae5074306e8a7492f32d9b712d144636630addb0
+aspas2-50be6b2113d0c1ce0f72ed21813b15054498c67a37acb8b811ee496d04c3fef8</pre>
+
+<p>Dentro de cada uma está o <code>ola.dll</code> e os arquivos que a aula <a href="dotnet.html">.NET: SDK, Runtime e CLR</a> abriu um por um. Você nunca precisa mexer nessa pasta.</p>
+
+<h3>A primeira vez e as outras</h3>
+<p>O comando <code>time</code>, na frente de outro comando, mede quanto tempo ele levou. Veja um arquivo novo, <code>tempo.cs</code>, rodado duas vezes seguidas:</p>
+
+<pre class="term" data-cwd="~/cs">$ time dotnet run tempo.cs
+Testando o tempo
+
+real	0m3,800s                                « 1.ª vez: compilou (quase 4 segundos)
+user	0m0,405s
+sys	0m0,060s
+$ time dotnet run tempo.cs
+Testando o tempo
+
+real	0m0,281s                                « 2.ª vez: só rodou (menos de 0,3 s)
+user	0m0,223s
+sys	0m0,060s</pre>
+
+<p>A linha <code>real</code> é o tempo de relógio. Na primeira vez, o SDK precisou acordar o compilador e compilar: quase 4 segundos. Na segunda, o arquivo não tinha mudado, e ele só rodou o programa guardado. Depois que você muda o arquivo, ele compila de novo, mas bem mais rápido, porque o compilador fica de prontidão em segundo plano por um tempo:</p>
+
+<pre class="term" data-cwd="~/cs">$ echo 'Console.WriteLine("Tchau!");' &gt;&gt; ola.cs   « acrescenta uma linha no fim do ola.cs
+$ time dotnet run ola.cs
+Olá, mundo!
+Tchau!                                          « mudou o arquivo: compilou de novo
+
+real	0m0,516s
+user	0m0,316s
+sys	0m0,073s</pre>
+
+<p>O editor do guia não guarda nada: ele compila o código de novo toda vez que você clica em Rodar.</p>
+
+<hr>
+
+<h2>3. Os avisos só aparecem quando compila</h2>
+<p>Além dos <strong>erros</strong>, que impedem o programa de rodar, o compilador dá <strong>avisos</strong> (<code>warning</code>): "isto funciona, mas parece engano". Por exemplo, uma variável criada e nunca usada (variáveis são da aula <a href="variaveis.html">Variáveis</a>):</p>
+
+<pre class="file" data-file="aviso.cs">int idade;
+Console.WriteLine("Programa com aviso");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run aviso.cs
+/home/ana/cs/aviso.cs(1,5): warning CS0168: A variável "idade" está declarada, mas nunca é usada
+Programa com aviso                              « com o aviso, o programa rodou
+$ dotnet run aviso.cs
+Programa com aviso                              « da segunda vez, o aviso sumiu!</pre>
+
+<p>O aviso sumiu na segunda vez porque o arquivo não mudou e o <code>dotnet run</code> <strong>não compilou de novo</strong>; quem dá o aviso é o compilador. O problema continua lá. Para obrigar o <code>dotnet run</code> a compilar de novo, e ver os avisos, use <code>--no-cache</code> ("sem o guardado"):</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run --no-cache aviso.cs
+/home/ana/cs/aviso.cs(1,5): warning CS0168: A variável "idade" está declarada, mas nunca é usada
+Programa com aviso</pre>
+
+<p>Leve os avisos a sério desde já: quase sempre eles apontam um engano de verdade. A aula <a href="avisos.html">Avisos do Compilador</a> mostra os mais comuns.</p>
+
+<div class="trycs" data-goal="semaviso,out:Programa sem aviso">
+<p class="try-task"><strong>Missão:</strong> rode e leia o aviso <code>CS0168</code>. Depois apague a linha da variável que nunca é usada e troque o texto para <code>Programa sem aviso</code>. Rode de novo: o aviso tem de sumir.</p>
+<pre class="script" data-file="aviso.cs">int idade;
+Console.WriteLine("Programa com aviso");
+</pre>
+<pre class="solucao">Console.WriteLine("Programa sem aviso");
+</pre>
+</div>
+
+<hr>
+
+<h2>4. Passar argumentos ao programa</h2>
+<p>Você pode mandar informações para o programa direto no comando, depois do nome do arquivo. Elas se chamam <strong>argumentos</strong> e chegam ao programa numa lista chamada <code>args</code>. Este programa conta quantos argumentos recebeu e mostra cada um (o <code>foreach</code> é da aula <a href="foreach.html">foreach</a>, e o <code>args</code> tem aula própria, <a href="args.html">Argumentos da Linha de Comando</a>):</p>
+
+<pre class="file" data-file="args.cs">Console.WriteLine($"Recebi {args.Length} argumentos");
+foreach (var a in args) Console.WriteLine(a);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run args.cs Ana 29
+Recebi 2 argumentos
+Ana
+29
+$ dotnet run args.cs -- "Ana Souza" 29          « com aspas, "Ana Souza" é um argumento só
+Recebi 2 argumentos
+Ana Souza
+29</pre>
+
+<dl class="anatomy">
+  <dt>Ana 29</dt><dd>Dois argumentos, separados por espaço.</dd>
+  <dt>"Ana Souza"</dt><dd>Entre aspas, o espaço não separa: é um argumento só. As aspas são do terminal e não chegam ao programa.</dd>
+  <dt>--</dt><dd>Os dois tracinhos dizem ao <code>dotnet</code>: "daqui para a frente, nada é para você, é tudo para o programa". Sem ele, funciona na maioria das vezes, mas um argumento que começa com <code>-</code> pode ser "roubado" pelo <code>dotnet</code> (veja <a href="#errado">Quando dá errado</a>). Use sempre que tiver dúvida.</dd>
+</dl>
+
+<p>A caixa abaixo passa os argumentos <code>Ana 29</code> para o programa, como se você tivesse digitado <code>dotnet run args.cs Ana 29</code>:</p>
+
+<div class="trycs" data-args="Ana 29">
+<p class="try-task"><strong>Experimente:</strong> rode e compare com a saída da Ana. Depois acrescente uma linha no fim, <code>Console.WriteLine("Fim da lista");</code>, e rode de novo.</p>
+<pre class="script" data-file="args.cs">Console.WriteLine($"Recebi {args.Length} argumentos");
+foreach (var a in args) Console.WriteLine(a);
+</pre>
+</div>
+
+<hr>
+
+<h2>5. O código de saída passa adiante</h2>
+<p>O código de saída (aula <a href="primeiro-programa.html">Olá, Mundo</a>) do <code>dotnet run</code> é o do seu programa. Assim, um script que roda o seu programa sabe se ele deu certo. Há três casos para conhecer:</p>
+
+<pre class="term" data-cwd="~/cs">$ cat saida3.cs
+Console.WriteLine("Saindo com 3");
+return 3;
+$ dotnet run saida3.cs; echo "código: $?"
+Saindo com 3
+código: 3                                       « o número do return
+$ dotnet run semponto.cs; echo "código: $?"
+/home/ana/cs/semponto.cs(1,33): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.
+código: 1                                       « a compilação falhou: o programa nem rodou
+$ cat excecao.cs
+int[] notas = { 8, 9 };
+Console.WriteLine(notas[2]);
+$ dotnet run excecao.cs; echo "código: $?"
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/excecao.cs:line 2
+código: 134                                     « o programa rodou e "quebrou"</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Quer dizer</th></tr>
+<tr><td><code>0</code></td><td>O programa rodou até o fim, sem problemas</td></tr>
+<tr><td><code>1</code></td><td>A compilação falhou (erro <code>CSxxxx</code>), ou o <code>dotnet</code> não achou o arquivo</td></tr>
+<tr><td>o número do <code>return</code></td><td>O programa escolheu o código (<code>return 3;</code>)</td></tr>
+<tr><td><code>134</code></td><td>O programa compilou, rodou e parou no meio com uma <strong>exceção</strong> não tratada</td></tr>
+</table>
+</div>
+
+<p>O último caso é diferente dos outros: o compilador não viu problema nenhum, mas, ao rodar, o programa tentou pegar a terceira nota (<code>notas[2]</code>) de uma lista que só tem duas. A mensagem sai em inglês (<code>Unhandled exception</code> = "exceção não tratada"; <code>Index was outside the bounds of the array</code> = "o índice estava fora dos limites do array") e diz a linha: <code>excecao.cs:line 2</code>. O 134 é o código que o Linux dá a um programa que foi abortado. As exceções têm uma seção inteira no Nível 2, a partir de <a href="excecoes.html">Exceções</a>.</p>
+
+<div class="trycs" data-goal="out:9,exit:0">
+<p class="try-task"><strong>Missão:</strong> rode e veja a exceção e o código de saída 134. A lista tem duas notas, nas posições <code>0</code> e <code>1</code> (em C#, a contagem começa do zero). Troque o <code>2</code> por <code>1</code> para mostrar a última nota, <code>9</code>, e rode de novo: o código de saída tem de virar <code>0</code>.</p>
+<pre class="script" data-file="excecao.cs">int[] notas = { 8, 9 };
+Console.WriteLine(notas[2]);
+</pre>
+<pre class="solucao">int[] notas = { 8, 9 };
+Console.WriteLine(notas[1]);
+</pre>
+</div>
+
+<hr>
+
+<h2>6. As diretivas <code>#:</code> no topo do arquivo <span class="versao">.NET 10</span></h2>
+<p>Um projeto guarda as suas configurações no arquivo <code>.csproj</code>. Um arquivo solto não tem <code>.csproj</code>, então o .NET 10 criou outro lugar para elas: linhas especiais no <strong>topo</strong> do <code>.cs</code>, que começam com <code>#:</code> e se chamam <strong>diretivas</strong>. As duas mais úteis:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Diretiva</th><th>O que faz</th><th>No projeto, seria</th></tr>
+<tr><td><code>#:package Nome@versão</code></td><td>Usa um pacote do NuGet, a "loja" de bibliotecas do .NET</td><td><code>&lt;PackageReference&gt;</code> (aula <a href="nuget.html">Pacotes NuGet</a>)</td></tr>
+<tr><td><code>#:property Nome=valor</code></td><td>Muda uma configuração do build, como a versão do C#</td><td>uma linha no <code>&lt;PropertyGroup&gt;</code> (aula <a href="csproj.html">O Arquivo .csproj</a>)</td></tr>
+</table>
+</div>
+
+<p>Um exemplo com <code>#:package</code>: a biblioteca <strong>Humanizer</strong> transforma números, datas e nomes em texto "de gente". A primeira linha do arquivo pede a versão 2.14.1 dela:</p>
+
+<pre class="file" data-file="pacote.cs">#:package Humanizer@2.14.1
+using Humanizer;
+
+Console.WriteLine(TimeSpan.FromMinutes(90).Humanize(2));
+Console.WriteLine("notas_da_ana".Humanize());
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ time dotnet run pacote.cs
+1 hora, 30 minutos                              « 90 minutos, em português
+notas da ana                                    « o nome com _ virou frase
+
+real	0m11,170s                               « 1.ª vez: baixou o pacote da internet
+user	0m6,069s
+sys	0m0,360s
+$ dotnet run pacote.cs
+1 hora, 30 minutos                              « da segunda vez, já está no computador
+notas da ana</pre>
+
+<p>Na primeira vez, o <code>dotnet</code> baixou o pacote do site <code>nuget.org</code> e guardou em <code>~/.nuget/packages</code> (por isso os 11 segundos); depois, ele usa a cópia guardada. O <code>using Humanizer;</code> é da aula <a href="namespaces.html">Namespaces e using</a>. A diretiva <code>#:property</code> aparece na aula <a href="versoes.html">Versões</a>, para escolher a versão do C#. As diretivas precisam ficar <strong>no topo</strong>, antes de qualquer código. No editor do guia, que roda no navegador, a diretiva <code>#:package</code> não baixa nada, e o mesmo código dá o erro <code>CS0246</code> (<code>O nome do tipo ou do namespace "Humanizer" não pode ser encontrado</code>): os exemplos com pacotes são para o terminal.</p>
+
+<hr>
+
+<h2>7. Rodar como um script</h2>
+<p>No Linux e no macOS, um arquivo de texto vira um comando quando tem duas coisas: a permissão de execução e uma primeira linha especial, o <strong>shebang</strong>, que diz qual programa deve lê-lo. O .NET 10 aceita o shebang num <code>.cs</code>:</p>
+
+<pre class="file" data-file="script.cs">#!/usr/bin/env dotnet
+Console.WriteLine("Rodei como um script!");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ chmod +x script.cs                            « dá permissão de execução
+$ ls -l script.cs
+-rwxrwxr-x 1 ana ana 66 out 17 12:42 script.cs  « o x quer dizer "executável"
+$ ./script.cs                                   « roda direto, sem escrever dotnet run
+Rodei como um script!</pre>
+
+<dl class="anatomy">
+  <dt>#!</dt><dd>O shebang (o nome vem de <em>hash</em> + <em>bang</em>, os nomes em inglês do <code>#</code> e do <code>!</code>). Tem de ser os dois primeiros caracteres do arquivo.</dd>
+  <dt>/usr/bin/env dotnet</dt><dd>"Procure o programa <code>dotnet</code> e entregue este arquivo a ele." O <code>env</code> procura o <code>dotnet</code> onde quer que ele esteja instalado.</dd>
+  <dt>chmod +x</dt><dd>Dá ao arquivo a permissão de execução (<code>x</code>). O <code>chmod</code> é explicado no Guia Bash.</dd>
+  <dt>./script.cs</dt><dd>Roda o arquivo desta pasta. Por baixo, é o mesmo <code>dotnet run script.cs</code>, com a mesma pasta escondida e a mesma rapidez da segunda vez.</dd>
+</dl>
+
+<p>Para o compilador, a linha do shebang não é código: ele simplesmente a ignora. No Windows, que não usa shebang, o mesmo arquivo continua rodando com <code>dotnet run script.cs</code>.</p>
+
+<hr>
+
+<h2>8. Quando o arquivo cresce: vire projeto</h2>
+<p>O arquivo solto é ótimo para aprender e para programas pequenos. Quando o programa precisar de vários arquivos <code>.cs</code>, de testes ou de configurações mais elaboradas, é hora de um <strong>projeto</strong>. O .NET 10 converte o arquivo para você:</p>
+
+<pre class="term">$ cd ~/conv
+$ dotnet project convert ola.cs                 « cria um projeto a partir do arquivo
+$ ls -R
+.:
+ola                                             « a pasta do projeto, nova
+ola.cs                                          « o arquivo original continua aqui
+
+./ola:
+ola.cs                                          « uma cópia do código
+ola.csproj                                      « o arquivo do projeto</pre>
+
+<p>O comando não escreveu nada na tela (silêncio quer dizer sucesso) e criou a pasta <code>ola</code> com um <code>ola.csproj</code>, onde ficam as configurações que antes eram invisíveis (e as diretivas <code>#:</code>, se houvesse). A partir daí, você entra na pasta e usa <code>dotnet run</code> sem o nome do arquivo, como na aula <a href="projetos-console.html">Projetos (dotnet new console)</a>.</p>
+
+<h3>Arquivo solto ou projeto?</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>Aprender, testar uma ideia, um programa de um arquivo</td><td><strong>Arquivo solto</strong>: <code>dotnet run ola.cs</code></td></tr>
+<tr><td>Um script para automatizar uma tarefa no Linux</td><td>Arquivo solto com shebang</td></tr>
+<tr><td>Um programa com vários arquivos <code>.cs</code></td><td>Projeto: <code>dotnet new console</code> (ou <code>dotnet project convert</code>)</td></tr>
+<tr><td>Testes automáticos, bibliotecas, soluções com vários projetos</td><td>Projeto (aulas do grupo <a href="dotnet-cli.html">Ferramentas</a>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>9. Limpar a pasta escondida</h2>
+<p>Cada arquivo que você roda deixa uma pasta em <code>~/.local/share/dotnet/runfile</code>. Elas são pequenas, mas, depois de meses de estudo, viram centenas. O comando <code>dotnet clean file-based-apps</code> apaga as que não são usadas há 30 dias ou mais. Com <code>--dry-run</code> ("ensaio"), ele só diz o que faria:</p>
+
+<pre class="term">$ dotnet clean file-based-apps --dry-run
+Procurando pastas para remover em: /home/ana/.local/share/dotnet/runfile
+Pastas que seriam removidas: 0                  « tudo da Ana foi usado hoje</pre>
+
+<p>Para apagar de verdade, rode sem o <code>--dry-run</code>. Para mudar o prazo, use <code>--days</code>: <code>--days 7</code> apaga as que estão paradas há uma semana. Não tem perigo: se você rodar o arquivo de novo, o <code>dotnet</code> compila de novo.</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>Não foi possível localizar um projeto para executar.</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run ole.cs
+Não foi possível localizar um projeto para executar. Verifique se existe um projeto em /home/ana/cs ou passe o caminho para o projeto usando --project.
+$ echo $?
+1</pre>
+<p><strong>O que significa:</strong> o arquivo <code>ole.cs</code> não existe (a Ana errou o nome: é <code>ola.cs</code>). Quando o arquivo não existe, o <code>dotnet run</code> acha que <code>ole.cs</code> é um argumento e procura um <strong>projeto</strong> na pasta para rodar. Não acha, e reclama do projeto. A mensagem engana: o problema é o nome do arquivo. O mesmo acontece se você estiver na pasta errada, ou escrever o nome sem o <code>.cs</code> (<code>dotnet run ola</code>).</p>
+<p><strong>Como consertar:</strong> <code>ls</code> e confira o nome exato. A tecla <kbd>Tab</kbd> completa o nome do arquivo e evita o erro.</p>
+</div>
+
+<div class="cenario">
+<strong>Na pasta de um projeto: <code>error CS8802: Apenas uma unidade de compilação pode ter instruções de nível superior.</code></strong>
+<pre class="term" data-cwd="~/projetos/Teste">$ ls
+obj
+ola.cs
+Program.cs
+Teste.csproj
+$ dotnet run ola.cs
+/home/ana/projetos/Teste/Program.cs(2,1): error CS8802: Apenas uma unidade de compilação pode ter instruções de nível superior. [/home/ana/projetos/Teste/Teste.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> a Ana copiou o <code>ola.cs</code> para dentro da pasta de um projeto (a que tem o <code>Teste.csproj</code>). Quando a pasta tem um projeto, o <code>dotnet run</code> roda <strong>o projeto</strong>, e não o arquivo: o <code>ola.cs</code> virou um argumento. Pior: o projeto compila <strong>todos</strong> os <code>.cs</code> da pasta juntos, e agora há dois arquivos com instruções de nível superior (o <code>Program.cs</code> e o <code>ola.cs</code>). Só um pode ter ("apenas uma unidade de compilação", isto é, um arquivo).</p>
+<p><strong>Como consertar:</strong> não misture arquivos soltos com projetos. Guarde os arquivos soltos numa pasta só deles (como a <code>~/cs</code> da Ana) e os projetos em outra (<code>~/projetos</code>).</p>
+</div>
+
+<div class="cenario">
+<strong>Um argumento com <code>-</code> foi "roubado" pelo <code>dotnet</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run args.cs --help | head -4
+Description:
+  Comando Run do .NET
+
+Uso:
+$ dotnet run args.cs -- --help
+Recebi 1 argumentos
+--help</pre>
+<p><strong>O que significa:</strong> o <code>--help</code> era para o programa, mas o <code>dotnet run</code> achou que era para ele e mostrou a própria ajuda. O programa nem rodou.</p>
+<p><strong>Como consertar:</strong> ponha <code>--</code> antes dos argumentos do programa: tudo o que vem depois dele vai direto para o <code>args</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>./script.cs: Permissão negada</code></strong>
+<pre class="term" data-cwd="~/cs">$ ./semx.cs
+bash: ./semx.cs: Permissão negada
+$ echo $?
+126</pre>
+<p><strong>O que significa:</strong> o arquivo tem o shebang, mas não tem a permissão de execução. O código 126 é o do terminal para "achei, mas não posso executar".</p>
+<p><strong>Como consertar:</strong> <code>chmod +x semx.cs</code>. Ou rode do jeito normal, <code>dotnet run semx.cs</code>, que não precisa de permissão.</p>
+</div>
+
+<div class="cenario">
+<strong>Script vindo do Windows: <code>env: ‘dotnet\r’: Arquivo ou diretório inexistente</code></strong>
+<pre class="term" data-cwd="~/cs">$ ./crlf.cs
+env: ‘dotnet\r’: Arquivo ou diretório inexistente
+env: usa -[v]S para passar opções em linhas shebang
+$ echo $?
+127</pre>
+<p><strong>O que significa:</strong> o arquivo foi salvo no Windows, onde cada linha termina com dois caracteres invisíveis (<code>\r\n</code>), e não só com <code>\n</code>, como no Linux. O <code>\r</code> grudou no fim do shebang, e o <code>env</code> procurou um programa chamado <code>dotnet\r</code>, que não existe. (A segunda linha é só uma dica do <code>env</code> que não tem a ver com o problema.)</p>
+<p><strong>Como consertar:</strong> converta o fim das linhas: no VS Code, clique em <code>CRLF</code> no canto de baixo da janela e escolha <code>LF</code>; no terminal, <code>sed -i 's/\r$//' crlf.cs</code>. O <code>dotnet run crlf.cs</code> funciona mesmo com <code>\r\n</code>; só o shebang se confunde.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>O que faz</th></tr>
+<tr><td><code>dotnet run ola.cs</code></td><td>Compila (se precisar) e roda o arquivo</td></tr>
+<tr><td><code>dotnet ola.cs</code></td><td>O mesmo, mais curto</td></tr>
+<tr><td><code>dotnet run --file ola.cs</code></td><td>O mesmo, dizendo explicitamente que é um arquivo</td></tr>
+<tr><td><code>dotnet run ola.cs -- a b c</code></td><td>Passa <code>a</code>, <code>b</code> e <code>c</code> para o <code>args</code></td></tr>
+<tr><td><code>dotnet run --no-cache ola.cs</code></td><td>Compila de novo mesmo sem mudança (e mostra os avisos)</td></tr>
+<tr><td><code>dotnet run ola.cs -c Release</code></td><td>Compila na configuração de entrega, otimizada</td></tr>
+<tr><td><code>dotnet build ola.cs</code></td><td>Só compila, e diz onde ficou o <code>.dll</code></td></tr>
+<tr><td><code>dotnet project convert ola.cs</code></td><td>Cria um projeto a partir do arquivo</td></tr>
+<tr><td><code>dotnet clean file-based-apps</code></td><td>Apaga as pastas escondidas paradas há 30 dias</td></tr>
+<tr><td><code>#:package Nome@versão</code></td><td>Usa um pacote NuGet (no topo do arquivo)</td></tr>
+<tr><td><code>#:property Nome=valor</code></td><td>Muda uma configuração do build (no topo do arquivo)</td></tr>
+<tr><td><code>#!/usr/bin/env dotnet</code> + <code>chmod +x</code></td><td>Roda o arquivo como script: <code>./ola.cs</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Compilar de novo</h3>
+<p>Complete o comando que obriga o <code>dotnet run</code> a compilar de novo, para ver os avisos:</p>
+<div class="ex-code">dotnet run <input data-answer="--no-cache" aria-label="opção"> aviso.cs</div>
+</div>
+
+<div class="exercise">
+<h3>2. Argumento com traço</h3>
+<p>Complete o comando para o programa receber o argumento <code>-v</code>, sem o <code>dotnet</code> roubá-lo:</p>
+<div class="ex-code">dotnet run args.cs <input data-answer="--" aria-label="separador"> -v</div>
+</div>
+
+<div class="exercise">
+<h3>3. O shebang</h3>
+<p>Complete a primeira linha de um script em C#:</p>
+<div class="ex-code">#!/usr/bin/env <input data-answer="dotnet" aria-label="programa"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Você rodou um programa com aviso duas vezes, sem mudar nada. Na segunda vez, o aviso não apareceu. Por quê?</p>
+<label><input type="radio" name="q4"> O compilador consertou o problema sozinho.</label>
+<label><input type="radio" name="q4"> Avisos só aparecem uma vez na vida.</label>
+<label><input type="radio" name="q4"> O arquivo não mudou, então o <code>dotnet run</code> não compilou de novo, e quem dá o aviso é o compilador.</label>
+<label><input type="radio" name="q4"> O programa travou.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. O <code>dotnet run</code> terminou com o código de saída <code>134</code>. O que aconteceu?</p>
+<label><input type="radio" name="q5"> O programa compilou, rodou e parou no meio com uma exceção.</label>
+<label><input type="radio" name="q5"> Faltou um <code>;</code>.</label>
+<label><input type="radio" name="q5"> O programa terminou sem problemas.</label>
+<label><input type="radio" name="q5"> O arquivo não existe.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Onde o <code>dotnet run ola.cs</code> guarda o programa compilado?</p>
+<label><input type="radio" name="q6"> Na mesma pasta do <code>ola.cs</code>, num arquivo <code>ola.exe</code>.</label>
+<label><input type="radio" name="q6"> Em lugar nenhum: ele compila toda vez.</label>
+<label><input type="radio" name="q6"> Dentro do próprio <code>ola.cs</code>.</label>
+<label><input type="radio" name="q6"> Numa pasta escondida, em <code>~/.local/share/dotnet/runfile</code>.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">7. Numa pasta com um <code>.csproj</code>, o <code>dotnet run ola.cs</code> deu o erro <code>CS8802</code>. Por quê?</p>
+<label><input type="radio" name="q7"> O <code>ola.cs</code> tem um erro de digitação.</label>
+<label><input type="radio" name="q7"> Com um projeto na pasta, o <code>dotnet run</code> roda o projeto, que compila todos os <code>.cs</code> juntos, e agora dois arquivos têm instruções de nível superior.</label>
+<label><input type="radio" name="q7"> O .NET 10 não aceita arquivos soltos.</label>
+<label><input type="radio" name="q7"> Faltou o <code>--no-cache</code>.</label>
+</div>
+
+<h3>Missão final: o programa que cumprimenta</h3>
+<div class="trycs" data-args="Ana" data-goal="out:Olá\, Ana!,src:args\[0\]">
+<p class="try-task"><strong>Missão:</strong> a caixa roda o programa como <code>dotnet run ola.cs Ana</code>. Faça o programa cumprimentar quem veio no primeiro argumento, <code>args[0]</code> (a contagem começa do zero): troque a linha por <code>Console.WriteLine($"Olá, {args[0]}!");</code> e rode. A saída deve ser <code>Olá, Ana!</code>.</p>
+<pre class="script" data-file="ola.cs">Console.WriteLine("Olá, mundo!");
+</pre>
+<pre class="solucao">Console.WriteLine($"Olá, {args[0]}!");
+</pre>
+</div>
+
+<p>No seu terminal, rode o mesmo arquivo com <code>dotnet run ola.cs Bia</code> e com <code>dotnet run ola.cs</code>, sem argumento. O segundo dá uma exceção, com o código 134: sem argumento, não existe <code>args[0]</code>. A aula <a href="args.html">Argumentos da Linha de Comando</a> ensina a conferir antes.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>O <span class="versao">.NET 10</span> roda um arquivo <code>.cs</code> sozinho, sem projeto: <code>dotnet run ola.cs</code> (ou <code>dotnet ola.cs</code>).</li>
+  <li>Ele compila na primeira vez (uns segundos) e guarda o programa em <code>~/.local/share/dotnet/runfile</code>. Se o arquivo não mudou, só roda (menos de meio segundo).</li>
+  <li>Os <strong>avisos</strong> só aparecem quando ele compila; para ver de novo, <code>--no-cache</code>.</li>
+  <li>Os argumentos vêm depois do arquivo e chegam no <code>args</code>; use <code>--</code> antes deles para o <code>dotnet</code> não roubar nenhum.</li>
+  <li>Códigos de saída: <code>0</code> (deu certo), <code>1</code> (não compilou), o do <code>return</code>, <code>134</code> (exceção não tratada).</li>
+  <li>No topo do arquivo, <code>#:package</code> usa pacotes NuGet e <code>#:property</code> muda configurações. Com <code>#!/usr/bin/env dotnet</code> e <code>chmod +x</code>, o arquivo vira script.</li>
+  <li>Não misture arquivos soltos com pastas de projeto (<code>CS8802</code>). Quando o programa crescer, <code>dotnet project convert</code>.</li>
+  <li>Próximo passo: <a href="projetos-console.html">Projetos (dotnet new console)</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
