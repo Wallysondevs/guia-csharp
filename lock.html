@@ -190,7 +190,8 @@ Depois do erro: False</pre>
 <p>Por baixo, o compilador escreve o <code>lock</code> como um <code>try</code>/<code>finally</code> (veja <a href="finally.html">finally</a>): pega a trava, roda o bloco no <code>try</code> e devolve a trava no <code>finally</code>.</p>
 
 <div class="trycs" data-goal="src:lock\s*\(\s*trava\s*\),outre:Total: +400000">
-<p class="try-task"><strong>Missão:</strong> o contador abaixo divide o trabalho entre 4 tarefas, mas o <code>contador++</code> está desprotegido. Ponha o <code>contador++</code> dentro de um <code>lock (trava) { … }</code>, usando a trava que já está criada, e rode. O total tem de ser <code>400000</code>. (Quantas somas se perdem sem o <code>lock</code> depende de quantos núcleos trabalham ao mesmo tempo; por isso, a missão confere também o seu código.)</p>
+<p class="try-task"><strong>Missão:</strong> o contador abaixo divide o trabalho entre 4 tarefas, mas o <code>contador++</code> está desprotegido. Ponha o <code>contador++</code> dentro de um <code>lock (trava) { … }</code>, usando a trava que já está criada, e rode. O total tem de ser <code>400000</code>.</p>
+<p class="try-task"><strong>Atenção:</strong> o editor do guia roda o .NET dentro do navegador com <strong>um núcleo só</strong> (lá, <code>Environment.ProcessorCount</code> vale <code>1</code>): as tarefas rodam uma depois da outra, e o total sai certo mesmo <strong>sem</strong> o <code>lock</code>. É mais um exemplo de "rodou certo não prova nada". Por isso a missão confere também o seu código. No terminal, com <code>dotnet run</code>, o erro aparece.</p>
 <pre class="script">int contador = 0;
 Lock trava = new();
 var tarefas = new Task[4];
