@@ -149,7 +149,7 @@ No `.exercise`, `data-answer="a|b"` aceita respostas alternativas. Para uma barr
 | `async void` que lança | rastro com `ThreadPoolWorkQueue.Dispatch()` etc. | rastro mais curto (mensagem e 134 iguais) |
 | `Math.Cbrt(27)` | `3,0000000000000004` | `3` (as outras funções de `Math` testadas são iguais) |
 | `double` → `nint`/`nuint` fora da faixa (`(nint)1e30`) | `9223372036854775807` (64 bits) | `-2147483648` (o `nint` tem 32 bits no WebAssembly). Para `int`, `long`, `uint`, `ulong`, `short`, `byte`, `char`… o editor imita a conversão saturante do .NET 9+ (`(int)1e20` = `2147483647`, `(int)NaN` = `0`): igual |
-| Moeda/formatos de culturas asiáticas (`ja-JP`…) | `￥1,235` | `￥ 1.235` (dados ICU diferentes; pt-BR, en-US, de-DE iguais) |
+| Culturas asiáticas (`ja-JP`…) | `￥1,235`, datas no formato japonês | a linha **inteira** sai no formato pt-BR (`1.234,50 | ￥ 1.235 | 17/10/2026 | sábado`…): dados ICU diferentes; pt-BR, en-US, de-DE iguais |
 | `Environment.UserName`, `MachineName`, `OSVersion.Platform` | `ana`, `notebook`, `Unix` | `Browser`, `localhost`, `Other` |
 | `Environment.ProcessorCount`, `Is64BitProcess`, `IntPtr.Size`/`nint.Size` | 8, `True`, 8 | 1, `False`, 4 |
 | `Environment.Version`, `RuntimeInformation.FrameworkDescription` | `10.0.12`, `.NET 10.0.12` | `10.0.13`, `.NET 10.0.13` |
@@ -163,6 +163,11 @@ No `.exercise`, `data-answer="a|b"` aceita respostas alternativas. Para uma barr
 | `Console.ReadKey()` digitando | lê uma tecla (`lab -t`) | a 1ª letra da linha digitada + Enter |
 | O mesmo aviso de novo, sem mudar o arquivo | some (build incremental) | aparece sempre |
 | Falta de memória sem tratamento (`new int[int.MaxValue]`) | `Out of memory.` e 134 | igual |
+| Exceção dentro de `Parallel.For`/`Parallel.ForEach` | vem embrulhada em `AggregateException` | vem **sem** embrulho (o `catch (AggregateException)` não pega; termina com 134). `Parallel.Invoke` e PLINQ embrulham igual |
+| `Console.CancelKeyPress += …` | instala o tratador do Ctrl+C | `PlatformNotSupportedException` (134): mostre só no `pre.term` |
+| `Environment.GetFolderPath(SpecialFolder.MyDocuments)` | `/home/ana/Documentos` | texto vazio (use `UserProfile`) |
+| Coletor de lixo: `GC.GetGeneration`, `MaxGeneration`, finalizadores | gerações 0–2, finalizador roda depois de `GC.Collect` + `WaitForPendingFinalizers` | sempre 0, `MaxGeneration` 1, finalizadores não rodam |
+| Falta de memória **com** `catch` | `Array dimensions exceeded supported range.` | `Out of memory` |
 | Tempo medido (`Stopwatch`) | rápido | 5 a 10× mais lento |
 
 **Regras para as metas** (além das da seção 3): não use em `out:`/`outre:` linhas internas do .NET num rastro, nem o texto do `InvalidCastException` de unboxing, nem o `N` do estouro de pilha, nem nada da tabela acima. Prefira o tipo da exceção (`out:IndexOutOfRangeException`), `exit:134` e as linhas do código do leitor.
