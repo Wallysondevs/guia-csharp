@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial C# — aprenda C# 14 e .NET 10 do zero, como numa escola | Guia C#</title>
+<meta name="description" content="Curso de C# (C# 14 com .NET 10) do zero ao avançado, em português, para quem nunca programou: cada linha de código explicada, editor Experimente que compila C# de verdade com o Roslyn e roda com o .NET em WebAssembly no navegador, missões, projetos e exercícios. Todas as saídas e mensagens de erro conferidas com o dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="hero">
+<h1>Tutorial C#</h1>
+<p>Aprenda <strong>C# do zero</strong>, como numa escola: cada linha de código é explicada parte por parte, você vê exatamente o que aparece na tela e pratica num editor aqui mesmo no navegador. E o editor não é uma imitação: ele <strong>compila o seu código com o Roslyn</strong>, o mesmo compilador de C# que vem no <code>dotnet</code>, e <strong>roda o programa com o .NET</strong> transformado em WebAssembly, dentro da página. O guia ensina o <strong>C# 14 com o .NET 10</strong>, a versão de suporte longo atual, e todas as saídas e mensagens de erro foram conferidas num computador real, com o <strong>dotnet 10</strong>. Vale para Linux, Windows e macOS.</p>
+<a class="btn btn-lg" href="introducao.html">Comece pelo Nível 1 &#10095;</a>
+</div>
+
+<div class="pager"></div>
+
+<h2>Experimente agora</h2>
+<p>A caixa abaixo é o editor <strong>Experimente</strong> do guia. Ela tem um programa em C# completo, de <strong>uma linha só</strong>, pronto para rodar. Clique em <strong>Rodar</strong>. Na primeira vez, o navegador baixa o compilador e o .NET (algumas dezenas de megabytes; pode levar alguns segundos, dependendo da sua internet). Depois disso, cada execução é bem mais rápida. Nada do que você fizer aqui mexe no seu computador.</p>
+
+<div class="trycs" data-goal="out:Estou aprendendo C#!">
+<p class="try-task"><strong>Missão:</strong> clique em <strong>Rodar</strong> e veja o <code>Olá, mundo!</code> aparecer. Depois troque o texto entre as aspas por <code>Estou aprendendo C#!</code> e rode de novo. Cuidado para não apagar as aspas <code>"</code>, os parênteses nem o <code>;</code> do fim da linha.</p>
+<pre class="script" data-file="ola.cs">Console.WriteLine("Olá, mundo!");
+</pre>
+<pre class="solucao">Console.WriteLine("Estou aprendendo C#!");
+</pre>
+</div>
+
+<p>O que aconteceu: quando você clicou em Rodar, duas coisas aconteceram, uma depois da outra. Primeiro, o <strong>compilador</strong> leu o seu texto e o traduziu para uma linguagem intermediária que o .NET entende (como um tradutor que passa uma receita do português para uma língua que toda cozinha do mundo sabe ler). Depois, o <strong>.NET</strong> pegou essa tradução e <strong>rodou</strong> o programa, que escreveu a frase. A aula <a href="dotnet.html">.NET: SDK, Runtime e CLR</a> mostra cada etapa com calma.</p>
+
+<p>A linha <code>Console.WriteLine("Olá, mundo!");</code> quer dizer, palavra por palavra, "<strong>console</strong>, <strong>escreva uma linha</strong> com este texto". O <em>console</em> é a tela de texto onde o programa conversa com você. Em muitas linguagens, um programa precisa de uma "moldura" de várias linhas antes de fazer qualquer coisa; no C# moderno, uma linha basta. A aula <a href="primeiro-programa.html">Olá, Mundo</a> explica cada pedaço.</p>
+
+<p>Se você apagou o <code>;</code> sem querer, viu uma mensagem com a palavra <code>error</code> e o código <code>CS1002</code>, e o programa nem chegou a rodar. Não se assuste: é o compilador dizendo em que linha e em que coluna ele se perdeu. A aula <a href="erros-compilacao.html">Lendo Erros do Compilador</a> ensina a ler essas mensagens, que no começo parecem grego e depois viram as suas melhores amigas.</p>
+
+<h3>Um programa que faz conta</h3>
+<p>Computadores são ótimos em contas. A caixa abaixo guarda duas notas da Ana em duas <strong>variáveis</strong> (caixinhas com nome, aula <a href="variaveis.html">Variáveis</a>) e mostra a média. O <code>$</code> antes das aspas e as chaves <code>{ }</code> abrem um "buraco" no texto, que o C# preenche com o resultado da conta (aula <a href="interpolacao.html">Interpolação</a>). Rode e veja o resultado.</p>
+
+<div class="trycs" data-goal="out:Média da Ana: 9">
+<p class="try-task"><strong>Missão:</strong> rode e veja a média <code>8</code>. A professora corrigiu as provas de novo: a primeira valia <code>8</code> e a segunda <code>10</code>. Troque os dois números, rode outra vez, e a média deve virar <code>9</code>.</p>
+<pre class="script" data-file="media.cs">int prova1 = 7;
+int prova2 = 9;
+Console.WriteLine($"Média da Ana: {(prova1 + prova2) / 2}");
+</pre>
+<pre class="solucao">int prova1 = 8;
+int prova2 = 10;
+Console.WriteLine($"Média da Ana: {(prova1 + prova2) / 2}");
+</pre>
+</div>
+
+<p>Repare que o texto entre aspas aparece igualzinho, e no lugar de <code>{(prova1 + prova2) / 2}</code> aparece a conta já <strong>calculada</strong>. Curiosidade que vai ser útil depois: se as notas fossem 7 e 8, a média apareceria <code>7</code>, e não <code>7,5</code>. Em C#, a divisão entre dois números inteiros joga fora a parte quebrada. Dividindo por <code>2.0</code> (com ponto, no código), o resultado sai <code>7,5</code> (com vírgula, na tela, porque o computador está em português). A aula <a href="operadores-aritmeticos.html">Operadores Aritméticos</a> explica por quê, e a aula <a href="cultura.html">Cultura</a> explica a vírgula.</p>
+
+<hr>
+
+<h2>O que é este guia</h2>
+<p>O <strong>C#</strong> (pronuncia-se "cê-xárp", como a nota musical dó sustenido em inglês, <em>C sharp</em>) é uma linguagem de programação criada pela Microsoft e lançada em 2002. Hoje ela é <strong>livre e gratuita</strong>, roda em Linux, Windows e macOS, e está por trás de muita coisa: sites e sistemas de bancos e lojas (com o ASP.NET), jogos feitos no motor <strong>Unity</strong> (usado em boa parte dos jogos de celular), programas de computador, aplicativos de celular e serviços na nuvem. A aula <a href="introducao.html">O que é C#</a> conta essa história.</p>
+
+<p>Quem aprende C# consegue:</p>
+<ul>
+  <li>escrever programas que fazem contas, tomam decisões, repetem tarefas e organizam listas de dados;</li>
+  <li>organizar programas grandes com <strong>classes e objetos</strong> (orientação a objetos), do jeito que as empresas trabalham;</li>
+  <li>ler e gravar arquivos e dados em JSON, fazer consultas em listas com o LINQ e escrever programas que fazem várias coisas ao mesmo tempo;</li>
+  <li>partir depois para sites (ASP.NET Core), jogos (Unity e Godot), aplicativos de celular e de computador (.NET MAUI);</li>
+  <li>aprender Java, TypeScript, Kotlin ou Swift com muito mais facilidade, porque elas se parecem muito com o C#.</li>
+</ul>
+
+<p>O guia é para quem <strong>nunca programou</strong>. Ele começa do zero absoluto (o que é um programa? o que é compilar?) e vai até classes, herança, interfaces, coleções, LINQ, programação assíncrona, testes e a publicação do programa. O C# tem fama de linguagem "segura": o compilador confere os tipos antes de rodar, o .NET cuida da memória para você e os erros aparecem com mensagens claras. O guia aproveita isso e ensina, desde a primeira aula, os hábitos que evitam problemas (ler os avisos do compilador, conferir o que o usuário digitou, usar <code>decimal</code> para dinheiro).</p>
+
+<hr>
+
+<h2>Como as aulas funcionam</h2>
+<p>Nenhum código aparece "seco". Toda aula segue o mesmo caminho:</p>
+<ol class="passo">
+  <li><strong>A ideia primeiro.</strong> Antes do código, você entende o problema que ele resolve, com uma comparação do dia a dia.</li>
+  <li><strong>Anatomia.</strong> Cada pedaço de uma linha nova é separado e explicado: o que é palavra do C#, o que é nome escolhido por você, para que serve cada símbolo.</li>
+  <li><strong>A saída real.</strong> Você vê exatamente o que aparece na tela, com etiquetas laranja apontando o que importa. Toda saída foi produzida pelo <code>dotnet</code> de verdade.</li>
+  <li><strong>Experimente.</strong> Pelo menos duas caixas por aula para você mudar o código e rodar, muitas com uma <strong>missão</strong> e um botão para ver a solução. As caixas compilam o C# de verdade, então os erros que você vir são erros reais.</li>
+  <li><strong>Várias formas de fazer.</strong> Quase sempre há mais de um caminho, e uma tabela "qual usar" mostra quando escolher cada um.</li>
+  <li><strong>Quando dá errado.</strong> O código com erro, a mensagem real do compilador (ou a exceção do programa), o que ela quer dizer e como consertar.</li>
+  <li><strong>Exercícios e resumo.</strong> Perguntas com correção na hora e uma lista curta do que levar da aula.</li>
+</ol>
+
+<h3>Exemplo: a anatomia de uma linha</h3>
+<p>Esta é a linha que você mudou lá em cima. Veja como as aulas desmontam uma linha de código:</p>
+
+<pre class="file" data-file="trecho">Console.WriteLine("Olá, mundo!");</pre>
+
+<dl class="anatomy">
+  <dt>Console</dt><dd>O "console", a tela de texto do programa. Em C#, <code>Console</code> é uma <strong>classe</strong> pronta, que vem com o .NET e reúne tudo o que se pode fazer com essa tela: escrever, ler o que a pessoa digita, limpar, mudar a cor.</dd>
+  <dt>.</dt><dd>O ponto quer dizer "de dentro de": <code>Console.WriteLine</code> é "o <code>WriteLine</code> que fica dentro do <code>Console</code>".</dd>
+  <dt>WriteLine</dt><dd>"Escrever linha": escreve o texto e pula para a linha de baixo. É um <strong>método</strong>, uma ação que se pode pedir. Repare nas maiúsculas: o C# diferencia <code>WriteLine</code> de <code>writeline</code>.</dd>
+  <dt>( )</dt><dd>Os parênteses levam para o método aquilo com que ele vai trabalhar. Aqui, o texto a escrever.</dd>
+  <dt>"Olá, mundo!"</dt><dd>O texto a mostrar. As aspas marcam onde ele começa e termina e não aparecem na tela. Um texto entre aspas se chama <strong>string</strong> (aula <a href="strings.html">Strings</a>).</dd>
+  <dt>;</dt><dd>O ponto e vírgula termina a instrução, como o ponto final de uma frase. Esquecê-lo é o erro número um de quem começa.</dd>
+</dl>
+
+<h3>Exemplo: o terminal</h3>
+<p>Além do editor, as aulas mostram o <strong>terminal</strong> da máquina fictícia do guia: um computador chamado <code>notebook</code>, da usuária <code>ana</code>, com Ubuntu Linux em português e o .NET 10 instalado. Ali, a Ana guarda o código num arquivo e pede ao <code>dotnet</code> para compilar e rodar, tudo num comando só:</p>
+
+<pre class="term" data-cwd="~/cs">$ cat ola.cs                                    « mostra o conteúdo do arquivo
+Console.WriteLine("Olá, mundo!");
+$ dotnet run ola.cs                             « compila e roda o arquivo ola.cs
+Olá, mundo!
+$ echo $?
+0                                               « código de saída 0: terminou sem erro</pre>
+
+<p>Repare que o <code>dotnet</code> não escreveu "compilando" nem "pronto": só apareceu o que o programa escreveu. Se houvesse um erro, ele apareceria ali. E quando falta o <code>;</code>, é assim que o compilador reclama:</p>
+
+<pre class="term" data-cwd="~/cs">$ cat semponto.cs
+Console.WriteLine("Olá, mundo!")
+$ dotnet run semponto.cs
+/home/ana/cs/semponto.cs(1,33): error CS1002: ; esperado     « linha 1, coluna 33: faltou um ;
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.
+$ echo $?
+1                                               « 1: a compilação falhou, o programa nem rodou</pre>
+
+<p>As mensagens do compilador saem em português, porque o computador da Ana está em português, e cada erro tem um <strong>código</strong> (<code>CS1002</code>) que é o mesmo em qualquer língua: procurando "CS1002" na internet, você acha a explicação. A aula <a href="dotnet-run.html">Rodar com dotnet run</a> explica esse comando, e a aula <a href="simulador.html">O Editor do Guia</a> ensina a usar as caixas Experimente.</p>
+
+<hr>
+
+<h2>Escolha sua trilha</h2>
+<p>O guia tem três níveis, uma seção de projetos e uma de referência. Os níveis foram pensados para serem feitos em ordem: cada aula usa o que as anteriores ensinaram.</p>
+<div class="trilhas">
+  <div class="trilha n1">
+    <h3>Nível 1 · Iniciante</h3>
+    <p>Programar em C# do zero.</p>
+    <ul>
+      <li><a href="introducao.html">Começando</a>: o que é C# e o .NET, as versões, instalar e escolher um editor</li>
+      <li><a href="primeiro-programa.html">Primeiros Passos</a>: o primeiro programa, <code>dotnet run</code>, projetos, <code>Console.WriteLine</code>, erros e avisos</li>
+      <li><a href="variaveis.html">Variáveis e Tipos</a> e <a href="operadores-aritmeticos.html">Operadores</a>: números, <code>decimal</code>, <code>bool</code>, <code>var</code>, <code>TryParse</code></li>
+      <li><a href="strings.html">Texto</a>, <a href="if-else.html">Decisões</a> e <a href="while.html">Repetições</a>: strings, interpolação, <code>if</code>, <code>switch</code>, <code>for</code>, <code>foreach</code></li>
+      <li><a href="readline.html">Entrada</a>, <a href="arrays.html">Arrays</a> e <a href="math.html">Números</a>: <code>Console.ReadLine</code>, listas de valores, <code>Math</code>, <code>Random</code></li>
+    </ul>
+    <a class="btn" href="introducao.html">Começar &#10095;</a>
+  </div>
+  <div class="trilha n2">
+    <h3>Nível 2 · Intermediário</h3>
+    <p>Métodos, <code>null</code> e orientação a objetos.</p>
+    <ul>
+      <li><a href="metodos.html">Métodos</a>: parâmetros, retorno, <code>ref</code> e <code>out</code>, sobrecarga, recursão</li>
+      <li><a href="null.html">Null</a>: tipos anuláveis, <code>??</code> e <code>?.</code>, referências anuláveis</li>
+      <li><a href="poo.html">Classes e Objetos</a>: propriedades, construtores, encapsulamento, <code>static</code></li>
+      <li><a href="heranca.html">Herança e Polimorfismo</a>: <code>virtual</code> e <code>override</code>, classes abstratas, interfaces</li>
+      <li><a href="valor-referencia.html">Tipos de Valor</a> e <a href="excecoes.html">Exceções</a>: <code>struct</code>, <code>enum</code>, <code>record</code>, <code>try</code> e <code>catch</code></li>
+    </ul>
+    <a class="btn" href="metodos.html">Começar &#10095;</a>
+  </div>
+  <div class="trilha n3">
+    <h3>Nível 3 · Avançado</h3>
+    <p>C# moderno e profissional.</p>
+    <ul>
+      <li><a href="colecoes.html">Coleções</a> e <a href="generics.html">Generics</a>: <code>List&lt;T&gt;</code>, <code>Dictionary</code>, <code>yield</code></li>
+      <li><a href="delegates.html">Delegates</a> e <a href="linq.html">LINQ</a>: lambdas, eventos, <code>Where</code>, <code>Select</code>, <code>GroupBy</code></li>
+      <li><a href="pattern-matching.html">C# Moderno</a>: pattern matching, atributos, <code>Span&lt;T&gt;</code>, as novidades do C# 14</li>
+      <li><a href="arquivos.html">Arquivos e Dados</a> e <a href="async-await.html">Assíncrono</a>: arquivos, JSON, datas, <code>async</code> e <code>await</code></li>
+      <li><a href="dotnet-cli.html">Ferramentas</a>: o comando <code>dotnet</code>, NuGet, testes com xUnit, depuração, publicar</li>
+    </ul>
+    <a class="btn" href="colecoes.html">Começar &#10095;</a>
+  </div>
+  <div class="trilha proj">
+    <h3>Projetos</h3>
+    <p>Programas completos, construídos passo a passo.</p>
+    <ul>
+      <li><a href="projeto-calculadora.html">Calculadora</a> e <a href="projeto-adivinhacao.html">jogo de adivinhação</a></li>
+      <li><a href="projeto-notas.html">Boletim de notas</a> e <a href="projeto-tarefas.html">lista de tarefas</a></li>
+      <li><a href="projeto-agenda.html">Agenda de contatos</a> gravada em JSON</li>
+      <li><a href="projeto-banco.html">Conta bancária</a> com classes e <a href="projeto-estoque.html">estoque da lojinha</a> com LINQ</li>
+    </ul>
+    <a class="btn" href="projetos.html">Ver projetos &#10095;</a>
+  </div>
+  <div class="trilha ref">
+    <h3>Referência</h3>
+    <p>Consulta rápida para quando você já sabe o que procura.</p>
+    <ul>
+      <li><a href="ref-palavras-chave.html">Palavras-chave</a>, <a href="ref-tipos.html">tipos e limites</a> e <a href="ref-operadores.html">operadores</a></li>
+      <li><a href="ref-string.html"><code>string</code></a>, <a href="ref-colecoes.html">coleções</a> e <a href="ref-linq.html">LINQ</a></li>
+      <li><a href="ref-excecoes.html">Exceções</a> e <a href="ref-erros.html">erros do compilador (CS…)</a></li>
+      <li><a href="glossario.html">Glossário</a> e <a href="quiz.html">quiz</a></li>
+    </ul>
+    <a class="btn" href="ref-palavras-chave.html">Consultar &#10095;</a>
+  </div>
+</div>
+
+<hr>
+
+<h2>Como estudar</h2>
+<p>Programar se aprende fazendo, como andar de bicicleta. Para cada aula, siga estes quatro passos:</p>
+<ol class="passo">
+  <li><strong>Leia com calma.</strong> Leia a ideia, a anatomia e a saída. Não pule a parte "Quando dá errado": quem sabe ler um erro programa duas vezes mais rápido.</li>
+  <li><strong>Rode no editor.</strong> Clique em <strong>Rodar</strong> em toda caixa Experimente. Mude um número, um texto, apague um <code>;</code> de propósito e veja o que acontece. Não tem como estragar nada: o botão <strong>Restaurar</strong> volta ao código original.</li>
+  <li><strong>Faça as missões.</strong> As caixas com <strong>Missão</strong> conferem sozinhas se você acertou. Tente de verdade antes de abrir a solução; se abrir, digite a solução você mesmo em vez de só olhar.</li>
+  <li><strong>Pratique no terminal.</strong> Quando tiver o .NET instalado, repita os exemplos no seu computador, com o seu editor, rodando com <code>dotnet run</code>. É assim que se programa "de verdade", e algumas aulas (pacotes NuGet, testes, depuração, publicar) só funcionam ali.</li>
+</ol>
+
+<div class="tip">
+<strong>A regra de ouro</strong>
+<p>Ler não basta: digite cada exemplo. Copiar e colar ensina pouco; digitar faz você reparar em cada <code>;</code>, cada chave e cada aspa. Para instalar o .NET, veja <a href="instalar-linux.html">Instalar no Linux</a> ou <a href="instalar-windows-mac.html">Instalar no Windows e macOS</a>, e para escolher onde escrever o código, <a href="editores.html">Editores e IDEs</a>. Se ainda não quiser instalar nada, tudo bem: quase todo o Nível 1 pode ser feito só no navegador.</p>
+</div>
+
+<h3>O editor que compila C# de verdade</h3>
+<p>As caixas Experimente não fingem. Dentro delas rodam duas peças de verdade:</p>
+<ul>
+  <li>o <strong>Roslyn</strong>, o compilador oficial do C#, o mesmo que o <code>dotnet</code> usa no seu computador. Ele confere o seu código, mostra os erros e avisos com os mesmos códigos (<code>CS1002</code>, <code>CS0103</code>…) e traduz o programa;</li>
+  <li>o próprio <strong>.NET</strong>, transformado em <strong>WebAssembly</strong> (o formato de programa que os navegadores sabem executar), que roda o programa traduzido e mostra a saída e o código de saída.</li>
+</ul>
+<p>Você pode digitar a entrada quando o programa pede, usar vários arquivos e até ver o programa "quebrar" com uma exceção, como no terminal. Algumas coisas são diferentes num navegador (ele não deixa um programa mexer nos arquivos do seu computador, por exemplo). A aula <a href="simulador.html">O Editor do Guia</a> mostra o que muda.</p>
+
+<hr>
+
+<h2>Como ler este guia</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Elemento</th><th>O que significa</th></tr>
+<tr><td>Caixa com o nome <code>ola.cs</code> no canto</td><td>O conteúdo de um arquivo de código. O nome no canto é o nome do arquivo. Quando aparece <code>trecho</code>, é só um pedaço de programa, não um arquivo inteiro.</td></tr>
+<tr><td><code>ana@notebook:~/cs$</code></td><td>O prompt do terminal: usuária <code>ana</code>, na máquina <code>notebook</code>, na pasta <code>~/cs</code> (a pasta <code>cs</code> dentro da pasta pessoal). O que vem depois é o comando digitado.</td></tr>
+<tr><td><code>&gt;</code> no começo da linha</td><td>Continuação do comando da linha de cima (por exemplo, o texto de um arquivo sendo criado no terminal).</td></tr>
+<tr><td>Linhas sem prompt</td><td>A resposta do computador: a saída do programa ou a mensagem do compilador.</td></tr>
+<tr><td><span class="t-a">← etiqueta</span></td><td>Uma explicação do guia sobre aquela linha. Não aparece no terminal real.</td></tr>
+<tr><td><span class="versao">C# 12</span></td><td>O recurso só existe a partir dessa versão do C#. A aula diz a alternativa para versões mais antigas (veja <a href="versoes.html">Versões do C# e do .NET</a>).</td></tr>
+<tr><td><strong>ilustrativo</strong></td><td>Uma tela que não pôde ser produzida na máquina do guia (por exemplo, a instalação no Windows). Ela segue os passos oficiais, mas os detalhes podem variar.</td></tr>
+</table>
+</div>
+
+<div class="note">
+<strong>Versão de referência: C# 14 com o .NET 10</strong>
+<p>As saídas do terminal foram conferidas com o <strong>.NET SDK 10.0.112</strong> que vem no próprio Ubuntu 26.04 (o compilador Roslyn 5.0, que entende o <strong>C# 14</strong>), num Linux em português do Brasil. O .NET 10 é uma versão <strong>LTS</strong> (de suporte longo), lançada em novembro de 2025 e com atualizações de segurança até novembro de 2028. Muito código na internet ainda usa o .NET 6 ou o .NET 8; quando um recurso é novo, a aula avisa com o selo de versão e mostra a forma antiga.</p>
+</div>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
