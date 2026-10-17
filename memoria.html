@@ -138,7 +138,6 @@ Console.WriteLine($"Ainda vivo? {observador.IsAlive}");
 <pre class="term" data-cwd="~/cs">$ dotnet run fraca.cs
 Ainda vivo? True</pre>
 <p><strong>O que aconteceu:</strong> o <code>dotnet run</code> compila em modo <strong>Debug</strong> (para depurar), e nesse modo o .NET pode guardar cópias escondidas das referências na pilha até o fim do método, para o <a href="depuracao.html">depurador</a> conseguir mostrá-las. O array ainda estava "alcançável" por uma dessas cópias. Não é um erro: o coletor só promete liberar o que não é alcançável <strong>em algum momento</strong>, nunca num momento exato.</p>
-<p>No editor do guia, o mesmo <code>fraca.cs</code> mostra <code>Ainda vivo? False</code>: outro coletor, outra decisão. É mais uma prova de que o momento da coleta não é garantido.</p>
 <p><strong>A lição:</strong> nunca escreva um programa que dependa de <em>quando</em> o coletor passa. Para o experimento, criar o objeto dentro de um método (como em <code>lixo.cs</code>) resolve.</p>
 </div>
 
@@ -473,7 +472,7 @@ Repeated 261736 times:                    « o número muda um pouco a cada exec
    at Program.&lt;Main&gt;$(System.String[])
 $ echo $?
 134</pre>
-<p><strong>O que significa:</strong> "estouro da pilha". O método <code>Contar</code> (o nome estranho <code>&lt;&lt;Main&gt;$&gt;g__Contar|0_0</code> é como o compilador batiza uma função local) foi chamado mais de 260 mil vezes, uma dentro da outra, até a pilha acabar. Esse erro <strong>não pode</strong> ser pego com <a href="try-catch.html">try/catch</a>: o .NET encerra o programa na hora, com o código 134. No editor do guia, o estouro aparece de outro jeito: o programa termina com o código de saída 1, sem mensagem.</p>
+<p><strong>O que significa:</strong> "estouro da pilha". O método <code>Contar</code> (o nome estranho <code>&lt;&lt;Main&gt;$&gt;g__Contar|0_0</code> é como o compilador batiza uma função local) foi chamado mais de 260 mil vezes, uma dentro da outra, até a pilha acabar. Esse erro <strong>não pode</strong> ser pego com <a href="try-catch.html">try/catch</a>: o .NET encerra o programa na hora, com o código 134. No editor do guia, o estouro aparece de outro jeito: como <code>Unhandled exception. System.StackOverflowException: The requested operation caused a stack overflow.</code>, seguida de centenas de linhas <code>at Program.&lt;&lt;Main&gt;$&gt;g__Contar|0_0(Int32 n) in /home/ana/cs/pilha.cs:line 3</code>, uma para cada chamada.</p>
 <p><strong>Como consertar:</strong> toda recursão precisa de um <strong>caso base</strong>, uma condição em que o método para de se chamar: <code>if (n &gt;= 10) return n;</code>. Se a recursão é muito funda de propósito (milhões de níveis), troque por um laço <a href="while.html">while</a>.</p>
 </div>
 
