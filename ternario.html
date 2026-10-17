@@ -123,6 +123,8 @@ Console.WriteLine($"{n} é {n % 2 == 0 ? "par" : "ímpar"}");
 
 Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
 
+<p>No editor do guia aparecem mais dois erros no fim da lista, <code>CS8088</code> ("um especificador de formato não pode conter espaço em branco à direita") e <code>CS0103</code> ("o nome <code>ímpar</code> não existe"), consequências do mesmo problema. O <code>dotnet</code> para nos erros de sintaxe e não chega a mostrá-los.</p>
+
 <p>Lembra do <code>{total:N2}</code> da aula <a href="formatacao.html">Formatar Números</a>? Dentro das chaves de uma interpolação, o <code>:</code> quer dizer "agora vem o formato". O compilador vê o <code>:</code> do ternário e acha que é o começo de um formato. O erro <code>CS8361</code> explica isso e já diz o conserto: "Use parênteses na expressão condicional".</p>
 
 <pre class="file" data-file="interp2.cs">int n = 7;

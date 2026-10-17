@@ -321,6 +321,8 @@ Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
 
 <p>Cinco erros para um <code>;</code> só! Leia sempre o <strong>primeiro</strong>: "<code>else</code> não pode iniciar uma instrução". O <code>if</code> terminou no <code>;</code>, o <code>Console.WriteLine("Aprovada");</code> é uma instrução solta, e o <code>else</code> chegou sem nenhum <code>if</code> logo antes. Os outros quatro erros são o compilador, já confuso, tentando entender o <code>else</code> como outra coisa. Conserte o primeiro (apague o <code>;</code> da linha 2, e ponha chaves) e todos somem.</p>
 
+<p>No editor do guia, a lista termina com mais uma linha: <code>elsesolto.cs(2,15): warning CS0642: Instrução empty possivelmente incorreta</code>, que aponta direto o culpado. O <code>dotnet</code> não mostra esse aviso porque, quando encontra erros de <strong>sintaxe</strong> (de escrita), ele para antes de procurar avisos; o editor continua procurando.</p>
+
 <hr>
 
 <h2>6. Variáveis e o bloco</h2>

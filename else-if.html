@@ -329,6 +329,7 @@ $ dotnet run elseif.cs
 
 Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
 <p><strong>O que significa:</strong> em C#, são <strong>duas</strong> palavras: <code>else if</code>. Grudadas, <code>elseif</code> vira um nome qualquer, e <code>elseif (nota &gt;= 7)</code> parece a chamada de um método chamado <code>elseif</code>. Uma chamada termina com <code>;</code>, e o compilador reclama que o <code>;</code> faltou no fim da linha 6 (coluna 19). Com o <code>elif</code> do Python, a mesma coisa: <code>elif.cs(6,17): error CS1002: ; esperado</code>.</p>
+<p>No editor do guia aparece também um segundo erro, que explica melhor ainda: <code>elseif.cs(6,1): error CS0103: O nome "elseif" não existe no contexto atual</code>. (O <code>dotnet</code> para no erro de sintaxe e não chega a procurar esse.)</p>
 <p><strong>Como consertar:</strong> <code>else if (nota &gt;= 7)</code>, com espaço. (Também existe <code>#elif</code> em C#, mas é outra coisa: uma diretiva do pré-processador, que você não vai usar agora.)</p>
 </div>
 
