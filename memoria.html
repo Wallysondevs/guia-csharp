@@ -472,7 +472,7 @@ Repeated 261736 times:                    « o número muda um pouco a cada exec
    at Program.&lt;Main&gt;$(System.String[])
 $ echo $?
 134</pre>
-<p><strong>O que significa:</strong> "estouro da pilha". O método <code>Contar</code> (o nome estranho <code>&lt;&lt;Main&gt;$&gt;g__Contar|0_0</code> é como o compilador batiza uma função local) foi chamado mais de 260 mil vezes, uma dentro da outra, até a pilha acabar. Esse erro <strong>não pode</strong> ser pego com <a href="try-catch.html">try/catch</a>: o .NET encerra o programa na hora, com o código 134. No editor do guia, o estouro aparece de outro jeito: como <code>Unhandled exception. System.StackOverflowException: The requested operation caused a stack overflow.</code>, seguida de centenas de linhas <code>at Program.&lt;&lt;Main&gt;$&gt;g__Contar|0_0(Int32 n) in /home/ana/cs/pilha.cs:line 3</code>, uma para cada chamada.</p>
+<p><strong>O que significa:</strong> "estouro da pilha". O método <code>Contar</code> (o nome estranho <code>&lt;&lt;Main&gt;$&gt;g__Contar|0_0</code> é como o compilador batiza uma função local) foi chamado mais de 260 mil vezes, uma dentro da outra, até a pilha acabar. Esse erro <strong>não pode</strong> ser pego com <a href="try-catch.html">try/catch</a>: o .NET encerra o programa na hora, com o código 134. No editor do guia, o estouro aparece do mesmo jeito (<code>Stack overflow.</code>, o bloco repetido e o código 134), só que com uma pilha menor: <code>Repeated 999 times</code>.</p>
 <p><strong>Como consertar:</strong> toda recursão precisa de um <strong>caso base</strong>, uma condição em que o método para de se chamar: <code>if (n &gt;= 10) return n;</code>. Se a recursão é muito funda de propósito (milhões de níveis), troque por um laço <a href="while.html">while</a>.</p>
 </div>
 
@@ -501,7 +501,7 @@ catch (OutOfMemoryException e)
 </pre>
 <pre class="term" data-cwd="~/cs">$ dotnet run oom2.cs
 Array dimensions exceeded supported range.</pre>
-<p>"As dimensões do array passaram do limite aceito". (No editor do guia, as mensagens são outras: <code>Unhandled exception. System.OutOfMemoryException: Out of memory</code> e, com o <code>try</code>, só <code>Out of memory</code>.) <strong>Como consertar:</strong> peça só o que vai usar. Para muitos dados, use uma <a href="list.html">List&lt;T&gt;</a> que cresce aos poucos, ou leia um arquivo linha por linha (veja <a href="streams.html">StreamReader</a>) em vez de carregá-lo inteiro. Se a memória cresce sem parar num programa que fica ligado, procure um dos vazamentos da seção 5.</p>
+<p>"As dimensões do array passaram do limite aceito". (No editor do guia, o <code>oom.cs</code> mostra o mesmo <code>Out of memory.</code> e o código 134; a mensagem lida no <code>catch</code> é outra: <code>Out of memory</code>.) <strong>Como consertar:</strong> peça só o que vai usar. Para muitos dados, use uma <a href="list.html">List&lt;T&gt;</a> que cresce aos poucos, ou leia um arquivo linha por linha (veja <a href="streams.html">StreamReader</a>) em vez de carregá-lo inteiro. Se a memória cresce sem parar num programa que fica ligado, procure um dos vazamentos da seção 5.</p>
 </div>
 
 <hr>
