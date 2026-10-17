@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Argumentos da Linha de Comando — args | Guia C#</title>
+<meta name="description" content="Argumentos da linha de comando em C# para quem nunca programou: o que é o args, como mandar valores com dotnet run arquivo.cs -- a b, para que serve o --, como o terminal separa as palavras (aspas, espaços, o * que vira nomes de arquivo), conferir args.Length antes de usar, converter com TryParse, mensagens de uso no Console.Error com return 1, args em projetos, e os erros reais IndexOutOfRangeException e 1020 no lugar de 30, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Argumentos da Linha de Comando</span></h1>
+
+<p class="intro">No terminal, quase todo comando recebe informações junto com o nome: <code>ls -l</code>, <code>cp foto.png backup/</code>, <code>mkdir projetos</code>. Essas palavras depois do comando são os <strong>argumentos</strong>. Os programas da Ana em C# também podem recebê-los: em vez de perguntar o nome com <code>Console.ReadLine</code>, o programa já começa sabendo, porque a Ana escreveu <code>dotnet run ola.cs -- Ana</code>. Dentro do programa, os argumentos chegam numa variável pronta, chamada <code>args</code>. Nesta aula você vai ver como mandá-los, como o terminal os separa e como usá-los sem o programa quebrar.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é o <code>args</code> e como ler cada argumento com <code>args[0]</code>, <code>args[1]</code>…</li>
+  <li>Como mandar argumentos com <code>dotnet run arquivo.cs -- …</code>, e para que serve o <code>--</code>.</li>
+  <li>Como o terminal corta a linha em argumentos: espaços, aspas e o <code>*</code>.</li>
+  <li>Por que conferir <code>args.Length</code> antes de usar, e como mostrar uma mensagem de uso com <code>return 1</code>.</li>
+  <li>Como transformar um argumento em número (e por que <code>10</code> + <code>20</code> deu <code>1020</code>).</li>
+  <li>Como passar argumentos num projeto e quando usar <code>args</code> ou <code>ReadLine</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas foram rodados com o <strong>.NET 10</strong> (<code>dotnet --version</code> = <code>10.0.112</code>, C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Antes desta aula, é bom ter visto <a href="readline.html">Ler do Teclado</a> e o <a href="for.html">for</a>.</p>
+
+<hr>
+
+<h2>A ideia: o bilhete junto com o pedido</h2>
+<p>Há dois jeitos de pedir um bolo na confeitaria:</p>
+<ul>
+  <li>Você chega e a atendente pergunta: "Qual sabor? Para quantas pessoas? Que nome vai no bolo?". Você responde uma coisa de cada vez. Esse é o <code>Console.ReadLine</code>, da aula anterior: uma <strong>conversa</strong> com o programa já rodando.</li>
+  <li>Você entrega um bilhete: "chocolate, 20 pessoas, Ana". A atendente lê tudo de uma vez, antes de começar, e não precisa perguntar nada. Esses são os <strong>argumentos</strong>: o que você manda <strong>na hora de mandar rodar</strong>.</li>
+</ul>
+<p>O bilhete tem uma vantagem: dá para repetir o pedido igualzinho, sem digitar as respostas de novo. É por isso que os comandos do terminal (e os scripts do Guia Bash) usam argumentos.</p>
+
+<hr>
+
+<h2>1. O <code>args</code></h2>
+<p>Num programa de arquivo único, como os da Ana, existe uma variável que você não criou: <code>args</code> (de <em>arguments</em>, argumentos). Ela é um <strong>array de strings</strong>, <code>string[]</code>: uma fileira de textos, um para cada argumento. Arrays têm aula própria logo adiante (<a href="arrays.html">Arrays</a>); por enquanto, basta saber três coisas:</p>
+<ul>
+  <li><code>args.Length</code> diz quantos argumentos chegaram;</li>
+  <li><code>args[0]</code> é o primeiro, <code>args[1]</code> o segundo, e assim por diante: a contagem começa no <strong>0</strong>;</li>
+  <li>cada um é uma <code>string</code>, mesmo que pareça um número.</li>
+</ul>
+
+<pre class="file" data-file="args.cs">Console.WriteLine($"Recebi {args.Length} argumento(s):");
+for (int i = 0; i &lt; args.Length; i++)
+{
+    Console.WriteLine($"args[{i}] = {args[i]}");
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>args</dt><dd>Criada pelo C# antes da primeira linha do seu programa, já com os argumentos dentro. Você só usa.</dd>
+  <dt>args.Length</dt><dd>"Comprimento": quantos argumentos há. Pode ser 0.</dd>
+  <dt>for (int i = 0; i &lt; args.Length; i++)</dt><dd>Passa pelas posições 0, 1, 2… até a última. Com <code>args.Length</code> igual a 0, o laço nem começa.</dd>
+  <dt>args[i]</dt><dd>O argumento da posição <code>i</code>.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run args.cs
+Recebi 0 argumento(s):
+$ dotnet run args.cs -- Ana 29
+Recebi 2 argumento(s):
+args[0] = Ana
+args[1] = 29</pre>
+
+<p>Na primeira vez, a Ana não mandou nada: <code>args</code> chegou vazio. Na segunda, tudo o que veio depois do <code>--</code> foi para o programa: <code>Ana</code> e <code>29</code>, cada um numa posição.</p>
+
+<div class="note">
+<strong>De onde vem o <code>args</code>?</strong>
+<p>Nos programas antigos (e em muitos projetos), o programa começa num método <code>static void Main(string[] args)</code>, e o <code>args</code> é o parâmetro dele. Com as instruções de nível superior <span class="versao">C# 9</span>, o <code>Main</code> fica escondido, mas o <code>args</code> continua lá, com o mesmo nome. A aula <a href="top-level.html">Program.cs e o Main</a> mostra os dois lado a lado.</p>
+</div>
+
+<hr>
+
+<h2>2. Para que serve o <code>--</code></h2>
+<p>Na linha <code>dotnet run args.cs -- Ana 29</code>, há <strong>dois</strong> programas recebendo coisas: o <code>dotnet run</code>, que compila e roda, e o programa da Ana. O <code>--</code> é a divisa: o que vem antes é para o <code>dotnet</code>; o que vem depois é para o <code>args</code>.</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run args.cs Ana 29                « sem o --
+Recebi 2 argumento(s):
+args[0] = Ana
+args[1] = 29</pre>
+
+<p>Com palavras simples, funciona até sem o <code>--</code>: o <code>dotnet</code> percebe que <code>Ana</code> e <code>29</code> não são opções dele e as repassa. O problema aparece quando um argumento começa com <code>-</code>, porque aí o <code>dotnet</code> acha que é uma opção <strong>dele</strong>:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run args.cs -v
+Argumento obrigatório ausente para a opção: '-v'.
+
+Description:
+  Comando Run do .NET
+
+Uso:
+  dotnet run [&lt;applicationArguments&gt;...] [options]
+…                                          « e mais umas 85 linhas de ajuda
+$ dotnet run args.cs -- -v
+Recebi 1 argumento(s):
+args[0] = -v</pre>
+
+<p>Sem o <code>--</code>, o <code>-v</code> foi entendido como a opção "verbosidade" do <code>dotnet run</code>, que precisa de um valor, e o programa da Ana nem rodou. Com o <code>--</code>, ele chegou intacto. Com <code>--help</code> é igual: sem o <code>--</code>, aparece a ajuda do <code>dotnet</code>.</p>
+
+<div class="tip">
+<strong>Regra do guia: sempre escreva o <code>--</code></strong>
+<p>Use <code>dotnet run arquivo.cs -- argumentos</code>, mesmo quando não seria preciso. Fica claro para quem lê o que é de quem, e o programa não muda de comportamento no dia em que um argumento começar com <code>-</code>.</p>
+</div>
+
+<hr>
+
+<h2>3. Como o terminal corta a linha</h2>
+<p>Quem separa a linha em argumentos não é o C#: é o <strong>terminal</strong> (o bash), antes de o programa começar. As regras são as do Guia Bash:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run args.cs -- Ana Maria   29
+Recebi 3 argumento(s):
+args[0] = Ana
+args[1] = Maria          « o espaço separa: viraram dois
+args[2] = 29
+$ dotnet run args.cs -- "Ana Maria" 29
+Recebi 2 argumento(s):
+args[0] = Ana Maria      « as aspas juntam
+args[1] = 29
+$ dotnet run args.cs -- ""
+Recebi 1 argumento(s):
+args[0] =                « um argumento vazio, mas existe
+$ dotnet run args.cs -- *.txt
+Recebi 3 argumento(s):
+args[0] = a.txt
+args[1] = b.txt          « o bash trocou *.txt pelos nomes dos arquivos
+args[2] = precos.txt
+$ dotnet run args.cs -- "*.txt"
+Recebi 1 argumento(s):
+args[0] = *.txt</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você escreve</th><th>O programa recebe</th><th>Por quê</th></tr>
+<tr><td><code>Ana Maria   29</code></td><td>3 argumentos: <code>Ana</code>, <code>Maria</code>, <code>29</code></td><td>Um ou mais espaços separam. Os espaços em si não chegam.</td></tr>
+<tr><td><code>"Ana Maria" 29</code></td><td>2: <code>Ana Maria</code>, <code>29</code></td><td>Entre aspas, o espaço faz parte do argumento. As aspas não chegam.</td></tr>
+<tr><td><code>""</code></td><td>1: o texto vazio</td><td>Aspas vazias são um argumento sem nenhuma letra.</td></tr>
+<tr><td><code>*.txt</code></td><td>os nomes dos arquivos <code>.txt</code> da pasta</td><td>O <code>*</code> é um curinga do bash: ele troca pelos nomes antes de rodar.</td></tr>
+<tr><td><code>"*.txt"</code> ou <code>'*.txt'</code></td><td>1: <code>*.txt</code></td><td>Entre aspas, o <code>*</code> fica como está.</td></tr>
+</table>
+</div>
+
+<div class="trycs" data-args="Ana" data-goal="out:Olá, Ana!,src:args\[0\]">
+<p class="try-task"><strong>Missão:</strong> esta caixa roda o programa com o argumento <code>Ana</code> (como <code>dotnet run ola.cs -- Ana</code>). Troque o <code>"mundo"</code> pelo primeiro argumento, <code>args[0]</code>, para a saída ser <code>Olá, Ana!</code>.</p>
+<pre class="out">Olá, Ana!</pre>
+<pre class="script" data-file="ola.cs">Console.WriteLine("Olá, mundo!");
+</pre>
+<pre class="solucao" data-file="ola.cs">Console.WriteLine($"Olá, {args[0]}!");
+</pre>
+</div>
+
+<hr>
+
+<h2>4. Confira <code>args.Length</code> antes de usar</h2>
+<p>O programa da missão funciona quando a Ana manda o nome. E quando ela esquece?</p>
+
+<pre class="file" data-file="ola-args.cs">Console.WriteLine($"Olá, {args[0]}!");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ola-args.cs -- Ana
+Olá, Ana!
+$ dotnet run ola-args.cs
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/ola-args.cs:line 1
+$ echo $?
+134</pre>
+
+<p><code>IndexOutOfRangeException</code> = "exceção de índice fora do intervalo": <em>Index was outside the bounds of the array</em>, "o índice estava fora dos limites do array". Sem argumentos, o <code>args</code> tem 0 posições, e não existe <code>args[0]</code>. O programa quebrou na linha 1, com o código de saída 134. O compilador não tem como avisar: ele não sabe quantos argumentos você vai mandar.</p>
+
+<p>Os comandos do terminal resolvem isso com uma <strong>mensagem de uso</strong>: se faltar argumento, eles explicam como usar e terminam com um código de erro. Em C#:</p>
+
+<pre class="file" data-file="ola2.cs">if (args.Length == 0)
+{
+    Console.Error.WriteLine("Uso: dotnet run ola2.cs -- NOME");
+    return 1;
+}
+Console.WriteLine($"Olá, {args[0]}!");
+return 0;
+</pre>
+
+<dl class="anatomy">
+  <dt>if (args.Length == 0)</dt><dd>Nenhum argumento? Então não dá para continuar.</dd>
+  <dt>Console.Error.WriteLine(…)</dt><dd>Escreve na <strong>saída de erros</strong> (<em>stderr</em>), e não na saída normal. Na tela, as duas aparecem iguais, mas o terminal consegue separá-las (no Guia Bash, o <code>2&gt;</code>). Mensagens de erro e de uso vão para lá, por costume.</dd>
+  <dt>return 1;</dt><dd>Termina o programa na hora, com o <strong>código de saída 1</strong>. Para o terminal (e para os scripts), 0 quer dizer "deu certo" e qualquer outro número quer dizer "deu errado".</dd>
+  <dt>return 0;</dt><dd>No fim, "deu certo". Quando o programa usa <code>return</code> com número em algum lugar, ele precisa de um <code>return</code> com número no fim também (sem ele, dá o erro <code>CS0161</code> da seção "Quando dá errado").</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ola2.cs
+Uso: dotnet run ola2.cs -- NOME
+$ echo $?
+1
+$ dotnet run ola2.cs -- Bia
+Olá, Bia!
+$ echo $?
+0</pre>
+
+<p>Agora, quem esquece o nome recebe uma explicação, em vez de dez linhas em inglês. E o código 1 avisa um script que algo deu errado.</p>
+
+<hr>
+
+<h2>5. Argumentos são texto: converta com <code>TryParse</code></h2>
+<p>Todo argumento chega como <code>string</code>, mesmo os que parecem números. Veja o que acontece se a Ana somar dois deles direto:</p>
+
+<pre class="term" data-cwd="~/cs">$ cat junta.cs
+Console.WriteLine(args[0] + args[1]);
+$ dotnet run junta.cs -- 10 20
+1020</pre>
+
+<p>Com duas <code>string</code>, o <code>+</code> <strong>junta</strong> os textos (aula <a href="strings.html">Strings</a>): <code>"10"</code> + <code>"20"</code> = <code>"1020"</code>. Nenhum erro, nenhum aviso: só o resultado errado. Para fazer conta, converta antes com <code>int.TryParse</code>, como na aula <a href="readline.html">Ler do Teclado</a>:</p>
+
+<pre class="file" data-file="soma-args.cs">int soma = 0;
+foreach (string arg in args)
+{
+    if (int.TryParse(arg, out int numero))
+    {
+        soma += numero;
+    }
+    else
+    {
+        Console.WriteLine($"Ignorado: \"{arg}\" não é um número.");
+    }
+}
+Console.WriteLine($"Soma: {soma}");
+</pre>
+
+<dl class="anatomy">
+  <dt>foreach (string arg in args)</dt><dd>Passa por todos os argumentos, um de cada vez, sem precisar de índice (aula <a href="foreach.html">foreach</a>). Funciona com qualquer quantidade, até zero.</dd>
+  <dt>int.TryParse(arg, out int numero)</dt><dd>Tenta converter. Se der, <code>numero</code> recebe o valor e é somado.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run soma-args.cs -- 10 20 doze 12
+Ignorado: "doze" não é um número.
+Soma: 42</pre>
+
+<p>Diferente do <code>ReadLine</code>, um argumento nunca é <code>null</code>: o <code>args</code> é um <code>string[]</code>, sem <code>?</code>. O que pode acontecer é ele <strong>faltar</strong> (seção 4) ou ser um texto vazio (<code>""</code>).</p>
+
+<div class="trycs" data-args="10 20 12" data-goal="out:Soma: 42,src:TryParse">
+<p class="try-task"><strong>Missão:</strong> esta caixa roda com os argumentos <code>10 20 12</code>. O programa mostra <code>Soma: 102012</code>, porque junta os textos. Conserte para mostrar <code>Soma: 42</code>, convertendo cada argumento com <code>int.TryParse</code>. Melhor ainda se funcionar com qualquer quantidade de números.</p>
+<pre class="out">Soma: 42</pre>
+<pre class="script" data-file="soma.cs">Console.WriteLine($"Soma: {args[0] + args[1] + args[2]}");
+</pre>
+<pre class="solucao" data-file="soma.cs">int soma = 0;
+foreach (string arg in args)
+{
+    if (int.TryParse(arg, out int numero))
+    {
+        soma += numero;
+    }
+}
+Console.WriteLine($"Soma: {soma}");
+</pre>
+</div>
+
+<hr>
+
+<h2>6. Argumentos num projeto</h2>
+<p>Num projeto criado com <code>dotnet new console</code> (aula <a href="projetos-console.html">Projetos</a>), é igual, só que sem o nome do arquivo: o <code>dotnet run</code> roda o projeto da pasta, e o <code>--</code> separa os argumentos.</p>
+
+<pre class="term" data-cwd="~/projetos/Saudacao">$ dotnet run -- Ana 29
+Recebi 2 argumento(s):
+args[0] = Ana
+args[1] = 29
+$ ./bin/Debug/net10.0/Saudacao Ana 29        « o programa já compilado, sem o dotnet run
+Recebi 2 argumento(s):
+args[0] = Ana
+args[1] = 29</pre>
+
+<p>Na segunda linha, a Ana rodou direto o programa que o <code>dotnet run</code> tinha compilado na pasta <code>bin</code>. Aí não há <code>dotnet</code> no meio, então não há <code>--</code>: tudo depois do nome do programa vai para o <code>args</code>, como em qualquer comando do terminal. É assim que o programa vai ser usado depois de pronto (aula <a href="publicar.html">Publicar o Programa</a>).</p>
+
+<hr>
+
+<h2>7. <code>args</code> ou <code>ReadLine</code>?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Argumentos (<code>args</code>)</th><th>Entrada (<code>Console.ReadLine</code>)</th></tr>
+<tr><td>Quando chega</td><td>Antes de o programa começar, tudo de uma vez</td><td>Durante o programa, quando ele pergunta</td></tr>
+<tr><td>Tipo</td><td><code>string[]</code> (nunca <code>null</code>; pode faltar)</td><td><code>string?</code> (<code>null</code> no fim da entrada)</td></tr>
+<tr><td>Bom para</td><td>Opções e nomes de arquivo; repetir o mesmo comando; scripts</td><td>Conversas: menus, jogos, perguntas que dependem da resposta anterior</td></tr>
+<tr><td>Exemplo</td><td><code>dotnet run calc.cs -- 7 x 6</code></td><td><code>Primeiro número? 7</code></td></tr>
+</table>
+</div>
+<p>Muitos programas usam os dois: se o argumento veio, usam; se não veio, perguntam com <code>ReadLine</code>.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.</code></strong>
+<p><strong>O que significa:</strong> o programa usou <code>args[0]</code> (ou <code>args[1]</code>…) e esse argumento não foi mandado. O programa termina com o código 134.</p>
+<p><strong>Como consertar:</strong> confira <code>args.Length</code> antes, e mostre uma mensagem de uso com <code>Console.Error.WriteLine</code> e <code>return 1</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>A soma deu <code>1020</code> em vez de <code>30</code></strong>
+<p><strong>O que significa:</strong> os argumentos são <code>string</code>, e o <code>+</code> entre textos junta os textos.</p>
+<p><strong>Como consertar:</strong> converta cada um com <code>int.TryParse</code> (ou <code>decimal.TryParse</code>) antes da conta. Se você tentar guardar direto (<code>int n = args[0];</code>), o compilador recusa com <code>error CS0029: Não é possível converter implicitamente tipo "string" em "int"</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0161: "&lt;top-level-statements-entry-point&gt;": nem todos os caminhos de código retornam um valor</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat semret.cs
+if (args.Length == 0)
+{
+    return 1;
+}
+Console.WriteLine($"Olá, {args[0]}!");
+$ dotnet run semret.cs -- Ana
+/home/ana/cs/semret.cs(1,1): error CS0161: "&lt;top-level-statements-entry-point&gt;": nem todos os caminhos de código retornam um valor
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> "nem todos os caminhos devolvem um valor" (<em>not all code paths return a value</em>). O programa tem um <code>return 1;</code>, então o C# entende que ele termina sempre com um número. Mas, quando há argumento, ele chega ao fim sem <code>return</code>. O nome estranho, <code>&lt;top-level-statements-entry-point&gt;</code>, é o "ponto de entrada das instruções de nível superior": o <code>Main</code> escondido.</p>
+<p><strong>Como consertar:</strong> ponha <code>return 0;</code> na última linha.</p>
+</div>
+
+<div class="cenario">
+<strong>O <code>dotnet</code> mostrou a própria ajuda, ou <code>Argumento obrigatório ausente para a opção: '-v'.</code></strong>
+<p><strong>O que significa:</strong> um argumento que começa com <code>-</code> ficou antes do <code>--</code> (ou não havia <code>--</code>), e o <code>dotnet run</code> pensou que era uma opção dele.</p>
+<p><strong>Como consertar:</strong> escreva sempre <code>dotnet run arquivo.cs -- argumentos</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Chegaram argumentos a mais (um nome virou dois, um <code>*</code> virou nomes de arquivo)</strong>
+<p><strong>O que significa:</strong> o terminal cortou a linha nos espaços e trocou o <code>*</code> pelos arquivos da pasta. Por exemplo, <code>dotnet run calc.cs -- 7 * 6</code> chega como <code>7</code>, depois os nomes de todos os arquivos da pasta, depois <code>6</code>.</p>
+<p><strong>Como consertar:</strong> ponha entre aspas o que deve chegar inteiro: <code>"Ana Maria"</code>, <code>"*"</code>. Ou escolha símbolos que o terminal não mexe, como <code>x</code> para a multiplicação.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>dotnet run arq.cs -- a b c</code></td><td>Roda <code>arq.cs</code> com 3 argumentos</td></tr>
+<tr><td><code>dotnet run -- a b c</code></td><td>O mesmo, num projeto</td></tr>
+<tr><td><code>args</code></td><td><code>string[]</code> com os argumentos (vazio se não veio nenhum)</td></tr>
+<tr><td><code>args.Length</code></td><td>Quantos argumentos chegaram</td></tr>
+<tr><td><code>args[0]</code></td><td>O primeiro argumento (quebra se não houver)</td></tr>
+<tr><td><code>foreach (string a in args)</code></td><td>Passa por todos</td></tr>
+<tr><td><code>int.TryParse(args[0], out int n)</code></td><td>Converte um argumento em número</td></tr>
+<tr><td><code>Console.Error.WriteLine("Uso: …")</code></td><td>Mensagem de uso na saída de erros</td></tr>
+<tr><td><code>return 1;</code> / <code>return 0;</code></td><td>Termina o programa com código de erro / de sucesso</td></tr>
+<tr><td><code>"Ana Maria"</code></td><td>Um argumento só, com espaço</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Quantos chegaram?</h3>
+<p>Complete para mostrar quantos argumentos o programa recebeu:</p>
+<div class="ex-code">Console.WriteLine(args.<input data-answer="Length" aria-label="propriedade">);</div>
+</div>
+
+<div class="exercise">
+<h3>2. O segundo argumento</h3>
+<p>A Ana rodou <code>dotnet run notas.cs -- Bia 8 9</code>. Complete para pegar o <code>8</code>:</p>
+<div class="ex-code">string nota = args[<input data-answer="1" aria-label="índice">];</div>
+</div>
+
+<div class="exercise">
+<h3>3. Contar argumentos</h3>
+<p>Quantos argumentos o programa recebe com <code>dotnet run args.cs -- "Rua das Flores" 42 ""</code>?</p>
+<div class="ex-code"><input data-answer="3" aria-label="quantidade"> argumentos</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Para que serve o <code>--</code> em <code>dotnet run ola.cs -- -v</code>?</p>
+<label><input type="radio" name="q4"> Para comentar o resto da linha</label>
+<label><input type="radio" name="q4"> Para separar as opções do <code>dotnet</code> dos argumentos do programa</label>
+<label><input type="radio" name="q4"> Para o programa rodar mais rápido</label>
+<label><input type="radio" name="q4"> Para transformar os argumentos em números</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. O programa faz <code>Console.WriteLine(args[0] + args[1]);</code> e roda com <code>-- 2 3</code>. O que aparece?</p>
+<label><input type="radio" name="q5"> <code>5</code></label>
+<label><input type="radio" name="q5"> <code>2 + 3</code></label>
+<label><input type="radio" name="q5"> <code>23</code></label>
+<label><input type="radio" name="q5"> Um erro de compilação</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Um programa com <code>Console.WriteLine(args[0]);</code> rodou sem nenhum argumento. O que acontece?</p>
+<label><input type="radio" name="q6"> <code>IndexOutOfRangeException</code>, código de saída 134</label>
+<label><input type="radio" name="q6"> Mostra uma linha vazia</label>
+<label><input type="radio" name="q6"> Mostra <code>null</code></label>
+<label><input type="radio" name="q6"> O compilador avisa antes de rodar</label>
+</div>
+
+<h3>Missão final: a calculadora de linha de comando</h3>
+
+<div class="trycs" data-args="7 x 6" data-goal="out:7 x 6 = 42,exit:0">
+<p class="try-task"><strong>Missão:</strong> a calculadora da Ana recebe três argumentos: um número, a operação e outro número (<code>dotnet run calc.cs -- 12 + 30</code>). Ela já sabe somar e subtrair, e já confere os argumentos. Esta caixa roda com <code>7 x 6</code>, e a resposta é <code>Operação desconhecida: x</code>, com código 1. Acrescente a multiplicação, com a letra <code>x</code>, para a saída ser <code>7 x 6 = 42</code> (com código 0).</p>
+<pre class="out">7 x 6 = 42</pre>
+<pre class="script" data-file="calc.cs">if (args.Length != 3)
+{
+    Console.Error.WriteLine("Uso: dotnet run calc.cs -- NÚMERO OPERAÇÃO NÚMERO");
+    return 1;
+}
+if (!int.TryParse(args[0], out int a) || !int.TryParse(args[2], out int b))
+{
+    Console.Error.WriteLine("Os dois números têm de ser inteiros.");
+    return 1;
+}
+string operacao = args[1];
+if (operacao == "+")
+{
+    Console.WriteLine($"{a} + {b} = {a + b}");
+}
+else if (operacao == "-")
+{
+    Console.WriteLine($"{a} - {b} = {a - b}");
+}
+else
+{
+    Console.Error.WriteLine($"Operação desconhecida: {operacao}");
+    return 1;
+}
+return 0;
+</pre>
+<pre class="solucao" data-file="calc.cs">if (args.Length != 3)
+{
+    Console.Error.WriteLine("Uso: dotnet run calc.cs -- NÚMERO OPERAÇÃO NÚMERO");
+    return 1;
+}
+if (!int.TryParse(args[0], out int a) || !int.TryParse(args[2], out int b))
+{
+    Console.Error.WriteLine("Os dois números têm de ser inteiros.");
+    return 1;
+}
+string operacao = args[1];
+if (operacao == "+")
+{
+    Console.WriteLine($"{a} + {b} = {a + b}");
+}
+else if (operacao == "-")
+{
+    Console.WriteLine($"{a} - {b} = {a - b}");
+}
+else if (operacao == "x")
+{
+    Console.WriteLine($"{a} x {b} = {a * b}");
+}
+else
+{
+    Console.Error.WriteLine($"Operação desconhecida: {operacao}");
+    return 1;
+}
+return 0;
+</pre>
+</div>
+
+<p>No terminal da Ana, a calculadora pronta fica assim. Repare no <code>7 * 6</code>: o bash trocou o <code>*</code> pelos nomes dos arquivos da pasta, chegaram mais de 3 argumentos, e o programa mostrou a mensagem de uso. É por isso que a calculadora usa <code>x</code>.</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run calc.cs -- 12 + 30
+12 + 30 = 42
+$ dotnet run calc.cs -- 7 x 6
+7 x 6 = 42
+$ dotnet run calc.cs -- 7 * 6
+Uso: dotnet run calc.cs -- NÚMERO OPERAÇÃO NÚMERO
+$ dotnet run calc.cs -- sete x 6
+Os dois números têm de ser inteiros.
+$ echo $?
+1</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Argumentos são as palavras que você manda <strong>junto com o comando</strong>. No C#, eles chegam no <code>args</code>, um <code>string[]</code> criado antes da primeira linha do programa.</li>
+  <li>Mande com <code>dotnet run arquivo.cs -- a b c</code> (ou <code>dotnet run -- a b c</code> num projeto). O <code>--</code> separa o que é do <code>dotnet</code> do que é do seu programa: use sempre.</li>
+  <li>Quem corta a linha é o terminal: espaços separam, aspas juntam, e o <code>*</code> vira nomes de arquivos.</li>
+  <li><code>args.Length</code> diz quantos chegaram. Confira antes de usar <code>args[0]</code>, ou o programa quebra com <code>IndexOutOfRangeException</code> (código 134). Para faltas, mostre uma mensagem de uso no <code>Console.Error</code> e use <code>return 1</code>.</li>
+  <li>Todo argumento é texto: converta com <code>TryParse</code> antes de fazer conta, ou <code>10</code> + <code>20</code> vira <code>1020</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
