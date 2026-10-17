@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Structs — tipos de valor com struct e readonly struct | Guia C#</title>
+<meta name="description" content="Structs em C# para quem está começando: declarar um struct, a cópia na atribuição, o valor padrão, readonly struct, interfaces, a armadilha da List de structs (CS1612), a variável do foreach (CS1654), o == que não existe (CS0019), CS0527, CS8341 e quando usar struct ou class, com saídas reais do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Structs</span></h1>
+
+<p class="intro">Na aula de <a href="valor-referencia.html">Valor × Referência</a>, você viu que <code>int</code>, <code>decimal</code> e <code>DateTime</code> são <strong>tipos de valor</strong>: copiar a variável copia o dado. Com <code>struct</code> ("estrutura"), você cria os <strong>seus</strong> tipos de valor. Por fora, um struct parece muito uma classe: tem propriedades, construtores e métodos. A diferença está no comportamento: cada variável tem a sua própria cópia.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como declarar um <code>struct</code> com propriedades, construtor e métodos.</li>
+  <li>Por que <code>p2 = p1</code> faz uma cópia, e o valor padrão de um struct.</li>
+  <li><code>readonly struct</code>: structs que não mudam (o erro <code>CS8341</code>).</li>
+  <li>O que um struct pode e não pode fazer: interfaces sim, herança não (<code>CS0527</code>).</li>
+  <li>As armadilhas: a <code>List</code> de structs (<code>CS1612</code>), o <code>foreach</code> (<code>CS1654</code>) e o <code>==</code> (<code>CS0019</code>).</li>
+  <li>Quando usar struct e quando usar class.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com <code>dotnet run arquivo.cs</code> no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: um número com mais de uma parte</h2>
+<p>Uma coordenada num mapa é um par de números: (2, 3). Uma cor é um trio: vermelho, verde, azul. Um valor em dinheiro é um número com uma moeda. São "valores" do mesmo jeito que o número 5: se você anota a coordenada da casa da Ana num papel e entrega para a Bia, a Bia fica com <strong>uma cópia</strong>. Se ela riscar e escrever outra, o papel da Ana não muda.</p>
+
+<p>Para coisas pequenas assim, que são só um "valor composto", o C# tem o <code>struct</code>. Para coisas com identidade própria (uma conta bancária, um cliente, um carrinho de compras), continue usando <code>class</code>.</p>
+
+<hr>
+
+<h2>Um struct <code>Ponto</code></h2>
+
+<pre class="file" data-file="ponto.cs">Ponto casa = new Ponto(2, 3);
+Console.WriteLine(casa);
+Console.WriteLine($"Distância até a origem: {casa.Distancia():F2}");
+
+struct Ponto
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+
+    public Ponto(int x, int y)
+    {
+        X = x;
+        Y = y;
+    }
+
+    public double Distancia() =&gt; Math.Sqrt(X * X + Y * Y);
+
+    public override string ToString() =&gt; $"({X}, {Y})";
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>struct Ponto</dt><dd>Declara um struct. Tudo o que vem dentro das chaves é escrito como numa classe.</dd>
+  <dt>public int X { get; set; }</dt><dd>Propriedades, como as de uma classe (veja <a href="propriedades.html">Propriedades</a>).</dd>
+  <dt>public Ponto(int x, int y)</dt><dd>Um construtor, igual ao de uma classe.</dd>
+  <dt>public double Distancia()</dt><dd>Um método: a distância de (X, Y) até (0, 0), pelo teorema de Pitágoras (veja <a href="math.html">Math</a>).</dd>
+  <dt>public override string ToString()</dt><dd>Todo struct herda de <code>object</code> (por meio de <code>System.ValueType</code>) e pode sobrescrever o <code>ToString</code> (veja <a href="object.html">A Classe object</a>).</dd>
+  <dt>new Ponto(2, 3)</dt><dd>Com struct, o <code>new</code> não cria um objeto separado na memória: ele só chama o construtor para preencher o valor que fica <strong>dentro</strong> da variável <code>casa</code>.</dd>
+</dl>
+
+<pre class="term">$ dotnet run ponto.cs
+(2, 3)
+Distância até a origem: 3,61</pre>
+
+<hr>
+
+<h2>A diferença: a cópia</h2>
+
+<pre class="file" data-file="copia.cs">Ponto p1 = new Ponto(2, 3);
+Ponto p2 = p1;
+p2.X = 10;
+Console.WriteLine($"p1 = {p1}, p2 = {p2}");
+
+struct Ponto
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+
+    public Ponto(int x, int y)
+    {
+        X = x;
+        Y = y;
+    }
+
+    public override string ToString() =&gt; $"({X}, {Y})";
+}
+</pre>
+
+<pre class="term">$ dotnet run copia.cs
+p1 = (2, 3), p2 = (10, 3)</pre>
+
+<p>O <code>p2 = p1</code> copiou os dois números para dentro de <code>p2</code>. Mudar o <code>p2</code> não afeta o <code>p1</code>, exatamente como com dois <code>int</code>. Agora troque só uma palavra, <code>struct Ponto</code> por <code>class Ponto</code>, e rode de novo:</p>
+
+<pre class="term">$ dotnet run copiaclasse.cs
+p1 = (10, 3), p2 = (10, 3)</pre>
+
+<p>Com <code>class</code>, <code>p2 = p1</code> copia o <strong>endereço</strong>, e os dois nomes apontam para o mesmo objeto. Mesmo código, comportamento oposto: por isso é importante saber se um tipo é struct ou class.</p>
+
+<div class="trycs" data-goal="out:p1 = (10\, 3),src:class\s+Ponto">
+<p class="try-task"><strong>Missão:</strong> rode e veja que o <code>p1</code> não muda. Agora troque <code>struct Ponto</code> por <code>class Ponto</code> e rode de novo: a saída deve começar com <code>p1 = (10, 3)</code>. Depois, volte para <code>struct</code>, que é o certo para um ponto.</p>
+<pre class="script">Ponto p1 = new Ponto(2, 3);
+Ponto p2 = p1;
+p2.X = 10;
+Console.WriteLine($"p1 = {p1}, p2 = {p2}");
+
+struct Ponto
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+
+    public Ponto(int x, int y)
+    {
+        X = x;
+        Y = y;
+    }
+
+    public override string ToString() =&gt; $"({X}, {Y})";
+}
+</pre>
+<pre class="solucao">Ponto p1 = new Ponto(2, 3);
+Ponto p2 = p1;
+p2.X = 10;
+Console.WriteLine($"p1 = {p1}, p2 = {p2}");
+
+class Ponto
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+
+    public Ponto(int x, int y)
+    {
+        X = x;
+        Y = y;
+    }
+
+    public override string ToString() =&gt; $"({X}, {Y})";
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>O valor padrão</h2>
+<p>Um struct nunca é <code>null</code> (é um tipo de valor). Se você não preencher nada, ele nasce com <strong>tudo zerado</strong>: números em 0, <code>bool</code> em <code>false</code>, referências em <code>null</code>.</p>
+
+<pre class="file" data-file="padrao.cs">Ponto a = new Ponto();
+Ponto b = default;
+Ponto[] tres = new Ponto[3];
+Console.WriteLine($"{a} {b} {tres[2]}");
+
+struct Ponto
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+
+    public override string ToString() =&gt; $"({X}, {Y})";
+}
+</pre>
+
+<pre class="term">$ dotnet run padrao.cs
+(0, 0) (0, 0) (0, 0)</pre>
+
+<dl class="anatomy">
+  <dt>new Ponto()</dt><dd>Sem argumentos: todos os campos zerados. Todo struct tem esse jeito de ser criado, mesmo que você escreva outros construtores.</dd>
+  <dt>default</dt><dd>O "valor padrão" do tipo. Para um struct, o mesmo que zerar tudo. (Para uma classe, seria <code>null</code>.)</dd>
+  <dt>new Ponto[3]</dt><dd>Um array de 3 pontos já prontos, todos (0, 0). Num array de uma <strong>classe</strong>, seriam 3 <code>null</code>.</dd>
+</dl>
+
+<p>O <code>DateTime</code> também é um struct, e o valor padrão dele é a "data zero": <code>DateTime.MinValue</code> aparece como <code>01/01/0001 00:00:00</code>. Se você vir essa data num programa, quase sempre é um <code>DateTime</code> que ninguém preencheu.</p>
+
+<h3>O construtor não precisa preencher tudo <span class="versao">C# 11</span></h3>
+<p>Desde o C# 11 (.NET 7), o construtor de um struct pode deixar propriedades sem valor: elas ficam zeradas. No C# 10 e antes, era obrigatório preencher todas, e o compilador dava o erro <code>CS0843</code> ("A propriedade auto-implementada 'Cor.G' deve ser totalmente atribuída antes que o controle seja devolvido ao chamador"). Se você ler código antigo cheio de <code>G = 0; B = 0;</code> em construtores de struct, é por isso.</p>
+
+<hr>
+
+<h2><code>readonly struct</code>: valores que não mudam</h2>
+<p>Valores de verdade não mudam: o número 5 é sempre 5. Para structs, isso também é o mais seguro, porque evita as armadilhas que você vai ver mais abaixo. Um <code>readonly struct</code> ("somente leitura") garante que nada nele muda depois de criado. Para "mudar", você cria um valor novo:</p>
+
+<pre class="file" data-file="dinheiro.cs">Dinheiro preco = new Dinheiro(18.90m);
+Dinheiro dobro = preco.Vezes(2);
+Console.WriteLine($"{preco} e {dobro}");
+
+readonly struct Dinheiro
+{
+    public decimal Valor { get; }
+
+    public Dinheiro(decimal valor)
+    {
+        Valor = valor;
+    }
+
+    public Dinheiro Vezes(int n) =&gt; new Dinheiro(Valor * n);
+
+    public override string ToString() =&gt; Valor.ToString("C");
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>readonly struct Dinheiro</dt><dd>Um struct imutável. O compilador confere que nenhuma propriedade ou campo pode ser mudado depois do construtor.</dd>
+  <dt>public decimal Valor { get; }</dt><dd>Só <code>get</code>: o valor só pode ser definido no construtor.</dd>
+  <dt>public Dinheiro Vezes(int n) =&gt; new Dinheiro(Valor * n);</dt><dd>Em vez de mudar o valor, o método <strong>devolve um novo</strong>. É assim que o <code>DateTime</code> funciona: <code>data.AddDays(1)</code> não muda a data, devolve outra.</dd>
+</dl>
+
+<pre class="term">$ dotnet run dinheiro.cs
+R$ 18,90 e R$ 37,80</pre>
+
+<p>Se a Ana tentar dar um <code>set</code> à propriedade (<code>public decimal Valor { get; set; }</code>):</p>
+
+<pre class="term">$ dotnet run readonly-erro.cs
+/home/ana/cs/readonly-erro.cs(7,20): error CS8341: Propriedades da instância autoimplementadas em structs somente leitura devem ser somente leitura.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Num <code>readonly struct</code>, propriedades automáticas só podem ter <code>get</code> (ou <code>init</code>; veja <a href="readonly.html">readonly e init</a>).</p>
+
+<hr>
+
+<h2>O que um struct pode e não pode</h2>
+
+<h3>Interfaces: pode</h3>
+<p>Um struct pode implementar <a href="interfaces.html">interfaces</a>, como uma classe:</p>
+
+<pre class="file" data-file="iface.cs">IForma[] formas = [new Quadrado(2), new Quadrado(3)];
+foreach (IForma f in formas)
+{
+    Console.WriteLine(f.Area());
+}
+
+interface IForma
+{
+    double Area();
+}
+
+struct Quadrado : IForma
+{
+    public double Lado { get; }
+
+    public Quadrado(double lado)
+    {
+        Lado = lado;
+    }
+
+    public double Area() =&gt; Lado * Lado;
+}
+</pre>
+
+<pre class="term">$ dotnet run iface.cs
+4
+9</pre>
+
+<p>Um detalhe: guardar um struct numa variável do tipo de uma interface (o <code>IForma[]</code>) faz <em>boxing</em>, uma caixa com uma cópia (veja <a href="valor-referencia.html">Valor × Referência</a>). Funciona, mas tira parte da vantagem do struct.</p>
+
+<h3>Herança: não pode</h3>
+<p>Structs não herdam de outros structs nem de classes, e ninguém herda deles (são selados, como os de <a href="sealed.html">sealed</a>). Com <code>struct Ponto3D : Ponto</code>:</p>
+
+<pre class="term">$ dotnet run heranca.cs
+/home/ana/cs/heranca.cs(2,18): error CS0527: Tipo "Ponto" na lista de interfaces não é uma interface
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Repare na mensagem: para um struct, tudo o que vem depois do <code>:</code> é tratado como uma lista de <strong>interfaces</strong>. Como <code>Ponto</code> não é uma interface, vem o erro. Sem herança, também não há <code>virtual</code>, <code>abstract</code> nem <code>protected</code> em structs.</p>
+
+<hr>
+
+<h2>As armadilhas da cópia</h2>
+
+<h3>1. Mudar um struct dentro de uma <code>List</code></h3>
+<p>A Ana tem uma rota, uma lista de pontos, e quer mover o primeiro:</p>
+
+<div class="warning">
+<strong>Este código tem um erro de propósito</strong>
+<pre class="file" data-file="lista.cs">List&lt;Ponto&gt; rota = [new Ponto(0, 0), new Ponto(1, 1)];
+rota[0].X = 5;
+
+// … o struct Ponto de antes
+</pre>
+</div>
+
+<pre class="term">$ dotnet run lista.cs
+/home/ana/cs/lista.cs(2,1): error CS1612: Não é possível modificar o valor de retorno "List&lt;Ponto&gt;.this[int]" porque ele não é uma variável
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O que acontece: o <code>rota[0]</code> de uma <code>List</code> é um método por baixo dos panos (o <code>this[int]</code> da mensagem, um <a href="indexadores.html">indexador</a>) que <strong>devolve uma cópia</strong> do ponto. Mudar o <code>X</code> da cópia não serviria para nada (ela seria jogada fora), então o compilador proíbe. O conserto é copiar, mudar e devolver:</p>
+
+<pre class="file" data-file="lista2.cs">List&lt;Ponto&gt; rota = [new Ponto(0, 0), new Ponto(1, 1)];
+Ponto primeiro = rota[0];
+primeiro.X = 5;
+rota[0] = primeiro;
+Console.WriteLine(rota[0]);
+
+Ponto[] array = [new Ponto(0, 0)];
+array[0].X = 7;
+Console.WriteLine(array[0]);
+
+// … o struct Ponto de antes
+</pre>
+
+<pre class="term">$ dotnet run lista2.cs
+(5, 0)
+(7, 0)      « num array, pode: array[0] é a variável de verdade</pre>
+
+<p>O array é diferente: <code>array[0]</code> é o próprio lugar na memória, não uma cópia, e por isso <code>array[0].X = 7</code> funciona.</p>
+
+<h3>2. Mudar a variável do <code>foreach</code></h3>
+<p>No <code>foreach</code>, a variável é uma cópia de cada elemento, e o C# não deixa mudá-la:</p>
+
+<pre class="file" data-file="foreach.cs">Ponto[] rota = [new Ponto(0, 0), new Ponto(1, 1)];
+foreach (Ponto p in rota)
+{
+    p.X = 9;
+}
+</pre>
+
+<pre class="term">$ dotnet run foreach.cs
+/home/ana/cs/foreach.cs(4,5): error CS1654: Não é possível modificar membros de "p" porque ele é um "variável de iteração foreach"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Para mudar os elementos, use um <a href="for.html"><code>for</code></a> com o índice: <code>for (int i = 0; i &lt; rota.Length; i++) rota[i].X = 9;</code>.</p>
+
+<h3>3. O <code>==</code> não existe</h3>
+
+<pre class="file" data-file="igual.cs">Ponto a = new Ponto(1, 2);
+Ponto b = new Ponto(1, 2);
+Console.WriteLine(a.Equals(b));
+Console.WriteLine(a == b);
+</pre>
+
+<pre class="term">$ dotnet run igual.cs
+/home/ana/cs/igual.cs(4,19): error CS0019: O operador "==" não pode ser aplicado a operandos dos tipos "Ponto" e "Ponto"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Uma classe ganha um <code>==</code> de fábrica (que compara endereços). Um struct não ganha nenhum. O <code>Equals</code> funciona e compara os campos um a um (apagando a última linha, a saída é <code>True</code>), mas ele usa um mecanismo lento por baixo. Para ter <code>==</code>, <code>Equals</code> rápido, <code>GetHashCode</code> e <code>ToString</code> prontos, use um <code>record struct</code> (veja <a href="records.html">Records</a>).</p>
+
+<hr>
+
+<h2>Struct ou class?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th><code>struct</code></th><th><code>class</code></th></tr>
+<tr><td>Família</td><td>Tipo de valor</td><td>Tipo de referência</td></tr>
+<tr><td><code>b = a</code></td><td>Copia o valor inteiro</td><td>Copia o endereço</td></tr>
+<tr><td>Pode ser <code>null</code></td><td>Não (só com <code>Ponto?</code>)</td><td>Sim</td></tr>
+<tr><td>Valor padrão</td><td>Tudo zerado</td><td><code>null</code></td></tr>
+<tr><td>Herança</td><td>Não (só interfaces)</td><td>Sim</td></tr>
+<tr><td><code>==</code> de fábrica</td><td>Não existe (<code>CS0019</code>)</td><td>Compara endereços</td></tr>
+<tr><td>Bom para</td><td>Valores pequenos e imutáveis: ponto, cor, dinheiro, medida</td><td>Quase todo o resto: cliente, conta, pedido, carrinho</td></tr>
+</table>
+</div>
+
+<p><strong>Qual usar?</strong> Na dúvida, <code>class</code>. Use <code>struct</code> quando as quatro respostas forem "sim":</p>
+<ol>
+  <li>Ele representa <strong>um valor</strong>, como um número (dois com o mesmo conteúdo são "o mesmo")?</li>
+  <li>É <strong>pequeno</strong> (poucos campos, uns 16 bytes: dois <code>double</code> ou um <code>decimal</code>)? Structs grandes custam caro, porque são copiados inteiros a cada atribuição e a cada chamada de método.</li>
+  <li>Pode ser <strong>imutável</strong> (<code>readonly struct</code>)?</li>
+  <li>Não precisa de herança?</li>
+</ol>
+
+<p>Exemplos do próprio .NET: <code>int</code>, <code>double</code>, <code>decimal</code>, <code>bool</code>, <code>DateTime</code>, <code>TimeSpan</code>, <code>Guid</code> são structs. <code>string</code>, <code>List&lt;T&gt;</code> e <code>Random</code> são classes.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS1612: "Não é possível modificar o valor de retorno … porque ele não é uma variável"</strong>
+<pre class="term">$ dotnet run lista.cs
+/home/ana/cs/lista.cs(2,1): error CS1612: Não é possível modificar o valor de retorno "List&lt;Ponto&gt;.this[int]" porque ele não é uma variável</pre>
+<p><strong>O que aconteceu:</strong> você tentou mudar um campo de um struct que veio de uma lista, de uma propriedade ou de um método. O que veio foi uma cópia.</p>
+<p><strong>Como resolver:</strong> copie para uma variável, mude e guarde de volta (<code>rota[0] = primeiro;</code>), ou crie um valor novo: <code>rota[0] = new Ponto(5, rota[0].Y);</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1654: "Não é possível modificar membros de … porque ele é um variável de iteração foreach"</strong>
+<p><strong>Como resolver:</strong> troque o <code>foreach</code> por um <code>for</code> com índice (num array) ou monte uma lista nova.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0019: "O operador "==" não pode ser aplicado a operandos dos tipos …"</strong>
+<p><strong>Como resolver:</strong> use <code>a.Equals(b)</code>, transforme em <code>record struct</code> ou defina o operador (veja <a href="sobrecarga-operadores.html">Sobrecarga de Operadores</a>).</p>
+</div>
+
+<div class="cenario">
+<strong>CS0527: "Tipo … na lista de interfaces não é uma interface"</strong>
+<p><strong>O que aconteceu:</strong> um struct tentou herdar de outro tipo.</p>
+<p><strong>Como resolver:</strong> structs não têm herança. Coloque os dados em comum como uma propriedade (<code>struct Ponto3D { public Ponto Base { get; } … }</code>) ou use classes.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>struct Ponto { … }</code></td><td>Declara um tipo de valor</td></tr>
+<tr><td><code>readonly struct Dinheiro { … }</code></td><td>Struct imutável (só <code>get</code>/<code>init</code>)</td></tr>
+<tr><td><code>new Ponto()</code>, <code>default</code></td><td>Tudo zerado</td></tr>
+<tr><td><code>struct Quadrado : IForma</code></td><td>Struct que implementa uma interface</td></tr>
+<tr><td><code>Ponto? talvez = null;</code></td><td>Struct anulável (veja <a href="null.html">null</a>)</td></tr>
+<tr><td><code>record struct Ponto(int X, int Y);</code></td><td>Struct com <code>==</code>, <code>ToString</code> e <code>Equals</code> prontos (veja <a href="records.html">Records</a>)</td></tr>
+<tr><td><code>lista[0].X = 5</code></td><td>Proibido numa <code>List</code> de structs (<code>CS1612</code>); permitido num array</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Declarar</h3>
+<p>Complete para declarar um tipo de valor chamado <code>Cor</code>:</p>
+<div class="ex-code"><input data-answer="struct|public struct" aria-label="palavra-chave"> Cor { }</div>
+</div>
+
+<div class="exercise">
+<h3>2. Imutável</h3>
+<p>Complete para declarar um struct que não muda depois de criado:</p>
+<div class="ex-code"><input data-answer="readonly struct|public readonly struct" aria-label="declaração"> Medida { }</div>
+</div>
+
+<div class="exercise">
+<h3>3. A cópia</h3>
+<p><code>Ponto</code> é um struct. <code>Ponto a = new Ponto(1, 1); Ponto b = a; b.X = 4;</code> Quanto vale <code>a.X</code>?</p>
+<div class="ex-code"><input data-answer="1" aria-label="valor de a.X"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. O que mostra <code>new Ponto[2]</code>, sendo <code>Ponto</code> um struct com <code>X</code> e <code>Y</code>?</p>
+<label><input type="radio" name="q4"> Dois <code>null</code></label>
+<label><input type="radio" name="q4"> Erro: o array precisa de valores</label>
+<label><input type="radio" name="q4"> Dois pontos (0, 0)</label>
+<label><input type="radio" name="q4"> Um array vazio, de tamanho 0</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. O que um struct <strong>pode</strong> fazer?</p>
+<label><input type="radio" name="q5"> Herdar de outro struct</label>
+<label><input type="radio" name="q5"> Implementar interfaces</label>
+<label><input type="radio" name="q5"> Ter métodos <code>virtual</code></label>
+<label><input type="radio" name="q5"> Ser <code>null</code> sem o <code>?</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Qual destes é o melhor candidato a struct?</p>
+<label><input type="radio" name="q6"> <code>Cliente</code>, com nome, endereço e lista de pedidos</label>
+<label><input type="radio" name="q6"> <code>ContaBancaria</code>, com saldo que muda</label>
+<label><input type="radio" name="q6"> <code>Carrinho</code>, com uma lista de itens</label>
+<label><input type="radio" name="q6"> <code>Temperatura</code>, com um <code>double</code> em graus</label>
+</div>
+
+<div class="trycs" data-goal="compila,out:Início: (5\, 0),src:struct\s+Ponto">
+<p class="try-task"><strong>Missão final:</strong> a Ana quer mover o início da rota para <code>X = 5</code>, mas a linha <code>rota[0].X = 5;</code> dá o erro <code>CS1612</code>. Rode e leia o erro. Conserte <strong>sem</strong> transformar o <code>Ponto</code> em classe: copie <code>rota[0]</code> para uma variável, mude o <code>X</code> dela e guarde de volta em <code>rota[0]</code>. A saída deve ter <code>Início: (5, 0)</code>.</p>
+<pre class="script">List&lt;Ponto&gt; rota = [new Ponto(0, 0), new Ponto(1, 1), new Ponto(2, 3)];
+
+rota[0].X = 5;
+
+Console.WriteLine($"Início: {rota[0]}");
+Console.WriteLine($"Pontos: {rota.Count}");
+
+struct Ponto
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+
+    public Ponto(int x, int y)
+    {
+        X = x;
+        Y = y;
+    }
+
+    public override string ToString() =&gt; $"({X}, {Y})";
+}
+</pre>
+<pre class="solucao">List&lt;Ponto&gt; rota = [new Ponto(0, 0), new Ponto(1, 1), new Ponto(2, 3)];
+
+Ponto inicio = rota[0];
+inicio.X = 5;
+rota[0] = inicio;
+
+Console.WriteLine($"Início: {rota[0]}");
+Console.WriteLine($"Pontos: {rota.Count}");
+
+struct Ponto
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+
+    public Ponto(int x, int y)
+    {
+        X = x;
+        Y = y;
+    }
+
+    public override string ToString() =&gt; $"({X}, {Y})";
+}
+</pre>
+</div>
+
+<pre class="term">$ dotnet run rota.cs      « a solução
+Início: (5, 0)
+Pontos: 3</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>struct</code> cria um tipo de valor: propriedades, construtores e métodos como numa classe, mas <code>b = a</code> copia tudo.</li>
+  <li>Um struct nunca é <code>null</code>; o padrão (<code>new Ponto()</code>, <code>default</code>, arrays) é tudo zerado. Desde o C# 11, o construtor pode deixar campos sem valor.</li>
+  <li><code>readonly struct</code> é imutável (<code>CS8341</code> se houver <code>set</code>): métodos devolvem valores novos, como o <code>DateTime</code>.</li>
+  <li>Structs implementam interfaces, mas não têm herança (<code>CS0527</code>) nem <code>==</code> de fábrica (<code>CS0019</code>).</li>
+  <li>Cuidado com cópias: <code>lista[0].X = …</code> (<code>CS1612</code>) e a variável do <code>foreach</code> (<code>CS1654</code>).</li>
+  <li>Use struct para valores pequenos e imutáveis; na dúvida, <code>class</code>. Próxima aula: <a href="enums.html">Enums</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
