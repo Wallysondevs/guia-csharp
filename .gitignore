@@ -1,4 +1,6 @@
 node_modules/
 tools/.cache-*.json
-tools/*-src/
+tools/*-src/.build/
+tools/*-src/**/bin/
+tools/*-src/**/obj/
 *.tmp

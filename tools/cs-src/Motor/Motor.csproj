@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <!-- Motor do "Experimente" do Guia C#: o Roslyn (compilador C#) e o executor, em .NET 10 WebAssembly.
+       Reconstrução: tools/construir-cs.sh (não rode no notebook). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>Motor</AssemblyName>
+    <RootNamespace>Motor</RootNamespace>
+    <!-- o programa do leitor pode usar QUALQUER parte da biblioteca: nada de trimming -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <HybridGlobalization>false</HybridGlobalization>
+    <WasmIncludeFullIcuData>true</WasmIncludeFullIcuData>
+    <InvariantTimezone>false</InvariantTimezone>
+    <UseSystemResourceKeys>false</UseSystemResourceKeys>
+    <EventSourceSupport>false</EventSourceSupport>
+    <SatelliteResourceLanguages>pt-BR</SatelliteResourceLanguages>
+    <DebuggerSupport>true</DebuggerSupport>
+    <WasmDebugLevel>1</WasmDebugLevel>
+    <StackTraceSupport>true</StackTraceSupport>
+    <WasmEnableThreads>false</WasmEnableThreads>
+    <CompressionEnabled>false</CompressionEnabled>
+    <WasmFingerprintAssets>false</WasmFingerprintAssets>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(RoslynLab)' == ''">
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(RoslynLab)' != ''">
+    <Reference Include="Microsoft.CodeAnalysis"><HintPath>$(RoslynLab)/Microsoft.CodeAnalysis.dll</HintPath></Reference>
+    <Reference Include="Microsoft.CodeAnalysis.CSharp"><HintPath>$(RoslynLab)/Microsoft.CodeAnalysis.CSharp.dll</HintPath></Reference>
+    <EmbeddedResource Include="$(RoslynLab)/pt-BR/*.resources.dll" LogicalName="sat/%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

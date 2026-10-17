@@ -108,6 +108,9 @@ No `.exercise`, `data-answer="a|b"` aceita respostas alternativas. Para uma barr
 - `node tools/sim.js arquivo.cs`: compila e roda como o editor. Opções: `--stdin "Ana\n29"`, `--com outro.cs` (aba), `--args …`, `--nativo` (mostra também o `dotnet` do laboratório e as diferenças).
 - `node tools/testar-missoes.js páginas.html` (atalho no notebook: `~/guia-csharp-lab/testar`): o código inicial **não** cumpre a meta e a solução **cumpre**; confere `&lt;`/`&amp;` em todos os `<pre>`; `--nativo` compara com o `dotnet` do laboratório.
 
+**Testador pronto (17/10/2026, 16:00).** `~/guia-csharp-lab/testar pagina.html` (e `--nativo`) já funciona com o motor de verdade (Roslyn do laboratório + .NET 10 WebAssembly). A caixa no navegador vem logo depois; o resto desta seção será completado.
+
+
 ## 5. Fidelidade: o laboratório (`~/guia-csharp-lab/lab`, na VPS)
 É a máquina da Ana do Guia Bash: usuária `ana`, computador `notebook`, `/home/ana`, pt_BR, Ubuntu 26.04 com o **.NET 10 SDK do próprio Ubuntu** (`dotnet --version` = `10.0.112`, C# 14).
 ```bash

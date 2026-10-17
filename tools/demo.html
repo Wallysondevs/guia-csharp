@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo do editor C# | Guia C#</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script>window.CS_BASE = "../assets/";</script>
+</head>
+<body>
+<main class="content" style="max-width:900px;margin:0 auto;padding:16px">
+<h1>Demo do editor <span class="hl">C#</span></h1>
+<p>Página de teste do <code>assets/csharpsim.js</code> (não está no menu). Cada caixa usa um recurso do contrato (CONTRIBUINDO §3).</p>
+
+<h2>1. Missão simples (out:)</h2>
+<div class="trycs" data-goal="out:Olá, Ana!">
+<p class="try-task"><strong>Missão:</strong> troque "mundo" por "Ana".</p>
+<pre class="script">Console.WriteLine("Olá, mundo!");
+</pre>
+<pre class="solucao">Console.WriteLine("Olá, Ana!");
+</pre>
+</div>
+
+<h2>2. Erro de compilação (erro:)</h2>
+<div class="trycs" data-file="erro.cs" data-goal="erro:CS0029">
+<p class="try-task"><strong>Missão:</strong> provoque o erro CS0029 guardando um texto num <code>int</code>.</p>
+<pre class="script">int idade = 29;
+Console.WriteLine(idade);
+</pre>
+<pre class="solucao">int idade = "29";
+Console.WriteLine(idade);
+</pre>
+</div>
+
+<h2>3. Aviso (aviso:) e sem aviso (semaviso)</h2>
+<div class="trycs" data-goal="semaviso,out:5">
+<p class="try-task"><strong>Missão:</strong> use a variável <code>y</code> para o aviso CS0168 sumir.</p>
+<pre class="script">int x = 5;
+int y;
+Console.WriteLine(x);
+</pre>
+<pre class="solucao">int x = 5;
+Console.WriteLine(x);
+</pre>
+</div>
+
+<h2>4. Exceção (exit:134)</h2>
+<div class="trycs" data-goal="exit:134,out:IndexOutOfRangeException">
+<p class="try-task"><strong>Missão:</strong> leia uma posição que não existe.</p>
+<pre class="script">int[] notas = { 7, 8, 10 };
+Console.WriteLine(notas[2]);
+</pre>
+<pre class="solucao">int[] notas = { 7, 8, 10 };
+Console.WriteLine(notas[3]);
+</pre>
+</div>
+
+<h2>5. Entrada (data-stdin) e cultura pt-BR</h2>
+<div class="trycs" data-stdin="Ana\n1234,5" data-goal="out:Ana deve R$ 1.234,50">
+<pre class="script">Console.Write("Nome: ");
+string nome = Console.ReadLine() ?? "";
+Console.Write("Valor: ");
+decimal valor = decimal.Parse(Console.ReadLine() ?? "0");
+Console.WriteLine($"{nome} deve {valor}");
+</pre>
+<pre class="solucao">Console.Write("Nome: ");
+string nome = Console.ReadLine() ?? "";
+Console.Write("Valor: ");
+decimal valor = decimal.Parse(Console.ReadLine() ?? "0");
+Console.WriteLine($"{nome} deve {valor:C}");
+</pre>
+</div>
+
+<h2>6. Entrada digitada (sem data-stdin)</h2>
+<div class="trycs">
+<pre class="script">Console.Write("Como você se chama? ");
+string? nome = Console.ReadLine();
+Console.Write("Quantos anos você tem? ");
+if (int.TryParse(Console.ReadLine(), out int idade))
+    Console.WriteLine($"Olá, {nome}! Daqui a 10 anos você terá {idade + 10}.");
+else
+    Console.WriteLine("Isso não é um número.");
+</pre>
+</div>
+
+<h2>7. Argumentos (data-args) e Environment.Exit</h2>
+<div class="trycs" data-args="Ana 'Maria Clara'" data-goal="exit:3,out:2 argumento(s)">
+<pre class="script">Console.WriteLine($"{args.Length} argumento(s)");
+foreach (string a in args) Console.WriteLine($"- {a}");
+</pre>
+<pre class="solucao">Console.WriteLine($"{args.Length} argumento(s)");
+foreach (string a in args) Console.WriteLine($"- {a}");
+Environment.Exit(3);
+</pre>
+</div>
+
+<h2>8. Abas: arquivo de dados</h2>
+<div class="trycs" data-goal="outre:^3 frutas\n">
+<pre class="script" data-file="Program.cs">string[] linhas = File.ReadAllLines("frutas.txt");
+Console.WriteLine($"{linhas.Length} fruta");
+</pre>
+<pre class="script" data-file="frutas.txt">maçã
+banana
+uva
+</pre>
+<pre class="solucao" data-file="Program.cs">string[] linhas = File.ReadAllLines("frutas.txt");
+Console.WriteLine($"{linhas.Length} frutas");
+</pre>
+</div>
+
+<h2>9. Abas: vários .cs (um projeto)</h2>
+<div class="trycs" data-goal="out:Saldo: R$ 150,00,src:Depositar\(">
+<pre class="script" data-file="Program.cs">var conta = new Conta("Ana");
+Console.WriteLine($"Saldo: {conta.Saldo:C}");
+</pre>
+<pre class="script" data-file="Conta.cs">class Conta(string dono)
+{
+    public string Dono { get; } = dono;
+    public decimal Saldo { get; private set; }
+    public void Depositar(decimal valor) =&gt; Saldo += valor;
+}
+</pre>
+<pre class="solucao" data-file="Program.cs">var conta = new Conta("Ana");
+conta.Depositar(150m);
+Console.WriteLine($"Saldo: {conta.Saldo:C}");
+</pre>
+</div>
+
+<h2>10. async/await e Task.Delay</h2>
+<div class="trycs" data-goal="outre:Fim\n$">
+<pre class="script">Console.WriteLine("Começo");
+await Task.Delay(300);
+Console.WriteLine("fim");
+</pre>
+<pre class="solucao">Console.WriteLine("Começo");
+await Task.Delay(300);
+Console.WriteLine("Fim");
+</pre>
+</div>
+
+<h2>11. Laço infinito (Parar)</h2>
+<div class="trycs">
+<pre class="script">long i = 0;
+while (true) { i++; if (i % 100_000_000 == 0) Console.WriteLine(i); }
+</pre>
+</div>
+</main>
+<script src="../assets/site.js"></script>
+</body>
+</html>
