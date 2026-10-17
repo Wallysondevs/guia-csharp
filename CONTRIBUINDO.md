@@ -193,6 +193,17 @@ printf '%s\n' 'mkdir -p cs && cd cs' "cat > ola.cs <<'FIM'" 'Console.WriteLine("
 - Um processo por vez, sempre com `timeout`. Programas que podem travar: `timeout 5`.
 - **Privacidade:** nada da máquina real nem da VPS. Os caminhos têm de ser `/home/ana/…`.
 
+### Armadilhas do laboratório (relatadas pelos autores)
+- **`dotnet run arquivo.cs` compila só aquele arquivo.** Uma classe em outro `.cs` dá `CS0246`; para vários arquivos, use um projeto (no editor, as abas já formam um projeto).
+- **Avisos só na primeira compilação:** num segundo `dotnet run` sem mudar o arquivo (ou num `dotnet build` logo depois de um `run`), os `warning CS…` não aparecem. Para coletar avisos, mude o arquivo, use uma pasta nova ou `--no-incremental`. O editor compila sempre e mostra sempre.
+- **Mensagens em inglês:** só `LANG=C` (ou `LANG=en_US.UTF-8`) funciona; `DOTNET_CLI_UI_LANGUAGE` não traduz o compilador. O servidor de compilação **guarda a língua** da sessão: faça o inglês numa sessão separada do lab (ou `dotnet build-server shutdown` antes de trocar).
+- **Traduções pt-BR com erros:** algumas mensagens do compilador estão mal traduzidas, e duas invertem o sentido (CS0500, CS0037, CS1620; CS8618 "O propriedade", CS9260 "campo palavra-chave", CS0738 "porqu"). Cite como saem e explique o certo.
+- **Ordem de avisos iguais** (ex.: vários CS0649) pode variar entre compilações: a meta não pode depender dela.
+- **`-i` e o caractere nulo:** um programa que imprime `\0` faz o `-i` terminar com código 1 sem mostrar nada; use `lab -n X -- bash -c "…"` nesses casos.
+- **`-t` e entrada:** dá para fazer um `dotnet run` interativo por sessão; o que for digitado a mais se perde quando o programa termina.
+- **`/` é só leitura no lab:** gravar em `/etc` dá `IOException: Read-only file system`, e não o `UnauthorizedAccessException` de um Ubuntu de verdade. Para mostrar esse erro, use um arquivo seu com `chmod 444`.
+- **Comentários `///`:** sem `GenerateDocumentationFile` (o padrão), os avisos de documentação (CS1591…) não aparecem, nem no editor nem no `dotnet`.
+
 ### Versões
 O guia ensina **C# 14 com .NET 10 (LTS, novembro de 2025)** e diz a forma antiga quando houver (muito código e muitos cursos usam .NET 6/8 e `static void Main`).
 - Marque recursos novos com `<span class="versao">C# 9</span>`, `C# 12` etc.
