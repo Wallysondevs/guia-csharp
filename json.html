@@ -37,7 +37,7 @@
 
 <div class="warning">
 <strong>Nesta aula, a Ana usa um projeto</strong>
-<p>No .NET 10, o <code>dotnet run arquivo.cs</code> (de um arquivo só) vem preparado para virar um programa "nativo" (AOT, seção "Quando dá errado"), e nesse modo o <code>JsonSerializer</code> simples é <strong>desligado</strong>. Por isso, os exemplos desta aula rodam num projeto, criado com <code>dotnet new console -o Agenda</code> (aula <a href="projetos-console.html">Projetos</a>). O código vai no <code>Program.cs</code> e roda com <code>dotnet run</code>. Nas caixas "Experimente", o record fica numa aba à parte, para a caixa também funcionar como um projeto.</p>
+<p>No .NET 10, o <code>dotnet run arquivo.cs</code> (de um arquivo só) vem preparado para virar um programa "nativo" (AOT, seção "Quando dá errado"), e nesse modo o <code>JsonSerializer</code> simples é <strong>desligado</strong>. Por isso, os exemplos desta aula rodam num projeto, criado com <code>dotnet new console -o Agenda</code> (aula <a href="projetos-console.html">Projetos</a>). O código vai no <code>Program.cs</code> e roda com <code>dotnet run</code>. Nas caixas "Experimente", o record fica numa aba à parte, para a caixa também funcionar como um projeto. (O editor do guia segue a mesma regra do <code>dotnet</code>: uma caixa com um <code>.cs</code> só é um arquivo solto e dá o mesmo erro; com duas abas <code>.cs</code>, é um projeto.)</p>
 </div>
 
 <pre class="term" data-cwd="~/projetos">$ dotnet new console -o Agenda
@@ -415,6 +415,37 @@ $ dotnet run json3.cs
 {"Nome":"Ana Souza","Email":"ana@exemplo.com","Idade":29,"Cidades":["Recife","São Paulo"]}
 Ana Souza</pre>
 <p>No <code>json3.cs</code>, o <code>AgendaJson.Default.Contato</code> é a "receita" para ler e escrever um <code>Contato</code>, que o compilador gerou ao ver o <code>[JsonSerializable(typeof(Contato))]</code>. Para uma lista, acrescente outro atributo: <code>[JsonSerializable(typeof(List&lt;Contato&gt;))]</code>.</p>
+</div>
+
+<p>O editor do guia faz igual ao terminal: o <code>json1.cs</code> numa caixa de um arquivo só dá os mesmos avisos <code>IL2026</code>/<code>IL3050</code> e a mesma exceção, e o <code>json2.cs</code> e o <code>json3.cs</code> funcionam. A geração de código é o caminho que funciona <strong>em todo lugar</strong>: arquivo solto, projeto, programa nativo e editor. Experimente:</p>
+
+<div class="trycs" data-file="lista.cs" data-goal="out:[{&quot;Nome&quot;:&quot;Ana&quot;\,&quot;Cidade&quot;:&quot;Recife&quot;},src:typeof\(List&lt;Contato&gt;\)">
+<p class="try-task"><strong>Missão:</strong> esta caixa tem um arquivo só, como o <code>dotnet run lista.cs</code>, e usa a geração de código. Mas o <code>AgendaJson</code> só sabe escrever <strong>um</strong> <code>Contato</code>, e o programa quer escrever a lista inteira: rode e veja o erro <code>CS1061</code> (não existe <code>ListContato</code>). Acrescente, logo acima do <code>partial class</code>, o atributo <code>[JsonSerializable(typeof(List&lt;Contato&gt;))]</code> e rode de novo: o compilador cria a receita <code>AgendaJson.Default.ListContato</code>.</p>
+<pre class="script" data-file="lista.cs">using System.Text.Json;
+using System.Text.Json.Serialization;
+
+List&lt;Contato&gt; agenda = [new("Ana", "Recife"), new("Bruno", "Natal")];
+string json = JsonSerializer.Serialize(agenda, AgendaJson.Default.ListContato);
+Console.WriteLine(json);
+
+record Contato(string Nome, string Cidade);
+
+[JsonSerializable(typeof(Contato))]
+partial class AgendaJson : JsonSerializerContext { }
+</pre>
+<pre class="solucao" data-file="lista.cs">using System.Text.Json;
+using System.Text.Json.Serialization;
+
+List&lt;Contato&gt; agenda = [new("Ana", "Recife"), new("Bruno", "Natal")];
+string json = JsonSerializer.Serialize(agenda, AgendaJson.Default.ListContato);
+Console.WriteLine(json);
+
+record Contato(string Nome, string Cidade);
+
+[JsonSerializable(typeof(Contato))]
+[JsonSerializable(typeof(List&lt;Contato&gt;))]
+partial class AgendaJson : JsonSerializerContext { }
+</pre>
 </div>
 
 <div class="cenario">
