@@ -218,6 +218,10 @@ public static partial class Executor
         return sb.ToString();
     }
 
+    // inicia o gerador de números do runtime (o srand48(time) do libSystem.Native) enquanto o JavaScript
+    // segura o relógio parado: assim o Random sorteia igual em todas as repetições de uma mesma rodada
+    [JSExport] public static int Aquecer() => new Random().Next() & 0; // (o Random.Shared, não: ele nasce no 1º uso, já com a semente da rodada)
+
     [JSExport] public static int Bytes() => bytes;
 }
 

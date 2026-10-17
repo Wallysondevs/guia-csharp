@@ -63,6 +63,9 @@ async function carregar(m) {
   enviar({ ev: "preparando" });
   // num Web Worker, o dotnet.js acha que é uma thread do próprio runtime, a menos que seja um "sidecar"
   self.dotnetSidecar = true;
+  // executor: o relógio fica parado enquanto o runtime inicia o gerador de números (ver Executor.Aquecer)
+  const agora = Date.now;
+  if (papel === "executor") Date.now = () => 1700000000000;
   const { dotnet } = await import("./dotnet.js");
   const rt = await configurar(dotnet, lerPacote(motor), { depurar: papel === "executor", erroNativo: (t) => { if (erroNativo.length < 2e6) erroNativo += t; } }).create();
   rt.setModuleImports("motor", {
@@ -77,6 +80,7 @@ async function carregar(m) {
   pedirEntrada() { enviar({ ev: "espera" }); },
   });
   ex = (await rt.getAssemblyExports("Motor.dll")).Motor;
+  if (papel === "executor") { try { ex.Executor.Aquecer(); } catch (e) { /* ok */ } Date.now = agora; }
   if (papel === "compilador") {
     ex.Compilador.CarregarReferencias(refs);
     // aquece o Roslyn (a 1ª compilação é a mais lenta)

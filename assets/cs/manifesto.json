@@ -1,12 +1,12 @@
 {
-  "versao": "705c66580882",
+  "versao": "faedf1f9cb70",
   "roslyn": "5.0.0-2.26422.108+95017c71",
   "runtime": "10.0.13",
   "arquivos": {
     "motor.pak.gz": {
-      "bytes": 12778033,
-      "bruto": 34762420,
-      "sha": "cda5783731fe2f23"
+      "bytes": 12778173,
+      "bruto": 34763152,
+      "sha": "c562d224d4ecd877"
     },
     "refs.pak.gz": {
       "bytes": 4446570,
@@ -14,6 +14,6 @@
       "sha": "8c7b35eb7a21f3bc"
     }
   },
-  "total": 17224603,
-  "gerado": "2026-10-17T16:59:04.867Z"
+  "total": 17224743,
+  "gerado": "2026-10-17T17:02:33.509Z"
 }
