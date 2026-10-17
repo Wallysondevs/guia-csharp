@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# A Classe Array — Sort, Reverse, IndexOf e companhia | Guia C#</title>
+<meta name="description" content="A classe Array do C# para quem nunca programou: ordenar com Array.Sort (números e nomes com acento no pt-BR), inverter com Array.Reverse, procurar com IndexOf, LastIndexOf, Contains e BinarySearch, encher e zerar com Fill e Clear, copiar com Copy e Clone, mudar o tamanho com Resize(ref), achar com Find, FindIndex, FindAll, Exists e TrueForAll, ordenar dois arrays juntos e do maior para o menor, e os erros reais CS0029 com void, CS1620 e ArgumentException, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">A Classe Array (Sort, IndexOf…)</span></h1>
+
+<p class="intro">Na aula <a href="arrays.html">Arrays</a>, a Ana escreveu à mão os laços para achar o maior valor e para procurar um código. Funciona, mas há tarefas que todo programa faz e que dão bem mais trabalho, como <strong>colocar em ordem</strong>. O .NET já traz essas ferramentas prontas, testadas e rápidas, numa caixa de ferramentas chamada <strong><code>Array</code></strong>: <code>Array.Sort</code> ordena, <code>Array.Reverse</code> inverte, <code>Array.IndexOf</code> procura, <code>Array.Fill</code> enche… Nesta aula você vai conhecer as principais, ver a saída real de cada uma e as pegadinhas, como a de que o <code>Sort</code> <strong>muda o array original</strong>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é a classe <code>Array</code> e como se chama um método dela: <code>Array.Sort(notas)</code>.</li>
+  <li>Ordenar números e textos (com acentos e maiúsculas, no pt-BR), inverter, e ordenar do maior para o menor.</li>
+  <li>Procurar: <code>IndexOf</code>, <code>LastIndexOf</code>, <code>Contains</code> e a busca binária, <code>BinarySearch</code>.</li>
+  <li>Encher, zerar e copiar: <code>Fill</code>, <code>Clear</code>, <code>Copy</code> e <code>Clone</code>.</li>
+  <li>Mudar o tamanho com <code>Array.Resize(ref …)</code>.</li>
+  <li>Achar por uma condição: <code>Find</code>, <code>FindIndex</code>, <code>FindAll</code>, <code>Exists</code> e <code>TrueForAll</code>.</li>
+  <li>Os erros reais: <code>CS0029</code> com <code>void</code>, <code>CS1620</code> e <code>ArgumentException</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas foram rodados com o <strong>.NET 10</strong> (<code>dotnet --version</code> = <code>10.0.112</code>, C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: a caixa de ferramentas da oficina</h2>
+<p>O array é a <strong>prateleira</strong> com as peças. A classe <code>Array</code> é a <strong>caixa de ferramentas</strong> pendurada na parede da oficina: ela não guarda peça nenhuma, só ferramentas que trabalham em qualquer prateleira que você trouxer. Por isso se escreve o nome da caixa, um ponto e a ferramenta, e entre parênteses a prateleira em que ela vai trabalhar:</p>
+
+<pre class="file" data-file="exemplo.cs">Array.Sort(notas);
+//  │    │    └── em qual array
+//  │    └─────── a ferramenta (o método)
+//  └──────────── a caixa (a classe Array)
+</pre>
+
+<p>Esses métodos chamados pelo nome da classe são <strong>métodos estáticos</strong> (aula <a href="static.html">static</a>). Você não precisa criar nada: a caixa já está na parede. Ela vem do <code>System</code>, que todo programa já enxerga.</p>
+
+<hr>
+
+<h2>1. Ordenar: <code>Array.Sort</code> e <code>Array.Reverse</code></h2>
+
+<pre class="file" data-file="ordenar.cs">int[] notas = [7, 4, 9, 6, 8];
+Console.WriteLine($"Antes:  {string.Join(", ", notas)}");
+Array.Sort(notas);
+Console.WriteLine($"Depois: {string.Join(", ", notas)}");
+Array.Reverse(notas);
+Console.WriteLine($"Ao contrário: {string.Join(", ", notas)}");
+</pre>
+
+<dl class="anatomy">
+  <dt>Array.Sort(notas);</dt><dd>"Ordenar": põe os elementos em ordem <strong>crescente</strong>, do menor para o maior. Ele <strong>muda o próprio array</strong>: não devolve um array novo, devolve nada (<code>void</code>).</dd>
+  <dt>Array.Reverse(notas);</dt><dd>"Inverter": vira o array de trás para a frente. Depois de um <code>Sort</code>, isso dá a ordem <strong>decrescente</strong>.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ordenar.cs
+Antes:  7, 4, 9, 6, 8
+Depois: 4, 6, 7, 8, 9
+Ao contrário: 9, 8, 7, 6, 4</pre>
+
+<div class="warning">
+<strong>O <code>Sort</code> muda o original, e não há volta</strong>
+<p>Depois do <code>Array.Sort(notas)</code>, a ordem antiga sumiu. Se você ainda precisa dela (por exemplo, a ordem em que os alunos estão na chamada), ordene uma <strong>cópia</strong>: <code>int[] ordenadas = [.. notas]; Array.Sort(ordenadas);</code>. Só <code>int[] ordenadas = notas;</code> não serve: as duas variáveis apontariam para o mesmo array (seção "Quando dá errado").</p>
+</div>
+
+<h3>Ordenar textos</h3>
+<p>Com <code>string</code>, o <code>Sort</code> usa a ordem do <strong>dicionário</strong> do idioma do computador. No notebook da Ana, em pt-BR, isso quer dizer que acentos e maiúsculas não bagunçam a ordem:</p>
+
+<pre class="file" data-file="nomes.cs">string[] nomes = ["bia", "Caio", "Ana", "Álvaro", "ana", "Davi", "Érica", "Eduardo"];
+Array.Sort(nomes);
+Console.WriteLine(string.Join(", ", nomes));
+Array.Sort(nomes, StringComparer.Ordinal);
+Console.WriteLine(string.Join(", ", nomes));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run nomes.cs
+Álvaro, ana, Ana, bia, Caio, Davi, Eduardo, Érica
+Ana, Caio, Davi, Eduardo, ana, bia, Álvaro, Érica</pre>
+
+<dl class="anatomy">
+  <dt>Array.Sort(nomes);</dt><dd>A ordem de dicionário (pt-BR): o <code>Álvaro</code> fica entre os "a", o <code>Érica</code> depois do <code>Eduardo</code> (o "r" vem depois do "d"), e <code>ana</code> e <code>Ana</code> ficam juntos. É o que uma pessoa espera.</dd>
+  <dt>StringComparer.Ordinal</dt><dd>"Comparação ordinal", pela <strong>ordem dos códigos</strong> das letras: todas as maiúsculas (A–Z) vêm antes de todas as minúsculas (a–z), e as letras com acento, que têm códigos maiores, vão para o fim. É mais rápida e não depende do idioma, mas raramente é o que se quer mostrar para uma pessoa.</dd>
+</dl>
+
+<p>O editor do guia ordena do mesmo jeito que o notebook da Ana. A aula <a href="cultura.html">Cultura</a> mostra por que um computador em outro idioma pode ordenar diferente.</p>
+
+<div class="trycs" data-goal="out:Compras: arroz\, café\, feijão\, leite\, óleo,src:Array\.Sort">
+<p class="try-task"><strong>Missão:</strong> a lista de compras da Ana está fora de ordem. Ordene com <code>Array.Sort</code> antes de mostrar. A saída tem de ser <code>Compras: arroz, café, feijão, leite, óleo</code>.</p>
+<pre class="out">Compras: arroz, café, feijão, leite, óleo</pre>
+<pre class="script">string[] compras = ["leite", "óleo", "arroz", "feijão", "café"];
+
+Console.WriteLine($"Compras: {string.Join(", ", compras)}");
+</pre>
+<pre class="solucao">string[] compras = ["leite", "óleo", "arroz", "feijão", "café"];
+Array.Sort(compras);
+Console.WriteLine($"Compras: {string.Join(", ", compras)}");
+</pre>
+</div>
+
+<h3>Do maior para o menor</h3>
+<p>Há dois jeitos. O mais simples é ordenar e inverter. O outro é dizer ao <code>Sort</code> como comparar, com uma <strong>lambda</strong> (uma função curta, escrita ali mesmo; aula <a href="lambdas.html">Lambdas</a>):</p>
+
+<pre class="file" data-file="desc2.cs">int[] pontos = [12, 45, 7, 30, 18, 40];
+Array.Sort(pontos, (a, b) =&gt; b.CompareTo(a));
+Console.WriteLine(string.Join(", ", pontos));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run desc2.cs
+45, 40, 30, 18, 12, 7</pre>
+
+<dl class="anatomy">
+  <dt>(a, b) =&gt; b.CompareTo(a)</dt><dd>"Dados dois elementos <code>a</code> e <code>b</code>, compare <code>b</code> com <code>a</code>". O <code>CompareTo</code> devolve um número negativo, zero ou positivo, conforme o primeiro seja menor, igual ou maior. Normalmente seria <code>a.CompareTo(b)</code> (crescente); trocar a ordem para <code>b.CompareTo(a)</code> inverte o resultado. Se lambda ainda parece grego, use <code>Sort</code> + <code>Reverse</code>: dá o mesmo.</dd>
+</dl>
+
+<h3>Ordenar dois arrays juntos</h3>
+<p>A lojinha guarda os produtos num array e os preços em outro, na mesma posição. Para ordenar pelo preço sem desencontrar os nomes, o <code>Sort</code> aceita dois arrays: ordena o primeiro e faz as <strong>mesmas trocas</strong> no segundo.</p>
+
+<pre class="file" data-file="juntos.cs">string[] produtos = ["café", "arroz", "leite"];
+decimal[] precos = [18.90m, 6.50m, 4.99m];
+Array.Sort(precos, produtos);
+for (int i = 0; i &lt; produtos.Length; i++)
+{
+    Console.WriteLine($"{produtos[i],-6} {precos[i],8:C}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run juntos.cs
+leite   R$ 4,99
+arroz   R$ 6,50
+café   R$ 18,90</pre>
+
+<dl class="anatomy">
+  <dt>Array.Sort(precos, produtos);</dt><dd>O primeiro é a <strong>chave</strong> (o que manda na ordem); o segundo acompanha. O leite, mais barato, foi para a frente, levando o nome junto.</dd>
+  <dt>{produtos[i],-6}</dt><dd>Com o número negativo, o texto ocupa 6 espaços encostado à <strong>esquerda</strong>; com <code>8:C</code>, o preço ocupa 8 espaços à direita, em reais (aula <a href="formatacao.html">Formatar Números</a>).</dd>
+</dl>
+
+<p>Guardar dados que andam juntos em arrays separados é frágil. Mais adiante, você vai juntar nome e preço numa coisa só (<a href="records.html">Records</a>, <a href="classes-objetos.html">Classes</a>) e ordenar com o LINQ (<a href="linq-ordenar.html">OrderBy</a>).</p>
+
+<hr>
+
+<h2>2. Procurar: <code>IndexOf</code>, <code>LastIndexOf</code>, <code>Contains</code></h2>
+
+<pre class="file" data-file="buscar.cs">string[] compras = ["arroz", "feijão", "café", "leite", "café"];
+Console.WriteLine(Array.IndexOf(compras, "café"));
+Console.WriteLine(Array.LastIndexOf(compras, "café"));
+Console.WriteLine(Array.IndexOf(compras, "pão"));
+Console.WriteLine(Array.IndexOf(compras, "Café"));
+Console.WriteLine(compras.Contains("leite"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run buscar.cs
+2
+4
+-1
+-1
+True</pre>
+
+<dl class="anatomy">
+  <dt>Array.IndexOf(compras, "café")</dt><dd>"Índice de": a posição da <strong>primeira</strong> vez que o valor aparece: 2. É a busca linear da aula <a href="arrays.html">Arrays</a>, pronta.</dd>
+  <dt>Array.LastIndexOf(…)</dt><dd>A posição da <strong>última</strong> vez: 4.</dd>
+  <dt>−1</dt><dd>"Não achei". O <code>IndexOf</code> não dá erro quando o valor não está lá: devolve −1, que não é um índice válido. Confira antes de usar o resultado como índice.</dd>
+  <dt>"Café" → −1</dt><dd>A busca é <strong>exata</strong>: maiúscula conta. <code>"Café"</code> e <code>"café"</code> são textos diferentes.</dd>
+  <dt>compras.Contains("leite")</dt><dd>"Contém?": só <code>True</code> ou <code>False</code>. Ele não é da classe <code>Array</code>: é do LINQ (aula <a href="linq.html">O que é LINQ</a>), e por isso se escreve depois do array, com ponto. Funciona em qualquer programa de arquivo único.</dd>
+</dl>
+
+<div class="trycs" data-goal="out:café está na posição 2,src:IndexOf">
+<p class="try-task"><strong>Missão:</strong> use <code>Array.IndexOf</code> para descobrir em que posição está o <code>"café"</code>, no lugar do <code>-1</code>. A saída tem de ser <code>café está na posição 2</code>.</p>
+<pre class="out">café está na posição 2</pre>
+<pre class="script">string[] compras = ["arroz", "feijão", "café", "leite"];
+int posicao = -1;   // troque pelo Array.IndexOf
+Console.WriteLine($"café está na posição {posicao}");
+</pre>
+<pre class="solucao">string[] compras = ["arroz", "feijão", "café", "leite"];
+int posicao = Array.IndexOf(compras, "café");
+Console.WriteLine($"café está na posição {posicao}");
+</pre>
+</div>
+
+<h3>Busca binária: <code>Array.BinarySearch</code></h3>
+<p>O <code>IndexOf</code> olha um por um. Num array <strong>em ordem</strong>, dá para ser muito mais esperto, como quem procura uma palavra no dicionário: abre no meio, vê se a palavra está antes ou depois, e descarta metade de uma vez. Num array de um milhão de elementos, isso acha qualquer valor em no máximo 20 olhadas.</p>
+
+<pre class="file" data-file="busca-bin.cs">int[] codigos = [101, 205, 330, 412, 587];
+Console.WriteLine(Array.BinarySearch(codigos, 412));
+Console.WriteLine(Array.BinarySearch(codigos, 400));
+int[] baguncado = [412, 101, 587, 330, 205];
+Console.WriteLine(Array.BinarySearch(baguncado, 330));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run busca-bin.cs
+3
+-4                       « não achou: qualquer número negativo quer dizer "não está"
+-1                       « o 330 está lá, mas o array não estava em ordem!</pre>
+
+<p>O 412 está na posição 3. Para o 400, que não existe, veio um número negativo (o −4 ainda diz, de um jeito codificado, onde o 400 entraria). E no array fora de ordem, o 330 <strong>está lá</strong> (posição 3), mas a busca binária disse que não: ela só funciona em arrays ordenados com <code>Array.Sort</code>. Regra: <code>BinarySearch</code> só depois de <code>Sort</code>, e o teste de "não achou" é <code>&lt; 0</code>, não <code>== -1</code>.</p>
+
+<hr>
+
+<h2>3. Encher, zerar e copiar</h2>
+
+<pre class="file" data-file="encher.cs">int[] placar = new int[5];
+Array.Fill(placar, 10);
+Console.WriteLine(string.Join(" ", placar));
+Array.Clear(placar);
+Console.WriteLine(string.Join(" ", placar));
+char[] linha = new char[8];
+Array.Fill(linha, '-');
+Console.WriteLine(new string(linha));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run encher.cs
+10 10 10 10 10
+0 0 0 0 0
+--------</pre>
+
+<dl class="anatomy">
+  <dt>Array.Fill(placar, 10);</dt><dd>"Encher": põe o mesmo valor em todas as posições. Todo jogador começa com 10 pontos.</dd>
+  <dt>Array.Clear(placar);</dt><dd>"Limpar": volta todas as posições ao valor padrão (0, <code>false</code> ou <code>null</code>).</dd>
+  <dt>new string(linha)</dt><dd>Um array de <code>char</code> vira um texto: oito tracinhos, uma linha para separar partes de um relatório.</dd>
+</dl>
+
+<h3>Copiar: <code>Array.Copy</code> e <code>Clone</code></h3>
+
+<pre class="file" data-file="copiar.cs">int[] origem = [1, 2, 3, 4, 5];
+int[] destino = new int[7];
+Array.Copy(origem, destino, 3);
+Console.WriteLine(string.Join(" ", destino));
+Array.Copy(origem, 1, destino, 4, 3);
+Console.WriteLine(string.Join(" ", destino));
+int[] clone = (int[])origem.Clone();
+clone[0] = 99;
+Console.WriteLine($"{origem[0]} {clone[0]}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run copiar.cs
+1 2 3 0 0 0 0
+1 2 3 0 2 3 4
+1 99</pre>
+
+<dl class="anatomy">
+  <dt>Array.Copy(origem, destino, 3);</dt><dd>Copia os <strong>3 primeiros</strong> elementos de <code>origem</code> para o começo de <code>destino</code>. Os dois arrays já precisam existir.</dd>
+  <dt>Array.Copy(origem, 1, destino, 4, 3);</dt><dd>A forma completa: "da <code>origem</code>, a partir da posição 1, para o <code>destino</code>, a partir da posição 4, copie 3 elementos". Copiou o 2, o 3 e o 4 para as posições 4, 5 e 6.</dd>
+  <dt>(int[])origem.Clone()</dt><dd>"Clonar": um array novo, igual. O <code>Clone</code> devolve um <code>object</code> genérico, e o <code>(int[])</code> diz ao C# que é um <code>int[]</code> (aula <a href="conversao-tipos.html">Conversão de Tipos</a>). Mudar o clone não muda a origem. No C# moderno, <code>int[] clone = [.. origem];</code> faz o mesmo, sem o <code>(int[])</code>.</dd>
+</dl>
+
+<hr>
+
+<h2>4. Mudar o tamanho: <code>Array.Resize</code></h2>
+<p>Um array não cresce. O <code>Array.Resize</code> dá a impressão de que cresce: ele cria um array <strong>novo</strong> do tamanho pedido, copia o que cabe e troca a sua variável para apontar para o novo.</p>
+
+<pre class="file" data-file="crescer.cs">int[] notas = [7, 8, 6];
+Array.Resize(ref notas, 5);
+Console.WriteLine($"{notas.Length}: {string.Join(" ", notas)}");
+Array.Resize(ref notas, 2);
+Console.WriteLine($"{notas.Length}: {string.Join(" ", notas)}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run crescer.cs
+5: 7 8 6 0 0
+2: 7 8               « diminuir corta o que sobra</pre>
+
+<dl class="anatomy">
+  <dt>ref notas</dt><dd>O <code>ref</code> ("referência") deixa o método <strong>trocar a sua variável</strong> por outra coisa: aqui, pelo array novo. Sem ele, o método não teria como mudar o <code>notas</code> (aula <a href="ref-out-in.html">ref, out e in</a>).</dd>
+  <dt>5</dt><dd>O novo tamanho. As posições novas recebem o valor padrão (0).</dd>
+</dl>
+
+<p>Como ele copia tudo a cada chamada, usar o <code>Resize</code> para acrescentar um elemento de cada vez, num laço, é lento. Se o tamanho muda o tempo todo, o certo é uma <a href="list.html">List&lt;T&gt;</a>.</p>
+
+<hr>
+
+<h2>5. Achar por uma condição: <code>Find</code> e companhia</h2>
+<p>O <code>IndexOf</code> procura um valor <strong>exato</strong>. E para "a primeira nota abaixo de 7"? Aí você passa a <strong>condição</strong>, escrita como uma lambda: <code>n =&gt; n &lt; 7</code> se lê "<code>n</code> tal que <code>n</code> é menor que 7". O método testa a condição em cada elemento.</p>
+
+<pre class="file" data-file="achar.cs">int[] notas = [7, 4, 9, 6, 8];
+int primeira = Array.Find(notas, n =&gt; n &lt; 7);
+int posicao = Array.FindIndex(notas, n =&gt; n &lt; 7);
+int[] baixas = Array.FindAll(notas, n =&gt; n &lt; 7);
+bool algum10 = Array.Exists(notas, n =&gt; n == 10);
+bool todasPositivas = Array.TrueForAll(notas, n =&gt; n &gt; 0);
+Console.WriteLine($"Primeira abaixo de 7: {primeira} (posição {posicao})");
+Console.WriteLine($"Todas abaixo de 7: {string.Join(", ", baixas)}");
+Console.WriteLine($"Alguém tirou 10? {algum10}");
+Console.WriteLine($"Todas positivas? {todasPositivas}");
+Console.WriteLine(Array.Find(notas, n =&gt; n &gt; 10));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run achar.cs
+Primeira abaixo de 7: 4 (posição 1)
+Todas abaixo de 7: 4, 6
+Alguém tirou 10? False
+Todas positivas? True
+0                        « nenhuma nota acima de 10: o Find devolveu o valor padrão</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>Devolve</th><th>Se ninguém passar na condição</th></tr>
+<tr><td><code>Array.Find(v, cond)</code></td><td>o primeiro elemento que passa</td><td>o valor padrão (0, <code>null</code>…)</td></tr>
+<tr><td><code>Array.FindLast(v, cond)</code></td><td>o último que passa</td><td>o valor padrão</td></tr>
+<tr><td><code>Array.FindIndex(v, cond)</code></td><td>a posição do primeiro</td><td>−1</td></tr>
+<tr><td><code>Array.FindAll(v, cond)</code></td><td>um array novo com todos os que passam</td><td>um array vazio</td></tr>
+<tr><td><code>Array.Exists(v, cond)</code></td><td><code>true</code> se pelo menos um passa</td><td><code>false</code></td></tr>
+<tr><td><code>Array.TrueForAll(v, cond)</code></td><td><code>true</code> se <strong>todos</strong> passam</td><td><code>false</code> (num array vazio, <code>true</code>)</td></tr>
+</table>
+</div>
+
+<p>Cuidado com o <code>Find</code> em arrays de números: o 0 de "não achei" é igual a um 0 de verdade. Se o 0 pode estar no array, use o <code>FindIndex</code> e confira o −1. O LINQ tem métodos parecidos e ainda mais poderosos (<code>Where</code>, <code>Any</code>, <code>All</code>, <code>First</code>), na aula <a href="linq-filtrar.html">Filtrar e Projetar</a>.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0029: Não é possível converter implicitamente tipo "void" em "int[]"</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat sort-void.cs
+int[] notas = [7, 4, 9];
+int[] ordenadas = Array.Sort(notas);
+$ dotnet run sort-void.cs
+/home/ana/cs/sort-void.cs(2,19): error CS0029: Não é possível converter implicitamente tipo "void" em "int[]"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>Array.Sort</code> não devolve nada (<code>void</code>, "vazio"): ele ordena o próprio array. Não há resultado para guardar. O mesmo vale para <code>Reverse</code>, <code>Fill</code>, <code>Clear</code>, <code>Copy</code> e <code>Resize</code>.</p>
+<p><strong>Como consertar:</strong> chame sozinho, numa linha (<code>Array.Sort(notas);</code>), e depois use o <code>notas</code>. Se quer manter o original, copie antes: <code>int[] ordenadas = [.. notas]; Array.Sort(ordenadas);</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1620: Argumento 1 não deve ser transmitido com a palavra-chave "ref"</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat resize-ref.cs
+int[] notas = [7, 8, 6];
+Array.Resize(notas, 5);
+$ dotnet run resize-ref.cs
+/home/ana/cs/resize-ref.cs(2,14): error CS1620: Argumento 1 não deve ser transmitido com a palavra-chave "ref"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> a tradução saiu trocada: o original em inglês é <em>Argument 1 must be passed with the 'ref' keyword</em>, "o argumento 1 <strong>tem de</strong> ser passado com a palavra-chave <code>ref</code>". Faltou o <code>ref</code>. (Mais um motivo para olhar o código do erro, <code>CS1620</code>, e pesquisar por ele.)</p>
+<p><strong>Como consertar:</strong> <code>Array.Resize(ref notas, 5);</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>Unhandled exception. System.ArgumentException: Destination array was not long enough.</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat copy-erro.cs
+int[] origem = [1, 2, 3, 4, 5];
+int[] destino = new int[3];
+Array.Copy(origem, destino, 5);
+$ dotnet run copy-erro.cs
+Unhandled exception. System.ArgumentException: Destination array was not long enough. Check the destination index, length, and the array's lower bounds. (Parameter 'destinationArray')
+   at System.Array.CopyImpl(Array sourceArray, Int32 sourceIndex, Array destinationArray, Int32 destinationIndex, Int32 length, Boolean reliable)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/copy-erro.cs:line 3</pre>
+<p><strong>O que significa:</strong> "o array de destino não é comprido o bastante": 5 elementos não cabem em 3 portinhas. A linha de cima da pilha (<code>System.Array.CopyImpl</code>) é de dentro do .NET; a que interessa é a última, com o seu arquivo e a linha 3. No editor do guia, a pilha mostra mais algumas linhas de dentro do .NET, mas a última é a mesma.</p>
+<p><strong>Como consertar:</strong> crie o destino com espaço suficiente (<code>new int[origem.Length]</code>), ou copie menos elementos.</p>
+</div>
+
+<div class="cenario">
+<strong>Ordenei uma "cópia" e o original mudou também</strong>
+<pre class="term" data-cwd="~/cs">$ cat original.cs
+int[] chegada = [30, 12, 45, 7];
+int[] ranking = chegada;
+Array.Sort(ranking);
+Console.WriteLine($"Ranking: {string.Join(", ", ranking)}");
+Console.WriteLine($"Ordem de chegada: {string.Join(", ", chegada)}");
+$ dotnet run original.cs
+Ranking: 7, 12, 30, 45
+Ordem de chegada: 7, 12, 30, 45      « a ordem de chegada se perdeu</pre>
+<p><strong>O que significa:</strong> o <code>ranking = chegada</code> não copiou: as duas variáveis são o mesmo array (aula <a href="arrays.html">Arrays</a>, seção 9).</p>
+<p><strong>Como consertar:</strong> <code>int[] ranking = [.. chegada];</code> (ou <code>(int[])chegada.Clone()</code>).</p>
+</div>
+
+<div class="cenario">
+<strong>O <code>BinarySearch</code> disse que não achou, mas o valor está lá</strong>
+<p><strong>O que significa:</strong> o array não estava em ordem. A busca binária confia na ordem para descartar metades, e descartou a metade errada.</p>
+<p><strong>Como consertar:</strong> <code>Array.Sort</code> antes, ou use <code>Array.IndexOf</code>, que funciona em qualquer ordem.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>O que faz</th><th>Devolve</th></tr>
+<tr><td><code>Array.Sort(v)</code></td><td>Ordena em ordem crescente (textos na ordem do idioma)</td><td>nada (muda <code>v</code>)</td></tr>
+<tr><td><code>Array.Sort(v, StringComparer.Ordinal)</code></td><td>Ordena textos pelos códigos das letras</td><td>nada</td></tr>
+<tr><td><code>Array.Sort(v, (a, b) =&gt; b.CompareTo(a))</code></td><td>Ordem decrescente</td><td>nada</td></tr>
+<tr><td><code>Array.Sort(chaves, outros)</code></td><td>Ordena <code>chaves</code> e faz as mesmas trocas em <code>outros</code></td><td>nada</td></tr>
+<tr><td><code>Array.Reverse(v)</code></td><td>Inverte a ordem</td><td>nada</td></tr>
+<tr><td><code>Array.IndexOf(v, x)</code> / <code>LastIndexOf</code></td><td>Posição da primeira / última ocorrência</td><td>índice, ou −1</td></tr>
+<tr><td><code>v.Contains(x)</code></td><td>Está no array? (LINQ)</td><td><code>bool</code></td></tr>
+<tr><td><code>Array.BinarySearch(v, x)</code></td><td>Busca rápida num array <strong>ordenado</strong></td><td>índice, ou negativo</td></tr>
+<tr><td><code>Array.Fill(v, x)</code></td><td>Põe <code>x</code> em todas as posições</td><td>nada</td></tr>
+<tr><td><code>Array.Clear(v)</code></td><td>Volta tudo ao valor padrão</td><td>nada</td></tr>
+<tr><td><code>Array.Copy(origem, destino, n)</code></td><td>Copia <code>n</code> elementos</td><td>nada</td></tr>
+<tr><td><code>(int[])v.Clone()</code> / <code>[.. v]</code></td><td>Cópia nova do array</td><td>o array novo</td></tr>
+<tr><td><code>Array.Resize(ref v, n)</code></td><td>Troca <code>v</code> por um array de tamanho <code>n</code></td><td>nada</td></tr>
+<tr><td><code>Array.Find</code> / <code>FindIndex</code> / <code>FindAll</code></td><td>Primeiro / posição / todos que passam na condição</td><td>elemento / índice / array</td></tr>
+<tr><td><code>Array.Exists</code> / <code>TrueForAll</code></td><td>Algum passa? / Todos passam?</td><td><code>bool</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Ordenar</h3>
+<p>Complete para ordenar o array <code>precos</code>:</p>
+<div class="ex-code">Array.<input data-answer="Sort" aria-label="método">(precos);</div>
+</div>
+
+<div class="exercise">
+<h3>2. Não achou</h3>
+<p>O que <code>Array.IndexOf(nomes, "Zeca")</code> devolve quando <code>"Zeca"</code> não está no array?</p>
+<div class="ex-code"><input data-answer="-1" aria-label="valor"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Crescer</h3>
+<p>Complete para o array <code>itens</code> passar a ter 10 posições:</p>
+<div class="ex-code">Array.Resize(<input data-answer="ref itens" aria-label="argumento">, 10);</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Depois de <code>int[] a = [3, 1, 2]; Array.Sort(a); Array.Reverse(a);</code>, como fica o <code>a</code>?</p>
+<label><input type="radio" name="q4"> <code>3, 1, 2</code></label>
+<label><input type="radio" name="q4"> <code>1, 2, 3</code></label>
+<label><input type="radio" name="q4"> <code>3, 2, 1</code></label>
+<label><input type="radio" name="q4"> <code>2, 1, 3</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Quando o <code>Array.BinarySearch</code> dá um resultado confiável?</p>
+<label><input type="radio" name="q5"> Sempre</label>
+<label><input type="radio" name="q5"> Só quando o array já está em ordem</label>
+<label><input type="radio" name="q5"> Só com arrays de texto</label>
+<label><input type="radio" name="q5"> Só com arrays de até 20 elementos</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Qual linha dá erro de compilação?</p>
+<label><input type="radio" name="q6"> <code>Array.Sort(notas);</code></label>
+<label><input type="radio" name="q6"> <code>int p = Array.IndexOf(notas, 7);</code></label>
+<label><input type="radio" name="q6"> <code>int[] c = (int[])notas.Clone();</code></label>
+<label><input type="radio" name="q6"> <code>int[] o = Array.Sort(notas);</code></label>
+</div>
+
+<h3>Missão final: o pódio</h3>
+
+<div class="trycs" data-goal="out:1º: 45,out:2º: 40,out:3º: 30,src:Array\.(Sort|Reverse)">
+<p class="try-task"><strong>Missão:</strong> os pontos dos jogadores estão na ordem em que eles jogaram. Use os métodos da classe <code>Array</code> para colocar do <strong>maior para o menor</strong>, e o laço já pronto mostra os três primeiros: <code>1º: 45</code>, <code>2º: 40</code> e <code>3º: 30</code>.</p>
+<pre class="out">1º: 45
+2º: 40
+3º: 30</pre>
+<pre class="script">int[] pontos = [12, 45, 7, 30, 18, 40];
+
+// coloque do maior para o menor aqui
+
+for (int i = 0; i &lt; 3; i++)
+{
+    Console.WriteLine($"{i + 1}º: {pontos[i]}");
+}
+</pre>
+<pre class="solucao">int[] pontos = [12, 45, 7, 30, 18, 40];
+
+Array.Sort(pontos);
+Array.Reverse(pontos);
+
+for (int i = 0; i &lt; 3; i++)
+{
+    Console.WriteLine($"{i + 1}º: {pontos[i]}");
+}
+</pre>
+</div>
+
+<p>Com <code>Sort</code>, o array fica <code>7, 12, 18, 30, 40, 45</code>; o <code>Reverse</code> vira para <code>45, 40, 30, 18, 12, 7</code>, e as posições 0, 1 e 2 são o pódio. A solução com a lambda, <code>Array.Sort(pontos, (a, b) =&gt; b.CompareTo(a));</code>, também cumpre a missão.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>A classe <code>Array</code> é uma caixa de ferramentas para qualquer array: escreva <code>Array.</code>, o nome do método e o array entre parênteses.</li>
+  <li><code>Array.Sort</code> ordena (textos na ordem do dicionário do pt-BR) e <code>Array.Reverse</code> inverte. Os dois <strong>mudam o array</strong> e não devolvem nada: para guardar o original, ordene uma cópia (<code>[.. v]</code>).</li>
+  <li><code>Array.IndexOf</code> procura e devolve a posição, ou −1. <code>Contains</code> diz só sim ou não. <code>BinarySearch</code> é rápida, mas só em arrays ordenados.</li>
+  <li><code>Fill</code> enche, <code>Clear</code> zera, <code>Copy</code> e <code>Clone</code> copiam, e <code>Resize(ref v, n)</code> troca o array por um de outro tamanho.</li>
+  <li><code>Find</code>, <code>FindIndex</code>, <code>FindAll</code>, <code>Exists</code> e <code>TrueForAll</code> recebem uma condição, como <code>n =&gt; n &lt; 7</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
