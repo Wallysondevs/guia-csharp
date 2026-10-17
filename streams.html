@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Ler e Escrever — StreamReader e StreamWriter | Guia C#</title>
+<meta name="description" content="Ler e gravar arquivos aos poucos em C# para quem nunca programou: StreamWriter com WriteLine, StreamReader com ReadLine e ReadToEnd, o laço while com string?, using para fechar o arquivo, append, Flush, codificação, File.OpenText e AppendText, e os erros do arquivo vazio, CS8600, ObjectDisposedException e dois escritores no mesmo arquivo, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Ler e Escrever</span></h1>
+
+<p class="intro">Na aula <a href="arquivos.html">Arquivos</a>, cada método da classe <code>File</code> fazia tudo de uma vez: abria, lia (ou gravava) o arquivo inteiro e fechava. Às vezes você precisa de mais controle: gravar uma linha agora e outra daqui a pouco, ler um arquivo enorme sem carregá-lo todo, ou ler um arquivo e escrever outro ao mesmo tempo. Para isso existem o <code>StreamWriter</code> ("escritor de fluxo") e o <code>StreamReader</code> ("leitor de fluxo"). Nesta aula você vai usá-los no diário e na lista de alunos da Ana, e vai entender por que um arquivo pode ficar <strong>vazio</strong> quando você esquece de fechá-lo.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Gravar aos poucos com <code>StreamWriter</code>: <code>WriteLine</code> e <code>Write</code>.</li>
+  <li>Ler linha por linha com <code>StreamReader.ReadLine</code> e o laço <code>while ((linha = …) != null)</code>.</li>
+  <li>Por que o <code>using</code> é obrigatório, e a diferença entre a declaração <code>using</code> e o bloco <code>using (…) { }</code>.</li>
+  <li>O que é o buffer, e o que fazem o <code>Flush</code> e o <code>Dispose</code>.</li>
+  <li>Acrescentar no fim (<code>append: true</code>), ler tudo com <code>ReadToEnd</code> e escolher a codificação.</li>
+  <li>Ler um arquivo e gravar outro ao mesmo tempo.</li>
+</ul>
+</div>
+
+<p>Esta aula usa <a href="using-dispose.html">using e IDisposable</a>, <a href="while.html">while</a> e <a href="referencias-anulaveis.html">referências anuláveis</a> (<code>string?</code>). Os programas rodam com <code>dotnet run</code> no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: o balde e a mangueira</h2>
+<p>O <code>File.ReadAllText</code> é um <strong>balde</strong>: ele pega toda a água de uma vez e entrega o balde cheio. Funciona bem para pouca água. Para uma piscina, o balde não aguenta.</p>
+<p>Um <strong>stream</strong> ("fluxo", "correnteza") é uma <strong>mangueira</strong>: a água passa aos poucos, e você usa cada pedaço quando ele chega. Você abre a torneira (cria o leitor ou o escritor), usa a água pelo tempo que quiser e, no fim, <strong>fecha a torneira</strong>. Esquecer de fechar é o erro mais comum desta aula.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Classe</th><th>Tradução</th><th>Para que serve</th><th>Métodos principais</th></tr>
+<tr><td><code>StreamWriter</code></td><td>escritor de fluxo</td><td>Gravar texto num arquivo, aos poucos</td><td><code>WriteLine</code>, <code>Write</code>, <code>Flush</code></td></tr>
+<tr><td><code>StreamReader</code></td><td>leitor de fluxo</td><td>Ler texto de um arquivo, aos poucos</td><td><code>ReadLine</code>, <code>ReadToEnd</code>, <code>EndOfStream</code></td></tr>
+</table>
+</div>
+
+<p>Os dois ficam em <code>System.IO</code>, que já vem incluído. Você já conhece o jeito de usá-los: o <code>WriteLine</code> e o <code>Write</code> do <code>StreamWriter</code> funcionam como os do <code>Console</code>, e o <code>ReadLine</code> do <code>StreamReader</code> funciona como o <a href="readline.html">Console.ReadLine</a>. A diferença é que, em vez da tela e do teclado, o texto vai para um arquivo e vem de um arquivo.</p>
+
+<hr>
+
+<h2>1. Gravar aos poucos: StreamWriter</h2>
+<p>A Ana escreve um diário de estudos. Cada linha é gravada com um comando:</p>
+
+<pre class="file" data-file="diario.cs">using StreamWriter escritor = new StreamWriter("diario.txt");
+escritor.WriteLine("Segunda: estudei C#");
+escritor.Write("Terça: ");
+escritor.WriteLine("fiz a lista de compras");
+escritor.WriteLine($"Total de dias: {2}");
+Console.WriteLine("Diário gravado");
+</pre>
+
+<dl class="anatomy">
+  <dt>new StreamWriter("diario.txt")</dt><dd>Abre o arquivo para escrita. Como no <code>File.WriteAllText</code>, se o arquivo não existe ele é <strong>criado</strong>, e se existe é <strong>esvaziado</strong> logo na abertura.</dd>
+  <dt>using StreamWriter escritor = …;</dt><dd>A <strong>declaração <code>using</code></strong> <span class="versao">C# 8</span>: "quando a variável <code>escritor</code> sair de cena, feche o arquivo". Aqui, ela sai de cena no fim do programa. A aula <a href="using-dispose.html">using e IDisposable</a> explica o mecanismo; a seção 3 mostra por que ele é obrigatório.</dd>
+  <dt>escritor.WriteLine("…")</dt><dd>Grava o texto e uma quebra de linha, como o <code>Console.WriteLine</code>.</dd>
+  <dt>escritor.Write("Terça: ")</dt><dd>Grava o texto <strong>sem</strong> quebra de linha. O próximo <code>WriteLine</code> continua na mesma linha.</dd>
+  <dt>$"Total de dias: {2}"</dt><dd>A <a href="interpolacao.html">interpolação</a> funciona igual: qualquer <code>string</code> serve.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run diario.cs
+Diário gravado
+$ cat diario.txt
+Segunda: estudei C#
+Terça: fiz a lista de compras
+Total de dias: 2</pre>
+
+<p>Repare que nada do diário apareceu na tela: só o <code>Console.WriteLine</code> escreve na tela. O <code>escritor.WriteLine</code> escreve no arquivo.</p>
+
+<hr>
+
+<h2>2. Ler linha por linha: StreamReader</h2>
+
+<pre class="file" data-file="ler.cs">using StreamReader leitor = new StreamReader("diario.txt");
+string? linha;
+int n = 0;
+while ((linha = leitor.ReadLine()) != null)
+{
+    n++;
+    Console.WriteLine($"{n}: {linha}");
+}
+Console.WriteLine($"Fim: {n} linhas");
+</pre>
+
+<dl class="anatomy">
+  <dt>using StreamReader leitor = new StreamReader("diario.txt");</dt><dd>Abre o arquivo para leitura, com a posição no começo. Se ele não existe, lança <code>FileNotFoundException</code> (aula <a href="arquivos.html">Arquivos</a>).</dd>
+  <dt>string? linha;</dt><dd>O <code>?</code> diz que a variável pode guardar <code>null</code> (aula <a href="referencias-anulaveis.html">Referências Anuláveis</a>). Ela precisa poder, porque é assim que o leitor avisa o fim.</dd>
+  <dt>leitor.ReadLine()</dt><dd>Lê a próxima linha, <strong>sem</strong> a quebra, e avança. Quando não há mais linhas, devolve <code>null</code>.</dd>
+  <dt>while ((linha = leitor.ReadLine()) != null)</dt><dd>A forma clássica, lida de dentro para fora: lê uma linha, guarda em <code>linha</code> e compara o resultado com <code>null</code>. Os parênteses em volta da atribuição são obrigatórios. Se não for o fim, executa o corpo e volta para ler a próxima.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ler.cs
+1: Segunda: estudei C#
+2: Terça: fiz a lista de compras
+3: Total de dias: 2
+Fim: 3 linhas</pre>
+
+<p>Em cada volta do laço, só <strong>uma</strong> linha está na memória. Com um arquivo de 2 GB, este programa funciona igual, e gasta a mesma memória.</p>
+
+<h3>Outras formas de ler</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>leitor.ReadLine()</code></td><td>A próxima linha, ou <code>null</code> no fim</td></tr>
+<tr><td><code>leitor.ReadToEnd()</code></td><td>Tudo o que falta, numa <code>string</code> (como o <code>File.ReadAllText</code>)</td></tr>
+<tr><td><code>leitor.EndOfStream</code></td><td><code>true</code> quando não há mais nada para ler</td></tr>
+<tr><td><code>leitor.Read()</code></td><td>Um caractere, como <code>int</code>; <code>-1</code> no fim</td></tr>
+</table>
+</div>
+
+<p>Com o <code>EndOfStream</code> ("fim do fluxo"), o laço também pode ser escrito assim:</p>
+
+<pre class="file" data-file="fim.cs">using StreamReader leitor = new StreamReader("diario.txt");
+while (!leitor.EndOfStream)
+{
+    Console.WriteLine(leitor.ReadLine());
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fim.cs
+Segunda: estudei C#
+Terça: fiz a lista de compras
+Total de dias: 2</pre>
+
+<p>As duas formas funcionam. A do <code>!= null</code> é a mais usada, porque já deixa a linha na variável.</p>
+
+<hr>
+
+<h2>3. O buffer, o Flush e o fechar</h2>
+<p>Ir ao disco é lento, comparado com a memória. Por isso o <code>StreamWriter</code> não grava cada <code>WriteLine</code> no disco na hora: ele junta o texto numa área de memória, o <strong>buffer</strong> ("reservatório"), e só manda para o disco quando o buffer enche, quando você pede (<code>Flush</code>, "descarga") ou quando o arquivo é <strong>fechado</strong> (<code>Dispose</code>). O tamanho do arquivo mostra isso:</p>
+
+<pre class="file" data-file="flush.cs">using StreamWriter escritor = new StreamWriter("parcial.txt");
+escritor.WriteLine("primeira linha");
+Console.WriteLine($"Antes do Flush: {new FileInfo("parcial.txt").Length} bytes");
+escritor.Flush();
+Console.WriteLine($"Depois do Flush: {new FileInfo("parcial.txt").Length} bytes");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run flush.cs
+Antes do Flush: 0 bytes
+Depois do Flush: 15 bytes</pre>
+
+<dl class="anatomy">
+  <dt>new FileInfo("parcial.txt").Length</dt><dd>O tamanho do arquivo no disco, em bytes (a classe <code>FileInfo</code> aparece na aula <a href="caminhos.html">Pastas e Caminhos</a>).</dd>
+  <dt>Antes do Flush: 0 bytes</dt><dd>O <code>WriteLine</code> já foi executado, mas a linha ainda está no buffer.</dd>
+  <dt>escritor.Flush();</dt><dd>Manda o que está no buffer para o disco: <code>primeira linha</code> (14 letras) mais a quebra de linha = 15 bytes.</dd>
+</dl>
+
+<p>O <code>Dispose</code>, que o <code>using</code> chama sozinho, faz o <code>Flush</code> e depois fecha o arquivo. Você quase nunca precisa chamar o <code>Flush</code>: basta fechar o arquivo na hora certa. E a hora certa importa. Veja este programa, que grava o diário e lê de volta logo depois:</p>
+
+<pre class="file" data-file="diario2.cs">using StreamWriter escritor = new StreamWriter("diario.txt");
+escritor.WriteLine("Segunda: estudei C#");
+escritor.WriteLine("Terça: fiz a lista de compras");
+escritor.WriteLine("Quarta: li um livro");
+
+using StreamReader leitor = new StreamReader("diario.txt");
+string? linha;
+int n = 0;
+while ((linha = leitor.ReadLine()) != null)
+{
+    n++;
+    Console.WriteLine($"{n}: {linha}");
+}
+Console.WriteLine($"Fim: {n} linhas");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run diario2.cs
+Fim: 0 linhas
+$ cat diario.txt                « depois que o programa terminou, as linhas estão lá
+Segunda: estudei C#
+Terça: fiz a lista de compras
+Quarta: li um livro</pre>
+
+<p>A declaração <code>using</code> só fecha o escritor no <strong>fim do programa</strong>. Quando o leitor abriu o arquivo, as três linhas ainda estavam no buffer, e o arquivo estava vazio. Para fechar o escritor <strong>antes</strong>, use o <strong>bloco</strong> <code>using</code>: o arquivo é fechado na chave <code>}</code>.</p>
+
+<pre class="file" data-file="diario3.cs">using (StreamWriter escritor = new StreamWriter("diario.txt"))
+{
+    escritor.WriteLine("Segunda: estudei C#");
+    escritor.WriteLine("Terça: fiz a lista de compras");
+    escritor.WriteLine("Quarta: li um livro");
+}                               // aqui o escritor é fechado
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Fecha quando…</th><th>Use quando…</th></tr>
+<tr><td><code>using StreamWriter e = new(…);</code></td><td>termina o bloco em que a variável está (no programa de cima, o fim do programa)</td><td>O arquivo fica aberto até o fim mesmo</td></tr>
+<tr><td><code>using (StreamWriter e = new(…)) { … }</code></td><td>chega a chave <code>}</code> do bloco</td><td>Você vai usar o arquivo de novo depois (ler o que gravou, abrir outra vez)</td></tr>
+</table>
+</div>
+
+<div class="trycs" data-goal="out:3: Quarta: li um livro,out:Fim: 3 linhas,src:using\s*\(\s*StreamWriter">
+<p class="try-task"><strong>Missão:</strong> rode o programa e veja o <code>Fim: 0 linhas</code>. Troque a declaração <code>using</code> do <strong>escritor</strong> por um bloco <code>using (StreamWriter escritor = new StreamWriter("diario.txt")) { … }</code> com os três <code>WriteLine</code> dentro, para o arquivo ser fechado antes da leitura. A saída deve terminar com <code>3: Quarta: li um livro</code> e <code>Fim: 3 linhas</code>.</p>
+<pre class="script" data-file="diario.cs">using StreamWriter escritor = new StreamWriter("diario.txt");
+escritor.WriteLine("Segunda: estudei C#");
+escritor.WriteLine("Terça: fiz a lista de compras");
+escritor.WriteLine("Quarta: li um livro");
+
+using StreamReader leitor = new StreamReader("diario.txt");
+string? linha;
+int n = 0;
+while ((linha = leitor.ReadLine()) != null)
+{
+    n++;
+    Console.WriteLine($"{n}: {linha}");
+}
+Console.WriteLine($"Fim: {n} linhas");
+</pre>
+<pre class="solucao" data-file="diario.cs">using (StreamWriter escritor = new StreamWriter("diario.txt"))
+{
+    escritor.WriteLine("Segunda: estudei C#");
+    escritor.WriteLine("Terça: fiz a lista de compras");
+    escritor.WriteLine("Quarta: li um livro");
+}
+
+using StreamReader leitor = new StreamReader("diario.txt");
+string? linha;
+int n = 0;
+while ((linha = leitor.ReadLine()) != null)
+{
+    n++;
+    Console.WriteLine($"{n}: {linha}");
+}
+Console.WriteLine($"Fim: {n} linhas");
+</pre>
+</div>
+
+<hr>
+
+<h2>4. Acrescentar, atalhos e codificação</h2>
+<p>O <code>StreamWriter</code> esvazia o arquivo ao abrir. Para gravar no fim, como num log, passe <code>append: true</code> ("acrescentar"). A classe <code>File</code> também tem três atalhos que criam leitores e escritores:</p>
+
+<pre class="file" data-file="log.cs">using (StreamWriter log = new StreamWriter("log.txt", append: true))
+{
+    log.WriteLine("Programa iniciado");
+}
+using (StreamWriter log = File.AppendText("log.txt"))
+{
+    log.WriteLine("Venda: caderno");
+}
+using (StreamReader leitor = File.OpenText("log.txt"))
+{
+    Console.Write(leitor.ReadToEnd());
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>new StreamWriter("log.txt", append: true)</dt><dd>Abre para escrita com a posição no <strong>fim</strong>: o que já existe fica. Se o arquivo não existe, é criado.</dd>
+  <dt>File.AppendText("log.txt")</dt><dd>Atalho para o mesmo <code>StreamWriter</code> com <code>append: true</code>.</dd>
+  <dt>File.OpenText("log.txt")</dt><dd>Atalho para <code>new StreamReader("log.txt")</code>. Existe também o <code>File.CreateText</code>, atalho para <code>new StreamWriter(…)</code> sem <code>append</code>.</dd>
+  <dt>leitor.ReadToEnd()</dt><dd>Lê tudo o que falta de uma vez.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run log.cs
+Programa iniciado
+Venda: caderno
+$ dotnet run log.cs
+Programa iniciado
+Venda: caderno
+Programa iniciado
+Venda: caderno</pre>
+
+<h3>Outra codificação</h3>
+<p>Como os métodos da classe <code>File</code>, o leitor e o escritor usam UTF-8 se você não disser nada (aula <a href="arquivos.html">Arquivos</a>). Para um arquivo em Latin-1, passe a codificação no construtor:</p>
+
+<pre class="file" data-file="latin.cs">using System.Text;
+
+using (StreamWriter w = new StreamWriter("antigo.txt", false, Encoding.Latin1))
+{
+    w.WriteLine("São Paulo");
+}
+Console.WriteLine($"{new FileInfo("antigo.txt").Length} bytes");
+
+using StreamReader r = new StreamReader("antigo.txt", Encoding.Latin1);
+Console.WriteLine(r.ReadLine());
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run latin.cs
+10 bytes
+São Paulo
+$ file antigo.txt
+antigo.txt: ISO-8859 text</pre>
+
+<p>O segundo argumento do escritor, <code>false</code>, é o <code>append</code>. Em Latin-1, <code>ã</code> ocupa 1 byte: <code>São Paulo</code> (9) + quebra de linha (1) = 10 bytes. Em UTF-8 seriam 11.</p>
+
+<hr>
+
+<h2>5. Ler um arquivo e escrever outro</h2>
+<p>É aqui que os streams brilham. A Ana tem as notas da turma em <code>alunos.csv</code> e quer um arquivo <code>aprovados.csv</code> só com quem tirou 7 ou mais. O programa lê uma linha, decide e grava, sem carregar nenhum dos dois arquivos inteiros:</p>
+
+<pre class="term" data-cwd="~/cs">$ cat alunos.csv
+nome;nota
+Ana;9,5
+Bruno;6,5
+Carla;8
+Diego;5
+Elisa;10</pre>
+
+<pre class="file" data-file="aprovados.cs">using StreamReader leitor = new StreamReader("alunos.csv");
+using StreamWriter escritor = new StreamWriter("aprovados.csv");
+
+string? cabecalho = leitor.ReadLine();
+escritor.WriteLine(cabecalho);
+
+int aprovados = 0;
+string? linha;
+while ((linha = leitor.ReadLine()) != null)
+{
+    string[] campos = linha.Split(';');
+    double nota = double.Parse(campos[1]);
+    if (nota &gt;= 7)
+    {
+        escritor.WriteLine(linha);
+        aprovados++;
+    }
+}
+Console.WriteLine($"{aprovados} aprovados gravados em aprovados.csv");
+</pre>
+
+<dl class="anatomy">
+  <dt>dois using seguidos</dt><dd>Um leitor e um escritor abertos ao mesmo tempo, em arquivos diferentes. No fim do programa, os dois são fechados, na ordem inversa da abertura (primeiro o escritor).</dd>
+  <dt>leitor.ReadLine() antes do laço</dt><dd>Lê só a primeira linha, o cabeçalho <code>nome;nota</code>, e o copia para o arquivo novo. O laço começa da segunda linha.</dd>
+  <dt>double.Parse(campos[1])</dt><dd>As notas usam vírgula, como no Brasil, e o computador da Ana está em português: o <code>Parse</code> entende <code>9,5</code>. Se o arquivo usasse ponto, seria preciso o <code>CultureInfo.InvariantCulture</code> (aula <a href="cultura.html">Cultura</a>).</dd>
+  <dt>escritor.WriteLine(linha)</dt><dd>Copia a linha original, sem mudar nada, para o arquivo de aprovados.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run aprovados.cs
+3 aprovados gravados em aprovados.csv
+$ cat aprovados.csv
+nome;nota
+Ana;9,5
+Carla;8
+Elisa;10</pre>
+
+<hr>
+
+<h2>File ou Stream: qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Use</th></tr>
+<tr><td>Ler ou gravar um arquivo pequeno de uma vez</td><td><code>File.ReadAllText</code>, <code>File.WriteAllText</code> e companhia (aula <a href="arquivos.html">Arquivos</a>)</td></tr>
+<tr><td>Passar pelas linhas de um arquivo grande</td><td><code>File.ReadLines</code> ou <code>StreamReader.ReadLine</code></td></tr>
+<tr><td>Gravar muitas linhas, aos poucos, num laço</td><td><code>StreamWriter</code> (um <code>File.AppendAllText</code> por linha abriria e fecharia o arquivo a cada volta)</td></tr>
+<tr><td>Ler um arquivo e gravar outro ao mesmo tempo</td><td><code>StreamReader</code> + <code>StreamWriter</code></td></tr>
+<tr><td>Ler um caractere por vez</td><td><code>StreamReader.Read()</code></td></tr>
+<tr><td>Ler sem travar o programa</td><td><code>ReadLineAsync</code>, <code>WriteLineAsync</code> (aula <a href="async-await.html">async e await</a>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>O arquivo ficou vazio: faltou o <code>using</code></strong>
+<pre class="file" data-file="esqueci.cs">StreamWriter escritor = new StreamWriter("esqueci.txt");
+escritor.WriteLine("linha importante");
+Console.WriteLine("Gravei?");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run esqueci.cs
+Gravei?
+$ ls -l esqueci.txt
+-rw-rw-r-- 1 ana ana 0 out 17 12:43 esqueci.txt
+$ cat esqueci.txt
+$ </pre>
+<p><strong>O que aconteceu:</strong> o arquivo foi criado (o <code>new</code> cria), mas tem <strong>0 bytes</strong>. A linha ficou no buffer, e ninguém chamou o <code>Dispose</code> nem o <code>Flush</code>. Quando o programa terminou, o buffer sumiu junto com a memória. Não há erro nem aviso: o programa diz "Gravei?" e o dado se perdeu.</p>
+<p><strong>Como resolver:</strong> todo <code>StreamWriter</code> nasce com <code>using</code>: <code>using StreamWriter escritor = new StreamWriter("esqueci.txt");</code>. O <code>using</code> fecha o arquivo até se o programa lançar uma exceção no meio.</p>
+</div>
+
+<div class="cenario">
+<strong>Avisos <code>CS8600</code> e <code>CS8602</code>: <code>string</code> sem <code>?</code></strong>
+<pre class="file" data-file="aviso.cs">using StreamReader leitor = new StreamReader("diario.txt");
+string linha = leitor.ReadLine();
+Console.WriteLine(linha.ToUpper());
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run aviso.cs
+/home/ana/cs/aviso.cs(2,16): warning CS8600: Conversão de literal nula ou possível valor nulo em tipo não anulável.
+/home/ana/cs/aviso.cs(3,19): warning CS8602: Desreferência de uma referência possivelmente nula.
+SEGUNDA: ESTUDEI C#</pre>
+<p><strong>O que aconteceu:</strong> o programa rodou, mas o compilador avisou duas vezes. O <code>ReadLine</code> devolve <code>string?</code>, porque pode devolver <code>null</code> no fim do arquivo, e a variável foi declarada como <code>string</code>, que "nunca é <code>null</code>" (CS8600). Por isso o <code>linha.ToUpper()</code> pode falhar com <code>NullReferenceException</code> se o arquivo estiver vazio (CS8602). Em inglês: <code>Converting null literal or possible null value to non-nullable type</code>.</p>
+<p><strong>Como resolver:</strong> declare <code>string? linha</code> e confira o <code>null</code> antes de usar: no laço <code>while ((linha = leitor.ReadLine()) != null)</code>, ou com <code>if (linha != null)</code>. Veja a aula <a href="avisos.html">Avisos do Compilador</a>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>ObjectDisposedException</code>: ler depois de fechar</strong>
+<pre class="file" data-file="fechado.cs">StreamReader leitor = new StreamReader("diario.txt");
+leitor.Dispose();
+Console.WriteLine(leitor.ReadLine());
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run fechado.cs; echo "código: $?"
+Unhandled exception. System.ObjectDisposedException: Cannot read from a closed TextReader.
+Object name: 'StreamReader'.
+   at System.IO.StreamReader.&lt;ThrowIfDisposed&gt;g__ThrowObjectDisposedException|73_0()
+   at System.IO.StreamReader.ReadLine()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/fechado.cs:line 3
+código: 134</pre>
+<p><strong>O que aconteceu:</strong> "Não é possível ler de um <code>TextReader</code> fechado". Depois do <code>Dispose</code>, o leitor não serve mais. Com o bloco <code>using (…) { }</code>, isso acontece quando você usa a variável fora das chaves (mas aí o compilador já reclama: a variável nem existe fora do bloco, erro <code>CS0103</code>).</p>
+<p><strong>Como resolver:</strong> faça todas as leituras antes de fechar. Para ler de novo, abra um leitor novo.</p>
+</div>
+
+<div class="cenario">
+<strong>Dois escritores no mesmo arquivo: uma linha sumiu</strong>
+<pre class="file" data-file="dois.cs">using StreamWriter a = new StreamWriter("dois.txt");
+using StreamWriter b = new StreamWriter("dois.txt");
+a.WriteLine("de a");
+b.WriteLine("de b");
+Console.WriteLine("ok");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run dois.cs
+ok
+$ cat dois.txt
+de a</pre>
+<p><strong>O que aconteceu:</strong> no Linux, os dois escritores abriram o mesmo arquivo, cada um com o seu buffer e a sua posição no começo. No fim, o <code>b</code> foi fechado primeiro e gravou <code>de b</code> no começo do arquivo; depois o <code>a</code> fechou e gravou <code>de a</code> <strong>por cima</strong>. Nenhum erro. (No Windows, o segundo <code>new StreamWriter</code> lançaria <code>IOException</code>, dizendo que o arquivo está sendo usado por outro processo.)</p>
+<p><strong>Como resolver:</strong> um arquivo, um escritor. Se duas partes do programa precisam gravar no mesmo arquivo, passe o mesmo <code>StreamWriter</code> para as duas.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>using StreamWriter e = new StreamWriter(c);</code></td><td>Abre para gravar (cria ou esvazia); fecha no fim do bloco</td></tr>
+<tr><td><code>new StreamWriter(c, append: true)</code> / <code>File.AppendText(c)</code></td><td>Abre para gravar no fim</td></tr>
+<tr><td><code>File.CreateText(c)</code></td><td>Atalho para <code>new StreamWriter(c)</code></td></tr>
+<tr><td><code>e.WriteLine(texto)</code> / <code>e.Write(texto)</code></td><td>Grava com / sem quebra de linha</td></tr>
+<tr><td><code>e.Flush()</code></td><td>Manda o buffer para o disco agora</td></tr>
+<tr><td><code>using StreamReader l = new StreamReader(c);</code> / <code>File.OpenText(c)</code></td><td>Abre para ler</td></tr>
+<tr><td><code>while ((linha = l.ReadLine()) != null)</code></td><td>Lê linha por linha até o fim (<code>string? linha</code>)</td></tr>
+<tr><td><code>l.ReadToEnd()</code></td><td>O resto do arquivo numa <code>string</code></td></tr>
+<tr><td><code>l.EndOfStream</code></td><td><code>true</code> no fim</td></tr>
+<tr><td><code>new StreamReader(c, Encoding.Latin1)</code></td><td>Lê com outra codificação (<code>using System.Text;</code>)</td></tr>
+<tr><td><code>using (…) { … }</code></td><td>Fecha na chave <code>}</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O fim do arquivo</h3>
+<p>O que o <code>ReadLine()</code> de um <code>StreamReader</code> devolve quando não há mais linhas?</p>
+<div class="ex-code"><input data-answer="null" aria-label="valor"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Gravar no fim</h3>
+<p>Complete para abrir o log sem apagar o que já está nele:</p>
+<div class="ex-code">using StreamWriter log = new StreamWriter("log.txt", append: <input data-answer="true" aria-label="valor">);</div>
+</div>
+
+<div class="exercise">
+<h3>3. A palavra que fecha</h3>
+<p>Complete para o arquivo ser fechado sozinho no fim do bloco:</p>
+<div class="ex-code"><input data-answer="using" aria-label="palavra-chave"> StreamReader leitor = new StreamReader("diario.txt");</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Um programa cria um <code>StreamWriter</code> sem <code>using</code>, grava 3 linhas e termina. O que tem no arquivo?</p>
+<label><input type="radio" name="q4"> As 3 linhas.</label>
+<label><input type="radio" name="q4"> Nada: as linhas ficaram no buffer e se perderam.</label>
+<label><input type="radio" name="q4"> Só a primeira linha.</label>
+<label><input type="radio" name="q4"> O programa não compila.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Por que a variável do laço de leitura é <code>string?</code>, e não <code>string</code>?</p>
+<label><input type="radio" name="q5"> Porque o arquivo pode ter acentos.</label>
+<label><input type="radio" name="q5"> Porque o <code>?</code> deixa o laço mais rápido.</label>
+<label><input type="radio" name="q5"> Porque o <code>ReadLine</code> devolve <code>null</code> no fim do arquivo.</label>
+<label><input type="radio" name="q5"> Porque o <code>StreamReader</code> só aceita <code>string?</code>.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. O programa grava um arquivo com <code>using StreamWriter e = …;</code> (declaração) e, nas linhas seguintes, lê o mesmo arquivo. A leitura acha o arquivo vazio. Qual é o conserto?</p>
+<label><input type="radio" name="q6"> Usar o bloco <code>using (…) { … }</code> no escritor, para ele fechar antes da leitura.</label>
+<label><input type="radio" name="q6"> Trocar <code>WriteLine</code> por <code>Write</code>.</label>
+<label><input type="radio" name="q6"> Ler com <code>File.ReadAllText</code> em vez do <code>StreamReader</code>.</label>
+<label><input type="radio" name="q6"> Usar <code>append: true</code>.</label>
+</div>
+
+<h3>Missão final: os aprovados</h3>
+<div class="trycs" data-goal="outre:^3 aprovados\nnome;nota\nAna;9\,5\nCarla;8\nElisa;10\n$,src:ReadLine">
+<p class="try-task"><strong>Missão:</strong> o programa copia o <code>alunos.csv</code> (na outra aba) inteiro para <code>aprovados.csv</code> e depois mostra o arquivo novo. Mude o laço para gravar só os alunos com nota <strong>7 ou mais</strong>: separe a linha com <code>Split(';')</code>, converta a nota com <code>double.Parse</code> e grave a linha só se ela passar. A saída deve ser exatamente:</p>
+<pre class="out">3 aprovados
+nome;nota
+Ana;9,5
+Carla;8
+Elisa;10</pre>
+<pre class="script" data-file="aprovados.cs">using (StreamReader leitor = new StreamReader("alunos.csv"))
+using (StreamWriter escritor = new StreamWriter("aprovados.csv"))
+{
+    escritor.WriteLine(leitor.ReadLine());
+    int aprovados = 0;
+    string? linha;
+    while ((linha = leitor.ReadLine()) != null)
+    {
+        escritor.WriteLine(linha);
+        aprovados++;
+    }
+    Console.WriteLine($"{aprovados} aprovados");
+}
+Console.Write(File.ReadAllText("aprovados.csv"));
+</pre>
+<pre class="script" data-file="alunos.csv">nome;nota
+Ana;9,5
+Bruno;6,5
+Carla;8
+Diego;5
+Elisa;10
+</pre>
+<pre class="solucao" data-file="aprovados.cs">using (StreamReader leitor = new StreamReader("alunos.csv"))
+using (StreamWriter escritor = new StreamWriter("aprovados.csv"))
+{
+    escritor.WriteLine(leitor.ReadLine());
+    int aprovados = 0;
+    string? linha;
+    while ((linha = leitor.ReadLine()) != null)
+    {
+        string[] campos = linha.Split(';');
+        double nota = double.Parse(campos[1]);
+        if (nota &gt;= 7)
+        {
+            escritor.WriteLine(linha);
+            aprovados++;
+        }
+    }
+    Console.WriteLine($"{aprovados} aprovados");
+}
+Console.Write(File.ReadAllText("aprovados.csv"));
+</pre>
+</div>
+
+<p>Os dois <code>using (…)</code> seguidos, com um bloco só, abrem os dois arquivos e fecham os dois na mesma chave <code>}</code>. Por isso o <code>File.ReadAllText</code> do fim já encontra o <code>aprovados.csv</code> completo. Se quiser ir além: grave também um <code>reprovados.csv</code> com os outros, usando um segundo escritor.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>StreamWriter</code> grava aos poucos (<code>WriteLine</code>, <code>Write</code>); <code>StreamReader</code> lê aos poucos (<code>ReadLine</code>, <code>ReadToEnd</code>).</li>
+  <li>O laço de leitura é <code>while ((linha = leitor.ReadLine()) != null)</code>, com <code>string? linha</code>: o <code>null</code> marca o fim do arquivo.</li>
+  <li>O escritor guarda o texto num buffer e só grava no disco no <code>Flush</code> ou no <code>Dispose</code>. Sem <code>using</code>, o arquivo pode ficar vazio.</li>
+  <li>A declaração <code>using</code> fecha no fim do bloco em que está; o bloco <code>using (…) { }</code> fecha na chave <code>}</code>. Feche o escritor antes de ler o mesmo arquivo.</li>
+  <li><code>append: true</code> (ou <code>File.AppendText</code>) grava no fim; a codificação é UTF-8, a não ser que você passe outra.</li>
+  <li>Um leitor e um escritor juntos processam um arquivo inteiro gastando a memória de uma linha.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
