@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# List&lt;T&gt; — a lista que cresce e encolhe | Guia C#</title>
+<meta name="description" content="List&lt;T&gt; em C# para quem está começando: criar, acrescentar (Add, AddRange, Insert), ler e trocar pela posição, remover (Remove, RemoveAt, RemoveAll), procurar (Contains, IndexOf), ordenar (Sort, Reverse), Count × Capacity, listas de objetos e os erros ArgumentOutOfRangeException e Collection was modified, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">List&lt;T&gt;</span></h1>
+
+<p class="intro">A <code>List&lt;T&gt;</code> é a coleção que você mais vai usar em C#. Ela é como um <a href="arrays.html">array</a> que cresce e encolhe: os itens ficam em ordem, cada um numa posição, e você pode acrescentar, tirar, trocar e procurar à vontade. Nesta aula você vai ver todas as operações do dia a dia com a lista de compras e o carrinho da lojinha da Ana, e os dois erros que todo mundo comete com listas.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Criar uma lista vazia ou já com itens, e a partir de um array.</li>
+  <li>Acrescentar: <code>Add</code>, <code>AddRange</code> e <code>Insert</code>.</li>
+  <li>Ler e trocar pela posição: <code>lista[0]</code>, <code>lista[^1]</code>, <code>lista[1] = …</code>.</li>
+  <li>Remover: <code>Remove</code>, <code>RemoveAt</code>, <code>RemoveAll</code> e <code>Clear</code>.</li>
+  <li>Procurar e ordenar: <code>Contains</code>, <code>IndexOf</code>, <code>Sort</code>, <code>Reverse</code>, <code>GetRange</code>.</li>
+  <li>A diferença entre <code>Count</code> e <code>Capacity</code>.</li>
+  <li>Listas de objetos, com <code>for</code> e <code>foreach</code>.</li>
+  <li>Os erros <code>ArgumentOutOfRangeException</code> e <code>Collection was modified</code>.</li>
+</ul>
+</div>
+
+<p>A visão geral das coleções está na aula <a href="colecoes.html">Coleções</a>. Todos os programas rodaram na máquina da Ana, com o .NET 10 (C# 14), usando <code>dotnet run arquivo.cs</code> na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código</h2>
+<p>A lista de compras na porta da geladeira: os itens estão escritos um embaixo do outro, numa ordem. Você acrescenta "café" no fim quando acaba, espreme "açúcar" lá no começo porque é urgente, risca o "feijão" quando compra. A lista nunca "enche": sempre cabe mais um.</p>
+<p>A <code>List&lt;T&gt;</code> é essa lista. O <code>T</code> é o tipo dos itens (<code>List&lt;string&gt;</code> para textos, <code>List&lt;int&gt;</code> para números inteiros), e cada item tem uma <strong>posição</strong> (o índice), começando em 0, como no array.</p>
+
+<hr>
+
+<h2>1. Criar uma lista</h2>
+<p>Há várias formas, todas equivalentes no resultado:</p>
+
+<pre class="file" data-file="criar.cs">List&lt;string&gt; compras = new List&lt;string&gt;();
+List&lt;string&gt; frutas = new();
+List&lt;string&gt; limpeza = [];
+List&lt;string&gt; padaria = ["pão", "leite"];
+var bebidas = new List&lt;string&gt; { "suco", "água" };
+int[] notasDoArray = [7, 9, 6];
+List&lt;int&gt; notas = new(notasDoArray);
+List&lt;int&gt; copia = [.. notasDoArray, 10];
+Console.WriteLine($"{compras.Count} {frutas.Count} {limpeza.Count} {padaria.Count} {bebidas.Count} {notas.Count} {copia.Count}");
+Console.WriteLine(string.Join(", ", copia));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run criar.cs
+0 0 0 2 2 3 4
+7, 9, 6, 10</pre>
+
+<dl class="anatomy">
+  <dt>new List&lt;string&gt;()</dt><dd>A forma completa: uma lista vazia de textos. É a que você vai ver em código antigo.</dd>
+  <dt>new()</dt><dd>O mesmo, sem repetir o tipo, que já está à esquerda <span class="versao">C# 9</span>.</dd>
+  <dt>[]</dt><dd>Uma expressão de coleção vazia <span class="versao">C# 12</span>.</dd>
+  <dt>["pão", "leite"]</dt><dd>Já com dois itens. É a forma que o guia usa.</dd>
+  <dt>new List&lt;string&gt; { "suco", "água" }</dt><dd>O <strong>inicializador de coleção</strong>, a forma de antes do C# 12, ainda muito comum. Com <code>var</code>, o tipo tem de aparecer à direita.</dd>
+  <dt>new(notasDoArray)</dt><dd>Uma lista nova com uma <strong>cópia</strong> dos itens do array. Mudar a lista não muda o array.</dd>
+  <dt>[.. notasDoArray, 10]</dt><dd>O <code>..</code> ("espalhar", <em>spread</em>) põe todos os itens do array e, depois, o <code>10</code>.</dd>
+</dl>
+
+<hr>
+
+<h2>2. Acrescentar, ler, trocar e remover</h2>
+
+<pre class="file" data-file="mudar.cs">List&lt;string&gt; compras = ["arroz", "feijão"];
+compras.Add("café");
+compras.AddRange(["leite", "pão"]);
+compras.Insert(0, "açúcar");
+Console.WriteLine(string.Join(", ", compras));
+Console.WriteLine($"Primeiro: {compras[0]}, segundo: {compras[1]}, último: {compras[^1]}");
+compras[1] = "arroz integral";
+bool tirou = compras.Remove("feijão");
+bool tirouDeNovo = compras.Remove("feijão");
+compras.RemoveAt(0);
+Console.WriteLine($"{tirou} {tirouDeNovo}");
+Console.WriteLine(string.Join(", ", compras));
+Console.WriteLine($"{compras.Count} itens");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run mudar.cs
+açúcar, arroz, feijão, café, leite, pão
+Primeiro: açúcar, segundo: arroz, último: pão
+True False
+arroz integral, café, leite, pão
+4 itens</pre>
+
+<p>Linha por linha:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th><th>A lista depois</th></tr>
+<tr><td><code>compras.Add("café")</code></td><td>Acrescenta um item no <strong>fim</strong></td><td>arroz, feijão, café</td></tr>
+<tr><td><code>compras.AddRange(["leite", "pão"])</code></td><td>Acrescenta vários de uma vez, no fim</td><td>arroz, feijão, café, leite, pão</td></tr>
+<tr><td><code>compras.Insert(0, "açúcar")</code></td><td>Põe na posição 0; os outros andam uma casa para a direita</td><td>açúcar, arroz, feijão, café, leite, pão</td></tr>
+<tr><td><code>compras[0]</code>, <code>compras[1]</code></td><td>Lê pela posição, como no array</td><td>(não muda)</td></tr>
+<tr><td><code>compras[^1]</code></td><td>O último item: "1 a partir do fim" (aula <a href="indices-intervalos.html">Índices e Intervalos</a>)</td><td>(não muda)</td></tr>
+<tr><td><code>compras[1] = "arroz integral"</code></td><td><strong>Troca</strong> o item da posição 1</td><td>açúcar, arroz integral, feijão, café, leite, pão</td></tr>
+<tr><td><code>compras.Remove("feijão")</code></td><td>Procura e tira a <strong>primeira</strong> ocorrência; devolve <code>true</code> se tirou</td><td>açúcar, arroz integral, café, leite, pão</td></tr>
+<tr><td><code>compras.Remove("feijão")</code> de novo</td><td>Não acha nada: devolve <code>false</code>, sem erro</td><td>(não muda)</td></tr>
+<tr><td><code>compras.RemoveAt(0)</code></td><td>Tira o item da <strong>posição</strong> 0; os outros andam para a esquerda</td><td>arroz integral, café, leite, pão</td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong><code>Remove</code> × <code>RemoveAt</code></strong>
+<p><code>Remove("feijão")</code> recebe o <strong>item</strong> e procura por ele. <code>RemoveAt(0)</code> recebe a <strong>posição</strong>. Numa <code>List&lt;int&gt;</code> isso confunde: <code>notas.Remove(7)</code> tira a nota 7 (onde estiver), e <code>notas.RemoveAt(7)</code> tira o que está na posição 7.</p>
+</div>
+
+<p>Para esvaziar a lista toda, <code>compras.Clear()</code>.</p>
+
+<div class="trycs" data-goal="outre:^açúcar\, arroz\, café\, leite\n$">
+<p class="try-task"><strong>Missão:</strong> a lista começa com <code>arroz, feijão, café</code>. Usando os métodos da lista (sem mudar a primeira linha), faça o programa mostrar exatamente <code>açúcar, arroz, café, leite</code>: ponha <code>açúcar</code> no começo, <code>leite</code> no fim e tire o <code>feijão</code>.</p>
+<pre class="script" data-file="compras.cs">List&lt;string&gt; compras = ["arroz", "feijão", "café"];
+
+Console.WriteLine(string.Join(", ", compras));
+</pre>
+<pre class="solucao" data-file="compras.cs">List&lt;string&gt; compras = ["arroz", "feijão", "café"];
+compras.Insert(0, "açúcar");
+compras.Add("leite");
+compras.Remove("feijão");
+Console.WriteLine(string.Join(", ", compras));
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Procurar e ordenar</h2>
+
+<pre class="file" data-file="procurar.cs">List&lt;string&gt; compras = ["arroz", "feijão", "café", "leite"];
+Console.WriteLine(compras.Contains("café"));
+Console.WriteLine(compras.IndexOf("café"));
+Console.WriteLine(compras.IndexOf("chocolate"));
+List&lt;int&gt; notas = [7, 10, 6, 9, 8];
+notas.Sort();
+Console.WriteLine(string.Join(" ", notas));
+Console.WriteLine($"Menor: {notas[0]}, maior: {notas[^1]}");
+notas.Reverse();
+Console.WriteLine(string.Join(" ", notas));
+List&lt;int&gt; parte = notas.GetRange(1, 3);
+Console.WriteLine(string.Join(" ", parte));
+Console.WriteLine(string.Join(" ", notas[1..4]));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run procurar.cs
+True
+2
+-1
+6 7 8 9 10
+Menor: 6, maior: 10
+10 9 8 7 6
+9 8 7
+9 8 7</pre>
+
+<dl class="anatomy">
+  <dt>Contains("café") → True</dt><dd>"Contém?": <code>true</code> ou <code>false</code>.</dd>
+  <dt>IndexOf("café") → 2</dt><dd>A posição do item: <code>"café"</code> está na posição 2 (contando do 0).</dd>
+  <dt>IndexOf("chocolate") → -1</dt><dd>Não achou. <code>-1</code> é o jeito de dizer "não está", porque nenhuma posição é negativa. Confira sempre antes de usar o resultado como posição.</dd>
+  <dt>notas.Sort()</dt><dd>Ordena a <strong>própria</strong> lista, do menor para o maior. Ela muda: não é uma cópia ordenada.</dd>
+  <dt>notas[0], notas[^1]</dt><dd>Depois de ordenar, o primeiro é o menor e o último é o maior.</dd>
+  <dt>notas.Reverse()</dt><dd>Inverte a ordem, também na própria lista.</dd>
+  <dt>notas.GetRange(1, 3)</dt><dd>Uma lista nova com 3 itens a partir da posição 1. <code>notas[1..4]</code> faz o mesmo com a sintaxe de intervalos: da posição 1 até antes da 4.</dd>
+</dl>
+
+<p>Com textos, <code>Sort()</code> usa a ordem alfabética da cultura do computador (aula <a href="cultura.html">Cultura</a>). Para ordenar por outro critério, como o preço de um produto, o caminho é o LINQ (aula <a href="linq-ordenar.html">Ordenar</a>) ou um comparador (aula <a href="comparacao.html">IComparable e IComparer</a>).</p>
+
+<div class="trycs" data-goal="out:Menor: 4\, maior: 10,src:\.Sort\(\)">
+<p class="try-task"><strong>Missão:</strong> o programa mostra o primeiro e o último item, mas a lista está fora de ordem. Ordene a lista com <code>Sort()</code> antes de mostrar, para a linha dizer <code>Menor: 4, maior: 10</code>.</p>
+<pre class="script" data-file="notas.cs">List&lt;int&gt; notas = [7, 10, 4, 9, 8];
+
+Console.WriteLine($"Menor: {notas[0]}, maior: {notas[^1]}");
+</pre>
+<pre class="solucao" data-file="notas.cs">List&lt;int&gt; notas = [7, 10, 4, 9, 8];
+notas.Sort();
+Console.WriteLine($"Menor: {notas[0]}, maior: {notas[^1]}");
+</pre>
+</div>
+
+<hr>
+
+<h2>4. <code>Count</code> × <code>Capacity</code>: como a lista cresce</h2>
+<p>Por dentro, uma <code>List</code> guarda os itens num <strong>array</strong>. Quando ele enche, a lista cria um array maior (o dobro) e copia tudo para lá. Dá para ver isso com a propriedade <code>Capacity</code> ("capacidade"):</p>
+
+<pre class="file" data-file="capacidade.cs">List&lt;int&gt; numeros = new();
+Console.WriteLine($"Count {numeros.Count}, Capacity {numeros.Capacity}");
+for (int i = 1; i &lt;= 9; i++)
+{
+    numeros.Add(i);
+    Console.WriteLine($"Count {numeros.Count}, Capacity {numeros.Capacity}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run capacidade.cs
+Count 0, Capacity 0
+Count 1, Capacity 4
+Count 2, Capacity 4
+Count 3, Capacity 4
+Count 4, Capacity 4
+Count 5, Capacity 8
+Count 6, Capacity 8
+Count 7, Capacity 8
+Count 8, Capacity 8
+Count 9, Capacity 16</pre>
+
+<p><code>Count</code> é quantos itens há; <code>Capacity</code> é quantos cabem antes da próxima "mudança de casa". A lista começa sem espaço nenhum, ganha 4 lugares no primeiro <code>Add</code> e dobra quando enche: 4, 8, 16… Você quase nunca precisa pensar nisso. Mas, se já sabe que vão ser 10 mil itens, <code>new List&lt;int&gt;(10000)</code> cria a lista com essa capacidade de saída e evita as cópias.</p>
+
+<hr>
+
+<h2>5. Uma lista de objetos</h2>
+<p>A lista pode guardar qualquer tipo, inclusive os seus. O carrinho da lojinha é uma lista de <a href="records.html">records</a> <code>Produto</code>:</p>
+
+<pre class="file" data-file="carrinho.cs">List&lt;Produto&gt; carrinho =
+[
+    new("Arroz", 6.50m, 2),
+    new("Café", 18.90m, 1),
+    new("Leite", 5.49m, 6)
+];
+carrinho.Add(new("Pão", 0.75m, 10));
+
+decimal total = 0;
+for (int i = 0; i &lt; carrinho.Count; i++)
+{
+    Produto p = carrinho[i];
+    decimal subtotal = p.Preco * p.Quantidade;
+    total += subtotal;
+    Console.WriteLine($"{i + 1}. {p.Nome}: {p.Quantidade} x {p.Preco:C} = {subtotal:C}");
+}
+Console.WriteLine($"Total: {total:C}");
+
+record Produto(string Nome, decimal Preco, int Quantidade);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run carrinho.cs
+1. Arroz: 2 x R$ 6,50 = R$ 13,00
+2. Café: 1 x R$ 18,90 = R$ 18,90
+3. Leite: 6 x R$ 5,49 = R$ 32,94
+4. Pão: 10 x R$ 0,75 = R$ 7,50
+Total: R$ 72,34</pre>
+
+<dl class="anatomy">
+  <dt>new("Arroz", 6.50m, 2)</dt><dd>Dentro da lista, o C# já sabe que cada item é um <code>Produto</code>, então basta <code>new(…)</code>.</dd>
+  <dt>for (int i = 0; i &lt; carrinho.Count; i++)</dt><dd>O <a href="for.html">for</a> clássico, com <code>Count</code> no lugar do <code>Length</code> do array. Use o <code>for</code> quando precisar da posição (aqui, para numerar os itens).</dd>
+  <dt>carrinho[i]</dt><dd>O produto da posição <code>i</code>.</dd>
+  <dt>decimal</dt><dd>Dinheiro sempre em <code>decimal</code> (aula <a href="decimais.html">float, double e decimal</a>).</dd>
+</dl>
+
+<p>Quando a posição não importa, o <a href="foreach.html">foreach</a> é mais simples: <code>foreach (Produto p in carrinho) { … }</code>. E somas como essa ficam numa linha com LINQ: <code>carrinho.Sum(p =&gt; p.Preco * p.Quantidade)</code> (aula <a href="linq-agregar.html">Agregar</a>).</p>
+
+<hr>
+
+<h2>Formas diferentes, qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Forma</th></tr>
+<tr><td>Criar já com itens</td><td><code>List&lt;string&gt; l = ["a", "b"];</code></td></tr>
+<tr><td>Criar vazia</td><td><code>List&lt;string&gt; l = [];</code> ou <code>new()</code></td></tr>
+<tr><td>Passar por todos, sem precisar da posição</td><td><code>foreach (var x in l)</code></td></tr>
+<tr><td>Precisa da posição, ou vai trocar itens</td><td><code>for (int i = 0; i &lt; l.Count; i++)</code></td></tr>
+<tr><td>Tirar todos os que atendem a uma condição</td><td><code>l.RemoveAll(x =&gt; condição)</code></td></tr>
+<tr><td>Saber se existe</td><td><code>l.Contains(x)</code></td></tr>
+<tr><td>Saber onde está</td><td><code>l.IndexOf(x)</code> (e conferir o <code>-1</code>)</td></tr>
+<tr><td>Muitas perguntas "está lá?" numa lista grande</td><td>Troque por um <a href="hashset.html">HashSet&lt;T&gt;</a></td></tr>
+<tr><td>Procurar por um código ou nome</td><td>Troque por um <a href="dictionary.html">Dictionary</a></td></tr>
+<tr><td>Quantidade fixa e conhecida</td><td>Um array basta</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>ArgumentOutOfRangeException: posição que não existe</strong>
+<pre class="file" data-file="fora2.cs">List&lt;string&gt; compras = ["arroz", "feijão"];
+Console.WriteLine(compras[2]);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run fora2.cs
+Unhandled exception. System.ArgumentOutOfRangeException: Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')
+   at System.Collections.Generic.List`1.get_Item(Int32 index)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/fora2.cs:line 2</pre>
+<p><strong>O que significa:</strong> "o índice estava fora do intervalo; deve ser não negativo e menor que o tamanho da coleção". A lista tem 2 itens, nas posições 0 e 1. Repare que, na lista, a exceção é <code>ArgumentOutOfRangeException</code>, e não a <code>IndexOutOfRangeException</code> do array. O <code>List`1.get_Item</code> do rastro é o "ler pela posição" da lista por dentro.</p>
+<p>O <code>Insert</code> tem um limite parecido, mas pode ir até a posição <code>Count</code> (o fim):</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run fora.cs
+Unhandled exception. System.ArgumentOutOfRangeException: Index must be within the bounds of the List. (Parameter 'index')
+   at System.Collections.Generic.List`1.Insert(Int32 index, T item)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/fora.cs:line 2</pre>
+<p>(O <code>fora.cs</code> tentou <code>compras.Insert(5, "café")</code> numa lista de 2.)</p>
+<p><strong>Como consertar:</strong> confira com <code>if (i &lt; compras.Count)</code> antes de usar a posição, e lembre que a última é <code>Count - 1</code> (ou <code>^1</code>).</p>
+</div>
+
+<div class="cenario">
+<strong>InvalidOperationException: "Collection was modified"</strong>
+<pre class="file" data-file="vencidos.cs">List&lt;string&gt; compras = ["arroz", "feijão vencido", "café", "leite vencido"];
+foreach (string item in compras)
+{
+    if (item.Contains("vencido"))
+    {
+        compras.Remove(item);
+    }
+}
+Console.WriteLine($"Sobrou: {string.Join(", ", compras)}");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run vencidos.cs
+Unhandled exception. System.InvalidOperationException: Collection was modified; enumeration operation may not execute.
+   at System.Collections.Generic.List`1.Enumerator.MoveNext()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/vencidos.cs:line 2</pre>
+<p><strong>O que significa:</strong> "a coleção foi modificada; a enumeração não pode continuar". O <code>foreach</code> anda pela lista, e não aceita que ela mude no meio do caminho: depois do <code>Remove</code>, a próxima volta (o <code>MoveNext</code>, na linha 2) percebe a mudança e lança a exceção. O mesmo vale para <code>Add</code> dentro do <code>foreach</code>.</p>
+<p><strong>Como consertar:</strong> use o <code>RemoveAll</code>, que faz a remoção inteira de uma vez:</p>
+<pre class="file" data-file="vencidos2.cs">List&lt;string&gt; compras = ["arroz", "feijão vencido", "café", "leite vencido"];
+int removidos = compras.RemoveAll(item =&gt; item.Contains("vencido"));
+Console.WriteLine($"Removidos: {removidos}");
+Console.WriteLine($"Sobrou: {string.Join(", ", compras)}");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run vencidos2.cs
+Removidos: 2
+Sobrou: arroz, café</pre>
+<p><code>item =&gt; item.Contains("vencido")</code> é uma <a href="lambdas.html">lambda</a>: "para cada item, a resposta de <code>item.Contains("vencido")</code>". O <code>RemoveAll</code> tira os itens em que a resposta é <code>true</code> e devolve quantos tirou. Sem lambda, a outra saída é um <code>for</code> <strong>de trás para frente</strong>, que não se perde quando os itens andam:</p>
+<pre class="file" data-file="vencidos3.cs">List&lt;string&gt; compras = ["arroz", "feijão vencido", "café", "leite vencido"];
+for (int i = compras.Count - 1; i &gt;= 0; i--)
+{
+    if (compras[i].Contains("vencido"))
+    {
+        compras.RemoveAt(i);
+    }
+}
+Console.WriteLine($"Sobrou: {string.Join(", ", compras)}");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run vencidos3.cs
+Sobrou: arroz, café</pre>
+</div>
+
+<div class="cenario">
+<strong>CS1061: <code>Length</code> numa lista</strong>
+<p><strong>O que significa:</strong> lista usa <code>Count</code>; array usa <code>Length</code>. O erro completo está na aula <a href="colecoes.html#errado">Coleções</a>.</p>
+<p><strong>Como consertar:</strong> troque <code>.Length</code> por <code>.Count</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>O <code>Remove</code> "não funcionou"</strong>
+<p><strong>O que significa:</strong> o item não estava na lista do jeito que você escreveu (<code>"Feijão"</code> ≠ <code>"feijão"</code>, ou um espaço sobrando), e o <code>Remove</code> devolveu <code>false</code> em silêncio. Ele também só tira a <strong>primeira</strong> ocorrência.</p>
+<p><strong>Como consertar:</strong> confira o <code>bool</code> que ele devolve; para tirar todas as ocorrências, use <code>RemoveAll</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Membro</th><th>O que faz</th></tr>
+<tr><td><code>Count</code></td><td>Quantos itens há</td></tr>
+<tr><td><code>Capacity</code></td><td>Quantos cabem antes de crescer</td></tr>
+<tr><td><code>l[i]</code> / <code>l[i] = x</code></td><td>Lê / troca o item da posição <code>i</code></td></tr>
+<tr><td><code>l[^1]</code>, <code>l[1..4]</code></td><td>O último; os itens das posições 1 a 3</td></tr>
+<tr><td><code>Add(x)</code> / <code>AddRange(outra)</code></td><td>Acrescenta no fim um / vários</td></tr>
+<tr><td><code>Insert(i, x)</code></td><td>Põe na posição <code>i</code> (de 0 a <code>Count</code>)</td></tr>
+<tr><td><code>Remove(x)</code></td><td>Tira a primeira ocorrência; devolve <code>bool</code></td></tr>
+<tr><td><code>RemoveAt(i)</code></td><td>Tira o da posição <code>i</code></td></tr>
+<tr><td><code>RemoveAll(x =&gt; …)</code></td><td>Tira todos os que atendem à condição; devolve quantos</td></tr>
+<tr><td><code>Clear()</code></td><td>Esvazia</td></tr>
+<tr><td><code>Contains(x)</code></td><td><code>true</code> se está na lista</td></tr>
+<tr><td><code>IndexOf(x)</code></td><td>A posição, ou <code>-1</code></td></tr>
+<tr><td><code>Sort()</code> / <code>Reverse()</code></td><td>Ordena / inverte a própria lista</td></tr>
+<tr><td><code>GetRange(i, n)</code></td><td>Uma lista nova com <code>n</code> itens a partir de <code>i</code></td></tr>
+<tr><td><code>ToArray()</code></td><td>Um array com uma cópia dos itens</td></tr>
+<tr><td><code>new List&lt;T&gt;(array)</code>, <code>[.. array]</code></td><td>Uma lista com uma cópia de outra coleção</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. No fim da lista</h3>
+<p>Complete para acrescentar <code>"leite"</code> no fim:</p>
+<div class="ex-code">compras.<input data-answer="Add" aria-label="método">("leite");</div>
+</div>
+
+<div class="exercise">
+<h3>2. No começo da lista</h3>
+<p>Complete para pôr <code>"açúcar"</code> na primeira posição:</p>
+<div class="ex-code">compras.Insert(<input data-answer="0" aria-label="posição">, "açúcar");</div>
+</div>
+
+<div class="exercise">
+<h3>3. Não achou</h3>
+<p>O que <code>compras.IndexOf("chocolate")</code> devolve quando não há chocolate na lista?</p>
+<div class="ex-code"><input data-answer="-1" aria-label="valor"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. A lista é <code>[5, 7, 9]</code>. O que <code>notas.RemoveAt(1)</code> deixa?</p>
+<label><input type="radio" name="q4"> <code>[7, 9]</code></label>
+<label><input type="radio" name="q4"> <code>[5, 7]</code></label>
+<label><input type="radio" name="q4"> <code>[5, 9]</code></label>
+<label><input type="radio" name="q4"> <code>[5, 7, 9]</code>, porque não há nota 1</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Qual exceção dá <code>lista[10]</code> numa <code>List&lt;int&gt;</code> com 3 itens?</p>
+<label><input type="radio" name="q5"> <code>IndexOutOfRangeException</code></label>
+<label><input type="radio" name="q5"> <code>ArgumentOutOfRangeException</code></label>
+<label><input type="radio" name="q5"> <code>KeyNotFoundException</code></label>
+<label><input type="radio" name="q5"> Nenhuma: devolve 0.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Por que <code>compras.Remove(item)</code> dentro de um <code>foreach (var item in compras)</code> quebra?</p>
+<label><input type="radio" name="q6"> Porque <code>Remove</code> só funciona fora de laços.</label>
+<label><input type="radio" name="q6"> Porque o <code>foreach</code> trabalha numa cópia da lista.</label>
+<label><input type="radio" name="q6"> Porque a lista fica vazia.</label>
+<label><input type="radio" name="q6"> Porque o <code>foreach</code> não aceita que a lista mude enquanto ele passa por ela.</label>
+</div>
+
+<div class="trycs" data-goal="out:Sobrou: arroz\, café\, pão,exit:0">
+<p class="try-task"><strong>Missão final:</strong> o programa tenta tirar os itens vencidos dentro de um <code>foreach</code> e quebra com <code>Collection was modified</code>. Conserte, com <code>RemoveAll</code> ou com um <code>for</code> de trás para frente, para sobrar <code>arroz, café, pão</code>.</p>
+<pre class="script" data-file="vencidos.cs">List&lt;string&gt; compras = ["arroz", "feijão vencido", "café", "leite vencido", "pão"];
+foreach (string item in compras)
+{
+    if (item.Contains("vencido"))
+    {
+        compras.Remove(item);
+    }
+}
+Console.WriteLine($"Sobrou: {string.Join(", ", compras)}");
+</pre>
+<pre class="solucao" data-file="vencidos.cs">List&lt;string&gt; compras = ["arroz", "feijão vencido", "café", "leite vencido", "pão"];
+compras.RemoveAll(item =&gt; item.Contains("vencido"));
+Console.WriteLine($"Sobrou: {string.Join(", ", compras)}");
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>List&lt;T&gt;</code> é uma lista em ordem, com posições a partir de 0, que cresce e encolhe. Crie com <code>[ … ]</code>, <code>new()</code> ou a partir de um array.</li>
+  <li>Acrescentar: <code>Add</code> (no fim), <code>AddRange</code> (vários), <code>Insert</code> (numa posição). Ler e trocar: <code>l[i]</code>, <code>l[^1]</code>.</li>
+  <li>Remover: <code>Remove(item)</code> devolve <code>bool</code>; <code>RemoveAt(posição)</code>; <code>RemoveAll(condição)</code>; <code>Clear()</code>.</li>
+  <li>Procurar e ordenar: <code>Contains</code>, <code>IndexOf</code> (<code>-1</code> = não achou), <code>Sort</code> e <code>Reverse</code> (mudam a própria lista).</li>
+  <li><code>Count</code> é quantos há; <code>Capacity</code>, quantos cabem (dobra quando enche).</li>
+  <li>Posição inválida: <code>ArgumentOutOfRangeException</code>. Mudar a lista dentro do <code>foreach</code>: <code>InvalidOperationException</code>; use <code>RemoveAll</code> ou um <code>for</code> de trás para frente.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
