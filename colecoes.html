@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Coleções — visão geral e qual escolher | Guia C#</title>
+<meta name="description" content="Coleções em C# para quem está começando: por que o array não basta, o que é List, Dictionary, HashSet, Queue, Stack e LinkedList, o T entre &lt; &gt;, as operações comuns (Count, Add, Contains, foreach), as expressões de coleção [ ] e qual coleção escolher, com saídas e erros reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Coleções</span></h1>
+
+<p class="intro">Uma <strong>coleção</strong> é um objeto que guarda vários valores: a lista de compras, os preços da lojinha, a fila do caixa. Você já conhece uma, o <a href="arrays.html">array</a>. O .NET tem várias outras, cada uma boa para um tipo de trabalho. Esta aula é o mapa: você vai ver por que o array não basta, conhecer as principais coleções num exemplo curto de cada e aprender a escolher. Cada uma tem aula própria, logo em seguida.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Por que o array tem tamanho fixo, e o que isso atrapalha.</li>
+  <li>O que quer dizer o <code>&lt;T&gt;</code> de <code>List&lt;T&gt;</code>.</li>
+  <li>Para que serve cada coleção: <code>List</code>, <code>Dictionary</code>, <code>HashSet</code>, <code>Queue</code>, <code>Stack</code> e <code>LinkedList</code>.</li>
+  <li>O que todas têm em comum: <code>Count</code>, <code>Add</code>, <code>Contains</code>, <code>foreach</code>, as expressões de coleção <code>[ … ]</code>.</li>
+  <li>Como escolher a coleção certa.</li>
+  <li>Os erros <code>CS1061</code>, <code>CS0305</code>, <code>CS1503</code> e a chave repetida no dicionário.</li>
+</ul>
+</div>
+
+<p>Todos os programas rodaram na máquina da Ana, com o .NET 10 (C# 14), usando <code>dotnet run arquivo.cs</code> na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código</h2>
+<p>Pense em como você guarda coisas em casa. Os ovos vão numa caixa de ovos: 12 buracos, nem mais nem menos. A lista de compras vai num papel, onde dá para acrescentar e riscar itens. Os telefones dos amigos vão numa agenda, onde você procura pelo <strong>nome</strong>. Na padaria, a fila é por ordem de chegada; na pia, a pilha de pratos se lava de cima para baixo.</p>
+<p>Cada forma de guardar combina com um jeito de <strong>usar</strong>. Em C# é igual:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>No dia a dia</th><th>Em C#</th><th>O que ela faz bem</th></tr>
+<tr><td>Caixa de ovos (tamanho fixo)</td><td>array <code>T[]</code></td><td>Guardar uma quantidade conhecida, por posição</td></tr>
+<tr><td>Lista de compras</td><td><code>List&lt;T&gt;</code></td><td>Guardar em ordem, acrescentar e tirar</td></tr>
+<tr><td>Agenda (nome → telefone)</td><td><code>Dictionary&lt;TKey, TValue&gt;</code></td><td>Achar um valor pela <strong>chave</strong>, rápido</td></tr>
+<tr><td>Lista de presença (cada aluno uma vez)</td><td><code>HashSet&lt;T&gt;</code></td><td>Guardar sem repetidos; saber se algo está lá</td></tr>
+<tr><td>Fila da padaria</td><td><code>Queue&lt;T&gt;</code></td><td>Primeiro a entrar, primeiro a sair</td></tr>
+<tr><td>Pilha de pratos</td><td><code>Stack&lt;T&gt;</code></td><td>Último a entrar, primeiro a sair</td></tr>
+<tr><td>Trem de vagões engatados</td><td><code>LinkedList&lt;T&gt;</code></td><td>Encaixar e soltar no meio sem empurrar os outros</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. O limite do array</h2>
+<p>Um array nasce com um tamanho e nunca muda. A Ana quis acrescentar o leite à lista:</p>
+
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="array.cs">string[] compras = ["arroz", "feijão", "café"];
+compras.Add("leite");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run array.cs
+/home/ana/cs/array.cs(2,9): error CS1061: ‘string[]’ não contém uma definição para "Add" e não foi possível encontrar nenhum método de extensão "Add" que aceite um primeiro argumento do tipo ‘string[]’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"<code>string[]</code> não contém uma definição para <code>Add</code>": arrays não têm "acrescentar", porque não têm onde pôr mais um. Dá para criar um array maior e copiar tudo (é o que <code>Array.Resize</code> faz, aula <a href="classe-array.html">A Classe Array</a>), mas fazer isso a cada item é trabalhoso e lento.</p>
+
+<p>Com uma <code>List&lt;string&gt;</code>, a mesma ideia funciona:</p>
+
+<pre class="file" data-file="lista.cs">List&lt;string&gt; compras = ["arroz", "feijão", "café"];
+compras.Add("leite");
+compras.Remove("feijão");
+Console.WriteLine($"{compras.Count} itens: {string.Join(", ", compras)}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run lista.cs
+3 itens: arroz, café, leite</pre>
+
+<dl class="anatomy">
+  <dt>List&lt;string&gt;</dt><dd>"Lista de textos". A lista começa com três itens e cresce ou encolhe conforme a necessidade.</dd>
+  <dt>["arroz", "feijão", "café"]</dt><dd>Uma <strong>expressão de coleção</strong>, a mesma que você usou nos arrays. Funciona com quase todas as coleções <span class="versao">C# 12</span>.</dd>
+  <dt>compras.Add("leite")</dt><dd>Acrescenta no fim.</dd>
+  <dt>compras.Remove("feijão")</dt><dd>Tira o item, e os de depois "andam" uma casa.</dd>
+  <dt>compras.Count</dt><dd>Quantos itens há agora: 3. Nas coleções é <code>Count</code>; nos arrays é <code>Length</code>.</dd>
+  <dt>string.Join(", ", compras)</dt><dd>Junta os itens num texto, separados por vírgula (aula <a href="metodos-string.html">Métodos de String</a>).</dd>
+</dl>
+
+<div class="trycs" data-goal="out:4 itens,src:List\s*&lt;\s*string\s*&gt;">
+<p class="try-task"><strong>Missão:</strong> o programa não compila, porque um array não tem <code>Add</code> nem <code>Count</code>. Troque só o tipo da variável, de <code>string[]</code> para <code>List&lt;string&gt;</code>, e rode.</p>
+<pre class="script" data-file="compras.cs">string[] compras = ["arroz", "feijão", "café"];
+compras.Add("leite");
+Console.WriteLine($"{compras.Count} itens: {string.Join(", ", compras)}");
+</pre>
+<pre class="solucao" data-file="compras.cs">List&lt;string&gt; compras = ["arroz", "feijão", "café"];
+compras.Add("leite");
+Console.WriteLine($"{compras.Count} itens: {string.Join(", ", compras)}");
+</pre>
+</div>
+
+<hr>
+
+<h2>2. O <code>&lt;T&gt;</code>: coleções de um tipo só</h2>
+<p>O nome oficial é <code>List&lt;T&gt;</code>, e o <code>T</code> (de <em>type</em>, "tipo") é um espaço para você dizer o que a lista guarda: <code>List&lt;string&gt;</code>, <code>List&lt;int&gt;</code>, <code>List&lt;decimal&gt;</code>, <code>List&lt;Produto&gt;</code>. Classes com esse espaço se chamam <strong>genéricas</strong> (aula <a href="generics.html">Generics</a>). O <code>Dictionary&lt;TKey, TValue&gt;</code> tem dois espaços: o tipo da chave e o tipo do valor.</p>
+<p>A vantagem: o compilador sabe o que está lá dentro, e não deixa entrar outra coisa.</p>
+
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="erros3.cs">List&lt;int&gt; notas = [7, 9, 6];
+notas.Add("dez");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run erros3.cs
+/home/ana/cs/erros3.cs(2,11): error CS1503: Argumento 1: não é possível converter de "string" para "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O erro aparece antes de rodar: uma lista de <code>int</code> não aceita texto. Compare com a forma antiga, do tempo em que o C# não tinha genéricos (C# 1, 2002). A <code>ArrayList</code> guarda <code>object</code>, isto é, qualquer coisa:</p>
+
+<pre class="file" data-file="antiga.cs">using System.Collections;
+
+ArrayList coisas = new ArrayList();
+coisas.Add("arroz");
+coisas.Add(42);
+coisas.Add(3.5);
+foreach (object c in coisas)
+{
+    Console.WriteLine($"{c} ({c.GetType().Name})");
+}
+int total = 0;
+foreach (object c in coisas)
+{
+    total += (int)c;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run antiga.cs
+arroz (String)
+42 (Int32)
+3,5 (Double)
+Unhandled exception. System.InvalidCastException: Unable to cast object of type 'System.String' to type 'System.Int32'.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/antiga.cs:line 14</pre>
+
+<p>Compilou sem reclamar e quebrou ao rodar, porque um texto não vira <code>int</code> (a <code>InvalidCastException</code> da aula <a href="excecoes.html">Exceções</a>). Com <code>List&lt;int&gt;</code>, esse defeito nem chegaria a compilar. As coleções antigas (<code>ArrayList</code>, <code>Hashtable</code>, do namespace <code>System.Collections</code>) ainda existem por compatibilidade; em código novo, use sempre as genéricas, de <code>System.Collections.Generic</code>, que já vem nos <a href="namespaces.html">usings implícitos</a>.</p>
+
+<hr>
+
+<h2>3. As principais coleções, uma de cada</h2>
+<p>Um programa com cada coleção fazendo aquilo em que é boa. Os detalhes de cada uma estão nas aulas próprias.</p>
+
+<pre class="file" data-file="tour.cs">// List&lt;T&gt;: em ordem, cresce e encolhe
+List&lt;string&gt; compras = ["arroz", "feijão"];
+compras.Add("café");
+Console.WriteLine($"List: {string.Join(", ", compras)} (o 1º é {compras[0]})");
+
+// Dictionary&lt;TKey, TValue&gt;: procura pela chave
+Dictionary&lt;string, decimal&gt; precos = new()
+{
+    ["arroz"] = 6.50m,
+    ["café"] = 18.90m
+};
+Console.WriteLine($"Dictionary: o café custa {precos["café"]:C}");
+
+// HashSet&lt;T&gt;: sem repetidos
+HashSet&lt;string&gt; visitantes = ["Ana", "Bia", "Ana", "Caio", "Bia"];
+Console.WriteLine($"HashSet: {visitantes.Count} pessoas diferentes");
+
+// Queue&lt;T&gt;: fila, o primeiro a entrar é o primeiro a sair
+Queue&lt;string&gt; fila = new();
+fila.Enqueue("Ana");
+fila.Enqueue("Bia");
+fila.Enqueue("Caio");
+Console.WriteLine($"Queue: atendendo {fila.Dequeue()}, restam {fila.Count}");
+
+// Stack&lt;T&gt;: pilha, o último a entrar é o primeiro a sair
+Stack&lt;string&gt; pratos = new();
+pratos.Push("prato 1");
+pratos.Push("prato 2");
+pratos.Push("prato 3");
+Console.WriteLine($"Stack: lavando o {pratos.Pop()}, restam {pratos.Count}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tour.cs
+List: arroz, feijão, café (o 1º é arroz)
+Dictionary: o café custa R$ 18,90
+HashSet: 3 pessoas diferentes
+Queue: atendendo Ana, restam 2
+Stack: lavando o prato 3, restam 2</pre>
+
+<dl class="anatomy">
+  <dt>List&lt;T&gt; · <code>compras[0]</code></dt><dd>Os itens ficam na ordem em que entraram, e cada um tem uma posição, como no array. Aula: <a href="list.html">List&lt;T&gt;</a>.</dd>
+  <dt>Dictionary&lt;string, decimal&gt; · <code>precos["café"]</code></dt><dd>Cada <strong>chave</strong> (<code>"café"</code>) leva a um <strong>valor</strong> (<code>18.90m</code>). Achar pela chave é muito rápido, mesmo com milhões de itens. O <code>new()</code> sem o tipo repetido é o <code>new</code> "pelo tipo de destino", e <code>["arroz"] = 6.50m</code> põe um par chave → valor. Aula: <a href="dictionary.html">Dictionary</a>.</dd>
+  <dt>HashSet&lt;string&gt; · 3 pessoas</dt><dd>Entraram cinco nomes, mas os repetidos foram ignorados: <code>Ana</code>, <code>Bia</code> e <code>Caio</code>. Aula: <a href="hashset.html">HashSet&lt;T&gt;</a>.</dd>
+  <dt>Queue&lt;string&gt; · Enqueue / Dequeue</dt><dd><em>Enqueue</em> = "entrar na fila"; <em>Dequeue</em> = "sair da fila", e devolve quem saiu. Saiu a <code>Ana</code>, que chegou primeiro. Aula: <a href="queue.html">Queue&lt;T&gt;</a>.</dd>
+  <dt>Stack&lt;string&gt; · Push / Pop</dt><dd><em>Push</em> = "empilhar"; <em>Pop</em> = "desempilhar" o de cima. Saiu o <code>prato 3</code>, o último que entrou. Aula: <a href="stack.html">Stack&lt;T&gt;</a>.</dd>
+</dl>
+
+<p>A <code>LinkedList&lt;T&gt;</code> (lista ligada) não está no programa porque é bem menos usada: ela só ganha da <code>List</code> quando o programa insere e remove muitos itens <strong>no meio</strong>. A aula <a href="linkedlist.html">LinkedList&lt;T&gt;</a> mostra quando.</p>
+
+<div class="note">
+<strong>O <code>HashSet</code> e o <code>Dictionary</code> não prometem ordem</strong>
+<p>A <code>List</code>, a <code>Queue</code> e a <code>Stack</code> mantêm a ordem de entrada. O <code>HashSet</code> e o <code>Dictionary</code> organizam os itens do jeito que for mais rápido para <strong>procurar</strong>, e a ordem em que o <code>foreach</code> os mostra pode mudar depois de remoções. Se a ordem importa, use uma <code>List</code> ou ordene na hora de mostrar (aula <a href="linq-ordenar.html">Ordenar</a>).</p>
+</div>
+
+<div class="trycs" data-goal="out:3 pessoas diferentes,src:HashSet\s*&lt;\s*string\s*&gt;">
+<p class="try-task"><strong>Missão:</strong> a Ana quer saber quantas pessoas <strong>diferentes</strong> visitaram a loja, mas a <code>List</code> conta as repetidas e mostra 5. Troque o tipo da coleção por um que ignore repetidos.</p>
+<pre class="script" data-file="visitas.cs">List&lt;string&gt; visitantes = ["Ana", "Bia", "Ana", "Caio", "Bia"];
+Console.WriteLine($"{visitantes.Count} pessoas diferentes");
+</pre>
+<pre class="solucao" data-file="visitas.cs">HashSet&lt;string&gt; visitantes = ["Ana", "Bia", "Ana", "Caio", "Bia"];
+Console.WriteLine($"{visitantes.Count} pessoas diferentes");
+</pre>
+</div>
+
+<hr>
+
+<h2>4. O que todas têm em comum</h2>
+<p>As coleções são diferentes por dentro, mas compartilham várias operações, e o <code>foreach</code> funciona com todas (e com arrays):</p>
+
+<pre class="file" data-file="comum.cs">List&lt;string&gt; compras = ["arroz", "feijão", "café"];
+HashSet&lt;int&gt; numeros = [3, 1, 2];
+Queue&lt;string&gt; fila = new(["Ana", "Bia"]);
+int[] notas = [7, 9, 6];
+Console.WriteLine($"{compras.Count} {numeros.Count} {fila.Count} {notas.Length}");
+Console.WriteLine(compras.Contains("café"));
+Console.WriteLine(numeros.Contains(5));
+foreach (string item in compras)
+{
+    Console.WriteLine($"- {item}");
+}
+compras.Clear();
+Console.WriteLine(compras.Count);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run comum.cs
+3 3 2 3
+True
+False
+- arroz
+- feijão
+- café
+0</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operação</th><th>O que faz</th><th>Onde existe</th></tr>
+<tr><td><code>.Count</code></td><td>Quantos itens há</td><td>Todas as coleções (no array: <code>.Length</code>)</td></tr>
+<tr><td><code>.Contains(x)</code></td><td><code>true</code> se <code>x</code> está lá</td><td><code>List</code>, <code>HashSet</code>, <code>Queue</code>, <code>Stack</code>, <code>LinkedList</code> (no <code>Dictionary</code>: <code>ContainsKey</code>)</td></tr>
+<tr><td><code>.Add(x)</code></td><td>Acrescenta</td><td><code>List</code>, <code>HashSet</code>, <code>Dictionary</code> (<code>Add(chave, valor)</code>); na fila e na pilha o nome é outro (<code>Enqueue</code>, <code>Push</code>)</td></tr>
+<tr><td><code>.Clear()</code></td><td>Esvazia</td><td>Todas as coleções</td></tr>
+<tr><td><code>foreach (var x in c)</code></td><td>Passa por todos os itens</td><td>Todas, e arrays (aula <a href="ienumerable.html">IEnumerable e foreach</a>)</td></tr>
+<tr><td><code>[a, b, c]</code></td><td>Cria já com itens <span class="versao">C# 12</span></td><td><code>List</code>, <code>HashSet</code>, arrays e outras (não <code>Dictionary</code>, <code>Queue</code>, <code>Stack</code> nem <code>LinkedList</code>, que não têm <code>Add</code> com um argumento)</td></tr>
+<tr><td><code>new T(outraColecao)</code></td><td>Cria copiando outra coleção</td><td>Todas, como a <code>Queue</code> do exemplo</td></tr>
+</table>
+</div>
+
+<p>E todas funcionam com o <a href="linq.html">LINQ</a> (<code>Where</code>, <code>Select</code>, <code>Sum</code>, <code>OrderBy</code>…), que você vai conhecer no fim deste nível.</p>
+
+<hr>
+
+<h2>Qual coleção usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você precisa…</th><th>Use</th></tr>
+<tr><td>de uma quantidade fixa, conhecida desde o começo (os 12 meses, as 5 notas)</td><td>array <code>T[]</code></td></tr>
+<tr><td>de uma lista em ordem, que cresce e encolhe (a escolha padrão)</td><td><code>List&lt;T&gt;</code></td></tr>
+<tr><td>achar algo por um nome, código ou CPF</td><td><code>Dictionary&lt;TKey, TValue&gt;</code></td></tr>
+<tr><td>garantir que não há repetidos, ou perguntar "está lá?" muitas vezes</td><td><code>HashSet&lt;T&gt;</code></td></tr>
+<tr><td>atender por ordem de chegada</td><td><code>Queue&lt;T&gt;</code></td></tr>
+<tr><td>desfazer a última ação, voltar ao anterior</td><td><code>Stack&lt;T&gt;</code></td></tr>
+<tr><td>inserir e remover muito no meio de uma lista enorme</td><td><code>LinkedList&lt;T&gt;</code></td></tr>
+<tr><td>na dúvida</td><td><code>List&lt;T&gt;</code>: troque depois, se precisar</td></tr>
+</table>
+</div>
+
+<p>A tabela completa, com o custo de cada operação, está em <a href="ref-colecoes.html">Referência: Coleções</a>.</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS1061: <code>Length</code> numa lista (ou <code>Add</code> num array)</strong>
+<pre class="file" data-file="erros1.cs">List&lt;int&gt; notas = [7, 9, 6];
+Console.WriteLine(notas.Length);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run erros1.cs
+/home/ana/cs/erros1.cs(2,25): error CS1061: ‘List&lt;int&gt;’ não contém uma definição para "Length" e não foi possível encontrar nenhum método de extensão "Length" que aceite um primeiro argumento do tipo ‘List&lt;int&gt;’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> "o tipo não contém uma definição para <code>Length</code>". Array usa <code>Length</code>; coleções usam <code>Count</code>. É a confusão mais comum de quem passa de arrays para listas.</p>
+<p><strong>Como consertar:</strong> <code>notas.Count</code>. No caso contrário (<code>Add</code> num array), troque o array por uma <code>List</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0305: <code>List</code> sem o tipo</strong>
+<pre class="file" data-file="erros2.cs">List compras = new List();
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run erros2.cs
+/home/ana/cs/erros2.cs(1,1): error CS0305: Usar o genérico tipo "List&lt;T&gt;" requer 1 argumentos de tipo
+/home/ana/cs/erros2.cs(1,20): error CS0305: Usar o genérico tipo "List&lt;T&gt;" requer 1 argumentos de tipo
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> <code>List&lt;T&gt;</code> precisa de um tipo no lugar do <code>T</code> ("requer 1 argumento de tipo"). O erro aparece duas vezes porque <code>List</code> aparece duas vezes na linha.</p>
+<p><strong>Como consertar:</strong> diga o que a lista guarda: <code>List&lt;string&gt; compras = new();</code> ou <code>List&lt;string&gt; compras = [];</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1503: valor do tipo errado</strong>
+<p><strong>O que significa:</strong> você tentou pôr um <code>string</code> numa <code>List&lt;int&gt;</code> (veja a seção 2). O compilador protege a coleção.</p>
+<p><strong>Como consertar:</strong> converta o valor (<code>int.Parse</code>, aula <a href="parse.html">Parse e TryParse</a>) ou mude o tipo da coleção.</p>
+</div>
+
+<div class="cenario">
+<strong>ArgumentException: chave repetida no <code>Dictionary</code></strong>
+<pre class="file" data-file="erros4.cs">var precos = new Dictionary&lt;string, decimal&gt;();
+precos.Add("arroz", 6.50m);
+precos.Add("arroz", 7.00m);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run erros4.cs
+Unhandled exception. System.ArgumentException: An item with the same key has already been added. Key: arroz
+   at System.Collections.Generic.Dictionary`2.TryInsert(TKey key, TValue value, InsertionBehavior behavior)
+   at System.Collections.Generic.Dictionary`2.Add(TKey key, TValue value)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/erros4.cs:line 3</pre>
+<p><strong>O que significa:</strong> "um item com a mesma chave já foi adicionado. Chave: arroz". Num dicionário, cada chave aparece uma vez só. O <code>Dictionary`2</code> do rastro é o nome interno do <code>Dictionary</code> (o <code>2</code> conta os dois tipos entre <code>&lt; &gt;</code>).</p>
+<p><strong>Como consertar:</strong> para trocar o preço, use <code>precos["arroz"] = 7.00m;</code>, que cria ou substitui. A aula <a href="dictionary.html">Dictionary</a> mostra também o <code>TryAdd</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Coleção</th><th>Criar</th><th>Acrescentar</th><th>Tirar</th><th>Pegar</th></tr>
+<tr><td><code>T[]</code></td><td><code>int[] a = [1, 2];</code></td><td>(não dá)</td><td>(não dá)</td><td><code>a[0]</code></td></tr>
+<tr><td><code>List&lt;T&gt;</code></td><td><code>List&lt;int&gt; l = [1, 2];</code></td><td><code>l.Add(3)</code></td><td><code>l.Remove(3)</code>, <code>l.RemoveAt(0)</code></td><td><code>l[0]</code></td></tr>
+<tr><td><code>Dictionary&lt;K, V&gt;</code></td><td><code>Dictionary&lt;string, int&gt; d = new();</code></td><td><code>d["a"] = 1</code>, <code>d.Add("a", 1)</code></td><td><code>d.Remove("a")</code></td><td><code>d["a"]</code>, <code>d.TryGetValue("a", out var v)</code></td></tr>
+<tr><td><code>HashSet&lt;T&gt;</code></td><td><code>HashSet&lt;int&gt; h = [1, 2];</code></td><td><code>h.Add(3)</code></td><td><code>h.Remove(3)</code></td><td>(sem posição) <code>h.Contains(3)</code></td></tr>
+<tr><td><code>Queue&lt;T&gt;</code></td><td><code>Queue&lt;int&gt; q = new();</code></td><td><code>q.Enqueue(1)</code></td><td><code>q.Dequeue()</code></td><td><code>q.Peek()</code> (o primeiro)</td></tr>
+<tr><td><code>Stack&lt;T&gt;</code></td><td><code>Stack&lt;int&gt; s = new();</code></td><td><code>s.Push(1)</code></td><td><code>s.Pop()</code></td><td><code>s.Peek()</code> (o de cima)</td></tr>
+<tr><td><code>LinkedList&lt;T&gt;</code></td><td><code>LinkedList&lt;int&gt; ll = new();</code></td><td><code>ll.AddLast(1)</code>, <code>ll.AddFirst(0)</code></td><td><code>ll.Remove(1)</code></td><td><code>ll.First</code>, <code>ll.Last</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Quantos itens</h3>
+<p>Complete para mostrar quantos itens a lista tem:</p>
+<div class="ex-code">Console.WriteLine(compras.<input data-answer="Count" aria-label="propriedade">);</div>
+</div>
+
+<div class="exercise">
+<h3>2. O tipo da lista</h3>
+<p>Complete para criar uma lista de preços em reais:</p>
+<div class="ex-code">List&lt;<input data-answer="decimal" aria-label="tipo">&gt; precos = [6.50m, 18.90m];</div>
+</div>
+
+<div class="exercise">
+<h3>3. Entrar na fila</h3>
+<p>Complete com o método que põe alguém no fim de uma <code>Queue</code>:</p>
+<div class="ex-code">fila.<input data-answer="Enqueue" aria-label="método">("Ana");</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. A Ana quer achar o telefone de um cliente pelo CPF, entre milhares de clientes. Qual coleção?</p>
+<label><input type="radio" name="q4"> <code>List&lt;string&gt;</code></label>
+<label><input type="radio" name="q4"> <code>Dictionary&lt;string, string&gt;</code></label>
+<label><input type="radio" name="q4"> <code>Stack&lt;string&gt;</code></label>
+<label><input type="radio" name="q4"> <code>string[]</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. Um editor de texto guarda as últimas ações para o "desfazer" (Ctrl+Z), que desfaz a <strong>mais recente</strong> primeiro. Qual coleção?</p>
+<label><input type="radio" name="q5"> <code>Queue&lt;T&gt;</code></label>
+<label><input type="radio" name="q5"> <code>HashSet&lt;T&gt;</code></label>
+<label><input type="radio" name="q5"> <code>Dictionary&lt;TKey, TValue&gt;</code></label>
+<label><input type="radio" name="q5"> <code>Stack&lt;T&gt;</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que <code>List&lt;int&gt;</code> é melhor que <code>ArrayList</code>?</p>
+<label><input type="radio" name="q6"> Porque o compilador impede de pôr algo que não é <code>int</code>, em vez de o programa quebrar ao rodar.</label>
+<label><input type="radio" name="q6"> Porque a <code>ArrayList</code> não tem <code>Add</code>.</label>
+<label><input type="radio" name="q6"> Porque a <code>List</code> tem tamanho fixo.</label>
+<label><input type="radio" name="q6"> Não há diferença.</label>
+</div>
+
+<div class="trycs" data-goal="outre:Atendendo Ana\nAtendendo Bia\nAtendendo Caio\n,src:Queue\s*&lt;">
+<p class="try-task"><strong>Missão final:</strong> o caixa está atendendo o último que chegou primeiro, porque a coleção é uma pilha. Troque a <code>Stack</code> por uma <code>Queue</code> (e <code>Push</code>/<code>Pop</code> por <code>Enqueue</code>/<code>Dequeue</code>) para atender por ordem de chegada: Ana, Bia, Caio.</p>
+<pre class="script" data-file="caixa.cs">Stack&lt;string&gt; fila = new();
+fila.Push("Ana");
+fila.Push("Bia");
+fila.Push("Caio");
+while (fila.Count &gt; 0)
+{
+    Console.WriteLine($"Atendendo {fila.Pop()}");
+}
+</pre>
+<pre class="solucao" data-file="caixa.cs">Queue&lt;string&gt; fila = new();
+fila.Enqueue("Ana");
+fila.Enqueue("Bia");
+fila.Enqueue("Caio");
+while (fila.Count &gt; 0)
+{
+    Console.WriteLine($"Atendendo {fila.Dequeue()}");
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma coleção guarda vários valores. O array tem tamanho fixo; as coleções crescem e encolhem.</li>
+  <li>O <code>&lt;T&gt;</code> diz o tipo dos itens: <code>List&lt;string&gt;</code>, <code>Dictionary&lt;string, decimal&gt;</code>. O compilador não deixa entrar outro tipo (<code>CS1503</code>). Esqueceu o tipo? <code>CS0305</code>.</li>
+  <li><code>List</code>: em ordem, com posição (a escolha padrão). <code>Dictionary</code>: pela chave. <code>HashSet</code>: sem repetidos. <code>Queue</code>: fila. <code>Stack</code>: pilha. <code>LinkedList</code>: inserções no meio.</li>
+  <li>Comum a todas: <code>Count</code> (no array, <code>Length</code>), <code>Contains</code>, <code>Clear</code>, <code>foreach</code>. <code>[ … ]</code> cria <code>List</code> e <code>HashSet</code> já com itens.</li>
+  <li>Use as coleções de <code>System.Collections.Generic</code>; <code>ArrayList</code> e <code>Hashtable</code> são do tempo antes dos genéricos.</li>
+  <li><code>HashSet</code> e <code>Dictionary</code> não prometem ordem.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
