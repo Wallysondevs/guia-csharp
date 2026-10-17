@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# LINQ — tabela de todos os operadores com exemplos | Guia C#</title>
+<meta name="description" content="Referência do LINQ no C# e .NET 10: todos os operadores por grupo (Where, Select, SelectMany, OrderBy, ThenBy, Take, Skip, Chunk, First, Single, Any, All, Count, Sum, Average, MaxBy, Aggregate, GroupBy, CountBy, AggregateBy, Join, LeftJoin, Zip, Union, Index, ToList, ToDictionary, Range), cada um com a saída real do dotnet 10, a sintaxe de consulta, a execução adiada e as exceções reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">LINQ</span></h1>
+
+<p class="intro">LINQ ("Language Integrated Query", consulta integrada à linguagem) são os métodos que fazem perguntas a qualquer coleção: "quais custam menos de R$ 10?", "qual o total?", "agrupe por categoria". Esta página lista <strong>todos</strong> os operadores que você vai usar, por grupo, com exemplo e resultado. Para aprender com calma, comece por <a href="linq.html">O que é LINQ</a>; para ver tudo em uso num programa, o <a href="projeto-estoque.html">projeto Estoque da Lojinha</a>.</p>
+
+<p>Os resultados vêm do programa abaixo, rodado no <code>dotnet</code> 10.0.112 da máquina da Ana (pasta <code>~/cs/linq</code>, cultura pt-BR) e no editor do guia, que deram a mesma saída. O LINQ está em <code>System.Linq</code>, que o C# já traz sem <code>using</code>.</p>
+
+<p>Atalhos: <a href="#programa">O programa</a> · <a href="#filtrar">Filtrar e projetar</a> · <a href="#ordenar">Ordenar</a> · <a href="#particionar">Particionar</a> · <a href="#elementos">Um elemento</a> · <a href="#perguntar">Perguntar</a> · <a href="#agregar">Agregar</a> · <a href="#agrupar">Agrupar</a> · <a href="#juntar">Conjuntos e junções</a> · <a href="#converter">Converter e gerar</a> · <a href="#sintaxe">Sintaxe de consulta</a> · <a href="#adiada">Execução adiada</a> · <a href="#erros">Quando dá errado</a> · <a href="#experimente">Experimente</a></p>
+
+<hr>
+
+<h2 id="programa">O programa de exemplo</h2>
+<p>Os exemplos usam dois conjuntos: o array <code>n = [5, 3, 8, 1, 9, 2, 8]</code> e uma lista de produtos da lojinha da Ana. A função <code>J</code> só junta o resultado numa linha, com espaços. Cada linha da saída começa com o número que aparece na coluna "Linha" das tabelas:</p>
+
+<pre class="file" data-file="linq.cs">// linq.cs — um exemplo de cada operador
+List&lt;Produto&gt; estoque =
+[
+    new("Caderno", "Papelaria", 12, 15.90m),
+    new("Caneta", "Escrita", 40, 2.50m),
+    new("Borracha", "Escrita", 3, 1.75m),
+    new("Mochila", "Bolsas", 2, 89.90m),
+    new("Lápis", "Escrita", 60, 1.20m),
+    new("Papel A4", "Papelaria", 4, 27.50m),
+];
+int[] n = [5, 3, 8, 1, 9, 2, 8];
+static string J&lt;T&gt;(IEnumerable&lt;T&gt; s) =&gt; string.Join(" ", s);
+
+Console.WriteLine("-- filtrar e projetar");
+Console.WriteLine($"1  {J(n.Where(x =&gt; x &gt; 4))} | {J(n.Distinct())} | {J(n.Select(x =&gt; x * 10))}");
+Console.WriteLine($"2  {J(estoque.Where(p =&gt; p.Qtd &lt; 5).Select(p =&gt; p.Nome))}");
+Console.WriteLine($"3  {J(n.Select((x, i) =&gt; $"{i}:{x}"))}");
+Console.WriteLine($"4  {J(new[] { "a b", "c d e" }.SelectMany(s =&gt; s.Split(' ')))}");
+Console.WriteLine($"5  {J(new object[] { 1, "dois", 3.0, 4 }.OfType&lt;int&gt;())} | {J(estoque.DistinctBy(p =&gt; p.Categoria).Select(p =&gt; p.Nome))}");
+
+Console.WriteLine("-- ordenar");
+Console.WriteLine($"6  {J(n.Order())} | {J(n.OrderDescending())} | {J(n.Reverse())}");
+Console.WriteLine($"7  {J(estoque.OrderBy(p =&gt; p.Preco).Select(p =&gt; p.Nome))}");
+Console.WriteLine($"8  {J(estoque.OrderBy(p =&gt; p.Categoria).ThenByDescending(p =&gt; p.Qtd).Select(p =&gt; $"{p.Categoria}/{p.Nome}"))}");
+
+Console.WriteLine("-- particionar");
+Console.WriteLine($"9  {J(n.Take(3))} | {J(n.Skip(5))} | {J(n.TakeLast(2))} | {J(n.SkipLast(5))} | {J(n.TakeWhile(x =&gt; x != 1))} | {J(n.SkipWhile(x =&gt; x != 1))}");
+Console.WriteLine($"10 {J(n.Chunk(3).Select(c =&gt; $"[{J(c)}]"))} | {J(n.Take(2..4))}");
+
+Console.WriteLine("-- elementos");
+Console.WriteLine($"11 {n.First()} {n.First(x =&gt; x &gt; 5)} {n.Last()} {n.ElementAt(2)} {n.FirstOrDefault(x =&gt; x &gt; 100)} {n.FirstOrDefault(x =&gt; x &gt; 100, -1)} {n.Single(x =&gt; x == 9)}");
+Console.WriteLine($"12 [{estoque.FirstOrDefault(p =&gt; p.Nome == "Régua")?.Nome ?? "null"}] {J(new int[0].DefaultIfEmpty(7))}");
+
+Console.WriteLine("-- perguntar");
+Console.WriteLine($"13 {n.Any()} {n.Any(x =&gt; x &gt; 8)} {n.All(x =&gt; x &gt; 0)} {n.Contains(8)} {new int[0].Any()} {n.SequenceEqual([5, 3, 8, 1, 9, 2, 8])}");
+
+Console.WriteLine("-- agregar");
+Console.WriteLine($"14 {n.Count()} {n.Count(x =&gt; x == 8)} {n.Sum()} {n.Min()} {n.Max()} {n.Average():F2}");
+Console.WriteLine($"15 {estoque.Sum(p =&gt; p.Qtd * p.Preco):C} {estoque.Average(p =&gt; p.Preco):C} {estoque.Max(p =&gt; p.Preco):C} {estoque.MaxBy(p =&gt; p.Preco)!.Nome} {estoque.MinBy(p =&gt; p.Qtd)!.Nome}");
+Console.WriteLine($"16 {n.Aggregate((a, b) =&gt; a * b)} {n.Aggregate(100, (total, x) =&gt; total - x)}");
+
+Console.WriteLine("-- agrupar");
+foreach (var g in estoque.GroupBy(p =&gt; p.Categoria))
+{
+    Console.WriteLine($"17 {g.Key}: produtos {g.Count()}, unidades {g.Sum(p =&gt; p.Qtd)}");
+}
+Console.WriteLine($"18 {J(estoque.CountBy(p =&gt; p.Categoria).Select(kv =&gt; $"{kv.Key}={kv.Value}"))}");
+Console.WriteLine($"19 {J(estoque.AggregateBy(p =&gt; p.Categoria, 0m, (t, p) =&gt; t + p.Qtd * p.Preco).Select(kv =&gt; $"{kv.Key}={kv.Value}"))}");
+
+Console.WriteLine("-- conjuntos e junções");
+int[] a = [1, 2, 3, 4], b = [3, 4, 5];
+Console.WriteLine($"20 {J(a.Concat(b))} | {J(a.Union(b))} | {J(a.Intersect(b))} | {J(a.Except(b))}");
+Console.WriteLine($"21 {J(a.Zip(b, (x, y) =&gt; x + y))} | {J(a.Append(9))} | {J(a.Prepend(0))}");
+List&lt;(string Categoria, string Empresa)&gt; fornecedores = [("Papelaria", "Distribuidora Sol"), ("Escrita", "Canetas Brasil")];
+var juntos = estoque.Join(fornecedores, p =&gt; p.Categoria, f =&gt; f.Categoria, (p, f) =&gt; $"{p.Nome}&lt;-{f.Empresa}");
+Console.WriteLine($"22 {string.Join(", ", juntos)}");
+var todos = estoque.LeftJoin(fornecedores, p =&gt; p.Categoria, f =&gt; f.Categoria, (p, f) =&gt; $"{p.Nome}&lt;-{f.Empresa ?? "?"}");
+Console.WriteLine($"23 {string.Join(", ", todos)}");
+Console.WriteLine($"24 {J(n.Index().Where(t =&gt; t.Item == 8).Select(t =&gt; t.Index))}");
+
+Console.WriteLine("-- converter e gerar");
+Dictionary&lt;string, decimal&gt; precos = estoque.ToDictionary(p =&gt; p.Nome, p =&gt; p.Preco);
+Console.WriteLine($"25 {precos["Mochila"]:C} {n.ToHashSet().Count} {n.ToList().Count} {n.ToArray().Length}");
+Console.WriteLine($"26 {J(Enumerable.Range(1, 5))} | {J(Enumerable.Repeat("ha", 3))} | {Enumerable.Empty&lt;int&gt;().Count()}");
+
+record Produto(string Nome, string Categoria, int Qtd, decimal Preco);
+</pre>
+<pre class="term" data-cwd="~/cs/linq">$ dotnet run linq.cs
+-- filtrar e projetar
+1  5 8 9 8 | 5 3 8 1 9 2 | 50 30 80 10 90 20 80
+2  Borracha Mochila Papel A4
+3  0:5 1:3 2:8 3:1 4:9 5:2 6:8
+4  a b c d e
+5  1 4 | Caderno Caneta Mochila
+-- ordenar
+6  1 2 3 5 8 8 9 | 9 8 8 5 3 2 1 | 8 2 9 1 8 3 5
+7  Lápis Borracha Caneta Caderno Papel A4 Mochila
+8  Bolsas/Mochila Escrita/Lápis Escrita/Caneta Escrita/Borracha Papelaria/Caderno Papelaria/Papel A4
+-- particionar
+9  5 3 8 | 2 8 | 2 8 | 5 3 | 5 3 8 | 1 9 2 8
+10 [5 3 8] [1 9 2] [8] | 8 1
+-- elementos
+11 5 8 8 8 0 -1 9
+12 [null] 7
+-- perguntar
+13 True True True True False True
+-- agregar
+14 7 2 36 1 9 5,14
+15 R$ 657,85 R$ 23,13 R$ 89,90 Mochila Mochila
+16 17280 64
+-- agrupar
+17 Papelaria: produtos 2, unidades 16
+17 Escrita: produtos 3, unidades 103
+17 Bolsas: produtos 1, unidades 2
+18 Papelaria=2 Escrita=3 Bolsas=1
+19 Papelaria=300,80 Escrita=177,25 Bolsas=179,80
+-- conjuntos e junções
+20 1 2 3 4 3 4 5 | 1 2 3 4 5 | 3 4 | 1 2
+21 4 6 8 | 1 2 3 4 9 | 0 1 2 3 4
+22 Caderno&lt;-Distribuidora Sol, Caneta&lt;-Canetas Brasil, Borracha&lt;-Canetas Brasil, Lápis&lt;-Canetas Brasil, Papel A4&lt;-Distribuidora Sol
+23 Caderno&lt;-Distribuidora Sol, Caneta&lt;-Canetas Brasil, Borracha&lt;-Canetas Brasil, Mochila&lt;-?, Lápis&lt;-Canetas Brasil, Papel A4&lt;-Distribuidora Sol
+24 2 6
+-- converter e gerar
+25 R$ 89,90 6 7 7
+26 1 2 3 4 5 | ha ha ha | 0</pre>
+
+<p>Quase todos os operadores recebem uma <a href="lambdas.html">lambda</a>: <code>x =&gt; x &gt; 4</code> lê-se "dado <code>x</code>, diga se <code>x</code> é maior que 4". E quase todos devolvem uma <strong>sequência</strong> (<code>IEnumerable&lt;T&gt;</code>), por isso dá para encadear: <code>.Where(…).OrderBy(…).Select(…)</code>.</p>
+
+<h2 id="filtrar">Filtrar e projetar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>O que faz</th><th>Exemplo</th><th>Resultado</th><th>Linha</th><th>Aula</th></tr>
+<tr><td><code>Where(condição)</code></td><td>fica com os que cumprem a condição</td><td><code>n.Where(x =&gt; x &gt; 4)</code></td><td><code>5 8 9 8</code></td><td>1</td><td rowspan="5"><a href="linq-filtrar.html">Filtrar e Projetar</a></td></tr>
+<tr><td><code>Select(transformação)</code></td><td>troca cada item por outra coisa</td><td><code>n.Select(x =&gt; x * 10)</code> · <code>estoque.Where(…).Select(p =&gt; p.Nome)</code></td><td><code>50 30 80 …</code> · <code>Borracha Mochila Papel A4</code></td><td>1, 2</td></tr>
+<tr><td><code>Select((x, i) =&gt; …)</code></td><td>o mesmo, recebendo também a posição</td><td><code>n.Select((x, i) =&gt; $"{i}:{x}")</code></td><td><code>0:5 1:3 2:8 …</code></td><td>3</td></tr>
+<tr><td><code>SelectMany(…)</code></td><td>cada item vira uma sequência, e todas viram uma só</td><td><code>["a b", "c d e"].SelectMany(s =&gt; s.Split(' '))</code></td><td><code>a b c d e</code></td><td>4</td></tr>
+<tr><td><code>OfType&lt;T&gt;()</code></td><td>fica só com os do tipo <code>T</code></td><td><code>[1, "dois", 3.0, 4].OfType&lt;int&gt;()</code></td><td><code>1 4</code></td><td>5</td></tr>
+<tr><td><code>Distinct()</code></td><td>tira os repetidos</td><td><code>n.Distinct()</code></td><td><code>5 3 8 1 9 2</code></td><td>1</td><td rowspan="2"><a href="linq-filtrar.html">Filtrar e Projetar</a></td></tr>
+<tr><td><code>DistinctBy(chave)</code> <span class="versao">.NET 6</span></td><td>um item por chave (o primeiro de cada)</td><td><code>estoque.DistinctBy(p =&gt; p.Categoria)</code></td><td><code>Caderno Caneta Mochila</code></td><td>5</td></tr>
+</table>
+</div>
+
+<h2 id="ordenar">Ordenar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>O que faz</th><th>Exemplo</th><th>Resultado</th><th>Linha</th><th>Aula</th></tr>
+<tr><td><code>OrderBy(chave)</code></td><td>do menor para o maior pela chave</td><td><code>estoque.OrderBy(p =&gt; p.Preco)</code></td><td><code>Lápis Borracha Caneta …</code></td><td>7</td><td rowspan="5"><a href="linq-ordenar.html">Ordenar</a></td></tr>
+<tr><td><code>OrderByDescending(chave)</code></td><td>do maior para o menor</td><td><code>estoque.OrderByDescending(p =&gt; p.Preco)</code></td><td>(veja a missão)</td><td>—</td></tr>
+<tr><td><code>ThenBy</code>, <code>ThenByDescending</code></td><td>desempate: o segundo critério</td><td><code>.OrderBy(p =&gt; p.Categoria).ThenByDescending(p =&gt; p.Qtd)</code></td><td><code>Bolsas/Mochila Escrita/Lápis Escrita/Caneta …</code></td><td>8</td></tr>
+<tr><td><code>Order()</code>, <code>OrderDescending()</code> <span class="versao">.NET 7</span></td><td>ordena pelo próprio valor</td><td><code>n.Order()</code> · <code>n.OrderDescending()</code></td><td><code>1 2 3 5 8 8 9</code> · <code>9 8 8 5 3 2 1</code></td><td>6</td></tr>
+<tr><td><code>Reverse()</code></td><td>inverte a ordem</td><td><code>n.Reverse()</code></td><td><code>8 2 9 1 8 3 5</code></td><td>6</td></tr>
+</table>
+</div>
+<p>Um segundo <code>OrderBy</code> <strong>desfaz</strong> o primeiro; para desempatar, é sempre <code>ThenBy</code>. Textos são ordenados como no dicionário (veja <a href="ref-string.html#comparar">string</a>).</p>
+
+<h2 id="particionar">Particionar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>O que faz</th><th>Exemplo</th><th>Resultado</th><th>Linha</th></tr>
+<tr><td><code>Take(k)</code></td><td>os <code>k</code> primeiros</td><td><code>n.Take(3)</code></td><td><code>5 3 8</code></td><td>9</td></tr>
+<tr><td><code>Skip(k)</code></td><td>pula os <code>k</code> primeiros</td><td><code>n.Skip(5)</code></td><td><code>2 8</code></td><td>9</td></tr>
+<tr><td><code>TakeLast(k)</code>, <code>SkipLast(k)</code></td><td>os <code>k</code> últimos; todos menos os <code>k</code> últimos</td><td><code>n.TakeLast(2)</code> · <code>n.SkipLast(5)</code></td><td><code>2 8</code> · <code>5 3</code></td><td>9</td></tr>
+<tr><td><code>TakeWhile(c)</code>, <code>SkipWhile(c)</code></td><td>pega (ou pula) enquanto a condição vale; para no primeiro que falha</td><td><code>n.TakeWhile(x =&gt; x != 1)</code> · <code>n.SkipWhile(x =&gt; x != 1)</code></td><td><code>5 3 8</code> · <code>1 9 2 8</code></td><td>9</td></tr>
+<tr><td><code>Take(a..b)</code> <span class="versao">.NET 6</span></td><td>um intervalo</td><td><code>n.Take(2..4)</code></td><td><code>8 1</code></td><td>10</td></tr>
+<tr><td><code>Chunk(k)</code> <span class="versao">.NET 6</span></td><td>corta em pedaços de <code>k</code> (o último pode ser menor)</td><td><code>n.Chunk(3)</code></td><td><code>[5 3 8] [1 9 2] [8]</code></td><td>10</td></tr>
+</table>
+</div>
+<p><code>Skip</code> e <code>Take</code> juntos fazem paginação: a página <code>p</code> (do 0), com 10 por página, é <code>.Skip(p * 10).Take(10)</code>. Aula: <a href="linq-filtrar.html">Filtrar e Projetar</a>.</p>
+
+<h2 id="elementos">Um elemento só</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>Devolve</th><th>Se não há nenhum</th><th>Se há mais de um</th><th>Exemplo → resultado (linha 11, 12)</th></tr>
+<tr><td><code>First()</code>, <code>First(c)</code></td><td>o primeiro</td><td><strong>exceção</strong></td><td>o primeiro</td><td><code>n.First()</code> → <code>5</code>; <code>n.First(x =&gt; x &gt; 5)</code> → <code>8</code></td></tr>
+<tr><td><code>FirstOrDefault(c)</code></td><td>o primeiro</td><td>o padrão (<code>0</code>, <code>null</code>) ou o que você passar</td><td>o primeiro</td><td><code>n.FirstOrDefault(x =&gt; x &gt; 100)</code> → <code>0</code>; com <code>, -1</code> → <code>-1</code>; num produto → <code>null</code></td></tr>
+<tr><td><code>Last()</code>, <code>LastOrDefault()</code></td><td>o último</td><td>exceção / padrão</td><td>o último</td><td><code>n.Last()</code> → <code>8</code></td></tr>
+<tr><td><code>Single(c)</code></td><td>o único</td><td><strong>exceção</strong></td><td><strong>exceção</strong></td><td><code>n.Single(x =&gt; x == 9)</code> → <code>9</code></td></tr>
+<tr><td><code>SingleOrDefault(c)</code></td><td>o único</td><td>o padrão</td><td><strong>exceção</strong></td><td>—</td></tr>
+<tr><td><code>ElementAt(i)</code>, <code>ElementAtOrDefault(i)</code></td><td>o da posição <code>i</code></td><td>exceção / padrão</td><td>—</td><td><code>n.ElementAt(2)</code> → <code>8</code></td></tr>
+<tr><td><code>DefaultIfEmpty(v)</code></td><td>a própria sequência, ou só <code>v</code> se ela estiver vazia</td><td><code>[v]</code></td><td>—</td><td><code>new int[0].DefaultIfEmpty(7)</code> → <code>7</code></td></tr>
+</table>
+</div>
+<p>Regra prática: quando "não achar" é normal (busca pelo que o usuário digitou), use <code>FirstOrDefault</code> e confira o <code>null</code>. Aula: <a href="linq-filtrar.html">Filtrar e Projetar</a>.</p>
+
+<h2 id="perguntar">Perguntar (devolvem <code>bool</code>)</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>Pergunta</th><th>Exemplo</th><th>Resultado (linha 13)</th></tr>
+<tr><td><code>Any()</code></td><td>tem algum item?</td><td><code>n.Any()</code> · <code>new int[0].Any()</code></td><td><code>True</code> · <code>False</code></td></tr>
+<tr><td><code>Any(c)</code></td><td>algum cumpre?</td><td><code>n.Any(x =&gt; x &gt; 8)</code></td><td><code>True</code></td></tr>
+<tr><td><code>All(c)</code></td><td>todos cumprem? (numa sequência vazia: <code>True</code>)</td><td><code>n.All(x =&gt; x &gt; 0)</code></td><td><code>True</code></td></tr>
+<tr><td><code>Contains(x)</code></td><td>tem esse valor?</td><td><code>n.Contains(8)</code></td><td><code>True</code></td></tr>
+<tr><td><code>SequenceEqual(outra)</code></td><td>as duas têm os mesmos itens, na mesma ordem?</td><td><code>n.SequenceEqual([5, 3, 8, 1, 9, 2, 8])</code></td><td><code>True</code></td></tr>
+</table>
+</div>
+<p>Para saber se há itens, <code>Any()</code> é melhor que <code>Count() &gt; 0</code>: ele para no primeiro. Aula: <a href="linq-agregar.html">Agregar</a>.</p>
+
+<h2 id="agregar">Agregar (um valor no fim)</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>O que calcula</th><th>Exemplo</th><th>Resultado</th><th>Linha</th></tr>
+<tr><td><code>Count()</code>, <code>Count(c)</code></td><td>quantos; quantos cumprem</td><td><code>n.Count()</code> · <code>n.Count(x =&gt; x == 8)</code></td><td><code>7</code> · <code>2</code></td><td>14</td></tr>
+<tr><td><code>Sum()</code>, <code>Sum(seletor)</code></td><td>a soma</td><td><code>n.Sum()</code> · <code>estoque.Sum(p =&gt; p.Qtd * p.Preco)</code></td><td><code>36</code> · <code>R$ 657,85</code></td><td>14, 15</td></tr>
+<tr><td><code>Min()</code>, <code>Max()</code></td><td>o menor, o maior valor</td><td><code>n.Min()</code> · <code>estoque.Max(p =&gt; p.Preco)</code></td><td><code>1</code> · <code>R$ 89,90</code></td><td>14, 15</td></tr>
+<tr><td><code>Average()</code></td><td>a média (de inteiros, dá <code>double</code>)</td><td><code>n.Average()</code> · <code>estoque.Average(p =&gt; p.Preco)</code></td><td><code>5,14</code> (com <code>:F2</code>) · <code>R$ 23,13</code></td><td>14, 15</td></tr>
+<tr><td><code>MinBy(chave)</code>, <code>MaxBy(chave)</code> <span class="versao">.NET 6</span></td><td>o <strong>item</strong> com o menor, o maior valor da chave</td><td><code>estoque.MaxBy(p =&gt; p.Preco)!.Nome</code> · <code>estoque.MinBy(p =&gt; p.Qtd)!.Nome</code></td><td><code>Mochila</code> · <code>Mochila</code></td><td>15</td></tr>
+<tr><td><code>Aggregate(f)</code></td><td>vai combinando os itens, dois a dois</td><td><code>n.Aggregate((a, b) =&gt; a * b)</code></td><td><code>17280</code> (o produto de todos)</td><td>16</td></tr>
+<tr><td><code>Aggregate(início, f)</code></td><td>o mesmo, começando de um valor</td><td><code>n.Aggregate(100, (total, x) =&gt; total - x)</code></td><td><code>64</code></td><td>16</td></tr>
+<tr><td><code>LongCount()</code></td><td>como <code>Count</code>, em <code>long</code></td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+</div>
+<p>Aula: <a href="linq-agregar.html">Agregar (Count, Sum, Average)</a>.</p>
+
+<h2 id="agrupar">Agrupar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>O que faz</th><th>Exemplo</th><th>Resultado</th><th>Linha</th><th>Aula</th></tr>
+<tr><td><code>GroupBy(chave)</code></td><td>uma "pilha" por chave; cada pilha <code>g</code> tem <code>g.Key</code> e é uma sequência</td><td><code>estoque.GroupBy(p =&gt; p.Categoria)</code></td><td><code>Papelaria: produtos 2, unidades 16</code> …</td><td>17</td><td rowspan="4"><a href="linq-agrupar.html">Agrupar</a></td></tr>
+<tr><td><code>CountBy(chave)</code> <span class="versao">.NET 9</span></td><td>quantos por chave, direto</td><td><code>estoque.CountBy(p =&gt; p.Categoria)</code></td><td><code>Papelaria=2 Escrita=3 Bolsas=1</code></td><td>18</td></tr>
+<tr><td><code>AggregateBy(chave, início, f)</code> <span class="versao">.NET 9</span></td><td>um <code>Aggregate</code> por chave</td><td><code>estoque.AggregateBy(p =&gt; p.Categoria, 0m, (t, p) =&gt; t + p.Qtd * p.Preco)</code></td><td><code>Papelaria=300,80 …</code></td><td>19</td></tr>
+<tr><td><code>ToLookup(chave)</code></td><td>como <code>GroupBy</code>, mas roda na hora e permite <code>lookup["Escrita"]</code></td><td><code>var porCat = estoque.ToLookup(p =&gt; p.Categoria);</code></td><td>—</td><td>—</td></tr>
+</table>
+</div>
+<p>As pilhas do <code>GroupBy</code> saem na ordem em que cada chave apareceu pela primeira vez.</p>
+
+<h2 id="juntar">Conjuntos e junções</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>O que faz</th><th>Exemplo (<code>a = [1, 2, 3, 4]</code>, <code>b = [3, 4, 5]</code>)</th><th>Resultado</th><th>Linha</th></tr>
+<tr><td><code>Concat(b)</code></td><td>uma depois da outra, com repetidos</td><td><code>a.Concat(b)</code></td><td><code>1 2 3 4 3 4 5</code></td><td>20</td></tr>
+<tr><td><code>Union(b)</code></td><td>todos, sem repetidos</td><td><code>a.Union(b)</code></td><td><code>1 2 3 4 5</code></td><td>20</td></tr>
+<tr><td><code>Intersect(b)</code></td><td>os que estão nas duas</td><td><code>a.Intersect(b)</code></td><td><code>3 4</code></td><td>20</td></tr>
+<tr><td><code>Except(b)</code></td><td>os de <code>a</code> que não estão em <code>b</code></td><td><code>a.Except(b)</code></td><td><code>1 2</code></td><td>20</td></tr>
+<tr><td><code>Zip(b, f)</code></td><td>junta item a item; para na menor</td><td><code>a.Zip(b, (x, y) =&gt; x + y)</code></td><td><code>4 6 8</code></td><td>21</td></tr>
+<tr><td><code>Append(x)</code>, <code>Prepend(x)</code></td><td>um item no fim, no começo</td><td><code>a.Append(9)</code> · <code>a.Prepend(0)</code></td><td><code>1 2 3 4 9</code> · <code>0 1 2 3 4</code></td><td>21</td></tr>
+<tr><td><code>Join(outra, chaveA, chaveB, f)</code></td><td>junta os pares com a mesma chave; quem não tem par <strong>fica de fora</strong></td><td><code>estoque.Join(fornecedores, p =&gt; p.Categoria, f =&gt; f.Categoria, …)</code></td><td>a Mochila não aparece</td><td>22</td></tr>
+<tr><td><code>LeftJoin(…)</code> <span class="versao">.NET 10</span></td><td>como <code>Join</code>, mas todos da esquerda ficam; sem par, o da direita vem como padrão</td><td><code>estoque.LeftJoin(fornecedores, …, (p, f) =&gt; … f.Empresa ?? "?")</code></td><td><code>Mochila&lt;-?</code> aparece</td><td>23</td></tr>
+<tr><td><code>RightJoin(…)</code> <span class="versao">.NET 10</span></td><td>o contrário: todos da direita ficam</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td><code>GroupJoin(…)</code></td><td>cada item da esquerda com a <strong>lista</strong> dos pares da direita</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td><code>Index()</code> <span class="versao">.NET 9</span></td><td>cada item com a sua posição, como tupla <code>(Index, Item)</code></td><td><code>n.Index().Where(t =&gt; t.Item == 8).Select(t =&gt; t.Index)</code></td><td><code>2 6</code></td><td>24</td></tr>
+</table>
+</div>
+<p>Antes do .NET 10, o <code>LeftJoin</code> era escrito com <code>GroupJoin</code> + <code>SelectMany</code> + <code>DefaultIfEmpty</code>, uma receita que você ainda vai ver em código mais antigo. Aula: <a href="linq-juntar.html">Juntar (Join)</a>.</p>
+
+<h2 id="converter">Converter e gerar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>O que faz</th><th>Exemplo</th><th>Resultado</th><th>Linha</th></tr>
+<tr><td><code>ToList()</code>, <code>ToArray()</code></td><td>roda a consulta e guarda numa lista, num array</td><td><code>n.ToList().Count</code> · <code>n.ToArray().Length</code></td><td><code>7</code> · <code>7</code></td><td>25</td></tr>
+<tr><td><code>ToDictionary(chave, valor)</code></td><td>monta um dicionário (chave repetida = exceção)</td><td><code>estoque.ToDictionary(p =&gt; p.Nome, p =&gt; p.Preco)["Mochila"]</code></td><td><code>R$ 89,90</code></td><td>25</td></tr>
+<tr><td><code>ToHashSet()</code></td><td>monta um conjunto, sem repetidos</td><td><code>n.ToHashSet().Count</code></td><td><code>6</code></td><td>25</td></tr>
+<tr><td><code>Cast&lt;T&gt;()</code></td><td>converte cada item para <code>T</code> (exceção se não der)</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td><code>Enumerable.Range(início, quantos)</code></td><td>uma sequência de números</td><td><code>Enumerable.Range(1, 5)</code></td><td><code>1 2 3 4 5</code></td><td>26</td></tr>
+<tr><td><code>Enumerable.Repeat(x, k)</code></td><td><code>x</code> repetido <code>k</code> vezes</td><td><code>Enumerable.Repeat("ha", 3)</code></td><td><code>ha ha ha</code></td><td>26</td></tr>
+<tr><td><code>Enumerable.Empty&lt;T&gt;()</code></td><td>uma sequência vazia</td><td><code>Enumerable.Empty&lt;int&gt;().Count()</code></td><td><code>0</code></td><td>26</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="sintaxe">Sintaxe de consulta</h2>
+<p>O LINQ tem uma segunda forma de escrever, parecida com SQL. O compilador transforma uma na outra: o programa é o mesmo.</p>
+<pre class="file" data-file="consulta.cs">// consulta.cs — a mesma pergunta nas duas sintaxes
+int[] notas = [7, 4, 9, 5, 10, 6];
+
+var metodos = notas.Where(n =&gt; n &gt;= 6).OrderByDescending(n =&gt; n).Select(n =&gt; $"nota {n}");
+
+var consulta = from n in notas
+               where n &gt;= 6
+               orderby n descending
+               select $"nota {n}";
+
+Console.WriteLine(string.Join(", ", metodos));
+Console.WriteLine(string.Join(", ", consulta));
+</pre>
+<pre class="term" data-cwd="~/cs/linq">$ dotnet run consulta.cs
+nota 10, nota 9, nota 7, nota 6
+nota 10, nota 9, nota 7, nota 6</pre>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Sintaxe de consulta</th><th>Método equivalente</th></tr>
+<tr><td><code>from x in fonte</code></td><td>(o começo; <code>x</code> é o nome do item)</td></tr>
+<tr><td><code>where condição</code></td><td><code>.Where(x =&gt; condição)</code></td></tr>
+<tr><td><code>orderby chave</code> / <code>orderby chave descending</code></td><td><code>.OrderBy(…)</code> / <code>.OrderByDescending(…)</code></td></tr>
+<tr><td><code>orderby a, b</code></td><td><code>.OrderBy(…a).ThenBy(…b)</code></td></tr>
+<tr><td><code>select expressão</code></td><td><code>.Select(x =&gt; expressão)</code></td></tr>
+<tr><td><code>group x by chave</code></td><td><code>.GroupBy(x =&gt; chave)</code></td></tr>
+<tr><td><code>join y in outra on x.A equals y.B</code></td><td><code>.Join(outra, x =&gt; x.A, y =&gt; y.B, …)</code></td></tr>
+<tr><td><code>let nome = expressão</code></td><td>(um <code>Select</code> que guarda um valor no meio)</td></tr>
+<tr><td><code>from a in x from b in a.Itens</code></td><td><code>.SelectMany(…)</code></td></tr>
+</table>
+</div>
+<p>O guia usa a forma com métodos: ela é a mais comum e tem todos os operadores (<code>Take</code>, <code>Count</code>, <code>MaxBy</code>… não existem na sintaxe de consulta). Aula: <a href="linq.html">O que é LINQ</a>.</p>
+
+<h2 id="adiada">Execução adiada</h2>
+<p>Uma consulta como <code>notas.Where(…)</code> não calcula nada na hora: ela guarda a "receita", e a receita roda a cada vez que alguém percorre o resultado (com <code>foreach</code>, <code>Count()</code>, <code>ToList()</code>…).</p>
+<pre class="file" data-file="adiada.cs">// adiada.cs — a consulta roda quando é percorrida
+List&lt;int&gt; notas = [7, 4, 9];
+var aprovados = notas.Where(n =&gt; n &gt;= 6);
+var foto = notas.Where(n =&gt; n &gt;= 6).ToList();
+notas.Add(10);
+Console.WriteLine($"consulta: {aprovados.Count()}  |  ToList: {foto.Count}");
+</pre>
+<pre class="term" data-cwd="~/cs/linq">$ dotnet run adiada.cs
+consulta: 3  |  ToList: 2</pre>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Rodam na hora (devolvem um valor ou uma coleção pronta)</th><th>Adiados (devolvem uma consulta)</th></tr>
+<tr><td><code>ToList</code>, <code>ToArray</code>, <code>ToDictionary</code>, <code>ToHashSet</code>, <code>ToLookup</code>, <code>Count</code>, <code>Sum</code>, <code>Min</code>, <code>Max</code>, <code>Average</code>, <code>Aggregate</code>, <code>First</code>, <code>Single</code>, <code>Any</code>, <code>All</code>, <code>Contains</code></td><td><code>Where</code>, <code>Select</code>, <code>SelectMany</code>, <code>OrderBy</code>, <code>ThenBy</code>, <code>GroupBy</code>, <code>Take</code>, <code>Skip</code>, <code>Distinct</code>, <code>Concat</code>, <code>Union</code>, <code>Join</code>, <code>Zip</code>, <code>Chunk</code>, <code>Index</code>…</td></tr>
+</table>
+</div>
+<p>Se você vai percorrer o resultado várias vezes, ou a coleção pode mudar, termine com <code>.ToList()</code>. Exemplo completo no <a href="projeto-estoque.html#versao2">projeto Estoque</a>.</p>
+
+<hr>
+
+<h2 id="erros">Quando dá errado</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Mensagem real (lab)</th><th>O que significa e como consertar</th></tr>
+<tr><td><code>vazia.First()</code></td><td><code>System.InvalidOperationException: Sequence contains no elements</code></td><td>"A sequência não tem elementos". Use <code>FirstOrDefault</code>, ou confira com <code>Any()</code>.</td></tr>
+<tr><td><code>estoque.First(p =&gt; p.Nome == "Régua")</code></td><td><code>System.InvalidOperationException: Sequence contains no matching element</code></td><td>"Nenhum elemento combina". Use <code>FirstOrDefault</code> e confira o <code>null</code>.</td></tr>
+<tr><td><code>[5, 8, 8].Single(x =&gt; x == 8)</code></td><td><code>System.InvalidOperationException: Sequence contains more than one matching element</code></td><td>"Mais de um combina". Se pode haver vários, use <code>First</code> ou <code>Where</code>.</td></tr>
+<tr><td><code>[5, 8].Single()</code></td><td><code>System.InvalidOperationException: Sequence contains more than one element</code></td><td>O <code>Single</code> exige exatamente um.</td></tr>
+<tr><td><code>vazia.Average()</code>, <code>vazia.Max()</code></td><td><code>System.InvalidOperationException: Sequence contains no elements</code></td><td>Não há média nem máximo de nada. Confira <code>Any()</code> antes. (O <code>Sum()</code> de uma vazia dá <code>0</code>, sem erro.)</td></tr>
+<tr><td><code>["Ana", "Bruno", "Ana"].ToDictionary(n =&gt; n, …)</code></td><td><code>System.ArgumentException: An item with the same key has already been added. Key: Ana</code></td><td>A chave se repete. Agrupe antes (<code>GroupBy</code>) ou use <code>DistinctBy</code>.</td></tr>
+<tr><td><code>List&lt;int&gt; aprovados = notas.Where(n =&gt; n &gt;= 6);</code></td><td><code>error CS0266: Não é possível converter implicitamente tipo "System.Collections.Generic.IEnumerable&lt;int&gt;" em "System.Collections.Generic.List&lt;int&gt;". Existe uma conversão explícita (há uma conversão ausente?)</code></td><td>O <code>Where</code> devolve uma consulta, não uma <code>List</code>. Termine com <code>.ToList()</code>, ou declare com <code>var</code> ou <code>IEnumerable&lt;int&gt;</code>.</td></tr>
+<tr><td><code>estoque.Where(…).Nome</code></td><td><code>error CS1061: ‘IEnumerable&lt;Produto&gt;’ não contém uma definição para "Nome" …</code></td><td>O resultado é uma sequência, não um produto. Use <code>Select(p =&gt; p.Nome)</code>, <code>foreach</code> ou <code>First()</code>. Cenário completo no <a href="projeto-estoque.html#versao2">projeto Estoque</a>.</td></tr>
+</table>
+</div>
+
+<h2 id="experimente">Experimente</h2>
+<div class="trycs" data-goal="out:Mochila\, Papel A4\, Caderno">
+<p class="try-task"><strong>Missão:</strong> o programa deveria mostrar os 3 produtos mais caros, do mais caro para o mais barato, mas mostra só os 3 primeiros da lista. Acrescente a ordenação que falta antes do <code>Take</code>. O certo é <code>Mochila, Papel A4, Caderno</code>.</p>
+<pre class="script">List&lt;Produto&gt; estoque =
+[
+    new("Caderno", 15.90m),
+    new("Caneta", 2.50m),
+    new("Borracha", 1.75m),
+    new("Mochila", 89.90m),
+    new("Lápis", 1.20m),
+    new("Papel A4", 27.50m),
+];
+
+// Os 3 mais caros, do mais caro para o mais barato
+var maisCaros = estoque.Take(3).Select(p =&gt; p.Nome);
+Console.WriteLine(string.Join(", ", maisCaros));
+
+record Produto(string Nome, decimal Preco);
+</pre>
+<pre class="solucao">List&lt;Produto&gt; estoque =
+[
+    new("Caderno", 15.90m),
+    new("Caneta", 2.50m),
+    new("Borracha", 1.75m),
+    new("Mochila", 89.90m),
+    new("Lápis", 1.20m),
+    new("Papel A4", 27.50m),
+];
+
+// Os 3 mais caros, do mais caro para o mais barato
+var maisCaros = estoque.OrderByDescending(p =&gt; p.Preco).Take(3).Select(p =&gt; p.Nome);
+Console.WriteLine(string.Join(", ", maisCaros));
+
+record Produto(string Nome, decimal Preco);
+</pre>
+</div>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> troque os operadores e as lambdas. Tente <code>Where(x =&gt; x % 2 == 0)</code>, <code>OrderByDescending</code>, <code>Skip(2).Take(3)</code>, <code>Chunk(2)</code>…</p>
+<pre class="script">int[] notas = [7, 4, 9, 5, 10, 6, 8];
+Console.WriteLine(string.Join(" ", notas.Where(x =&gt; x &gt;= 6)));
+Console.WriteLine(string.Join(" ", notas.Order()));
+Console.WriteLine($"Média: {notas.Average():F1}");
+Console.WriteLine($"Aprovados: {notas.Count(x =&gt; x &gt;= 6)} de {notas.Length}");
+Console.WriteLine($"Maior: {notas.Max()}, menor: {notas.Min()}");
+Console.WriteLine(notas.Any(x =&gt; x == 10) ? "Alguém tirou 10!" : "Ninguém tirou 10.");
+</pre>
+</div>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Filtrar: <code>Where</code>. Transformar: <code>Select</code>, <code>SelectMany</code>. Ordenar: <code>OrderBy</code> + <code>ThenBy</code>. Pedaços: <code>Take</code>, <code>Skip</code>, <code>Chunk</code>.</li>
+  <li>Um item: <code>First</code>/<code>FirstOrDefault</code>, <code>Single</code>, <code>Last</code>. Sim ou não: <code>Any</code>, <code>All</code>, <code>Contains</code>.</li>
+  <li>Contas: <code>Count</code>, <code>Sum</code>, <code>Average</code>, <code>Min</code>, <code>Max</code>, <code>MinBy</code>/<code>MaxBy</code>, <code>Aggregate</code>.</li>
+  <li>Grupos: <code>GroupBy</code> (<code>g.Key</code>), <code>CountBy</code> e <code>AggregateBy</code> (.NET 9). Junções: <code>Join</code> e, no .NET 10, <code>LeftJoin</code>/<code>RightJoin</code>.</li>
+  <li>As consultas são adiadas: rodam quando percorridas. <code>ToList()</code> guarda o resultado do momento.</li>
+  <li><code>First</code>, <code>Single</code>, <code>Average</code> e <code>Max</code> numa sequência vazia lançam <code>InvalidOperationException</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
