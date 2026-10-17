@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Campos — as variáveis de cada objeto | Guia C#</title>
+<meta name="description" content="Campos em C# para quem nunca programou: declarar um campo, valores padrão (0, false, null), valor inicial, métodos que leem e mudam os campos do próprio objeto, campos private com _camelCase, campo × variável local e os avisos e erros reais CS8618, CS0649, CS0103, CS0236, CS0102 e CS0122, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Campos</span></h1>
+
+<p class="intro">Um <strong>campo</strong> (<em>field</em>, em inglês) é uma variável que mora <strong>dentro da classe</strong>, e não dentro de um método. Cada objeto criado com <code>new</code> ganha a sua própria cópia de cada campo: a maçã tem o seu estoque, o kiwi tem o dele. Os campos são o <strong>estado</strong> do objeto, aquilo que ele "lembra" entre uma linha e outra do programa.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como declarar um campo e onde ele fica na classe.</li>
+  <li>Os <strong>valores padrão</strong> dos campos (0, <code>false</code>, <code>null</code>) e como dar um valor inicial.</li>
+  <li>Por que um campo <code>string</code> sem valor gera o aviso <code>CS8618</code>, e as três formas de resolver.</li>
+  <li>Como os métodos da classe leem e mudam os campos <strong>do próprio objeto</strong>.</li>
+  <li>Campos <code>private</code>, o costume do <code>_camelCase</code> e por que campos <code>public</code> são raros em C# de verdade.</li>
+  <li>Campo × variável local, e os erros <code>CS0103</code>, <code>CS0236</code>, <code>CS0102</code> e <code>CS0122</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com <code>dotnet run arquivo.cs</code> na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), com o .NET 10 SDK, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código: a ficha de cada um</h2>
+<p>Na lojinha da Ana, cada produto tem uma ficha de estoque pendurada na prateleira. A ficha da maçã diz "8 unidades"; a do kiwi diz "2". Quando a Ana vende uma maçã, ela risca a ficha <strong>da maçã</strong>, e a do kiwi continua como estava.</p>
+<p>Os campos são as linhas dessa ficha. A classe diz quais linhas toda ficha tem ("nome", "estoque"); cada objeto tem a sua ficha, com os seus números.</p>
+
+<hr>
+
+<h2>Declarar um campo</h2>
+
+<pre class="file" data-file="trecho">class Produto
+{
+    public string Nome = "";
+    public int Estoque = 10;
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>public</dt><dd>O <strong>modificador de acesso</strong>: quem pode ver o campo. <code>public</code> = qualquer parte do programa. Sem ele, o campo é <code>private</code>, e só a própria classe o vê (veja <a href="#private">mais abaixo</a> e <a href="modificadores-acesso.html">public, private e internal</a>).</dd>
+  <dt>string / int</dt><dd>O tipo do campo, como numa variável comum.</dd>
+  <dt>Nome / Estoque</dt><dd>O nome do campo. Campos <code>public</code> usam PascalCase (maiúscula no começo).</dd>
+  <dt>= "" / = 10</dt><dd>O <strong>valor inicial</strong> (opcional). Todo produto novo nasce com o nome vazio e 10 no estoque.</dd>
+  <dt>onde fica</dt><dd>Dentro das chaves da classe, mas <strong>fora</strong> de qualquer método. É isso que faz dele um campo, e não uma variável local.</dd>
+</dl>
+
+<hr>
+
+<h2>Valores padrão</h2>
+<p>Uma variável local sem valor não pode ser usada: é o erro <code>CS0165</code>. Um campo é diferente: se você não der valor inicial, ele começa com o <strong>valor padrão</strong> do seu tipo.</p>
+
+<pre class="file" data-file="padrao.cs">Ficha f = new Ficha();
+Console.WriteLine($"Idade: {f.Idade}");
+Console.WriteLine($"Altura: {f.Altura}");
+Console.WriteLine($"Saldo: {f.Saldo}");
+Console.WriteLine($"Ativo: {f.Ativo}");
+Console.WriteLine($"Nome: [{f.Nome}]");
+Console.WriteLine(f.Nome is null);
+
+class Ficha
+{
+    public int Idade;
+    public double Altura;
+    public decimal Saldo;
+    public bool Ativo;
+    public string? Nome;
+}
+</pre>
+
+<pre class="term">$ dotnet run padrao.cs
+/home/ana/cs/padrao.cs(15,20): warning CS0649: Campo "Ficha.Nome" nunca é atribuído e sempre terá seu valor padrão null
+/home/ana/cs/padrao.cs(11,16): warning CS0649: Campo "Ficha.Idade" nunca é atribuído e sempre terá seu valor padrão 0
+/home/ana/cs/padrao.cs(12,19): warning CS0649: Campo "Ficha.Altura" nunca é atribuído e sempre terá seu valor padrão 0
+/home/ana/cs/padrao.cs(13,20): warning CS0649: Campo "Ficha.Saldo" nunca é atribuído e sempre terá seu valor padrão 0
+/home/ana/cs/padrao.cs(14,17): warning CS0649: Campo "Ficha.Ativo" nunca é atribuído e sempre terá seu valor padrão false
+Idade: 0
+Altura: 0
+Saldo: 0
+Ativo: False
+Nome: []
+True</pre>
+
+<p>Os avisos <code>CS0649</code> ("nunca é atribuído e sempre terá seu valor padrão") são o compilador estranhando: ninguém nunca põe valor nesses campos, então eles serão sempre o padrão. Aqui foi de propósito, e os avisos até confirmam cada padrão. A ordem em que os avisos saem pode variar de uma compilação para outra.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo do campo</th><th>Valor padrão</th></tr>
+<tr><td><code>int</code>, <code>long</code>, <code>double</code>, <code>decimal</code>…</td><td><code>0</code></td></tr>
+<tr><td><code>bool</code></td><td><code>false</code></td></tr>
+<tr><td><code>char</code></td><td><code>'\0'</code>, um caractere invisível (o "caractere nulo")</td></tr>
+<tr><td><code>int?</code>, <code>decimal?</code>…</td><td><code>null</code></td></tr>
+<tr><td><code>string</code>, arrays, objetos</td><td><code>null</code></td></tr>
+</table>
+</div>
+
+<p>É a mesma regra dos <a href="arrays.html">arrays</a>: <code>new int[3]</code> nasce com zeros, <code>new string[3]</code> nasce com <code>null</code>.</p>
+
+<hr>
+
+<h2 id="cs8618">O aviso <code>CS8618</code>: um <code>string</code> que nasce <code>null</code></h2>
+<p>Repare que o campo <code>Nome</code> acima foi declarado como <code>string?</code>. Veja o que acontece com <code>string</code>, sem o <code>?</code> e sem valor inicial:</p>
+
+<pre class="file" data-file="cs8618.cs">Produto p = new Produto();
+Console.WriteLine($"[{p.Nome}]");
+Console.WriteLine(p.Nome.Length);
+
+class Produto
+{
+    public string Nome;
+    public decimal Preco;
+}
+</pre>
+
+<pre class="term">$ dotnet run cs8618.cs; echo "código: $?"
+/home/ana/cs/cs8618.cs(7,19): warning CS8618: O campo não anulável 'Nome' precisa conter um valor não nulo ao sair do construtor. Considere adicionar o modificador "obrigatório" ou declarar o campo como anulável.
+/home/ana/cs/cs8618.cs(7,19): warning CS0649: Campo "Produto.Nome" nunca é atribuído e sempre terá seu valor padrão null
+/home/ana/cs/cs8618.cs(8,20): warning CS0649: Campo "Produto.Preco" nunca é atribuído e sempre terá seu valor padrão 0
+[]
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/cs8618.cs:line 3
+código: 134</pre>
+
+<p>O <code>string</code> sem <code>?</code> promete "sempre tem texto" (veja <a href="referencias-anulaveis.html">Referências Anuláveis</a>). Mas o padrão de um campo <code>string</code> é <code>null</code>, então todo produto nasceria quebrando a promessa. O <code>CS8618</code> diz isso: "o campo não anulável <code>Nome</code> precisa ter um valor não nulo quando o objeto termina de nascer" (o "ao sair do construtor"). E o compilador estava certo: a linha 3 quebrou.</p>
+
+<p>A tradução tem uma curiosidade: o "modificador obrigatório" é a palavra <code>required</code> do C#, que o tradutor traduziu junto. Em inglês: <code>Consider adding the 'required' modifier or declaring the field as nullable</code>.</p>
+
+<h3>Três formas de resolver</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Escrita</th><th>Quando usar</th></tr>
+<tr><td>Dar um valor inicial</td><td><code>public string Nome = "";</code></td><td>Existe um valor razoável para começar. É o que este guia fez até aqui.</td></tr>
+<tr><td>Aceitar o branco</td><td><code>public string? Nome;</code></td><td>Faz sentido o campo ficar vazio (um apelido). Quem usa precisa conferir.</td></tr>
+<tr><td>Exigir o valor ao criar o objeto</td><td>um <a href="construtores.html">construtor</a> que recebe o nome, ou <code>required</code> (veja <a href="inicializadores.html">Inicializadores e required</a>)</td><td>Não existe produto sem nome. É a forma mais segura.</td></tr>
+</table>
+</div>
+
+<div class="trycs" data-goal="out:Bia\, turma 1A,semaviso">
+<p class="try-task"><strong>Missão:</strong> rode e leia os avisos <code>CS8618</code> e <code>CS0649</code>. Conserte <strong>só a classe</strong>: dê ao <code>Nome</code> o valor inicial <code>""</code> e à <code>Turma</code> o valor inicial <code>"1A"</code>. A saída deve ser <code>Bia, turma 1A</code>, sem nenhum aviso.</p>
+<pre class="script" data-file="aluno.cs">Aluno a = new Aluno();
+a.Nome = "Bia";
+Console.WriteLine($"{a.Nome}, turma {a.Turma}");
+
+class Aluno
+{
+    public string Nome;
+    public string Turma;
+}
+</pre>
+<pre class="solucao" data-file="aluno.cs">Aluno a = new Aluno();
+a.Nome = "Bia";
+Console.WriteLine($"{a.Nome}, turma {a.Turma}");
+
+class Aluno
+{
+    public string Nome = "";
+    public string Turma = "1A";
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="metodos">Métodos que usam os campos</h2>
+<p>Os campos ficam realmente úteis quando os métodos da própria classe trabalham com eles. Dentro da classe, um método escreve só <code>Estoque</code>, sem ponto, e isso quer dizer "o estoque <strong>deste</strong> objeto":</p>
+
+<pre class="file" data-file="estoque.cs">Produto maca = new Produto();
+maca.Nome = "maçã";
+Produto kiwi = new Produto();
+kiwi.Nome = "kiwi";
+kiwi.Estoque = 3;
+
+maca.Vender();
+maca.Vender();
+kiwi.Vender();
+
+maca.Mostrar();
+kiwi.Mostrar();
+
+class Produto
+{
+    public string Nome = "";
+    public int Estoque = 10;
+
+    public void Vender()
+    {
+        Estoque = Estoque - 1;
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{Nome}: {Estoque} no estoque");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run estoque.cs
+maçã: 8 no estoque       « começou com 10 (valor inicial) e vendeu 2
+kiwi: 2 no estoque       « começou com 3 (mudado na linha 5) e vendeu 1</pre>
+
+<dl class="anatomy">
+  <dt>public int Estoque = 10;</dt><dd>Todo produto nasce com 10. A maçã ficou com esse valor; o kiwi trocou para 3 logo depois de nascer.</dd>
+  <dt>public void Vender()</dt><dd>Um método do produto, <strong>sem <code>static</code></strong> e sem parâmetros. Ele não precisa receber o estoque: já tem acesso aos campos do objeto.</dd>
+  <dt>Estoque = Estoque - 1;</dt><dd>Diminui o estoque <strong>do objeto que recebeu o pedido</strong>. Em <code>maca.Vender()</code>, é o da maçã; em <code>kiwi.Vender()</code>, o do kiwi.</dd>
+  <dt>maca.Vender();</dt><dd>Lê-se "maçã, venda uma unidade". O objeto antes do ponto é quem executa o método.</dd>
+</dl>
+
+<p>Esses métodos se chamam <strong>métodos de instância</strong> (de objeto). Os que você escreveu em <a href="metodos.html">Métodos</a>, soltos nas instruções de nível superior, não pertenciam a objeto nenhum. A palavra que deixa explícito "o campo deste objeto" é o <code>this</code> (<code>this.Estoque</code>), assunto da aula <a href="this.html">this</a>.</p>
+
+<div class="trycs">
+<p class="try-task"><strong>Brinque com o código:</strong> crie um terceiro produto (uma uva), venda 4 unidades dela e mostre-a. Depois mude o valor inicial de <code>Estoque</code> na classe para <code>20</code> e veja quais produtos mudam.</p>
+<pre class="script" data-file="estoque.cs">Produto maca = new Produto();
+maca.Nome = "maçã";
+Produto kiwi = new Produto();
+kiwi.Nome = "kiwi";
+kiwi.Estoque = 3;
+
+maca.Vender();
+maca.Vender();
+kiwi.Vender();
+
+maca.Mostrar();
+kiwi.Mostrar();
+
+class Produto
+{
+    public string Nome = "";
+    public int Estoque = 10;
+
+    public void Vender()
+    {
+        Estoque = Estoque - 1;
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{Nome}: {Estoque} no estoque");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="private">Campos <code>private</code></h2>
+<p>Do jeito que está, qualquer linha do programa pode fazer <code>kiwi.Estoque = -50;</code>, e a classe não tem como impedir. Por isso, em C# de verdade, os campos quase sempre são <strong><code>private</code></strong>: só os métodos da própria classe mexem neles. O resto do programa usa os métodos.</p>
+
+<pre class="file" data-file="priv.cs">Contador c = new Contador();
+c.Somar();
+c.Somar();
+c.Somar();
+Console.WriteLine($"Cliques: {c.Valor()}");
+
+class Contador
+{
+    private int _cliques;
+
+    public void Somar()
+    {
+        _cliques++;
+    }
+
+    public int Valor()
+    {
+        return _cliques;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run priv.cs
+Cliques: 3</pre>
+
+<dl class="anatomy">
+  <dt>private int _cliques;</dt><dd>Só o <code>Contador</code> enxerga este campo. O nome segue o costume do C# para campos privados: <strong><code>_camelCase</code></strong>, com sublinhado na frente. O sublinhado avisa, de relance, "isto é um campo privado, não uma variável local".</dd>
+  <dt>_cliques++;</dt><dd>O único jeito de aumentar o contador é pelo <code>Somar()</code>, de um em um. Ninguém de fora consegue pôr 100 de uma vez.</dd>
+  <dt>public int Valor()</dt><dd>Um método que só <strong>devolve</strong> o valor do campo, para quem está fora poder ler.</dd>
+</dl>
+
+<p>Tentar mexer no campo de fora (<code>c._cliques = 100;</code>) é o erro <code>CS0122</code>:</p>
+
+<pre class="term">$ dotnet run priv.cs
+/home/ana/cs/priv.cs(6,3): error CS0122: "Contador._cliques" é inacessível devido ao seu nível de proteção
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<div class="note">
+<strong>Campos <code>public</code>: só nos primeiros exemplos</strong>
+<p>Escrever um método só para ler (<code>Valor()</code>) e outro só para mudar é trabalhoso. O C# tem um recurso feito para isso, as <strong>propriedades</strong>: por fora parecem campos (<code>c.Cliques</code>), por dentro passam por um <code>get</code> e um <code>set</code> que você controla. É a <a href="propriedades.html">próxima aula</a>. Na prática, um código C# profissional usa <strong>campos <code>private</code></strong> e <strong>propriedades <code>public</code></strong>; os campos <code>public</code> destas primeiras aulas são só para começar simples.</p>
+</div>
+
+<hr>
+
+<h2>Campo × variável local</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Campo</th><th>Variável local</th></tr>
+<tr><td>Onde é declarado</td><td>Na classe, fora dos métodos</td><td>Dentro de um método (ou nas instruções de nível superior)</td></tr>
+<tr><td>Quanto tempo vive</td><td>Enquanto o objeto existir</td><td>Até o fim do bloco <code>{ }</code> (veja <a href="escopo.html">Escopo</a>)</td></tr>
+<tr><td>Quantas cópias</td><td>Uma por objeto</td><td>Uma por execução do método</td></tr>
+<tr><td>Sem valor inicial</td><td>Começa com o padrão (0, <code>false</code>, <code>null</code>)</td><td>Não pode ser usada: <code>CS0165</code></td></tr>
+<tr><td>Pode ter <code>public</code>/<code>private</code></td><td>Sim</td><td>Não</td></tr>
+<tr><td>Nome</td><td><code>Estoque</code> (public), <code>_estoque</code> (private)</td><td><code>estoque</code></td></tr>
+</table>
+</div>
+
+<pre class="term">$ dotnet run local.cs        « int total; Console.WriteLine(total);
+/home/ana/cs/local.cs(2,19): error CS0165: Uso de variável local não atribuída "total"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Existem também campos que pertencem à <strong>classe</strong>, e não a cada objeto (<code>static</code>), e campos que não podem mudar depois que o objeto nasce (<code>readonly</code>). Cada um tem a sua aula: <a href="static.html">static</a> e <a href="readonly.html">readonly e init</a>.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS0103: usar o campo sem dizer de qual objeto</strong>
+<pre class="file" data-file="e103.cs — com erro de propósito">Nome = "maçã";
+
+class Produto
+{
+    public string Nome = "";
+}
+</pre>
+<pre class="term">$ dotnet run e103.cs
+/home/ana/cs/e103.cs(1,1): error CS0103: O nome "Nome" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> fora da classe, <code>Nome</code> sozinho não significa nada: o campo só existe <strong>dentro</strong> de cada produto. "Não existe no contexto atual" = "aqui, ninguém tem esse nome".</p>
+<p><strong>Como resolver:</strong> crie o objeto e use o ponto: <code>Produto p = new Produto(); p.Nome = "maçã";</code>. O <code>Nome</code> sem ponto só funciona dentro dos métodos da própria classe.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0236: um campo calculado a partir de outro</strong>
+<pre class="file" data-file="e236.cs — com erro de propósito">Produto p = new Produto();
+Console.WriteLine(p.Total);
+
+class Produto
+{
+    public decimal Preco = 5m;
+    public int Quantidade = 3;
+    public decimal Total = Preco * Quantidade;
+}
+</pre>
+<pre class="term">$ dotnet run e236.cs
+/home/ana/cs/e236.cs(8,28): error CS0236: Um inicializador de campo não pode referenciar o campo, o método ou a propriedade não estática "Produto.Preco"
+/home/ana/cs/e236.cs(8,36): error CS0236: Um inicializador de campo não pode referenciar o campo, o método ou a propriedade não estática "Produto.Quantidade"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> o valor inicial de um campo (o "inicializador") não pode usar outros campos do objeto. Além disso, mesmo que pudesse, o <code>Total</code> seria calculado uma vez só, no nascimento, e ficaria errado quando o preço mudasse.</p>
+<p><strong>Como resolver:</strong> transforme o total num método, que calcula na hora: <code>public decimal Total() { return Preco * Quantidade; }</code>. Na próxima aula, você verá que uma <a href="propriedades.html">propriedade calculada</a> faz isso ainda melhor.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0102: dois campos com o mesmo nome</strong>
+<pre class="term">$ dotnet run e102.cs
+/home/ana/cs/e102.cs(7,19): error CS0102: O tipo "Produto" já contém uma definição para "Nome"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> a classe declarou <code>public string Nome = "";</code> duas vezes (linhas 5 e 7). Cada nome só pode aparecer uma vez por classe.</p>
+<p><strong>Como resolver:</strong> apague a repetida ou dê outro nome (<code>Apelido</code>, <code>NomeCompleto</code>).</p>
+</div>
+
+<div class="cenario">
+<strong>CS8618: <code>string</code> sem valor inicial</strong>
+<pre class="term">$ dotnet run cs8618.cs
+/home/ana/cs/cs8618.cs(7,19): warning CS8618: O campo não anulável 'Nome' precisa conter um valor não nulo ao sair do construtor. Considere adicionar o modificador "obrigatório" ou declarar o campo como anulável.</pre>
+<p><strong>O que aconteceu:</strong> o campo <code>string Nome;</code> começaria <code>null</code>, mas o tipo promete texto.</p>
+<p><strong>Como resolver:</strong> <code>= ""</code>, <code>string?</code> ou um construtor (veja <a href="#cs8618">acima</a>).</p>
+</div>
+
+<div class="cenario">
+<strong>CS0122: o campo é <code>private</code></strong>
+<pre class="term">$ dotnet run priv.cs
+/home/ana/cs/priv.cs(6,3): error CS0122: "Contador._cliques" é inacessível devido ao seu nível de proteção</pre>
+<p><strong>O que aconteceu:</strong> uma linha fora da classe tentou usar um campo <code>private</code> (ou um campo sem modificador, que é <code>private</code> por padrão).</p>
+<p><strong>Como resolver:</strong> use um método (ou uma propriedade) que a classe oferece. Só troque para <code>public</code> se ninguém de fora puder estragar o objeto mexendo no campo.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>public int Estoque;</code></td><td>Campo público, começa com 0</td></tr>
+<tr><td><code>public int Estoque = 10;</code></td><td>Campo público com valor inicial</td></tr>
+<tr><td><code>private int _estoque;</code></td><td>Campo privado (só a classe vê), nome em <code>_camelCase</code></td></tr>
+<tr><td><code>int estoque;</code> dentro da classe</td><td>Também privado: <code>private</code> é o padrão</td></tr>
+<tr><td><code>public string Nome = "";</code></td><td>Texto que nunca é <code>null</code> (evita o <code>CS8618</code>)</td></tr>
+<tr><td><code>public string? Apelido;</code></td><td>Texto que pode ficar <code>null</code></td></tr>
+<tr><td><code>objeto.Campo</code></td><td>Usa o campo de um objeto, de fora da classe</td></tr>
+<tr><td><code>Campo</code> (sem ponto), num método da classe</td><td>O campo do objeto que está executando o método</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missão final: a conta da Ana</h2>
+<div class="trycs" data-goal="out:Saldo insuficiente,out:Saldo: R$ 70\,00">
+<p class="try-task"><strong>Missão:</strong> a classe <code>Conta</code> guarda o saldo num campo <code>private</code>. O método <code>Sacar</code> tira o dinheiro sem conferir, e a conta termina negativa. Mude o <code>Sacar</code>: se o <code>valor</code> for maior que o <code>_saldo</code>, mostre <code>Saldo insuficiente</code> e não tire nada. A última linha deve ser <code>Saldo: R$ 70,00</code>.</p>
+<pre class="script" data-file="conta.cs">Conta conta = new Conta();
+conta.Depositar(100m);
+conta.Sacar(30m);
+conta.Sacar(200m);
+conta.Mostrar();
+
+class Conta
+{
+    private decimal _saldo;
+
+    public void Depositar(decimal valor)
+    {
+        _saldo = _saldo + valor;
+    }
+
+    public void Sacar(decimal valor)
+    {
+        _saldo = _saldo - valor;
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"Saldo: {_saldo:C}");
+    }
+}
+</pre>
+<pre class="solucao" data-file="conta.cs">Conta conta = new Conta();
+conta.Depositar(100m);
+conta.Sacar(30m);
+conta.Sacar(200m);
+conta.Mostrar();
+
+class Conta
+{
+    private decimal _saldo;
+
+    public void Depositar(decimal valor)
+    {
+        _saldo = _saldo + valor;
+    }
+
+    public void Sacar(decimal valor)
+    {
+        if (valor &gt; _saldo)
+        {
+            Console.WriteLine("Saldo insuficiente");
+            return;
+        }
+        _saldo = _saldo - valor;
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"Saldo: {_saldo:C}");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Valor padrão</h3>
+<p>Qual é o valor de um campo <code>public bool Pago;</code> num objeto recém-criado? (escreva como o C# mostra)</p>
+<div class="ex-code"><input data-answer="False|false" aria-label="valor"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Campo privado</h3>
+<p>Complete a declaração de um campo privado de pontos, inteiro, no estilo do C#:</p>
+<div class="ex-code"><input data-answer="private" aria-label="modificador"> int _pontos;</div>
+</div>
+
+<div class="exercise">
+<h3>3. Sem aviso</h3>
+<p>Complete para que o campo <code>Cidade</code> nunca seja <code>null</code> e não gere o <code>CS8618</code>:</p>
+<div class="ex-code">public string Cidade <input data-answer="= &quot;&quot;;|= &quot;&quot;" aria-label="valor inicial"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. A classe tem <code>public int Estoque = 10;</code>. A Ana cria <code>a</code> e <code>b</code> e chama <code>a.Vender()</code> três vezes (cada uma tira 1). Quanto vale <code>b.Estoque</code>?</p>
+<label><input type="radio" name="q4"> 7</label>
+<label><input type="radio" name="q4"> 10</label>
+<label><input type="radio" name="q4"> 0</label>
+<label><input type="radio" name="q4"> Não compila.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. Qual é a diferença de uma variável local para um campo, quando nenhum dos dois recebe valor?</p>
+<label><input type="radio" name="q5"> A local não pode ser usada (<code>CS0165</code>); o campo começa com o valor padrão.</label>
+<label><input type="radio" name="q5"> As duas começam com 0.</label>
+<label><input type="radio" name="q5"> As duas dão erro.</label>
+<label><input type="radio" name="q5"> O campo dá erro; a local começa com 0.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">6. Por que os campos em C# profissional costumam ser <code>private</code>?</p>
+<label><input type="radio" name="q6"> Porque campos <code>public</code> não compilam.</label>
+<label><input type="radio" name="q6"> Porque <code>private</code> deixa o programa mais rápido.</label>
+<label><input type="radio" name="q6"> Para que só a classe mexa neles, e ninguém de fora deixe o objeto num estado errado.</label>
+<label><input type="radio" name="q6"> Porque o nome com <code>_</code> é obrigatório.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Campo = variável declarada na classe, fora dos métodos. Cada objeto tem a sua cópia.</li>
+  <li>Sem valor inicial, o campo começa com o padrão: 0, <code>false</code>, <code>null</code>. O <code>CS0649</code> avisa quando nunca recebe valor.</li>
+  <li>Um campo <code>string</code> sem valor nasce <code>null</code> e gera o <code>CS8618</code>: use <code>= ""</code>, <code>string?</code> ou um construtor.</li>
+  <li>Dentro dos métodos da classe, <code>Estoque</code> (sem ponto) é o campo do objeto que recebeu o pedido.</li>
+  <li>Em C# de verdade, campos são <code>private</code> e se chamam <code>_camelCase</code>; o acesso de fora é por métodos e, principalmente, por <a href="propriedades.html">propriedades</a>.</li>
+  <li>Erros: <code>CS0103</code> (campo sem objeto), <code>CS0236</code> (inicializador usando outro campo), <code>CS0102</code> (nome repetido), <code>CS0122</code> (campo privado).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
