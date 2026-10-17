@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# LINQ Where e Select — filtrar e projetar | Guia C#</title>
+<meta name="description" content="LINQ Where e Select em C# para quem nunca programou: filtrar com uma ou várias condições (&amp;&amp;, ||), filtrar com um método, encadear Where, projetar com Select (propriedade, conta, texto), tipos anônimos, tuplas, records, o índice, let na sintaxe de consulta e os erros reais CS1061, CS8852, CS0029 e CS1662, com a lojinha da Ana no dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# LINQ <span class="hl">Where e Select</span></h1>
+
+<p class="intro">As duas operações mais usadas do <a href="linq.html">LINQ</a> são <strong><code>Where</code></strong> ("onde"), que <strong>filtra</strong>, ficando só com os elementos que passam num teste, e <strong><code>Select</code></strong> ("selecionar"), que <strong>projeta</strong>, transformando cada elemento em outra coisa: só o nome, o preço com desconto, uma etiqueta pronta. Juntas, elas respondem perguntas como "quais produtos estão em falta, e quanto custa repor cada um?".</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Filtrar com <code>Where</code>: uma condição, várias (<code>&amp;&amp;</code>, <code>||</code>) e com um método pronto.</li>
+  <li>Encadear filtros e o que acontece quando nada passa.</li>
+  <li>Projetar com <code>Select</code>: uma propriedade, uma conta, um texto.</li>
+  <li>Projetar para <strong>tipos anônimos</strong>, tuplas e records, e numerar com o índice.</li>
+  <li>Combinar <code>Where</code> e <code>Select</code>, e o <code>let</code> da sintaxe de consulta.</li>
+  <li>Os erros reais: a ordem errada (<code>CS1061</code>), <code>=</code> no lugar de <code>==</code> (<code>CS8852</code>) e o filtro que não devolve <code>bool</code> (<code>CS0029</code>).</li>
+</ul>
+</div>
+
+<p>Todos os programas rodaram com o <strong>.NET 10</strong> (C# 14) na máquina da Ana, na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Eles usam a lista de produtos da lojinha apresentada em <a href="linq.html">O que é LINQ</a>; para não repetir, os arquivos mostram só o programa:</p>
+
+<pre class="file" data-file="produtos (trecho de todos os exemplos)">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+// … o programa de cada exemplo começa na linha 12 …
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+
+<hr>
+
+<h2>A ideia: a peneira e o carimbo</h2>
+<p>Na linha de montagem do LINQ, o <code>Where</code> é uma <strong>peneira</strong>: os produtos passam por ela, e só os que servem continuam. Ninguém é modificado; alguns só ficam para trás. O <code>Select</code> é um <strong>carimbo</strong>: cada produto que chega sai transformado em outra coisa (o nome dele, uma etiqueta de preço). Nenhum fica para trás, mas todos mudam de forma.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th><code>Where</code> (peneira)</th><th><code>Select</code> (carimbo)</th></tr>
+<tr><td>A lambda recebe</td><td>um produto</td><td>um produto</td></tr>
+<tr><td>A lambda devolve</td><td><code>bool</code>: "este passa?"</td><td>qualquer coisa: "vira o quê?"</td></tr>
+<tr><td>Quantos saem</td><td>os que passaram (de nenhum a todos)</td><td><strong>exatamente</strong> quantos entraram</td></tr>
+<tr><td>O tipo que sai</td><td>o mesmo: <code>IEnumerable&lt;Produto&gt;</code></td><td>o que a lambda devolve: <code>IEnumerable&lt;string&gt;</code>, <code>IEnumerable&lt;decimal&gt;</code>…</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. Filtrar com <code>Where</code></h2>
+
+<pre class="file" data-file="where.cs">// (a lista de produtos)
+
+var baratos = produtos.Where(p =&gt; p.Preco &lt; 20m);
+var papelariaComEstoque = produtos.Where(p =&gt; p.Categoria == "Papelaria" &amp;&amp; p.Estoque &gt; 20);
+var bolsasOuCozinha = produtos.Where(p =&gt; p.Categoria == "Bolsas" || p.Categoria == "Cozinha");
+var emFalta = produtos.Where(EstaEmFalta);
+
+Mostrar("Baratos", baratos);
+Mostrar("Papelaria com mais de 20", papelariaComEstoque);
+Mostrar("Bolsas ou cozinha", bolsasOuCozinha);
+Mostrar("Em falta", emFalta);
+
+static bool EstaEmFalta(Produto p) =&gt; p.Estoque &lt; 5;
+
+static void Mostrar(string titulo, IEnumerable&lt;Produto&gt; lista) =&gt;
+    Console.WriteLine($"{titulo}: {string.Join(", ", lista.Select(p =&gt; p.Nome))}");
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run where.cs
+Baratos: Caderno, Lápis, Borracha
+Papelaria com mais de 20: Lápis, Borracha
+Bolsas ou cozinha: Mochila, Estojo, Garrafa, Caneca
+Em falta: Mochila, Estojo</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>Where(p =&gt; p.Preco &lt; 20m)</code></td><td>A lambda recebe cada produto (<code>p</code>) e responde <code>true</code> ou <code>false</code>. Só os <code>true</code> continuam.</td></tr>
+<tr><td><code>… == "Papelaria" &amp;&amp; p.Estoque &gt; 20</code></td><td>Duas condições com <code>&amp;&amp;</code> ("e"): as duas precisam ser verdadeiras (veja <a href="operadores-logicos.html">Operadores Lógicos</a>). O Caderno é de papelaria, mas tem só 12.</td></tr>
+<tr><td><code>… == "Bolsas" || … == "Cozinha"</code></td><td>Com <code>||</code> ("ou"), basta uma ser verdadeira.</td></tr>
+<tr><td><code>Where(EstaEmFalta)</code></td><td>No lugar da lambda, um <strong>método com nome</strong> que recebe um <code>Produto</code> e devolve <code>bool</code> (sem parênteses, como em <a href="delegates.html">Delegates</a>). Bom quando o teste é usado em vários lugares ou é comprido.</td></tr>
+<tr><td><code>Mostrar(…)</code></td><td>Um método auxiliar que junta os nomes com <code>string.Join</code>. Ele recebe <code>IEnumerable&lt;Produto&gt;</code>, o tipo que o <code>Where</code> devolve.</td></tr>
+</table>
+</div>
+
+<p>Repare que os resultados saem <strong>na ordem da lista original</strong>: o <code>Where</code> não muda a ordem, só tira elementos. Para mudar a ordem, existe o <a href="linq-ordenar.html"><code>OrderBy</code></a>.</p>
+
+<h3>Encadear filtros, e quando nada passa</h3>
+
+<pre class="file" data-file="encadear.cs">// (a lista de produtos)
+
+var resultado = produtos
+    .Where(p =&gt; p.Estoque &gt; 0)
+    .Where(p =&gt; p.Preco &gt;= 20m);
+
+foreach (Produto p in resultado)
+{
+    Console.WriteLine($"{p.Nome,-8} {p.Preco,10:C} {p.Estoque,3} un.");
+}
+
+var nada = produtos.Where(p =&gt; p.Preco &gt; 1000m);
+Console.WriteLine($"Acima de R$ 1000: {nada.Count()} produtos");
+foreach (Produto p in nada)
+{
+    Console.WriteLine("isto nunca aparece");
+}
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run encadear.cs
+Mochila   R$ 129,90   3 un.
+Garrafa    R$ 35,00   8 un.
+Caneca     R$ 22,50   5 un.
+Acima de R$ 1000: 0 produtos</pre>
+
+<ul>
+  <li>Dois <code>Where</code> seguidos equivalem a um só com <code>&amp;&amp;</code>: o segundo só vê quem passou no primeiro. O Estojo (estoque 0) caiu na primeira peneira.</li>
+  <li>O <code>{p.Nome,-8}</code> e o <code>{p.Preco,10:C}</code> alinham as colunas: o número depois da vírgula é a largura, negativo para alinhar à esquerda (veja <a href="formatacao.html">Formatar Números</a>).</li>
+  <li>Quando ninguém passa, o <code>Where</code> devolve uma sequência <strong>vazia</strong>, e não <code>null</code>: o <code>foreach</code> simplesmente não roda e o <code>Count()</code> dá 0. Não é preciso testar <code>null</code>.</li>
+</ul>
+
+<div class="trycs" data-goal="outre:^Lápis\nBorracha\n$,src:\.Where\(">
+<p class="try-task"><strong>Missão:</strong> o filtro pega todos os produtos de papelaria. Acrescente uma segunda condição para ficar só com os que custam <strong>menos de R$ 5</strong>. A saída deve ser só <code>Lápis</code> e <code>Borracha</code>.</p>
+<pre class="script">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+var escolhidos = produtos.Where(p =&gt; p.Categoria == "Papelaria");
+
+foreach (Produto p in escolhidos)
+{
+    Console.WriteLine(p.Nome);
+}
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+<pre class="solucao">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+var escolhidos = produtos.Where(p =&gt; p.Categoria == "Papelaria" &amp;&amp; p.Preco &lt; 5m);
+
+foreach (Produto p in escolhidos)
+{
+    Console.WriteLine(p.Nome);
+}
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+</div>
+
+<div class="warning">
+<strong>Maiúsculas e minúsculas contam</strong>
+<p><code>p.Categoria == "papelaria"</code> (com <code>p</code> minúsculo) não encontra nada, porque <code>"Papelaria"</code> e <code>"papelaria"</code> são textos diferentes para o <code>==</code>. Se o texto vem do usuário, compare ignorando maiúsculas: <code>p.Categoria.Equals("papelaria", StringComparison.OrdinalIgnoreCase)</code>. No laboratório, a primeira forma deu <code>0</code> produtos e a segunda, <code>3</code> (veja <a href="metodos-string.html">Métodos de String</a>).</p>
+</div>
+
+<hr>
+
+<h2>2. Projetar com <code>Select</code></h2>
+<p>O <code>Select</code> recebe cada elemento e devolve o que você quiser no lugar dele:</p>
+
+<pre class="file" data-file="select.cs">// (a lista de produtos)
+
+IEnumerable&lt;string&gt; nomes = produtos.Select(p =&gt; p.Nome);
+IEnumerable&lt;decimal&gt; comDesconto = produtos.Select(p =&gt; p.Preco * 0.9m);
+IEnumerable&lt;string&gt; etiquetas = produtos.Select(p =&gt; $"{p.Nome.ToUpper()} {p.Preco:C}");
+IEnumerable&lt;decimal&gt; valorEmEstoque = produtos.Select(p =&gt; p.Preco * p.Estoque);
+
+Console.WriteLine(string.Join(", ", nomes));
+Console.WriteLine(string.Join(" | ", comDesconto));
+Console.WriteLine(string.Join(" | ", etiquetas.Take(3)));
+Console.WriteLine(string.Join(" | ", valorEmEstoque));
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run select.cs
+Caderno, Lápis, Mochila, Borracha, Estojo, Garrafa, Caneca
+17,010 | 2,250 | 116,910 | 1,575 | 22,410 | 31,500 | 20,250
+CADERNO R$ 18,90 | LÁPIS R$ 2,50 | MOCHILA R$ 129,90
+226,80 | 100,00 | 389,70 | 43,75 | 0,00 | 280,00 | 112,50</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Projeção</th><th>Cada produto vira…</th><th>Tipo do resultado</th></tr>
+<tr><td><code>p =&gt; p.Nome</code></td><td>só o nome</td><td><code>IEnumerable&lt;string&gt;</code></td></tr>
+<tr><td><code>p =&gt; p.Preco * 0.9m</code></td><td>o preço com 10% de desconto</td><td><code>IEnumerable&lt;decimal&gt;</code></td></tr>
+<tr><td><code>p =&gt; $"{p.Nome.ToUpper()} {p.Preco:C}"</code></td><td>uma etiqueta pronta</td><td><code>IEnumerable&lt;string&gt;</code></td></tr>
+<tr><td><code>p =&gt; p.Preco * p.Estoque</code></td><td>quanto vale o estoque daquele produto</td><td><code>IEnumerable&lt;decimal&gt;</code></td></tr>
+</table>
+</div>
+
+<ul>
+  <li>Os 7 produtos viraram 7 valores: o <code>Select</code> nunca tira nem acrescenta elementos.</li>
+  <li><code>17,010</code> tem três casas porque o <code>decimal</code> guarda as casas da conta (<code>18,90 × 0,9</code>: duas casas mais uma). Para dinheiro, mostre com <code>:C</code> ou arredonde com <code>Math.Round(valor, 2)</code>.</li>
+  <li><code>Take(3)</code> ("pegue 3") fica só com os 3 primeiros, para a linha não ficar comprida.</li>
+</ul>
+
+<h3>Várias informações de uma vez: tipo anônimo, tupla e record</h3>
+<p>E se você quer o nome <strong>e</strong> um valor calculado? O <code>Select</code> pode devolver um objeto com várias partes:</p>
+
+<pre class="file" data-file="formas.cs">// (a lista de produtos)
+
+var anonimos = produtos.Select(p =&gt; new { p.Nome, Total = p.Preco * p.Estoque });
+var tuplas = produtos.Select(p =&gt; (p.Nome, p.Estoque));
+var etiquetas = produtos.Select(p =&gt; new Etiqueta(p.Nome, Math.Round(p.Preco * 0.9m, 2)));
+var numerados = produtos.Select((p, i) =&gt; $"{i + 1}. {p.Nome}");
+
+Console.WriteLine(anonimos.First());
+Console.WriteLine(anonimos.First().Total);
+Console.WriteLine(tuplas.First());
+Console.WriteLine(tuplas.First().Estoque);
+Console.WriteLine(etiquetas.First());
+Console.WriteLine(string.Join(" ", numerados));
+
+record Etiqueta(string Texto, decimal Preco);
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run formas.cs
+{ Nome = Caderno, Total = 226,80 }
+226,80
+(Caderno, 12)
+12
+Etiqueta { Texto = Caderno, Preco = 17,01 }
+1. Caderno 2. Lápis 3. Mochila 4. Borracha 5. Estojo 6. Garrafa 7. Caneca</pre>
+
+<dl class="anatomy">
+  <dt>new { p.Nome, Total = … }</dt><dd>Um <strong>tipo anônimo</strong>: um objeto sem classe declarada, criado ali mesmo. <code>p.Nome</code> vira a propriedade <code>Nome</code> (o nome vem junto); <code>Total = …</code> dá nome a um valor calculado. Como o tipo não tem nome, a variável precisa ser <code>var</code>. O <code>First()</code> pega o primeiro elemento.</dd>
+  <dt>(p.Nome, p.Estoque)</dt><dd>Uma <a href="tuplas.html">tupla</a>, com as partes <code>Nome</code> e <code>Estoque</code>. Mais leve que o tipo anônimo, e pode ser devolvida por métodos.</dd>
+  <dt>new Etiqueta(…)</dt><dd>Um <a href="records.html">record</a> seu. Use quando o resultado vai circular pelo programa (ser devolvido, guardado, passado para outros métodos).</dd>
+  <dt>(p, i) =&gt; …</dt><dd>Com dois parâmetros, o <code>Select</code> entrega também a <strong>posição</strong> (o índice, que começa em 0) de cada elemento. O <code>Where</code> tem a mesma versão: <code>Where((p, i) =&gt; i % 2 == 0)</code> pega um sim, um não.</dd>
+</dl>
+
+<div class="tip">
+<strong>Qual usar</strong>
+<p>Para usar o resultado ali mesmo, num <code>foreach</code> logo abaixo: <strong>tipo anônimo</strong> (é o mais comum em LINQ). Para devolver de um método: <strong>tupla</strong> ou <strong>record</strong>. Para algo que tem nome e significado no programa (uma etiqueta, um item de relatório): <strong>record</strong>.</p>
+</div>
+
+<hr>
+
+<h2>3. <code>Where</code> e <code>Select</code> juntos</h2>
+<p>O uso mais comum: filtrar primeiro, depois projetar. Abaixo, a promoção da Ana dá 20% de desconto nos produtos com mais de 10 unidades, nas duas sintaxes:</p>
+
+<pre class="file" data-file="juntos.cs">// (a lista de produtos)
+
+var promocao = produtos
+    .Where(p =&gt; p.Estoque &gt; 10)
+    .Select(p =&gt; new { p.Nome, De = p.Preco, Por = p.Preco * 0.8m });
+
+foreach (var item in promocao)
+{
+    Console.WriteLine($"{item.Nome}: de {item.De:C} por {item.Por:C}");
+}
+
+var consulta =
+    from p in produtos
+    where p.Estoque &gt; 10
+    let promo = p.Preco * 0.8m
+    select $"{p.Nome}: {promo:C}";
+
+Console.WriteLine(string.Join(" | ", consulta));
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run juntos.cs
+Caderno: de R$ 18,90 por R$ 15,12
+Lápis: de R$ 2,50 por R$ 2,00
+Borracha: de R$ 1,75 por R$ 1,40
+Caderno: R$ 15,12 | Lápis: R$ 2,00 | Borracha: R$ 1,40</pre>
+
+<ul>
+  <li>No <code>foreach (var item in promocao)</code>, o <code>var</code> é obrigatório: <code>item</code> é do tipo anônimo, que não tem nome para escrever.</li>
+  <li>Na sintaxe de consulta, o <code>let</code> ("seja") cria uma variável no meio da consulta, para não repetir a conta. Na sintaxe de método, o equivalente é um <code>Select</code> com tipo anônimo, como o de cima.</li>
+</ul>
+
+<p><strong>A ordem importa:</strong> o <code>Where</code> vem antes do <code>Select</code> porque precisa do produto inteiro para testar. Depois de <code>.Select(p =&gt; p.Nome)</code>, só sobram textos, e não há mais preço para filtrar (veja o erro <code>CS1061</code> logo abaixo).</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS1061: <code>Select</code> antes do <code>Where</code></strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="ordem-erro.cs">// (a lista de produtos, linhas 1 a 10)
+
+var nomes = produtos
+    .Select(p =&gt; p.Nome)
+    .Where(p =&gt; p.Preco &lt; 20m);
+
+// (o record Produto)
+</pre>
+<pre class="term">$ dotnet run ordem-erro.cs
+/home/ana/cs/ordem-erro.cs(14,19): error CS1061: ‘string’ não contém uma definição para "Preco" e não foi possível encontrar nenhum método de extensão "Preco" que aceite um primeiro argumento do tipo ‘string’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> depois do <code>Select(p =&gt; p.Nome)</code>, a sequência é de <code>string</code>. No <code>Where</code>, o <code>p</code> já é um texto (o nome), e texto não tem <code>Preco</code>. O nome <code>p</code> engana: ele não é mais um produto.</p>
+<p><strong>Como consertar:</strong> filtre antes de projetar: <code>.Where(p =&gt; p.Preco &lt; 20m).Select(p =&gt; p.Nome)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS8852: <code>=</code> no lugar de <code>==</code></strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="igual-erro.cs">// (a lista de produtos, linhas 1 a 10)
+
+var dez = produtos.Where(p =&gt; p.Preco = 18.90m);
+
+// (o record Produto)
+</pre>
+<pre class="term">$ dotnet run igual-erro.cs
+/home/ana/cs/igual-erro.cs(12,31): error CS8852: A propriedade somente de inicialização ou o indexador 'Produto.Preco' só pode ser atribuído em um inicializador de objeto, em 'this' ou 'base' em um construtor de instância ou em um acessador 'init'.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> um <code>=</code> só é <strong>atribuição</strong> ("guarde 18,90 no preço"), não comparação. O compilador reclama de outra coisa: as propriedades de um record são <code>init</code> e não podem ser mudadas depois de criadas (veja <a href="readonly.html">readonly e init</a>). A mensagem confunde, mas o erro está no sinal.</p>
+<p><strong>Como consertar:</strong> para comparar, use <code>==</code>: <code>Where(p =&gt; p.Preco == 18.90m)</code> (veja <a href="operadores-comparacao.html">Operadores de Comparação</a>).</p>
+</div>
+
+<div class="cenario">
+<strong>CS0029 + CS1662: o filtro não devolve <code>bool</code></strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="bool-erro.cs">// (a lista de produtos, linhas 1 a 10)
+
+var nomes = produtos.Where(p =&gt; p.Nome);
+
+// (o record Produto)
+</pre>
+<pre class="term">$ dotnet run bool-erro.cs
+/home/ana/cs/bool-erro.cs(12,33): error CS0029: Não é possível converter implicitamente tipo "string" em "bool"
+/home/ana/cs/bool-erro.cs(12,33): error CS1662: Não é possível converter expressão lambda para o tipo delegate pretendido porque alguns dos tipos de retorno no bloco não são implicitamente conversíveis para o tipo de retorno delegate
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> o <code>Where</code> pede um <code>Func&lt;Produto, bool&gt;</code>, um teste de sim ou não, e a lambda devolve o nome (um <code>string</code>). Quem queria "só os nomes" se confundiu de método.</p>
+<p><strong>Como consertar:</strong> para pegar os nomes, use <code>Select(p =&gt; p.Nome)</code>. Para filtrar, devolva um <code>bool</code>: <code>Where(p =&gt; p.Nome.StartsWith('C'))</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>Where(p =&gt; teste)</code></td><td>Fica com os elementos em que o teste é <code>true</code>, na ordem original.</td></tr>
+<tr><td><code>Where(Metodo)</code></td><td>O mesmo, com um método <code>bool Metodo(T x)</code>.</td></tr>
+<tr><td><code>Where((p, i) =&gt; teste)</code></td><td>O teste recebe também a posição <code>i</code>.</td></tr>
+<tr><td><code>Select(p =&gt; valor)</code></td><td>Troca cada elemento pelo valor (mesma quantidade).</td></tr>
+<tr><td><code>Select(p =&gt; new { p.Nome, X = … })</code></td><td>Projeta para um tipo anônimo (use <code>var</code>).</td></tr>
+<tr><td><code>Select(p =&gt; (p.Nome, p.Preco))</code></td><td>Projeta para uma tupla.</td></tr>
+<tr><td><code>Select((p, i) =&gt; …)</code></td><td>A projeção recebe também a posição.</td></tr>
+<tr><td><code>where teste</code> / <code>select valor</code> / <code>let x = …</code></td><td>As mesmas operações na sintaxe de consulta.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Filtrar</h3>
+<p>Complete para ficar só com os produtos que têm estoque (mais de zero):</p>
+<div class="ex-code">var comEstoque = produtos.Where(<input data-answer="p =&gt; p.Estoque &gt; 0|p=&gt;p.Estoque&gt;0|x =&gt; x.Estoque &gt; 0" aria-label="lambda">);</div>
+</div>
+
+<div class="exercise">
+<h3>2. Projetar</h3>
+<p>Complete para obter os preços de todos os produtos:</p>
+<div class="ex-code">var precos = produtos.<input data-answer="Select(p =&gt; p.Preco)|Select(p=&gt;p.Preco)|Select(x =&gt; x.Preco)" aria-label="projeção">;</div>
+</div>
+
+<div class="exercise">
+<h3>3. Tipo anônimo</h3>
+<p>Complete o tipo anônimo com o nome do produto e uma propriedade <code>Dobro</code> com o dobro do preço:</p>
+<div class="ex-code">produtos.Select(p =&gt; new { p.Nome, <input data-answer="Dobro = p.Preco * 2|Dobro = p.Preco * 2m|Dobro = 2 * p.Preco" aria-label="propriedade"> })</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. A lista tem 7 produtos. Quantos elementos <code>produtos.Select(p =&gt; p.Nome)</code> produz?</p>
+<label><input type="radio" name="q4"> Depende de quantos nomes são diferentes.</label>
+<label><input type="radio" name="q4"> 1, uma lista de nomes.</label>
+<label><input type="radio" name="q4"> 7: o <code>Select</code> nunca tira nem acrescenta.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. O que <code>produtos.Where(p =&gt; p.Preco &gt; 1000m)</code> devolve quando nenhum produto passa?</p>
+<label><input type="radio" name="q5"> Uma sequência vazia: o <code>foreach</code> não roda e o <code>Count()</code> dá 0.</label>
+<label><input type="radio" name="q5"> <code>null</code>.</label>
+<label><input type="radio" name="q5"> Uma exceção.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">6. Por que <code>.Select(p =&gt; p.Nome).Where(p =&gt; p.Preco &lt; 20m)</code> não compila?</p>
+<label><input type="radio" name="q6"> Porque o <code>Where</code> sempre tem de vir primeiro na linha.</label>
+<label><input type="radio" name="q6"> Porque, depois do <code>Select</code>, cada elemento é um <code>string</code>, que não tem <code>Preco</code>.</label>
+<label><input type="radio" name="q6"> Porque falta o <code>ToList()</code>.</label>
+</div>
+
+<div class="trycs" data-goal="outre:^Garrafa por R\$\s31\,50\nCaneca por R\$\s20\,25\n$,src:\.Where\(,src:\.Select\(">
+<p class="try-task"><strong>Missão final:</strong> faça as etiquetas da promoção da cozinha. Com <code>Where</code>, fique só com a categoria <code>"Cozinha"</code>; com <code>Select</code>, transforme cada produto no texto <code>"{Nome} por {preço com 10% de desconto:C}"</code> (o preço vezes <code>0.9m</code>). A saída deve ser exatamente <code>Garrafa por R$ 31,50</code> e <code>Caneca por R$ 20,25</code>.</p>
+<pre class="script">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+var etiquetas = produtos.Select(p =&gt; p.Nome);
+
+foreach (string e in etiquetas)
+{
+    Console.WriteLine(e);
+}
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+<pre class="solucao">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+var etiquetas = produtos
+    .Where(p =&gt; p.Categoria == "Cozinha")
+    .Select(p =&gt; $"{p.Nome} por {p.Preco * 0.9m:C}");
+
+foreach (string e in etiquetas)
+{
+    Console.WriteLine(e);
+}
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>Where</code> é a peneira: a lambda devolve <code>bool</code>, e só os <code>true</code> continuam, na ordem original. Combine condições com <code>&amp;&amp;</code> e <code>||</code>, ou encadeie vários <code>Where</code>.</li>
+  <li>Sem ninguém que passe, o resultado é uma sequência vazia, nunca <code>null</code>.</li>
+  <li><code>Select</code> é o carimbo: cada elemento vira o que a lambda devolver, e a quantidade não muda.</li>
+  <li>Para várias informações: tipo anônimo (<code>new { p.Nome, Total = … }</code>, com <code>var</code>), tupla ou record. Com <code>(p, i)</code>, você recebe também a posição.</li>
+  <li>Filtre antes de projetar; depois do <code>Select</code>, o elemento já é outra coisa (<code>CS1061</code>).</li>
+  <li>Compare com <code>==</code>, não <code>=</code> (<code>CS8852</code> num record); o <code>Where</code> precisa de um teste <code>bool</code> (<code>CS0029</code>).</li>
+</ul>
+
+<p>Próxima aula: <a href="linq-ordenar.html">Ordenar (OrderBy)</a>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
