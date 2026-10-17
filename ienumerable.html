@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# IEnumerable e foreach — o que faz o foreach funcionar | Guia C#</title>
+<meta name="description" content="IEnumerable em C# para quem nunca programou: a interface que todas as coleções têm, métodos que aceitam qualquer coleção, o que o foreach faz por dentro (GetEnumerator, MoveNext, Current), fazer uma classe sua funcionar no foreach, e os erros reais CS1579, CS0738, CS1656, CS1061 e a InvalidOperationException de mudar a lista dentro do foreach, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">IEnumerable</span> e foreach</h1>
+
+<p class="intro">Você já usou o <a href="foreach.html">foreach</a> com arrays, listas, dicionários, conjuntos, filas e até com textos. Como um único comando sabe percorrer coisas tão diferentes? O segredo é uma interface chamada <code>IEnumerable&lt;T&gt;</code>: todas essas coleções a têm, e o <code>foreach</code> só precisa dela. Nesta aula você vai ver o que o <code>foreach</code> faz por dentro, escrever métodos que aceitam <strong>qualquer</strong> coleção e fazer uma classe sua funcionar no <code>foreach</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é <code>IEnumerable&lt;T&gt;</code>: "algo que pode ser percorrido, um item por vez".</li>
+  <li>Escrever um método que aceita array, <code>List</code>, <code>HashSet</code>, <code>Queue</code>…</li>
+  <li>O que o <code>foreach</code> faz por dentro: <code>GetEnumerator</code>, <code>MoveNext</code> e <code>Current</code>.</li>
+  <li>Fazer uma classe sua funcionar no <code>foreach</code>.</li>
+  <li>As regras do <code>foreach</code>: a variável não pode ser trocada (<code>CS1656</code>) e a coleção não pode mudar no meio (<code>InvalidOperationException</code>).</li>
+</ul>
+</div>
+
+<p>Antes, é bom conhecer <a href="interfaces.html">Interfaces</a> e <a href="list.html">List</a>. Todos os programas desta aula rodaram com o <strong>.NET 10</strong> na máquina da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: "me dê o próximo"</h2>
+<p>Pense numa caixa de bombons, num baralho e numa playlist. São coisas diferentes, mas todas permitem a mesma conversa:</p>
+
+<pre class="syntax">  você:  "tem mais algum?"     coleção:  "tem."
+  você:  "qual é?"             coleção:  "o bombom de morango."
+  você:  "tem mais algum?"     coleção:  "tem."
+  você:  "qual é?"             coleção:  "o de coco."
+  você:  "tem mais algum?"     coleção:  "acabou."</pre>
+
+<p>Para percorrer, você não precisa saber como a coleção guarda os itens por dentro (lado a lado, em gavetas de <em>hash</em>, em nós engatados…). Só precisa dessa conversa. No C#, a conversa tem nome: quem sabe fazê-la implementa a interface <code>IEnumerable&lt;T&gt;</code>, "enumerável de T", ou seja, "algo cujos itens do tipo <code>T</code> podem ser enumerados, um por um".</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Coleção</th><th>É um…</th><th>O <code>foreach</code> entrega</th></tr>
+<tr><td><code>int[]</code></td><td><code>IEnumerable&lt;int&gt;</code></td><td>cada número</td></tr>
+<tr><td><code>List&lt;string&gt;</code>, <code>HashSet&lt;string&gt;</code>, <code>Queue&lt;string&gt;</code>, <code>Stack&lt;string&gt;</code></td><td><code>IEnumerable&lt;string&gt;</code></td><td>cada texto</td></tr>
+<tr><td><code>Dictionary&lt;string, int&gt;</code></td><td><code>IEnumerable&lt;KeyValuePair&lt;string, int&gt;&gt;</code></td><td>cada par chave-valor</td></tr>
+<tr><td><code>string</code></td><td><code>IEnumerable&lt;char&gt;</code></td><td>cada letra</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. Um método que aceita qualquer coleção</h2>
+<p>Como todas as coleções são <code>IEnumerable&lt;T&gt;</code>, um método que recebe <code>IEnumerable&lt;int&gt;</code> aceita qualquer uma delas:</p>
+
+<pre class="file" data-file="todos.cs">int[] array = [3, 1, 2];
+List&lt;int&gt; lista = [10, 20];
+HashSet&lt;int&gt; conjunto = [7, 8, 9];
+var fila = new Queue&lt;int&gt;([100, 200]);
+
+Mostrar("array", array);
+Mostrar("lista", lista);
+Mostrar("conjunto", conjunto);
+Mostrar("fila", fila);
+
+void Mostrar(string nome, IEnumerable&lt;int&gt; numeros)
+{
+    int soma = 0;
+    foreach (int n in numeros)
+        soma += n;
+    Console.WriteLine($"{nome}: soma {soma}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run todos.cs
+array: soma 6
+lista: soma 30
+conjunto: soma 24
+fila: soma 300</pre>
+
+<dl class="anatomy">
+  <dt>IEnumerable&lt;int&gt; numeros</dt><dd>O parâmetro diz: "me dê qualquer coisa que eu possa percorrer e que entregue <code>int</code>". O array, a lista, o conjunto e a fila servem, porque todos implementam essa interface.</dd>
+  <dt>foreach (int n in numeros)</dt><dd>O método só percorre. Ele não sabe (nem precisa saber) qual coleção recebeu.</dd>
+</dl>
+
+<p>Isso se chama <strong>programar para a interface</strong>: peça o mínimo de que você precisa. Se o método só percorre, peça <code>IEnumerable&lt;T&gt;</code>, e ele vai funcionar com coleções que você nem imaginou quando o escreveu.</p>
+
+<div class="warning">
+<strong><code>IEnumerable</code> só sabe percorrer</strong>
+<p>Por ser o mínimo, <code>IEnumerable&lt;T&gt;</code> não tem <code>Add</code>, <code>Remove</code>, <code>Count</code> (a propriedade) nem <code>[ ]</code>. Dentro do método, <code>numeros.Add(5)</code> dá <code>error CS1061: ‘IEnumerable&lt;int&gt;’ não contém uma definição para "Add"</code>. Se o método precisa acrescentar itens, peça uma <code>List&lt;T&gt;</code> (ou a interface <code>ICollection&lt;T&gt;</code>). O <code>Count()</code> com parênteses que aparece em códigos por aí é do <a href="linq.html">LINQ</a>: ele percorre a coleção inteira contando.</p>
+</div>
+
+<div class="trycs" data-goal="out:array: maior 9,out:conjunto: maior 40,exit:0,src:IEnumerable\s*&lt;\s*int\s*&gt;">
+<p class="try-task"><strong>Missão:</strong> o método <code>Maior</code> pede uma <code>List&lt;int&gt;</code>, por isso a chamada com o array e com o conjunto não compila (rode e veja o erro <code>CS1503</code>). Troque <strong>só o tipo do parâmetro</strong> para <code>IEnumerable&lt;int&gt;</code>, e as três chamadas vão funcionar.</p>
+<pre class="script">int[] array = [4, 9, 2];
+List&lt;int&gt; lista = [15, 3];
+HashSet&lt;int&gt; conjunto = [40, 10];
+
+Console.WriteLine($"array: maior {Maior(array)}");
+Console.WriteLine($"lista: maior {Maior(lista)}");
+Console.WriteLine($"conjunto: maior {Maior(conjunto)}");
+
+int Maior(List&lt;int&gt; numeros)
+{
+    int maior = int.MinValue;
+    foreach (int n in numeros)
+        if (n &gt; maior)
+            maior = n;
+    return maior;
+}
+</pre>
+<pre class="solucao">int[] array = [4, 9, 2];
+List&lt;int&gt; lista = [15, 3];
+HashSet&lt;int&gt; conjunto = [40, 10];
+
+Console.WriteLine($"array: maior {Maior(array)}");
+Console.WriteLine($"lista: maior {Maior(lista)}");
+Console.WriteLine($"conjunto: maior {Maior(conjunto)}");
+
+int Maior(IEnumerable&lt;int&gt; numeros)
+{
+    int maior = int.MinValue;
+    foreach (int n in numeros)
+        if (n &gt; maior)
+            maior = n;
+    return maior;
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. O que o <code>foreach</code> faz por dentro</h2>
+<p>A "conversa" da ideia lá do começo tem três peças, e você pode fazê-la à mão. Os dois laços abaixo fazem a mesma coisa:</p>
+
+<pre class="file" data-file="pordentro.cs">List&lt;string&gt; frutas = ["maçã", "banana", "uva"];
+
+foreach (string f in frutas)
+{
+    Console.WriteLine(f);
+}
+
+Console.WriteLine("--- o mesmo, à mão ---");
+using (IEnumerator&lt;string&gt; marcador = frutas.GetEnumerator())
+{
+    while (marcador.MoveNext())
+    {
+        string f = marcador.Current;
+        Console.WriteLine(f);
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pordentro.cs
+maçã
+banana
+uva
+--- o mesmo, à mão ---
+maçã
+banana
+uva</pre>
+
+<dl class="anatomy">
+  <dt>frutas.GetEnumerator()</dt><dd>"Pegar o enumerador." É o único método de <code>IEnumerable&lt;T&gt;</code>. Ele devolve um <strong>marcador</strong> novo, um <code>IEnumerator&lt;T&gt;</code> (repare: <em>enumerator</em>, "o que enumera"), parado <strong>antes</strong> do primeiro item, como um marcador de página antes da primeira página.</dd>
+  <dt>marcador.MoveNext()</dt><dd>"Mover para o próximo." Avança o marcador e responde: <code>true</code> se chegou num item, <code>false</code> se a coleção acabou. É o "tem mais algum?".</dd>
+  <dt>marcador.Current</dt><dd>"O atual." O item onde o marcador está. É o "qual é?".</dd>
+  <dt>using ( … )</dt><dd>No fim, o marcador é descartado (ele é <code>IDisposable</code>; veja <a href="using-dispose.html">using e IDisposable</a>). O <code>foreach</code> faz isso sozinho, inclusive se der exceção no meio.</dd>
+</dl>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Interface</th><th>Quem é</th><th>O que tem</th></tr>
+<tr><td><code>IEnumerable&lt;T&gt;</code></td><td>A coleção ("pode ser percorrida")</td><td><code>GetEnumerator()</code></td></tr>
+<tr><td><code>IEnumerator&lt;T&gt;</code></td><td>O marcador de um percurso</td><td><code>MoveNext()</code>, <code>Current</code>, <code>Dispose()</code></td></tr>
+</table>
+</div>
+
+<p>Por que separar a coleção do marcador? Porque você pode ter <strong>dois percursos ao mesmo tempo</strong> na mesma coleção (dois <code>foreach</code>, um dentro do outro, como em <a href="lacos-aninhados.html">Laços Aninhados</a>): cada <code>foreach</code> pede o seu próprio marcador, e um não atrapalha o outro.</p>
+
+<hr>
+
+<h2 id="estante">3. Uma classe sua no <code>foreach</code></h2>
+<p>A Ana criou uma classe <code>Estante</code> que guarda livros numa lista privada. Ao tentar percorrer a estante, o compilador reclama:</p>
+
+<pre class="file" data-file="semGet.cs">var estante = new Estante();
+foreach (string livro in estante)
+{
+    Console.WriteLine(livro);
+}
+
+class Estante
+{
+    private readonly List&lt;string&gt; livros = ["Dom Casmurro", "Vidas Secas"];
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run semGet.cs
+/home/ana/cs/semGet.cs(2,26): error CS1579: A instrução foreach não pode operar em variáveis do tipo 'Estante' porque 'Estante' não contém uma definição da extensão ou instância pública para 'GetEnumerator'
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A mensagem já diz o que falta: um <code>GetEnumerator</code> público. O jeito certo de dar isso à classe é implementar <code>IEnumerable&lt;string&gt;</code>. Como a estante guarda os livros numa <code>List</code>, ela pode simplesmente <strong>repassar</strong> o marcador da lista:</p>
+
+<pre class="file" data-file="estante.cs">using System.Collections;
+
+var estante = new Estante();
+estante.Guardar("Dom Casmurro");
+estante.Guardar("Vidas Secas");
+estante.Guardar("O Cortiço");
+
+foreach (string livro in estante)
+{
+    Console.WriteLine(livro);
+}
+Console.WriteLine(string.Join(" | ", estante));
+Console.WriteLine(estante.Count());
+
+class Estante : IEnumerable&lt;string&gt;
+{
+    private readonly List&lt;string&gt; livros = [];
+
+    public void Guardar(string livro) =&gt; livros.Add(livro);
+
+    public IEnumerator&lt;string&gt; GetEnumerator() =&gt; livros.GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() =&gt; GetEnumerator();
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run estante.cs
+Dom Casmurro
+Vidas Secas
+O Cortiço
+Dom Casmurro | Vidas Secas | O Cortiço      « o string.Join aceita qualquer IEnumerable
+3                                           « o Count() do LINQ também</pre>
+
+<dl class="anatomy">
+  <dt>using System.Collections;</dt><dd>Traz a versão <strong>antiga</strong>, sem <code>&lt;T&gt;</code>, de <code>IEnumerable</code> e <code>IEnumerator</code>. Ela não vem nos <code>using</code> automáticos, e a classe vai precisar dela (logo abaixo).</dd>
+  <dt>class Estante : IEnumerable&lt;string&gt;</dt><dd>"A estante pode ser percorrida, e entrega textos."</dd>
+  <dt>public IEnumerator&lt;string&gt; GetEnumerator() =&gt; livros.GetEnumerator();</dt><dd>O método que o <code>foreach</code> procura. Ele repassa o marcador da lista interna: percorrer a estante é percorrer a lista. O <code>=&gt;</code> é o corpo curto de um método (veja <a href="metodos.html">Métodos</a>).</dd>
+  <dt>IEnumerator IEnumerable.GetEnumerator() =&gt; GetEnumerator();</dt><dd>A interface <code>IEnumerable&lt;T&gt;</code> "herda" a antiga <code>IEnumerable</code>, de antes dos <a href="generics.html">generics</a>, e por isso a classe tem de ter também o <code>GetEnumerator</code> sem <code>&lt;T&gt;</code>. Escrito com o nome da interface na frente, ele é uma <strong>implementação explícita</strong>: fica escondido, só para quem usa a interface antiga. Ele apenas chama o de cima. Essa linha é sempre igual: copie e cole.</dd>
+</dl>
+
+<p>Repare no ganho: com <code>IEnumerable&lt;string&gt;</code>, a estante passou a funcionar também com o <code>string.Join</code>, com o <code>Count()</code> e com todo o <a href="linq.html">LINQ</a>, sem uma linha a mais. E os livros continuam <strong>privados</strong>: quem usa a estante pode percorrê-la, mas não pode fazer <code>Add</code> direto na lista (veja <a href="encapsulamento.html">Encapsulamento</a>).</p>
+
+<div class="tip">
+<strong>E se os itens não estão numa lista?</strong>
+<p>Aqui foi fácil porque havia uma <code>List</code> para repassar. Quando os itens são calculados (os números de 1 a 100, as linhas de um arquivo…), o C# tem um atalho que escreve o marcador para você: o <code>yield return</code>, assunto da próxima aula, <a href="yield.html">Iteradores</a>.</p>
+</div>
+
+<hr>
+
+<h2 id="regras">4. As regras do <code>foreach</code></h2>
+
+<h3>A variável do laço não pode ser trocada</h3>
+<pre class="file" data-file="iteracao.cs">int[] notas = [7, 8, 9];
+foreach (int n in notas)
+{
+    n = n + 1;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run iteracao.cs
+/home/ana/cs/iteracao.cs(4,5): error CS1656: Não é possível atribuir a "n" porque ele é um "variável de iteração foreach"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O <code>n</code> é uma <strong>cópia</strong> do item atual (o <code>Current</code>), só para leitura. Mudá-la não mudaria o array, e o compilador proíbe para evitar a confusão. Para mudar os itens de um array ou de uma lista, use um <a href="for.html">for</a> com índice: <code>notas[i] = notas[i] + 1;</code>.</p>
+
+<h3>A coleção não pode mudar no meio do percurso</h3>
+<pre class="file" data-file="modificada.cs">List&lt;string&gt; nomes = ["Ana", "Bruno", "Carla"];
+foreach (string nome in nomes)
+{
+    if (nome == "Bruno")
+        nomes.Remove(nome);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run modificada.cs
+Unhandled exception. System.InvalidOperationException: Collection was modified; enumeration operation may not execute.
+   at System.Collections.Generic.List`1.Enumerator.MoveNext()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/modificada.cs:line 2
+$ echo $?
+134</pre>
+
+<p>O marcador da lista anota a "versão" da lista quando é criado. Cada <code>Add</code> ou <code>Remove</code> muda a versão. No <code>MoveNext</code> seguinte, o marcador percebe que a lista não é mais a mesma e lança a <code>InvalidOperationException</code>: "a coleção foi modificada; a operação de enumeração não pode continuar". Por isso o rastro aponta a linha 2, a do <code>foreach</code>, e não a do <code>Remove</code>. As outras coleções fazem o mesmo (veja <a href="dictionary.html#modificar">Dictionary</a> e <a href="hashset.html#foreach">HashSet</a>).</p>
+
+<p>Dois consertos comuns:</p>
+
+<pre class="file" data-file="modificada2.cs">List&lt;string&gt; nomes = ["Ana", "Bruno", "Carla"];
+foreach (string nome in nomes.ToList())
+{
+    if (nome == "Bruno")
+        nomes.Remove(nome);
+}
+Console.WriteLine(string.Join(", ", nomes));
+
+nomes.RemoveAll(n =&gt; n.StartsWith("C"));
+Console.WriteLine(string.Join(", ", nomes));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run modificada2.cs
+Ana, Carla
+Ana</pre>
+
+<dl class="anatomy">
+  <dt>foreach (string nome in nomes.ToList())</dt><dd>O <code>ToList()</code> faz uma <strong>cópia</strong> da lista. O <code>foreach</code> percorre a cópia, e você pode mexer à vontade na original.</dd>
+  <dt>nomes.RemoveAll(n =&gt; n.StartsWith("C"))</dt><dd>A <code>List</code> tem um método pronto para "remover todos que…". O <code>n =&gt; …</code> é uma <a href="lambdas.html">lambda</a> com a condição.</dd>
+</dl>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS1579: A instrução foreach não pode operar em variáveis do tipo 'Estante' porque 'Estante' não contém uma definição … para 'GetEnumerator'</code></strong>
+<p><strong>O que significa:</strong> você usou <code>foreach</code> num objeto que não sabe ser percorrido. Em inglês: <code>foreach statement cannot operate on variables of type 'Estante' because 'Estante' does not contain a public instance or extension definition for 'GetEnumerator'</code>.</p>
+<p><strong>Como consertar:</strong> se a classe é sua, implemente <code>IEnumerable&lt;T&gt;</code> (<a href="#estante">seção 3</a>). Se não é, talvez exista uma propriedade com a coleção dentro dela (como <code>Keys</code> e <code>Values</code> do dicionário).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0738: "Estante" não implementa membro de interface "IEnumerable.GetEnumerator()"…</code></strong>
+<p><strong>O que significa:</strong> a classe diz <code>: IEnumerable&lt;string&gt;</code>, mas só tem o <code>GetEnumerator</code> com <code>&lt;T&gt;</code>. Falta o da versão antiga:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run faltaNaoGenerico.cs
+/home/ana/cs/faltaNaoGenerico.cs(3,17): error CS0738: "Estante" não implementa membro de interface "IEnumerable.GetEnumerator()". "Estante.GetEnumerator()" não pode implementar "IEnumerable.GetEnumerator()" porqu não tem o tipo de retorno correspondente de "IEnumerator".
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p>(O "porqu" sem "e" está assim mesmo na tradução do compilador.)</p>
+<p><strong>Como consertar:</strong> acrescente <code>using System.Collections;</code> no topo e a linha <code>IEnumerator IEnumerable.GetEnumerator() =&gt; GetEnumerator();</code> na classe.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1656: Não é possível atribuir a "n" porque ele é um "variável de iteração foreach"</code></strong>
+<p><strong>O que significa:</strong> você tentou trocar o valor da variável do <code>foreach</code>.</p>
+<p><strong>Como consertar:</strong> para calcular algo, use outra variável (<code>int maisUm = n + 1;</code>). Para mudar os itens da coleção, use <code>for</code> com índice.</p>
+</div>
+
+<div class="cenario">
+<strong><code>InvalidOperationException: Collection was modified; enumeration operation may not execute.</code></strong>
+<p><strong>O que significa:</strong> a coleção ganhou ou perdeu itens enquanto um <code>foreach</code> a percorria.</p>
+<p><strong>Como consertar:</strong> percorra uma cópia (<code>.ToList()</code>), use <code>RemoveAll</code>, ou anote as mudanças numa lista e faça-as depois do laço (<a href="#regras">seção 4</a>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1061: ‘IEnumerable&lt;string&gt;’ não contém uma definição para "Add"…</code></strong>
+<p><strong>O que significa:</strong> o parâmetro é <code>IEnumerable&lt;T&gt;</code>, que só sabe percorrer.</p>
+<p><strong>Como consertar:</strong> se o método precisa acrescentar, peça <code>List&lt;T&gt;</code> ou <code>ICollection&lt;T&gt;</code>. Se só precisa ler, tire o <code>Add</code> e devolva uma coleção nova.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que é</th></tr>
+<tr><td><code>IEnumerable&lt;T&gt;</code></td><td>"Pode ser percorrido e entrega <code>T</code>". Tem só <code>GetEnumerator()</code></td></tr>
+<tr><td><code>IEnumerator&lt;T&gt;</code></td><td>O marcador: <code>MoveNext()</code>, <code>Current</code>, <code>Dispose()</code></td></tr>
+<tr><td><code>void M(IEnumerable&lt;int&gt; xs)</code></td><td>Método que aceita qualquer coleção de <code>int</code></td></tr>
+<tr><td><code>class C : IEnumerable&lt;T&gt;</code></td><td>Classe sua no <code>foreach</code>; precisa dos dois <code>GetEnumerator</code></td></tr>
+<tr><td><code>public IEnumerator&lt;T&gt; GetEnumerator() =&gt; lista.GetEnumerator();</code></td><td>Repassa o marcador de uma lista interna</td></tr>
+<tr><td><code>IEnumerator IEnumerable.GetEnumerator() =&gt; GetEnumerator();</code></td><td>A versão antiga, sem <code>&lt;T&gt;</code> (com <code>using System.Collections;</code>)</td></tr>
+<tr><td><code>foreach (var x in colecao.ToList())</code></td><td>Percorre uma cópia, para poder mudar a original</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O tipo do parâmetro</h3>
+<p>Complete para o método aceitar array, lista ou conjunto de textos:</p>
+<div class="ex-code">void Listar(<input data-answer="IEnumerable&lt;string&gt;|IEnumerable &lt;string&gt;" aria-label="tipo"> nomes)</div>
+</div>
+
+<div class="exercise">
+<h3>2. Tem mais algum?</h3>
+<p>Complete o laço feito à mão:</p>
+<div class="ex-code">while (marcador.<input data-answer="MoveNext()" aria-label="método">) Console.WriteLine(marcador.Current);</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">3. Qual é o único método que a interface <code>IEnumerable&lt;T&gt;</code> exige?</p>
+<label><input type="radio" name="q3"> <code>Add</code></label>
+<label><input type="radio" name="q3"> <code>MoveNext</code></label>
+<label><input type="radio" name="q3"> <code>GetEnumerator</code></label>
+<label><input type="radio" name="q3"> <code>Count</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Dentro de um <code>foreach</code> sobre <code>nomes</code> (uma <code>List</code>), você chama <code>nomes.Remove(nome)</code>. O que acontece?</p>
+<label><input type="radio" name="q4"> Não compila (<code>CS1656</code>)</label>
+<label><input type="radio" name="q4"> <code>InvalidOperationException: Collection was modified</code>, na próxima volta do laço</label>
+<label><input type="radio" name="q4"> Funciona, e o laço pula o removido</label>
+<label><input type="radio" name="q4"> <code>KeyNotFoundException</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. Por que é bom um método pedir <code>IEnumerable&lt;T&gt;</code> em vez de <code>List&lt;T&gt;</code>, quando ele só percorre?</p>
+<label><input type="radio" name="q5"> Porque assim ele aceita qualquer coleção: array, lista, conjunto, fila…</label>
+<label><input type="radio" name="q5"> Porque <code>IEnumerable</code> é mais rápido para acrescentar itens</label>
+<label><input type="radio" name="q5"> Porque <code>List</code> não funciona no <code>foreach</code></label>
+<label><input type="radio" name="q5"> Porque <code>IEnumerable</code> ordena os itens</label>
+</div>
+
+<h3>Missão final: a estante no <code>foreach</code></h3>
+
+<div class="trycs" data-goal="out:Livro: Dom Casmurro,out:Livro: Vidas Secas,out:Livro: O Cortiço,exit:0,src:IEnumerable\s*&lt;\s*string\s*&gt;,src:GetEnumerator">
+<p class="try-task"><strong>Missão:</strong> rode e veja o erro <code>CS1579</code>. Faça a classe <code>Estante</code> implementar <code>IEnumerable&lt;string&gt;</code>, repassando o <code>GetEnumerator</code> da lista <code>livros</code> (não esqueça a versão sem <code>&lt;T&gt;</code> e o <code>using System.Collections;</code>), para o <code>foreach</code> mostrar os três livros.</p>
+<pre class="out">Livro: Dom Casmurro
+Livro: Vidas Secas
+Livro: O Cortiço</pre>
+<pre class="script">var estante = new Estante();
+estante.Guardar("Dom Casmurro");
+estante.Guardar("Vidas Secas");
+estante.Guardar("O Cortiço");
+
+foreach (string livro in estante)
+{
+    Console.WriteLine($"Livro: {livro}");
+}
+
+class Estante
+{
+    private readonly List&lt;string&gt; livros = [];
+
+    public void Guardar(string livro) =&gt; livros.Add(livro);
+}
+</pre>
+<pre class="solucao">using System.Collections;
+
+var estante = new Estante();
+estante.Guardar("Dom Casmurro");
+estante.Guardar("Vidas Secas");
+estante.Guardar("O Cortiço");
+
+foreach (string livro in estante)
+{
+    Console.WriteLine($"Livro: {livro}");
+}
+
+class Estante : IEnumerable&lt;string&gt;
+{
+    private readonly List&lt;string&gt; livros = [];
+
+    public void Guardar(string livro) =&gt; livros.Add(livro);
+
+    public IEnumerator&lt;string&gt; GetEnumerator() =&gt; livros.GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() =&gt; GetEnumerator();
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>IEnumerable&lt;T&gt;</code> quer dizer "pode ser percorrido, um <code>T</code> por vez". Arrays, todas as coleções e até <code>string</code> são <code>IEnumerable</code>.</li>
+  <li>Um método que só percorre deve pedir <code>IEnumerable&lt;T&gt;</code>: assim aceita qualquer coleção. Mas ele não tem <code>Add</code> nem <code>[ ]</code>.</li>
+  <li>Por dentro, o <code>foreach</code> pede um marcador (<code>GetEnumerator</code>), avança com <code>MoveNext</code>, lê <code>Current</code> e descarta o marcador no fim.</li>
+  <li>Uma classe sua entra no <code>foreach</code> implementando <code>IEnumerable&lt;T&gt;</code>, com os dois <code>GetEnumerator</code> (sem eles: <code>CS1579</code> ou <code>CS0738</code>).</li>
+  <li>A variável do <code>foreach</code> é só leitura (<code>CS1656</code>), e a coleção não pode ganhar nem perder itens no meio (<code>InvalidOperationException</code>): percorra uma cópia ou use <code>RemoveAll</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
