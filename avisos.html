@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Avisos do Compilador — warning CSxxxx, anuláveis e TreatWarningsAsErrors | Guia C#</title>
+<meta name="description" content="Os avisos do compilador C# para quem nunca programou: como ler arquivo(linha,coluna): warning CS0168, os avisos mais comuns (CS0168, CS0219, CS8600, CS8602, CS0162, CS0642, CS0665, CS1717, CS8321), por que o aviso some na segunda execução, TreatWarningsAsErrors, -warnaserror, NoWarn e #pragma, com mensagens reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Avisos do Compilador</span></h1>
+
+<p class="intro">Na aula anterior, os erros impediam o programa de rodar. Os <strong>avisos</strong> (<em>warnings</em>) são diferentes: o programa roda, mas o compilador encontrou algo com cara de engano e deixou um recado. Uma variável criada e nunca usada, um <code>;</code> que desliga um <code>if</code>, um valor que pode ser <code>null</code>: o programa compila, e às vezes até funciona no teste, para dar errado depois. Nesta aula você aprende a ler os avisos, conhece os mais comuns de quem começa, descobre por que um aviso "some" sozinho, e vê como transformar todos eles em erros, para nenhum passar despercebido.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como ler <code>arquivo(linha,coluna): warning CS0168: …</code> e o que muda em relação a um <code>error</code>.</li>
+  <li>Os avisos mais comuns: variável não usada (<code>CS0168</code>, <code>CS0219</code>), possível <code>null</code> (<code>CS8600</code>, <code>CS8602</code>), código que nunca roda (<code>CS0162</code>), <code>;</code> depois do <code>if</code> (<code>CS0642</code>), <code>=</code> no lugar de <code>==</code> (<code>CS0665</code>) e outros.</li>
+  <li>Por que o aviso aparece na primeira execução e some na segunda.</li>
+  <li>Como transformar avisos em erros: <code>TreatWarningsAsErrors</code> e <code>-warnaserror</code>.</li>
+  <li>Como silenciar um aviso de propósito (<code>#pragma</code>, <code>NoWarn</code>), e por que quase nunca deve.</li>
+</ul>
+</div>
+
+<p>Os programas desta aula foram rodados na máquina fictícia da Ana com o <strong>.NET 10 SDK</strong> (C# 14), na pasta <code>~/cs/avisos</code> com <code>dotnet run arquivo.cs</code> e no projeto <code>~/projetos/Avisos</code>. As mensagens saem em português; o código <code>CS</code> de cada uma é igual em qualquer língua, e a versão em inglês vem junto para você pesquisar.</p>
+
+<hr>
+
+<h2>A ideia: a luz do painel do carro</h2>
+<p>No painel do carro há dois tipos de luz. A <strong>vermelha</strong> (bateria, óleo) quer dizer "pare agora". A <strong>amarela</strong> (revisão, pneu meio vazio) quer dizer "o carro anda, mas tem algo a conferir". Dá para dirigir semanas com a luz amarela acesa. Até o dia em que o pneu fura na estrada.</p>
+
+<p>No compilador, o <code>error</code> é a luz vermelha: o programa não roda. O <code>warning</code> é a luz amarela: o programa roda, mas algo merece uma olhada. Quem programa há tempo tem uma regra simples: <strong>não deixar luz amarela acesa</strong>.</p>
+
+<hr>
+
+<h2>1. Anatomia de um aviso</h2>
+
+<pre class="file" data-file="naousada.cs">int idade;
+int pontos = 10;
+Console.WriteLine("Placar do jogo");
+</pre>
+
+<pre class="term" data-cwd="~/cs/avisos">$ dotnet run naousada.cs; echo "código de saída: $?"
+/home/ana/cs/avisos/naousada.cs(1,5): warning CS0168: A variável "idade" está declarada, mas nunca é usada
+/home/ana/cs/avisos/naousada.cs(2,5): warning CS0219: A variável "pontos" é atribuída, mas seu valor nunca é usado
+Placar do jogo
+código de saída: 0</pre>
+
+<p>O formato é o mesmo dos erros (aula <a href="erros-compilacao.html">Lendo Erros do Compilador</a>): arquivo, <code>(linha,coluna)</code>, tipo, código e descrição. A diferença está no resto:</p>
+<ul>
+  <li>O tipo é <code>warning</code> ("aviso"), e não <code>error</code>.</li>
+  <li><strong>O programa rodou</strong>: <code>Placar do jogo</code> apareceu logo depois dos avisos.</li>
+  <li>Não há <code>Ocorreu uma falha no build.</code>, e o código de saída é 0.</li>
+</ul>
+
+<dl class="anatomy">
+  <dt>CS0168 · "idade" está declarada, mas nunca é usada</dt><dd>A Ana criou a variável <code>idade</code> (aula <a href="variaveis.html">Variáveis</a>) e não fez nada com ela. A coluna 5 aponta o nome. Em inglês: <code>The variable 'idade' is declared but never used</code>.</dd>
+  <dt>CS0219 · "pontos" é atribuída, mas seu valor nunca é usado</dt><dd>Parecido, mas a <code>pontos</code> até recebeu um valor (o 10), que ninguém lê depois. Em inglês: <code>The variable 'pontos' is assigned but its value is never used</code>.</dd>
+</dl>
+
+<p>Esses dois são inofensivos? Às vezes. Mas muitas vezes eles denunciam um engano de verdade: a Ana queria mostrar os pontos no placar e esqueceu. Ou escreveu o nome errado na linha que deveria usar a variável.</p>
+
+<div class="trycs" data-goal="outre:^Placar do jogo\nPontos: 10\n$,semaviso">
+<p class="try-task"><strong>Missão:</strong> rode e leia os dois avisos. A Ana queria mostrar os pontos, e a variável <code>vidas</code> sobrou de uma ideia antiga. Apague a linha da <code>vidas</code> e acrescente uma linha que mostre <code>Pontos: 10</code> usando a variável <code>pontos</code> (por exemplo, com <code>$"Pontos: {pontos}"</code>). Nenhum aviso pode sobrar.</p>
+<pre class="script">int pontos = 10;
+int vidas;
+Console.WriteLine("Placar do jogo");
+</pre>
+<pre class="solucao">int pontos = 10;
+Console.WriteLine("Placar do jogo");
+Console.WriteLine($"Pontos: {pontos}");
+</pre>
+</div>
+
+<hr>
+
+<h2>2. O aviso que some sozinho</h2>
+<p>A Ana rodou o mesmo arquivo de novo, sem mudar nada:</p>
+
+<pre class="term" data-cwd="~/cs/avisos">$ dotnet run naousada.cs
+Placar do jogo           « cadê os avisos?</pre>
+
+<p>Os avisos sumiram, mas o problema continua lá. O motivo: para ganhar tempo, o <code>dotnet</code> guarda o programa já compilado. Se o arquivo não mudou, ele não compila de novo, só roda a versão guardada, e o compilador nem chega a dar os avisos. Num projeto, acontece o mesmo com o <code>dotnet build</code> logo depois de um <code>dotnet run</code>:</p>
+
+<pre class="term" data-cwd="~/projetos/Avisos">$ dotnet run
+/home/ana/projetos/Avisos/Program.cs(1,5): warning CS0168: A variável "idade" está declarada, mas nunca é usada [/home/ana/projetos/Avisos/Avisos.csproj]
+Placar do jogo
+$ dotnet run
+Placar do jogo
+$ dotnet build
+  Determinando os projetos a serem restaurados...
+  Todos os projetos estão atualizados para restauração.
+  Avisos -&gt; /home/ana/projetos/Avisos/bin/Debug/net10.0/Avisos.dll
+
+Compilação com êxito.
+    0 Aviso(s)                « zero? o aviso continua no código!
+    0 Erro(s)
+
+Tempo Decorrido 00:00:01.31</pre>
+
+<p>Para ver todos os avisos de novo, peça uma compilação do zero com <code>--no-incremental</code> ("não incremental", ou seja, sem aproveitar o que já foi compilado):</p>
+
+<pre class="term" data-cwd="~/projetos/Avisos">$ dotnet build --no-incremental 2&gt;&amp;1 | tail -5
+/home/ana/projetos/Avisos/Program.cs(1,5): warning CS0168: A variável "idade" está declarada, mas nunca é usada [/home/ana/projetos/Avisos/Avisos.csproj]
+    1 Aviso(s)
+    0 Erro(s)
+
+Tempo Decorrido 00:00:01.61</pre>
+
+<p>(O <code>2&gt;&amp;1 | tail -5</code> mostra só as 5 últimas linhas.) A lição: <strong>leia os avisos na hora em que eles aparecem</strong>, e não confie que "rodou sem aviso" na segunda vez. Os editores, como o VS Code, mostram os avisos o tempo todo, sublinhados em amarelo ou verde, e não têm esse problema. No editor do guia, o botão <strong>Rodar</strong> compila o código a cada clique.</p>
+
+<hr>
+
+<h2>3. Os avisos de <code>null</code>: <code>CS8600</code> e <code>CS8602</code></h2>
+<p>Estes são os avisos que quem começa mais vê, logo no primeiro programa que lê do teclado:</p>
+
+<pre class="file" data-file="nulo.cs">Console.Write("Seu nome: ");
+string nome = Console.ReadLine();
+Console.WriteLine($"Olá, {nome}! Seu nome tem {nome.Length} letras.");
+</pre>
+
+<pre class="term" data-cwd="~/cs/avisos">$ echo Ana | dotnet run nulo.cs
+/home/ana/cs/avisos/nulo.cs(2,15): warning CS8600: Conversão de literal nula ou possível valor nulo em tipo não anulável.
+/home/ana/cs/avisos/nulo.cs(3,48): warning CS8602: Desreferência de uma referência possivelmente nula.
+Seu nome: Olá, Ana! Seu nome tem 3 letras.</pre>
+
+<p>(O <code>echo Ana |</code> digita "Ana" para o programa; o <code>Console.ReadLine</code> lê o que foi digitado, aula <a href="readline.html">Ler do Teclado</a>.) Funcionou. Então por que os avisos?</p>
+
+<p>O <code>Console.ReadLine()</code> pode devolver <code>null</code>, que quer dizer "nenhum valor": acontece quando não há mais nada para ler, por exemplo quando a entrada acaba antes de a pessoa digitar alguma coisa. O compilador sabe disso e avisa:</p>
+
+<dl class="anatomy">
+  <dt>CS8600 · (2,15)</dt><dd>"Conversão de possível valor nulo em tipo não anulável": o <code>string</code> da linha 2 promete que <code>nome</code> sempre tem um texto, mas o <code>ReadLine()</code> pode não ter. Em inglês: <code>Converting null literal or possible null value to non-nullable type.</code></dd>
+  <dt>CS8602 · (3,48)</dt><dd>"Desreferência de uma referência possivelmente nula": na coluna 48 está o <code>nome.Length</code>. Pedir o tamanho de um nome que não existe é pedir o tamanho de nada. Em inglês: <code>Dereference of a possibly null reference.</code></dd>
+</dl>
+
+<p>E o compilador tem razão. Sem nenhuma entrada (o <code>&lt; /dev/null</code> faz a entrada acabar na hora), o programa cai:</p>
+
+<pre class="term" data-cwd="~/cs/avisos">$ dotnet run nulo.cs &lt; /dev/null; echo "código de saída: $?"
+Seu nome: Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/avisos/nulo.cs:line 3
+código de saída: 134</pre>
+
+<p>A <code>NullReferenceException</code> ("referência a objeto não definida") é uma das exceções mais famosas do .NET. O aviso <code>CS8602</code> estava apontando exatamente a linha 3. É para isso que serve a linha <code>&lt;Nullable&gt;enable&lt;/Nullable&gt;</code> do <code>.csproj</code> (aula <a href="projetos-console.html">Projetos</a>): ela liga esses avisos, e o guia recomenda deixá-la sempre ligada.</p>
+
+<h3>O conserto mais simples</h3>
+<p>Diga o que usar quando vier <code>null</code>. O operador <code>??</code> quer dizer "se for nulo, use isto" (aula <a href="operadores-null.html">Operadores ??, ?. e ??=</a>):</p>
+
+<pre class="file" data-file="nulo3.cs">Console.Write("Seu nome: ");
+string nome = Console.ReadLine() ?? "";
+Console.WriteLine($"Olá, {nome}! Seu nome tem {nome.Length} letras.");
+</pre>
+
+<pre class="term" data-cwd="~/cs/avisos">$ echo Ana | dotnet run nulo3.cs
+Seu nome: Olá, Ana! Seu nome tem 3 letras.
+$ dotnet run nulo3.cs &lt; /dev/null
+Seu nome: Olá, ! Seu nome tem 0 letras.</pre>
+
+<p>Nenhum aviso, e sem entrada o programa não cai mais: o <code>nome</code> vira um texto vazio, com 0 letras. Trocar só o tipo para <code>string?</code> ("texto ou nulo") não resolve: o <code>CS8600</code> some, mas o <code>CS8602</code> continua, porque o <code>nome.Length</code> segue perigoso:</p>
+
+<pre class="term" data-cwd="~/cs/avisos">$ echo Ana | dotnet run nulo2.cs                « string? nome = Console.ReadLine();
+/home/ana/cs/avisos/nulo2.cs(3,48): warning CS8602: Desreferência de uma referência possivelmente nula.
+Seu nome: Olá, Ana! Seu nome tem 3 letras.</pre>
+
+<p>O assunto completo está em <a href="null.html">null e Tipos Anuláveis</a> e <a href="referencias-anulaveis.html">Referências Anuláveis</a>.</p>
+
+<hr>
+
+<h2>4. Avisos que apontam um engano de lógica</h2>
+<p>Estes avisos são valiosos porque pegam erros que <strong>compilam</strong> e que você talvez nem percebesse ao testar. (Vários usam o <code>if</code>, que tem aula própria, <a href="if-else.html">if e else</a>. Por enquanto, leia <code>if (…)</code> como "se…".)</p>
+
+<h3><code>CS0642</code>: o <code>;</code> depois do <code>if</code></h3>
+
+<pre class="file" data-file="pontovirgula.cs">int idade = 15;
+if (idade &gt;= 18);
+{
+    Console.WriteLine("Pode dirigir.");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/avisos">$ dotnet run pontovirgula.cs
+/home/ana/cs/avisos/pontovirgula.cs(2,17): warning CS0642: Instrução empty possivelmente incorreta
+Pode dirigir.            « com 15 anos!</pre>
+
+<p>"Instrução vazia possivelmente incorreta" (a tradução deixou o <em>empty</em> em inglês). O <code>;</code> logo depois do <code>if (…)</code> é uma instrução vazia: o <code>if</code> controla esse "nada", e o bloco de baixo roda <strong>sempre</strong>. Uma menina de 15 anos foi liberada para dirigir. Em inglês: <code>Possible mistaken empty statement</code>. <strong>Conserto:</strong> apague o <code>;</code> do fim da linha do <code>if</code> (aula <a href="sintaxe.html">Sintaxe</a>: <code>if</code> e <code>}</code> não levam <code>;</code>).</p>
+
+<div class="trycs" data-goal="outre:^Fim\.\n$,semaviso">
+<p class="try-task"><strong>Missão:</strong> o programa diz que a Ana, com 15 anos, pode dirigir. Leia o aviso <code>CS0642</code> e conserte com <strong>um caractere</strong>, para o programa mostrar só <code>Fim.</code>, sem avisos.</p>
+<pre class="script">int idade = 15;
+if (idade &gt;= 18);
+{
+    Console.WriteLine("Pode dirigir.");
+}
+Console.WriteLine("Fim.");
+</pre>
+<pre class="solucao">int idade = 15;
+if (idade &gt;= 18)
+{
+    Console.WriteLine("Pode dirigir.");
+}
+Console.WriteLine("Fim.");
+</pre>
+</div>
+
+<h3><code>CS0665</code>: <code>=</code> no lugar de <code>==</code></h3>
+
+<pre class="file" data-file="atrib.cs">bool aberto = false;
+if (aberto = true)
+{
+    Console.WriteLine("A loja está aberta.");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/avisos">$ dotnet run atrib.cs
+/home/ana/cs/avisos/atrib.cs(2,5): warning CS0665: Atribuição em expressão condicional é sempre constante. Deseja usar == em vez de = ?
+/home/ana/cs/avisos/atrib.cs(1,6): warning CS0219: A variável "aberto" é atribuída, mas seu valor nunca é usado
+A loja está aberta.      « mas aberto era false!</pre>
+
+<p>Um <code>=</code> só <strong>guarda</strong> um valor; para <strong>comparar</strong>, são dois: <code>==</code> (aula <a href="operadores-comparacao.html">Operadores de Comparação</a>). <code>aberto = true</code> guarda <code>true</code> na variável, e o <code>if</code> sempre vê <code>true</code>. O próprio aviso sugere o conserto: "Deseja usar <code>==</code> em vez de <code>=</code>?". Em inglês: <code>Assignment in conditional expression is always constant; did you mean to use == instead of = ?</code>. E o <code>CS0219</code> veio junto porque o valor guardado na linha 1 nunca chegou a ser lido.</p>
+
+<h3>Outros que aparecem cedo</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Exemplo</th><th>Mensagem (pt) / em inglês</th><th>O que fazer</th></tr>
+<tr><td><code>CS0162</code></td><td><code>return;</code> e, embaixo, <code>Console.WriteLine("Fim");</code></td><td><code>Código inacessível detectado</code> / <code>Unreachable code detected</code></td><td>A linha nunca roda: depois do <code>return</code>, o programa já terminou. Apague-a ou mude a ordem.</td></tr>
+<tr><td><code>CS1717</code></td><td><code>pontos = pontos;</code></td><td><code>Atribuição feita à mesma variável. Você pretendia atribuir outro elemento?</code> / <code>Assignment made to same variable; did you mean to assign something else?</code></td><td>Provavelmente faltou uma conta (<code>pontos = pontos + 1;</code>) ou é outra variável.</td></tr>
+<tr><td><code>CS8321</code></td><td>uma função <code>void Ajuda()</code> que ninguém chama</td><td><code>A função local 'Ajuda' está declarada, mas nunca é usada</code> / <code>The local function 'Ajuda' is declared but never used</code></td><td>Chame-a, ou apague-a (aula <a href="funcoes-locais.html">Funções Locais</a>).</td></tr>
+<tr><td><code>CS7022</code></td><td>instruções soltas e um <code>Main</code> no mesmo programa</td><td><code>O ponto de entrada do programa é o código global…</code></td><td>Uma forma só (aula <a href="top-level.html">Program.cs e o Main</a>).</td></tr>
+</table>
+</div>
+
+<p>As saídas reais, para conferir:</p>
+
+<pre class="term" data-cwd="~/cs/avisos">$ dotnet run inalcancavel.cs
+/home/ana/cs/avisos/inalcancavel.cs(3,1): warning CS0162: Código inacessível detectado
+Início
+$ dotnet run mesma.cs
+/home/ana/cs/avisos/mesma.cs(2,1): warning CS1717: Atribuição feita à mesma variável. Você pretendia atribuir outro elemento?
+10
+$ dotnet run funcao.cs
+/home/ana/cs/avisos/funcao.cs(3,6): warning CS8321: A função local 'Ajuda' está declarada, mas nunca é usada
+Olá!</pre>
+
+<div class="note">
+<strong>Avisos com outras letras</strong>
+<p>Além dos <code>CS…</code>, do compilador, você vai encontrar avisos que começam com outras letras: <code>CA…</code> e <code>IDE…</code> (dos <strong>analisadores</strong> de código, que sugerem melhorias e aparecem muito nos editores), <code>SYSLIB…</code> (algo do .NET que ficou obsoleto) e <code>NU…</code> (dos pacotes NuGet). Eles se leem do mesmo jeito: pesquise pelo código.</p>
+</div>
+
+<hr>
+
+<h2>5. Avisos como erros: <code>TreatWarningsAsErrors</code></h2>
+<p>Num projeto grande, um aviso novo some no meio de outros cinquenta. Por isso muitas equipes mandam o compilador tratar <strong>todo aviso como erro</strong>: assim, ninguém consegue deixar um para trás. Para fazer isso numa compilação só, use <code>-warnaserror</code> ("avisos como erro"):</p>
+
+<pre class="term" data-cwd="~/projetos/Avisos">$ dotnet build -warnaserror --no-incremental; echo "código de saída: $?"
+  Determinando os projetos a serem restaurados...
+  Todos os projetos estão atualizados para restauração.
+/home/ana/projetos/Avisos/Program.cs(1,5): error CS0168: A variável "idade" está declarada, mas nunca é usada [/home/ana/projetos/Avisos/Avisos.csproj]
+  Avisos -&gt; /home/ana/projetos/Avisos/bin/Debug/net10.0/Avisos.dll
+
+FALHA da compilação.
+
+/home/ana/projetos/Avisos/Program.cs(1,5): error CS0168: A variável "idade" está declarada, mas nunca é usada [/home/ana/projetos/Avisos/Avisos.csproj]
+    0 Aviso(s)
+    1 Erro(s)
+
+Tempo Decorrido 00:00:01.65
+código de saída: 1</pre>
+
+<p>O mesmo <code>CS0168</code>, agora como <code>error</code>, e a compilação falhou. Para deixar isso ligado sempre, ponha a linha <code>TreatWarningsAsErrors</code> ("tratar avisos como erros") no <code>.csproj</code>:</p>
+
+<pre class="file" data-file="Avisos.csproj">&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+
+  &lt;PropertyGroup&gt;
+    &lt;OutputType&gt;Exe&lt;/OutputType&gt;
+    &lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;
+    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+    &lt;Nullable&gt;enable&lt;/Nullable&gt;
+    &lt;TreatWarningsAsErrors&gt;true&lt;/TreatWarningsAsErrors&gt;
+  &lt;/PropertyGroup&gt;
+
+&lt;/Project&gt;
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Avisos">$ dotnet run; echo "código de saída: $?"
+/home/ana/projetos/Avisos/Program.cs(1,5): error CS0168: A variável "idade" está declarada, mas nunca é usada [/home/ana/projetos/Avisos/Avisos.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.
+código de saída: 1</pre>
+
+<p>Num arquivo solto, a mesma opção vai numa linha <code>#:property</code> no topo (aula <a href="dotnet-run.html">Rodar com dotnet run</a>):</p>
+
+<pre class="file" data-file="estrito.cs">#:property TreatWarningsAsErrors=true
+int idade;
+Console.WriteLine("Placar do jogo");
+</pre>
+
+<pre class="term" data-cwd="~/cs/avisos">$ dotnet run estrito.cs
+/home/ana/cs/avisos/estrito.cs(2,5): error CS0168: A variável "idade" está declarada, mas nunca é usada
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<div class="tip">
+<strong>Para quem está aprendendo</strong>
+<p>Ligar o <code>TreatWarningsAsErrors</code> desde o começo é um ótimo hábito: ele obriga a ler cada aviso. Se isso atrapalhar enquanto você experimenta, deixe-o desligado, mas mantenha a regra de terminar cada programa <strong>sem nenhum aviso</strong>. É o que as missões do guia com a meta "sem avisos" conferem.</p>
+</div>
+
+<hr>
+
+<h2>6. Silenciar um aviso (com cuidado)</h2>
+<p>Às vezes você tem certeza de que um aviso não se aplica. Existem duas formas de silenciá-lo. A primeira vale para um trecho do arquivo, entre um <code>#pragma warning disable</code> ("desligar aviso") e um <code>#pragma warning restore</code> ("restaurar"):</p>
+
+<pre class="file" data-file="Program.cs">#pragma warning disable CS0168
+int idade;
+#pragma warning restore CS0168
+Console.WriteLine("Placar do jogo");
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Avisos">$ dotnet run
+Placar do jogo</pre>
+
+<p>A segunda vale para o projeto inteiro, no <code>.csproj</code>: <code>&lt;NoWarn&gt;$(NoWarn);CS0168&lt;/NoWarn&gt;</code> ("sem aviso"). O <code>$(NoWarn);</code> no começo mantém os avisos que o próprio .NET já silencia por padrão e acrescenta o seu.</p>
+
+<div class="warning">
+<strong>Silenciar não conserta</strong>
+<p>Os dois jogam a sujeira para baixo do tapete. Neste exemplo, o certo é <strong>apagar</strong> a variável que não é usada. Use o <code>#pragma</code> só quando tiver um motivo forte, e escreva o motivo num comentário ao lado (aula <a href="comentarios.html">Comentários</a>). Nunca silencie os avisos de <code>null</code> só para "limpar a tela": eles apontam programas que caem.</p>
+</div>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>"Rodei de novo e o aviso sumiu"</strong>
+<p><strong>O que significa:</strong> o arquivo não mudou, e o <code>dotnet</code> rodou a versão já compilada, sem compilar (seção 2). O problema continua no código.</p>
+<p><strong>Como consertar:</strong> leia os avisos na primeira vez. Para vê-los de novo, mude o arquivo ou use <code>dotnet build --no-incremental</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS8600</code> / <code>CS8602</code> em todo <code>Console.ReadLine()</code></strong>
+<p><strong>O que significa:</strong> o <code>ReadLine()</code> pode devolver <code>null</code>, e o código usa o resultado como se ele sempre existisse (seção 3).</p>
+<p><strong>Como consertar:</strong> <code>string nome = Console.ReadLine() ?? "";</code>. Não desligue o <code>Nullable</code> do <code>.csproj</code> para fazer o aviso sumir.</p>
+</div>
+
+<div class="cenario">
+<strong>O programa compila sem erros, mas faz a coisa errada</strong>
+<p><strong>O que significa:</strong> muitas vezes, havia um aviso que explicava tudo: <code>CS0642</code> (<code>;</code> depois do <code>if</code>), <code>CS0665</code> (<code>=</code> no lugar de <code>==</code>), <code>CS0162</code> (código que nunca roda).</p>
+<p><strong>Como consertar:</strong> role a saída para cima e leia os avisos. Na dúvida, <code>dotnet build --no-incremental</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Com <code>TreatWarningsAsErrors</code>, o programa não roda mais</strong>
+<p><strong>O que significa:</strong> era essa a ideia: todo aviso agora é um <code>error</code>.</p>
+<p><strong>Como consertar:</strong> conserte os avisos, um por um. Se precisar rodar com pressa, desligue a opção (<code>false</code>) temporariamente.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Em português</th><th>Em inglês</th><th>Causa comum</th></tr>
+<tr><td><code>CS0168</code></td><td><code>A variável "x" está declarada, mas nunca é usada</code></td><td><code>The variable 'x' is declared but never used</code></td><td>Variável esquecida</td></tr>
+<tr><td><code>CS0219</code></td><td><code>A variável "x" é atribuída, mas seu valor nunca é usado</code></td><td><code>The variable 'x' is assigned but its value is never used</code></td><td>Valor guardado e nunca lido</td></tr>
+<tr><td><code>CS8600</code></td><td><code>Conversão de literal nula ou possível valor nulo em tipo não anulável.</code></td><td><code>Converting null literal or possible null value to non-nullable type.</code></td><td><code>string x = Console.ReadLine();</code></td></tr>
+<tr><td><code>CS8602</code></td><td><code>Desreferência de uma referência possivelmente nula.</code></td><td><code>Dereference of a possibly null reference.</code></td><td><code>x.Length</code> com <code>x</code> talvez nulo</td></tr>
+<tr><td><code>CS0162</code></td><td><code>Código inacessível detectado</code></td><td><code>Unreachable code detected</code></td><td>Código depois de <code>return</code></td></tr>
+<tr><td><code>CS0642</code></td><td><code>Instrução empty possivelmente incorreta</code></td><td><code>Possible mistaken empty statement</code></td><td><code>if (…);</code></td></tr>
+<tr><td><code>CS0665</code></td><td><code>Atribuição em expressão condicional é sempre constante…</code></td><td><code>Assignment in conditional expression is always constant…</code></td><td><code>if (x = true)</code></td></tr>
+<tr><td><code>CS1717</code></td><td><code>Atribuição feita à mesma variável…</code></td><td><code>Assignment made to same variable…</code></td><td><code>x = x;</code></td></tr>
+<tr><td><code>CS8321</code></td><td><code>A função local 'f' está declarada, mas nunca é usada</code></td><td><code>The local function 'f' is declared but never used</code></td><td>Função que ninguém chama</td></tr>
+</table>
+</div>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Ferramenta</th><th>O que faz</th></tr>
+<tr><td><code>dotnet build --no-incremental</code></td><td>Compila tudo de novo e mostra todos os avisos</td></tr>
+<tr><td><code>dotnet build -warnaserror</code></td><td>Trata os avisos como erros nesta compilação</td></tr>
+<tr><td><code>&lt;TreatWarningsAsErrors&gt;true&lt;/TreatWarningsAsErrors&gt;</code></td><td>No <code>.csproj</code>: avisos como erros, sempre</td></tr>
+<tr><td><code>#:property TreatWarningsAsErrors=true</code></td><td>O mesmo, num arquivo solto</td></tr>
+<tr><td><code>#pragma warning disable CSxxxx</code> … <code>restore CSxxxx</code></td><td>Silencia um aviso num trecho</td></tr>
+<tr><td><code>&lt;NoWarn&gt;$(NoWarn);CSxxxx&lt;/NoWarn&gt;</code></td><td>Silencia um aviso no projeto todo</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O tipo</h3>
+<p>Que palavra, no lugar de <code>error</code>, indica um aviso na mensagem do compilador?</p>
+<div class="ex-code"><input data-answer="warning" aria-label="tipo"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Tudo de novo</h3>
+<p>Complete a opção que faz o <code>dotnet build</code> compilar tudo do zero e mostrar os avisos de novo:</p>
+<div class="ex-code">dotnet build <input data-answer="--no-incremental" aria-label="opção"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Sem <code>null</code></h3>
+<p>Complete o conserto do <code>CS8600</code>, para usar um texto vazio quando não vier nada:</p>
+<div class="ex-code">string nome = Console.ReadLine() <input data-answer="?? &quot;&quot;|??&quot;&quot;" aria-label="conserto">;</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O compilador mostrou dois <code>warning</code> e nenhum <code>error</code>. O que acontece com o programa?</p>
+<label><input type="radio" name="q4"> Não roda até você consertar os avisos.</label>
+<label><input type="radio" name="q4"> Roda normalmente, mas os avisos podem indicar enganos.</label>
+<label><input type="radio" name="q4"> Roda só a parte sem aviso.</label>
+<label><input type="radio" name="q4"> Roda e termina com o código de saída 1.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. <code>int idade = 15; if (idade &gt;= 18); { Console.WriteLine("Pode"); }</code>: o que acontece?</p>
+<label><input type="radio" name="q5"> Erro de compilação, e nada aparece.</label>
+<label><input type="radio" name="q5"> Nada aparece, porque 15 é menor que 18.</label>
+<label><input type="radio" name="q5"> Erro ao rodar (exceção).</label>
+<label><input type="radio" name="q5"> Aviso <code>CS0642</code>, e <code>Pode</code> aparece mesmo assim.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. A Ana rodou <code>dotnet run aviso.cs</code> duas vezes, sem mudar o arquivo. Os avisos só apareceram na primeira. Por quê?</p>
+<label><input type="radio" name="q6"> Na segunda, o <code>dotnet</code> reaproveitou o programa já compilado, e o compilador nem rodou.</label>
+<label><input type="radio" name="q6"> O compilador consertou o código sozinho.</label>
+<label><input type="radio" name="q6"> Os avisos só aparecem uma vez por dia.</label>
+<label><input type="radio" name="q6"> A segunda execução usou o <code>TreatWarningsAsErrors</code>.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">7. Qual é a melhor forma de lidar com <code>warning CS0168: A variável "total" está declarada, mas nunca é usada</code>?</p>
+<label><input type="radio" name="q7"> <code>#pragma warning disable CS0168</code> no topo do arquivo.</label>
+<label><input type="radio" name="q7"> <code>&lt;NoWarn&gt;CS0168&lt;/NoWarn&gt;</code> no <code>.csproj</code>.</label>
+<label><input type="radio" name="q7"> Usar a variável onde ela deveria ser usada, ou apagá-la.</label>
+<label><input type="radio" name="q7"> Ignorar: avisos não importam.</label>
+</div>
+
+<h3>Missão final: zero avisos</h3>
+
+<div class="trycs" data-stdin="Ana" data-goal="out:Olá\, Ana! Bem-vinda de volta.,semaviso,src:==">
+<p class="try-task"><strong>Missão:</strong> o programa da lojinha funciona, mas tem <strong>quatro avisos</strong>. Rode e conserte cada um, sem mudar o que o programa mostra: o possível <code>null</code> do <code>ReadLine</code> (use <code>?? ""</code>), a variável que não é usada (apague-a) e o <code>=</code> que deveria ser <code>==</code>. Repare que consertar o <code>=</code> resolve dois avisos de uma vez. A caixa já digita <code>Ana</code> para você.</p>
+<pre class="script">Console.Write("Seu nome: ");
+string nome = Console.ReadLine();
+int idade;
+bool cliente = true;
+if (cliente = true)
+{
+    Console.WriteLine($"Olá, {nome}! Bem-vinda de volta.");
+}
+</pre>
+<pre class="solucao">Console.Write("Seu nome: ");
+string nome = Console.ReadLine() ?? "";
+bool cliente = true;
+if (cliente == true)
+{
+    Console.WriteLine($"Olá, {nome}! Bem-vinda de volta.");
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um <strong>aviso</strong> tem o formato <code>arquivo(linha,coluna): warning CSxxxx: descrição</code>. O programa roda, mas algo tem cara de engano.</li>
+  <li>Os mais comuns no começo: variável não usada (<code>CS0168</code>, <code>CS0219</code>), possível <code>null</code> (<code>CS8600</code>, <code>CS8602</code>; conserto: <code>?? ""</code>), código inacessível (<code>CS0162</code>), <code>;</code> depois do <code>if</code> (<code>CS0642</code>), <code>=</code> no lugar de <code>==</code> (<code>CS0665</code>).</li>
+  <li>O aviso aparece quando o código é compilado. Rodando de novo sem mudar nada, ele não aparece, mas continua lá: use <code>dotnet build --no-incremental</code>.</li>
+  <li><code>TreatWarningsAsErrors</code> (ou <code>-warnaserror</code>) transforma avisos em erros, para nenhum passar.</li>
+  <li><code>#pragma warning disable</code> e <code>NoWarn</code> silenciam avisos, mas não consertam nada. Use com motivo e comentário.</li>
+  <li>A regra do guia: <strong>todo programa termina sem avisos</strong>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
