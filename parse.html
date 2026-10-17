@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Texto → Número — int.Parse, double.Parse e TryParse | Guia C#</title>
+<meta name="description" content="Como transformar texto em número em C# para quem nunca programou: int.Parse, double.Parse e decimal.Parse, as exceções FormatException, OverflowException e ArgumentNullException, por que double.Parse(&quot;3.5&quot;) dá 35 no Ubuntu em português (cultura pt-BR) e como usar CultureInfo.InvariantCulture, e o TryParse com out para ler números do teclado sem o programa parar, com saídas reais do .NET 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Texto → Número</span></h1>
+
+<p class="intro">Tudo o que o usuário digita chega ao programa como <strong>texto</strong>. Mesmo que ele digite <code>29</code>, o programa recebe a string <code>"29"</code>, e com uma string não dá para fazer contas. O mesmo vale para números que vêm de um arquivo ou de um site. Nesta aula você vai aprender a transformar texto em número com <code>Parse</code>, ver as exceções que aparecem quando o texto não é um número, descobrir por que <code>"3.5"</code> vira <strong>35</strong> num computador em português, e usar o <code>TryParse</code>, o jeito seguro de ler números do teclado.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Por que <code>"29" + 1</code> dá <code>"291"</code>, e como converter com <code>int.Parse</code>, <code>double.Parse</code> e <code>decimal.Parse</code>.</li>
+  <li>As exceções do <code>Parse</code>: <code>FormatException</code>, <code>OverflowException</code> e <code>ArgumentNullException</code>.</li>
+  <li>A <strong>cultura</strong>: por que <code>double.Parse("3.5")</code> dá <code>35</code> no Ubuntu em português, e o <code>CultureInfo.InvariantCulture</code>.</li>
+  <li>O <code>TryParse</code> com <code>out</code>: converter sem o programa parar.</li>
+  <li>Ler um número do teclado com <code>Console.ReadLine</code> + <code>TryParse</code>.</li>
+  <li><code>bool.Parse</code>, <code>char.Parse</code> e o <code>Convert.ToInt32</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>, Ubuntu em português do Brasil), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: o número escrito no papel</h2>
+<p>Alguém deixa um bilhete para a Ana: "comprei 29 laranjas". O bilhete tem os <strong>desenhos</strong> <code>2</code> e <code>9</code>, mas para somar com as laranjas que ela já tem, ela precisa <strong>ler</strong> o bilhete e entender que ali está o número vinte e nove.</p>
+<p>No C#, a string <code>"29"</code> é o bilhete: dois caracteres, <code>'2'</code> e <code>'9'</code>. O <code>int</code> <code>29</code> é o número. "Ler o bilhete" se chama <strong>parse</strong> (em inglês, "analisar"): olhar o texto, conferir se ele forma um número e calcular esse número.</p>
+
+<hr>
+
+<h2>1. <code>Parse</code>: de texto para número</h2>
+
+<pre class="file" data-file="parse1.cs">string texto = "29";
+int idade = int.Parse(texto);
+Console.WriteLine(idade + 1);
+Console.WriteLine(texto + 1);
+double altura = double.Parse("1,65");
+decimal preco = decimal.Parse("19,90");
+long grande = long.Parse("8100000000");
+Console.WriteLine(altura * 2);
+Console.WriteLine(preco * 2);
+Console.WriteLine(grande);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run parse1.cs
+30         « o número 29, mais 1
+291        « o texto "29", com "1" grudado
+3,3
+39,80
+8100000000</pre>
+
+<dl class="anatomy">
+  <dt>int.Parse(texto)</dt><dd>"Analise este texto como <code>int</code>". Recebe a string <code>"29"</code> e devolve o <code>int</code> 29. Cada tipo de número tem o seu: <code>int.Parse</code>, <code>long.Parse</code>, <code>double.Parse</code>, <code>decimal.Parse</code>…</dd>
+  <dt>idade + 1 → 30 · texto + 1 → 291</dt><dd>A diferença entre o número e o texto: o <code>+</code> soma números, mas junta textos (aula <a href="operadores-aritmeticos.html">Operadores Aritméticos</a>).</dd>
+  <dt>double.Parse("1,65") · decimal.Parse("19,90")</dt><dd>Com vírgula! O <code>Parse</code> lê o texto do jeito do país do computador, e no Brasil a vírgula separa os decimais. A seção 3 explica isso com calma.</dd>
+</dl>
+
+<p>Você já viu na aula <a href="conversao-tipos.html">Conversão de Tipos</a> que o cast não funciona aqui: <code>(int)"29"</code> nem compila (<code>CS0030</code>). Texto e número são coisas diferentes demais; é preciso analisar o texto, e quem faz isso é o <code>Parse</code>.</p>
+
+<h3>O que o <code>Parse</code> aceita</h3>
+
+<pre class="file" data-file="parseespaco.cs">Console.WriteLine(int.Parse("  42  "));
+Console.WriteLine(int.Parse("-7"));
+Console.WriteLine(int.Parse("+7"));
+Console.WriteLine(int.Parse("007"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run parseespaco.cs
+42
+-7
+7
+7</pre>
+
+<p>Espaços no começo e no fim são ignorados, o sinal (<code>-</code> ou <code>+</code>) é aceito, e zeros à esquerda não atrapalham. Qualquer outra coisa, não.</p>
+
+<hr>
+
+<h2>2. Quando o texto não é um número</h2>
+<p>Se o texto não forma um número, o <code>Parse</code> não tem o que devolver. Ele <strong>lança uma exceção</strong>, e o programa para:</p>
+
+<pre class="file" data-file="parseerro1.cs">int idade = int.Parse("vinte");
+Console.WriteLine(idade);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run parseerro1.cs
+Unhandled exception. System.FormatException: The input string 'vinte' was not in a correct format.
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+   at System.Int32.Parse(String s)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/parseerro1.cs:line 1</pre>
+
+<dl class="anatomy">
+  <dt>System.FormatException</dt><dd>"Exceção de formato": o texto não está no formato de um número.</dd>
+  <dt>The input string 'vinte' was not in a correct format.</dt><dd>"O texto de entrada 'vinte' não estava num formato correto." A mensagem mostra o texto que veio, o que ajuda muito a achar o problema.</dd>
+  <dt>at System.Number.ThrowFormatException… · at System.Int32.Parse(String s)</dt><dd>As linhas de dentro do .NET: o erro nasceu dentro do <code>int.Parse</code> (lembre: <code>Int32</code> é o nome .NET do <code>int</code>).</dd>
+  <dt>at Program.&lt;Main&gt;$ … parseerro1.cs:line 1</dt><dd>A linha que interessa: o seu código, linha 1. O código de saída é 134.</dd>
+</dl>
+
+<p>Há três exceções possíveis:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Chamada</th><th>Exceção</th><th>Mensagem</th></tr>
+<tr><td><code>int.Parse("vinte")</code></td><td><code>FormatException</code></td><td><code>The input string 'vinte' was not in a correct format.</code></td></tr>
+<tr><td><code>int.Parse("29.5")</code></td><td><code>FormatException</code></td><td><code>The input string '29.5' was not in a correct format.</code> (um <code>int</code> não tem vírgula)</td></tr>
+<tr><td><code>int.Parse("")</code></td><td><code>FormatException</code></td><td><code>The input string '' was not in a correct format.</code> (o usuário só apertou Enter)</td></tr>
+<tr><td><code>int.Parse("1.000")</code></td><td><code>FormatException</code></td><td><code>The input string '1.000' was not in a correct format.</code> (separador de milhar não vale no <code>int</code>)</td></tr>
+<tr><td><code>int.Parse("8100000000")</code></td><td><code>OverflowException</code></td><td><code>Value was either too large or too small for an Int32.</code> (é um número, mas não cabe no <code>int</code>)</td></tr>
+<tr><td><code>int.Parse(null)</code></td><td><code>ArgumentNullException</code></td><td><code>Value cannot be null. (Parameter 's')</code> (não há texto nenhum)</td></tr>
+</table>
+</div>
+
+<p>Todas essas mensagens saíram do laboratório. Exceções saem sempre em inglês, mesmo no Ubuntu em português. Elas têm um capítulo inteiro, a partir de <a href="excecoes.html">Exceções</a>; por enquanto, o importante é: com texto que vem de fora (do teclado, de um arquivo), o <code>Parse</code> pode parar o seu programa. A seção 4 mostra como evitar.</p>
+
+<hr>
+
+<h2>3. A cultura: por que <code>"3.5"</code> vira 35</h2>
+<p>Agora a pegadinha mais famosa do C# no Brasil. No código, números com vírgula se escrevem com ponto (<code>3.5</code>). Mas o <code>Parse</code> lê o texto do jeito do <strong>país do computador</strong>. Veja no Ubuntu da Ana, que está em português:</p>
+
+<pre class="file" data-file="cultura1.cs">double a = double.Parse("3,5");
+double b = double.Parse("3.5");
+double c = double.Parse("1.234,5");
+Console.WriteLine(a);
+Console.WriteLine(b);
+Console.WriteLine(c);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run cultura1.cs
+3,5
+35         « "3.5" virou trinta e cinco!
+1234,5</pre>
+
+<p>No Brasil, a vírgula separa os decimais e o <strong>ponto separa os milhares</strong> (<code>1.234,5</code>). Então, para o <code>double.Parse</code> em pt-BR, o ponto de <code>"3.5"</code> é um separador de milhar, e separadores de milhar são simplesmente ignorados: sobra <code>35</code>. Nenhuma exceção, nenhum aviso: só um número dez vezes maior. Com dinheiro é pior:</p>
+
+<pre class="file" data-file="cultura3.cs">decimal p = decimal.Parse("19.90");
+Console.WriteLine(p);
+decimal q = decimal.Parse("19,90");
+Console.WriteLine(q);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run cultura3.cs
+1990       « R$ 19,90 virou R$ 1.990!
+19,90</pre>
+
+<p>Num computador configurado em inglês (en-US), seria o contrário: <code>"19.90"</code> daria 19,90 e <code>"19,90"</code> daria 1990. O mesmo programa dá resultados diferentes dependendo de onde roda. A configuração de país, idioma e formatos se chama <strong>cultura</strong> (<em>culture</em>), e a desta máquina é <code>pt-BR</code>.</p>
+
+<h3>A solução: dizer qual cultura o texto usa</h3>
+<p>Quando o texto vem de um lugar com formato fixo (um arquivo CSV, um site, uma API, outro programa), quase sempre ele usa o ponto, como o código. Para esses casos existe a <strong>cultura invariante</strong>, <code>CultureInfo.InvariantCulture</code>, que é sempre igual em qualquer computador: ponto para decimais, sem separador de milhar.</p>
+
+<pre class="file" data-file="cultura2.cs">using System.Globalization;
+double b = double.Parse("3.5", CultureInfo.InvariantCulture);
+Console.WriteLine(b);
+decimal p = decimal.Parse("19.90", CultureInfo.InvariantCulture);
+Console.WriteLine(p);
+Console.WriteLine(CultureInfo.CurrentCulture.Name);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run cultura2.cs
+3,5
+19,90
+pt-BR</pre>
+
+<dl class="anatomy">
+  <dt>using System.Globalization;</dt><dd>"Globalização": a parte do .NET que cuida de culturas. O <code>using</code> deixa você escrever <code>CultureInfo</code> sem o nome completo (aula <a href="namespaces.html">Namespaces e using</a>).</dd>
+  <dt>double.Parse("3.5", CultureInfo.InvariantCulture)</dt><dd>O segundo valor dentro dos parênteses diz: "leia este texto no formato invariante". Agora <code>"3.5"</code> é três e meio.</dd>
+  <dt>3,5 · 19,90</dt><dd>Na <strong>saída</strong>, o <code>Console.WriteLine</code> continua usando a cultura do computador, por isso a vírgula. Ler e mostrar são coisas separadas.</dd>
+  <dt>CultureInfo.CurrentCulture.Name</dt><dd>A cultura atual: <code>pt-BR</code>.</dd>
+</dl>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>De onde vem o texto</th><th>Como ler</th></tr>
+<tr><td>Digitado pelo usuário brasileiro</td><td><code>double.Parse(texto)</code> (cultura do computador: <code>3,5</code>)</td></tr>
+<tr><td>Arquivo CSV, JSON, site, API, outro programa</td><td><code>double.Parse(texto, CultureInfo.InvariantCulture)</code> (<code>3.5</code>)</td></tr>
+</table>
+</div>
+
+<p>A aula <a href="cultura.html">Cultura (pt-BR × en-US)</a> mostra o assunto inteiro: como mostrar números em outra cultura, datas, moedas e como trocar a cultura do programa.</p>
+
+<div class="trycs" data-goal="out:Preço: 3\,50,src:InvariantCulture">
+<p class="try-task"><strong>Missão:</strong> o preço da bala veio de um site estrangeiro como <code>"3.50"</code>, e o programa mostra <code>Preço: 350</code>. Passe <code>CultureInfo.InvariantCulture</code> como segundo valor do <code>decimal.Parse</code> para mostrar <code>Preço: 3,50</code>.</p>
+<pre class="script" data-file="site.cs">using System.Globalization;
+string doSite = "3.50";
+decimal preco = decimal.Parse(doSite);
+Console.WriteLine($"Preço: {preco}");
+</pre>
+<pre class="solucao" data-file="site.cs">using System.Globalization;
+string doSite = "3.50";
+decimal preco = decimal.Parse(doSite, CultureInfo.InvariantCulture);
+Console.WriteLine($"Preço: {preco}");
+</pre>
+</div>
+
+<hr>
+
+<h2>4. <code>TryParse</code>: tentar sem quebrar</h2>
+<p>O <code>Parse</code> é ótimo quando você tem <strong>certeza</strong> de que o texto é um número. Quando o texto vem de uma pessoa, não há certeza nenhuma: ela pode digitar "vinte", "29 anos" ou só apertar Enter. Para isso existe o <code>TryParse</code> ("tentar analisar"), que nunca lança exceção. Ele responde duas coisas: <strong>se deu certo</strong> e <strong>qual é o número</strong>.</p>
+
+<pre class="file" data-file="tryparse1.cs">string texto = "29";
+if (int.TryParse(texto, out int idade))
+{
+    Console.WriteLine($"Idade: {idade}");
+}
+else
+{
+    Console.WriteLine("Isso não é um número.");
+}
+string ruim = "vinte";
+bool deuCerto = int.TryParse(ruim, out int outro);
+Console.WriteLine(deuCerto);
+Console.WriteLine(outro);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tryparse1.cs
+Idade: 29
+False
+0</pre>
+
+<dl class="anatomy">
+  <dt>int.TryParse(texto, out int idade)</dt><dd>Tenta converter <code>texto</code>. Devolve um <code>bool</code>: <code>true</code> se deu certo, <code>false</code> se não. E o número vai para a variável depois do <code>out</code>.</dd>
+  <dt>out int idade</dt><dd><code>out</code> ("saída") cria a variável <code>idade</code> ali mesmo e deixa o <code>TryParse</code> guardar o número nela. É um segundo "resultado" do método, além do <code>bool</code>. Os detalhes do <code>out</code> estão em <a href="ref-out-in.html">ref, out e in</a>.</dd>
+  <dt>if ( … ) { … } else { … }</dt><dd>O <code>if</code> ("se") roda o primeiro bloco quando o <code>bool</code> é <code>true</code>; o <code>else</code> ("senão") roda o segundo quando é <code>false</code>. Por enquanto, leia assim: "se conseguir converter, mostre a idade; senão, avise". O <code>if</code> tem aula própria: <a href="if-else.html">if e else</a>.</dd>
+  <dt>deuCerto → False · outro → 0</dt><dd>Com <code>"vinte"</code>, o <code>TryParse</code> devolve <code>false</code>, e a variável do <code>out</code> fica com <code>0</code>. O programa não parou.</dd>
+</dl>
+
+<p>Você também pode escrever <code>out var idade</code>: o tipo vem do <code>TryParse</code> que você chamou (aula <a href="var.html">Inferência com var</a>). E o <code>TryParse</code> aceita a cultura, como o <code>Parse</code>: <code>double.TryParse(texto, CultureInfo.InvariantCulture, out double valor)</code>.</p>
+
+<div class="warning">
+<strong>Boa prática: entrada do usuário é sempre <code>TryParse</code></strong>
+<p>Use <code>Parse</code> só com texto que você controla (que o seu próprio programa gerou). Para o que vem do teclado, de arquivos ou da internet, use <code>TryParse</code> e diga ao usuário o que deu errado.</p>
+</div>
+
+<hr>
+
+<h2>5. Lendo um número do teclado</h2>
+<p><code>Console.ReadLine()</code> ("ler linha") espera o usuário digitar e apertar Enter, e devolve o texto digitado (aula <a href="readline.html">Ler do Teclado</a>). Junto com o <code>TryParse</code>, você tem o jeito certo de pedir um número:</p>
+
+<pre class="file" data-file="readline1.cs">Console.Write("Quantos cadernos? ");
+string? texto = Console.ReadLine();
+if (int.TryParse(texto, out int quantidade))
+{
+    decimal total = quantidade * 4.50m;
+    Console.WriteLine($"Total: R$ {total}");
+}
+else
+{
+    Console.WriteLine($"\"{texto}\" não é um número inteiro.");
+}
+</pre>
+
+<p>Rodando três vezes, digitando <code>3</code>, depois <code>três</code>, depois <code>12</code> com espaços em volta:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run readline1.cs
+Quantos cadernos? 3
+Total: R$ 13,50
+$ dotnet run readline1.cs
+Quantos cadernos? três
+"três" não é um número inteiro.
+$ dotnet run readline1.cs
+Quantos cadernos?  12
+Total: R$ 54,00</pre>
+
+<dl class="anatomy">
+  <dt>string? texto = Console.ReadLine();</dt><dd>O <code>?</code> depois de <code>string</code> avisa que o texto pode ser <code>null</code>: o <code>ReadLine</code> devolve <code>null</code> quando não há mais entrada (aula <a href="referencias-anulaveis.html">Referências Anuláveis</a>). O <code>TryParse</code> aceita <code>null</code> sem problema: devolve <code>false</code>.</dd>
+  <dt>\"{texto}\"</dt><dd><code>\"</code> põe uma aspa dentro do texto (aula <a href="escapes.html">Escapes</a>).</dd>
+</dl>
+
+<h3>O mesmo com <code>Parse</code>: aviso e exceção</h3>
+
+<pre class="file" data-file="readlineparse.cs">Console.Write("Sua idade: ");
+int idade = int.Parse(Console.ReadLine());
+Console.WriteLine($"Ano que vem: {idade + 1}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run readlineparse.cs
+/home/ana/cs/readlineparse.cs(2,23): warning CS8604: Possível argumento de referência nula para o parâmetro 's' em 'int int.Parse(string s)'.
+Sua idade: vinte
+Unhandled exception. System.FormatException: The input string 'vinte' was not in a correct format.
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+   at System.Int32.Parse(String s)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/readlineparse.cs:line 2</pre>
+
+<p>Dois problemas. Antes de rodar, o compilador já avisa (<code>CS8604</code>): o <code>ReadLine</code> pode devolver <code>null</code>, e o <code>int.Parse</code> não aceita <code>null</code> (aconteceria um <code>ArgumentNullException</code>). Depois, quando a Ana digita <code>vinte</code>, o programa para com <code>FormatException</code>. Com <code>TryParse</code>, os dois problemas somem.</p>
+
+<hr>
+
+<h2>6. Outros tipos e o <code>Convert</code></h2>
+
+<pre class="file" data-file="outros.cs">Console.WriteLine(bool.Parse("true"));
+Console.WriteLine(bool.Parse(" False "));
+Console.WriteLine(bool.TryParse("sim", out bool b));
+Console.WriteLine(char.Parse("A"));
+Console.WriteLine(double.Parse("1e3"));
+Console.WriteLine(decimal.TryParse("R$ 10,00", out decimal d));
+Console.WriteLine(int.TryParse("12abc", out int i));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run outros.cs
+True
+False
+False
+A
+1000
+False
+False</pre>
+
+<dl class="anatomy">
+  <dt>bool.Parse("true") · bool.Parse(" False ")</dt><dd>Aceita <code>true</code> e <code>false</code>, com maiúsculas ou minúsculas e espaços em volta. Só em inglês: <code>"sim"</code> dá <code>false</code> no <code>TryParse</code> (e <code>FormatException: String 'sim' was not recognized as a valid Boolean.</code> no <code>Parse</code>).</dd>
+  <dt>char.Parse("A")</dt><dd>Uma string de exatamente um caractere vira <code>char</code>.</dd>
+  <dt>double.Parse("1e3")</dt><dd>A notação científica é aceita: 1000.</dd>
+  <dt>"R$ 10,00" · "12abc"</dt><dd>Símbolos e letras no meio fazem o <code>TryParse</code> devolver <code>false</code>. (Para ler moeda, existe <code>decimal.Parse(texto, NumberStyles.Currency)</code>, que aceita <code>"R$ 1.234,50"</code>.)</dd>
+</dl>
+
+<h3><code>Convert.ToInt32</code></h3>
+<p>A classe <code>Convert</code> (aula <a href="conversao-tipos.html">Conversão de Tipos</a>) também converte texto: <code>Convert.ToInt32("29")</code> é o mesmo que <code>int.Parse("29")</code>, com as mesmas exceções. A única diferença: com <code>null</code>, o <code>Convert.ToInt32</code> devolve <code>0</code> em vez de lançar <code>ArgumentNullException</code>. Isso parece cômodo, mas esconde o problema ("o usuário digitou zero ou não digitou nada?"). Prefira <code>TryParse</code>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>Texto que veio do usuário, de um arquivo, da internet</td><td><code>int.TryParse(texto, out int n)</code></td></tr>
+<tr><td>Texto que com certeza é um número (o seu programa gerou)</td><td><code>int.Parse(texto)</code></td></tr>
+<tr><td>Texto com ponto decimal, de arquivo ou API</td><td><code>double.Parse(texto, CultureInfo.InvariantCulture)</code></td></tr>
+<tr><td>Dinheiro digitado</td><td><code>decimal.TryParse(texto, out decimal valor)</code></td></tr>
+<tr><td>Sim/não em texto</td><td><code>bool.TryParse</code> (só <code>true</code>/<code>false</code>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>System.FormatException: The input string '…' was not in a correct format.</code></strong>
+<p><strong>O que significa:</strong> o texto não é um número do tipo pedido: tem letras, está vazio, tem vírgula num <code>int</code>, ou separador de milhar (<code>"1.000"</code>) num <code>int</code>. A mensagem mostra o texto entre aspas simples.</p>
+<p><strong>Como consertar:</strong> use <code>TryParse</code> e trate o <code>false</code>. Se o texto devia ser válido, olhe o que está entre as aspas da mensagem: muitas vezes há um espaço ou um caractere a mais.</p>
+</div>
+
+<div class="cenario">
+<strong><code>System.OverflowException: Value was either too large or too small for an Int32.</code></strong>
+<p><strong>O que significa:</strong> o texto é um número, mas não cabe no tipo (<code>"8100000000"</code> num <code>int</code>).</p>
+<p><strong>Como consertar:</strong> use um tipo maior (<code>long.Parse</code>). O <code>TryParse</code> também devolve <code>false</code> nesse caso.</p>
+</div>
+
+<div class="cenario">
+<strong><code>System.ArgumentNullException: Value cannot be null. (Parameter 's')</code></strong>
+<p><strong>O que significa:</strong> o <code>Parse</code> recebeu <code>null</code>, por exemplo de um <code>Console.ReadLine()</code> quando a entrada acabou.</p>
+<p><strong>Como consertar:</strong> <code>TryParse</code>, que aceita <code>null</code> e devolve <code>false</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS8604: Possível argumento de referência nula para o parâmetro 's' em 'int int.Parse(string s)'.</code></strong>
+<p><strong>O que significa:</strong> o compilador viu que o valor passado ao <code>Parse</code> pode ser <code>null</code> (o retorno do <code>ReadLine</code> é <code>string?</code>). É um aviso: o programa roda, mas pode parar com <code>ArgumentNullException</code>.</p>
+<p><strong>Como consertar:</strong> troque por <code>TryParse</code>. (Aula <a href="avisos.html">Avisos do Compilador</a>.)</p>
+</div>
+
+<div class="cenario">
+<strong>O número saiu 10 ou 100 vezes maior (<code>"3.5"</code> → 35, <code>"19.90"</code> → 1990)</strong>
+<p><strong>O que significa:</strong> um texto com ponto decimal foi lido na cultura pt-BR, em que o ponto separa milhares. Não há exceção nem aviso.</p>
+<p><strong>Como consertar:</strong> se o texto vem de arquivo, site ou outro programa, leia com <code>CultureInfo.InvariantCulture</code>. Se vem de um usuário brasileiro, peça a vírgula. Veja <a href="cultura.html">Cultura</a>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0030: Não é possível converter tipo "string" em "int"</code></strong>
+<p><strong>O que significa:</strong> você tentou <code>(int)texto</code>. Cast não converte texto.</p>
+<p><strong>Como consertar:</strong> <code>int.Parse(texto)</code> ou <code>int.TryParse(texto, out int n)</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>int.Parse(texto)</code></td><td>Converte ou lança <code>FormatException</code> / <code>OverflowException</code> / <code>ArgumentNullException</code></td></tr>
+<tr><td><code>long.Parse</code>, <code>double.Parse</code>, <code>decimal.Parse</code>, <code>bool.Parse</code>, <code>char.Parse</code></td><td>O mesmo para cada tipo</td></tr>
+<tr><td><code>int.TryParse(texto, out int n)</code></td><td>Devolve <code>true</code>/<code>false</code>; o número vai para <code>n</code> (0 se falhou)</td></tr>
+<tr><td><code>double.Parse(texto, CultureInfo.InvariantCulture)</code></td><td>Lê com ponto decimal, em qualquer computador</td></tr>
+<tr><td><code>double.TryParse(texto, CultureInfo.InvariantCulture, out double d)</code></td><td><code>TryParse</code> com cultura</td></tr>
+<tr><td><code>decimal.Parse(texto, NumberStyles.Currency)</code></td><td>Aceita símbolo de moeda e milhar (<code>"R$ 1.234,50"</code>)</td></tr>
+<tr><td><code>Convert.ToInt32(texto)</code></td><td>Como <code>int.Parse</code>, mas <code>null</code> vira 0</td></tr>
+<tr><td><code>numero.ToString()</code></td><td>O caminho contrário: número para texto</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O método</h3>
+<p>Complete para converter o texto em <code>int</code>:</p>
+<div class="ex-code">int n = int.<input data-answer="Parse" aria-label="método">("42");</div>
+</div>
+
+<div class="exercise">
+<h3>2. A palavra do TryParse</h3>
+<p>Complete a chamada:</p>
+<div class="ex-code">bool ok = int.TryParse(texto, <input data-answer="out" aria-label="palavra"> int numero);</div>
+</div>
+
+<div class="exercise">
+<h3>3. A cultura</h3>
+<p>No Ubuntu da Ana (pt-BR), quanto vale <code>double.Parse("2.5")</code>?</p>
+<div class="ex-code"><input data-answer="25" aria-label="valor"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O que <code>int.Parse("12,5")</code> faz?</p>
+<label><input type="radio" name="q4"> Devolve 12</label>
+<label><input type="radio" name="q4"> Lança <code>FormatException</code>: um <code>int</code> não tem vírgula</label>
+<label><input type="radio" name="q4"> Devolve 13</label>
+<label><input type="radio" name="q4"> Não compila</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. <code>int.TryParse("abc", out int n)</code> devolve o quê, e quanto vale <code>n</code>?</p>
+<label><input type="radio" name="q5"> <code>true</code> e 0</label>
+<label><input type="radio" name="q5"> Lança <code>FormatException</code></label>
+<label><input type="radio" name="q5"> <code>false</code> e <code>null</code></label>
+<label><input type="radio" name="q5"> <code>false</code> e 0</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Um arquivo CSV de um sistema americano tem o valor <code>"1250.75"</code>. Como ler em <code>decimal</code> num computador em pt-BR?</p>
+<label><input type="radio" name="q6"> <code>decimal.Parse(texto, CultureInfo.InvariantCulture)</code></label>
+<label><input type="radio" name="q6"> <code>decimal.Parse(texto)</code></label>
+<label><input type="radio" name="q6"> <code>(decimal)texto</code></label>
+<label><input type="radio" name="q6"> <code>Convert.ToDecimal(texto)</code></label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">7. Por que usar <code>TryParse</code> com o que o usuário digita?</p>
+<label><input type="radio" name="q7"> Porque é mais rápido</label>
+<label><input type="radio" name="q7"> Porque o <code>Parse</code> não funciona com <code>ReadLine</code></label>
+<label><input type="radio" name="q7"> Porque o usuário pode digitar qualquer coisa, e o <code>TryParse</code> não para o programa: ele devolve <code>false</code></label>
+<label><input type="radio" name="q7"> Porque o <code>TryParse</code> aceita letras</label>
+</div>
+
+<h3>Missão final: o pedido que não quebra</h3>
+
+<div class="trycs" data-stdin="doze" data-goal="out:Quantidade inválida: doze,exit:0,src:int\.TryParse">
+<p class="try-task"><strong>Missão:</strong> o caixa pergunta quantos cadernos a cliente quer, e ela digitou <code>doze</code> (por extenso). Com <code>int.Parse</code>, o programa para com <code>FormatException</code>. Reescreva usando <code>int.TryParse</code>, como no exemplo da seção 5: se der certo, mostre o total; senão, mostre <code>Quantidade inválida: doze</code> (o texto digitado), e o programa termina normalmente.</p>
+<pre class="script" data-file="cadernos.cs">Console.Write("Quantos cadernos? ");
+string? texto = Console.ReadLine();
+int quantidade = int.Parse(texto);
+Console.WriteLine($"Total: R$ {quantidade * 4.50m}");
+</pre>
+<pre class="solucao" data-file="cadernos.cs">Console.Write("Quantos cadernos? ");
+string? texto = Console.ReadLine();
+if (int.TryParse(texto, out int quantidade))
+{
+    Console.WriteLine($"Total: R$ {quantidade * 4.50m}");
+}
+else
+{
+    Console.WriteLine($"Quantidade inválida: {texto}");
+}
+</pre>
+</div>
+
+<p>A caixa já entrega <code>doze</code> como se a cliente tivesse digitado. Depois de cumprir a missão, troque o programa para receber um número de verdade e veja o total aparecer.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Texto não é número: <code>"29" + 1</code> é <code>"291"</code>. Para converter, <code>int.Parse</code>, <code>double.Parse</code>, <code>decimal.Parse</code>… (o cast não serve: <code>CS0030</code>).</li>
+  <li>Quando o texto não é um número válido, o <code>Parse</code> lança <code>FormatException</code>; se não cabe, <code>OverflowException</code>; se é <code>null</code>, <code>ArgumentNullException</code>.</li>
+  <li>O <code>Parse</code> usa a cultura do computador. Em pt-BR, <code>double.Parse("3.5")</code> dá <strong>35</strong> e <code>decimal.Parse("19.90")</code> dá <strong>1990</strong>, sem erro. Para textos com ponto (arquivos, sites), use <code>CultureInfo.InvariantCulture</code>.</li>
+  <li><code>int.TryParse(texto, out int n)</code> devolve <code>true</code>/<code>false</code> e nunca lança exceção. Use-o sempre com o que o usuário digita.</li>
+  <li><code>Console.ReadLine()</code> devolve <code>string?</code>; o <code>TryParse</code> aceita <code>null</code>, o <code>Parse</code> não (aviso <code>CS8604</code>).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

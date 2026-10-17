@@ -355,6 +355,11 @@ Unhandled exception. System.OverflowException: Arithmetic operation resulted in 
 
 <p>A linha 3, marcada com <code>unchecked</code>, deu a volta; a linha 5, uma conta comum, agora é conferida e parou o programa.</p>
 
+<div class="note">
+<strong>No editor do guia</strong>
+<p>A linha <code>#:property</code> é uma opção do <code>dotnet run</code>, e o editor do guia não a lê: lá, este programa mostra <code>-2147483648</code> duas vezes, sem exceção. Para ver o estouro virar erro no editor, use <code>checked( … )</code> ou <code>checked { … }</code>, que funcionam igual nos dois.</p>
+</div>
+
 <h3>Contas só com constantes: o compilador confere sozinho</h3>
 <p>Se a conta só tem valores fixos, o compilador faz a conta na hora de compilar, e ali ele <strong>sempre</strong> confere:</p>
 

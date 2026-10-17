@@ -211,7 +211,7 @@ Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
 
 <div class="warning">
 <strong>Um <code>double</code> fora da faixa não tem resultado confiável</strong>
-<p>Com variáveis, o .NET 10 do laboratório converte <code>(int)</code> de <code>1e20</code> em <code>2147483647</code> (o maior <code>int</code>) e de <code>double.NaN</code> em <code>0</code>. Mas esse comportamento já mudou entre versões do .NET (até o .NET 8 o resultado dependia do processador). Não escreva programas que dependam dele: confira a faixa antes, ou use <code>checked</code>.</p>
+<p>Com variáveis, o .NET 10 do laboratório converte <code>(int)</code> de <code>1e20</code> em <code>2147483647</code> (o maior <code>int</code>) e de <code>double.NaN</code> em <code>0</code>. Mas esse comportamento já mudou entre versões do .NET (até o .NET 8 o resultado dependia do processador), e o editor do guia, que roda o .NET em WebAssembly, mostra <code>-2147483648</code> nos dois casos. Não escreva programas que dependam dele: confira a faixa antes, ou use <code>checked</code>.</p>
 </div>
 
 <hr>
