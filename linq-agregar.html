@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# LINQ Count, Sum e Average — agregar valores | Guia C#</title>
+<meta name="description" content="Agregar com LINQ em C# para quem nunca programou: Count com e sem condição, Sum, Average (decimal e double), Min e Max, MinBy e MaxBy, Aggregate com e sem semente, o que acontece numa sequência vazia (Sequence contains no elements), o Sum que estoura (OverflowException), Any e All, Count × Count() e os erros reais CS1503 e InvalidOperationException, com a lojinha da Ana no dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# LINQ <span class="hl">Count, Sum e Average</span></h1>
+
+<p class="intro">Muitas perguntas sobre uma lista têm como resposta <strong>um número só</strong>: quantos produtos estão em falta? Quantas unidades há no estoque? Qual o preço médio? Qual o mais caro? Juntar todos os elementos num único valor se chama <strong>agregar</strong>, e o LINQ tem um método pronto para cada conta comum: <code>Count</code>, <code>Sum</code>, <code>Average</code>, <code>Min</code>, <code>Max</code>, e o <code>Aggregate</code> para as contas que você mesmo inventar.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li><code>Count()</code>: contar todos, ou só os que passam num teste.</li>
+  <li><code>Sum</code> e <code>Average</code>, e por que a média de <code>int</code> é um <code>double</code>.</li>
+  <li><code>Min</code> e <code>Max</code> (o menor e o maior <strong>valor</strong>) × <code>MinBy</code> e <code>MaxBy</code> (o <strong>elemento</strong>).</li>
+  <li><code>Aggregate</code>: a conta "faça você mesmo", com e sem valor inicial.</li>
+  <li><code>Any</code> e <code>All</code>: perguntas de sim ou não sobre a lista toda.</li>
+  <li>O que cada um faz numa lista <strong>vazia</strong>, e o <code>Sum</code> que estoura.</li>
+  <li>Os erros reais: <code>InvalidOperationException</code>, <code>OverflowException</code> e <code>CS1503</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas rodaram com o <strong>.NET 10</strong> (C# 14) na máquina da Ana, na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Eles usam a lista de produtos da lojinha apresentada em <a href="linq.html">O que é LINQ</a> (linhas 1 a 10 de cada arquivo) e o <code>record Produto</code> no fim; os arquivos abaixo mostram só o programa.</p>
+
+<pre class="file" data-file="produtos (trecho de todos os exemplos)">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+// … o programa de cada exemplo começa na linha 12 …
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+
+<hr>
+
+<h2>A ideia: o fechamento do caixa</h2>
+<p>No fim do dia, a Ana não quer a lista de todas as vendas; quer <strong>o resumo</strong>: "foram 37 vendas, R$ 1.200 no total, R$ 32 de média, a maior foi de R$ 129,90". Cada número desses <strong>junta</strong> a lista inteira num valor só. Até agora, o LINQ devolvia sequências (<code>Where</code>, <code>Select</code>, <code>OrderBy</code>, <code>GroupBy</code>); os métodos desta aula devolvem <strong>um valor</strong> e, por isso, rodam <strong>na hora</strong> (não são <a href="linq.html#adiada">adiados</a>).</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Pergunta</th><th>Método</th><th>Devolve</th></tr>
+<tr><td>Quantos?</td><td><code>Count()</code></td><td><code>int</code></td></tr>
+<tr><td>Quanto ao todo?</td><td><code>Sum(…)</code></td><td>o tipo somado</td></tr>
+<tr><td>Quanto, em média?</td><td><code>Average(…)</code></td><td><code>decimal</code> ou <code>double</code></td></tr>
+<tr><td>Qual o menor / maior valor?</td><td><code>Min(…)</code> / <code>Max(…)</code></td><td>o valor</td></tr>
+<tr><td>Qual o elemento com o menor / maior valor?</td><td><code>MinBy(…)</code> / <code>MaxBy(…)</code></td><td>o elemento</td></tr>
+<tr><td>Outra conta qualquer</td><td><code>Aggregate(…)</code></td><td>o que a conta produzir</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. Contar e somar: <code>Count</code> e <code>Sum</code></h2>
+
+<pre class="file" data-file="contar.cs">// (a lista de produtos)
+
+int total = produtos.Count();
+int emFalta = produtos.Count(p =&gt; p.Estoque == 0);
+int unidades = produtos.Sum(p =&gt; p.Estoque);
+decimal valor = produtos.Sum(p =&gt; p.Preco * p.Estoque);
+
+Console.WriteLine($"Produtos: {total}");
+Console.WriteLine($"Em falta: {emFalta}");
+Console.WriteLine($"Unidades: {unidades}");
+Console.WriteLine($"Valor do estoque: {valor:C}");
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run contar.cs
+Produtos: 7
+Em falta: 1
+Unidades: 93
+Valor do estoque: R$ 1.152,75</pre>
+
+<dl class="anatomy">
+  <dt>Count()</dt><dd>Conta os elementos. Sem lambda, conta todos.</dd>
+  <dt>Count(p =&gt; p.Estoque == 0)</dt><dd>Com uma lambda de teste (como a do <a href="linq-filtrar.html"><code>Where</code></a>), conta só os que passam. É o mesmo que <code>produtos.Where(p =&gt; p.Estoque == 0).Count()</code>, numa chamada só.</dd>
+  <dt>Sum(p =&gt; p.Estoque)</dt><dd>Soma o valor que a lambda devolve para cada produto. Como <code>Estoque</code> é <code>int</code>, a soma é <code>int</code>.</dd>
+  <dt>Sum(p =&gt; p.Preco * p.Estoque)</dt><dd>A lambda pode fazer uma conta: aqui, o valor de cada produto no estoque. Com <code>decimal</code>, a soma é <code>decimal</code>, exata até o centavo.</dd>
+</dl>
+
+<p>Para uma lista de números, o <code>Sum()</code> vai sem lambda: <code>new[] { 10m, 20m }.Sum()</code> dá <code>30</code>. O mesmo vale para <code>Average</code>, <code>Min</code> e <code>Max</code>.</p>
+
+<div class="trycs" data-goal="out:Estoque baixo: 4,out:Unidades: 93,src:\.Count\(,src:\.Sum\(">
+<p class="try-task"><strong>Missão:</strong> troque os zeros por LINQ. <code>estoqueBaixo</code> deve contar os produtos com <strong>menos de 10</strong> unidades (use <code>Count</code> com uma condição), e <code>unidades</code> deve somar o estoque de todos (<code>Sum</code>). A saída deve ser <code>Estoque baixo: 4</code> e <code>Unidades: 93</code>.</p>
+<pre class="script">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+int estoqueBaixo = 0;
+int unidades = 0;
+
+Console.WriteLine($"Estoque baixo: {estoqueBaixo}");
+Console.WriteLine($"Unidades: {unidades}");
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+<pre class="solucao">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+int estoqueBaixo = produtos.Count(p =&gt; p.Estoque &lt; 10);
+int unidades = produtos.Sum(p =&gt; p.Estoque);
+
+Console.WriteLine($"Estoque baixo: {estoqueBaixo}");
+Console.WriteLine($"Unidades: {unidades}");
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+</div>
+
+<hr>
+
+<h2>2. A média: <code>Average</code></h2>
+
+<pre class="file" data-file="media.cs">// (a lista de produtos)
+
+decimal mediaPreco = produtos.Average(p =&gt; p.Preco);
+double mediaEstoque = produtos.Average(p =&gt; p.Estoque);
+int divisaoInteira = produtos.Sum(p =&gt; p.Estoque) / produtos.Count();
+
+Console.WriteLine(mediaPreco);
+Console.WriteLine($"{mediaPreco:C}");
+Console.WriteLine(mediaEstoque);
+Console.WriteLine($"{mediaEstoque:N1}");
+Console.WriteLine(divisaoInteira);
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run media.cs
+33,635714285714285714285714286
+R$ 33,64
+13,285714285714286
+13,3
+13</pre>
+
+<ul>
+  <li><strong>Média de <code>decimal</code> é <code>decimal</code></strong>: 235,45 ÷ 7 = 33,6357…, com as 28 casas do <code>decimal</code>. Para mostrar, formate (<code>:C</code> arredonda para <code>R$ 33,64</code>) ou arredonde com <code>Math.Round(media, 2)</code>.</li>
+  <li><strong>Média de <code>int</code> é <code>double</code></strong>: a média de 12, 40, 3, 25, 0, 8 e 5 é 13,2857…, que não cabe num inteiro. O <code>Average</code> já devolve <code>double</code>, para não perder a parte quebrada. <code>:N1</code> mostra com uma casa.</li>
+  <li><strong>A conta "na mão" engana</strong>: <code>Sum(…) / Count()</code> divide um <code>int</code> por outro <code>int</code>, e a divisão inteira joga fora a parte quebrada: <code>93 / 7</code> dá <code>13</code> (veja <a href="operadores-aritmeticos.html">Operadores Aritméticos</a>). Prefira o <code>Average</code>.</li>
+</ul>
+
+<hr>
+
+<h2>3. O menor e o maior: <code>Min</code>, <code>Max</code>, <code>MinBy</code>, <code>MaxBy</code></h2>
+
+<pre class="file" data-file="minmax.cs">// (a lista de produtos)
+
+decimal menor = produtos.Min(p =&gt; p.Preco);
+decimal maior = produtos.Max(p =&gt; p.Preco);
+Produto? maisBarato = produtos.MinBy(p =&gt; p.Preco);
+Produto? maisCaro = produtos.MaxBy(p =&gt; p.Preco);
+
+Console.WriteLine($"Menor preço: {menor:C}");
+Console.WriteLine($"Maior preço: {maior:C}");
+Console.WriteLine($"Mais barato: {maisBarato?.Nome}");
+Console.WriteLine($"Mais caro: {maisCaro?.Nome}");
+Console.WriteLine(produtos.Max(p =&gt; p.Nome));
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run minmax.cs
+Menor preço: R$ 1,75
+Maior preço: R$ 129,90
+Mais barato: Borracha
+Mais caro: Mochila
+Mochila      « o maior NOME em ordem alfabética (M vem depois de todos os outros)</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>Devolve</th><th>Exemplo</th></tr>
+<tr><td><code>Min(p =&gt; p.Preco)</code></td><td>o menor <strong>preço</strong> (um <code>decimal</code>)</td><td><code>1,75</code></td></tr>
+<tr><td><code>Max(p =&gt; p.Preco)</code></td><td>o maior <strong>preço</strong></td><td><code>129,90</code></td></tr>
+<tr><td><code>MinBy(p =&gt; p.Preco)</code> <span class="versao">.NET 6</span></td><td>o <strong>produto</strong> com o menor preço</td><td>a Borracha</td></tr>
+<tr><td><code>MaxBy(p =&gt; p.Preco)</code> <span class="versao">.NET 6</span></td><td>o <strong>produto</strong> com o maior preço</td><td>a Mochila</td></tr>
+</table>
+</div>
+
+<p>Com <code>Max</code>, você sabe <strong>quanto</strong> custa o mais caro, mas não <strong>qual</strong> é. Com <code>MaxBy</code>, você recebe o produto inteiro (nome, categoria, estoque). O <code>?</code> em <code>Produto?</code> existe porque, numa lista vazia, <code>MinBy</code> e <code>MaxBy</code> devolvem <code>null</code> (veja a seção 6). Antes do .NET 6, o jeito era <code>produtos.OrderByDescending(p =&gt; p.Preco).First()</code>, que ordena a lista toda só para pegar um.</p>
+
+<p><code>Min</code> e <code>Max</code> funcionam com qualquer coisa comparável: com textos, <code>Max(p =&gt; p.Nome)</code> dá o último em ordem alfabética.</p>
+
+<hr>
+
+<h2>4. A conta "faça você mesmo": <code>Aggregate</code></h2>
+<p>Todos os métodos anteriores são casos especiais de uma ideia: começar com um valor e ir <strong>acumulando</strong> elemento por elemento. O <code>Aggregate</code> ("agregar") deixa você escrever a regra do acúmulo:</p>
+
+<pre class="file" data-file="aggregate.cs">// (a lista de produtos)
+
+string lista = produtos
+    .Select(p =&gt; p.Nome)
+    .Aggregate((acumulado, nome) =&gt; acumulado + " + " + nome);
+Console.WriteLine(lista);
+
+decimal total = produtos.Aggregate(0m, (soma, p) =&gt; soma + p.Preco);
+Console.WriteLine(total);
+
+string resumo = produtos.Aggregate(
+    0,
+    (unidades, p) =&gt; unidades + p.Estoque,
+    unidades =&gt; $"{unidades} unidades no estoque");
+Console.WriteLine(resumo);
+
+decimal comDescontos = new[] { 10, 5 }.Aggregate(100m, (preco, desconto) =&gt; preco - preco * desconto / 100);
+Console.WriteLine(comDescontos);
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run aggregate.cs
+Caderno + Lápis + Mochila + Borracha + Estojo + Garrafa + Caneca
+235,45
+93 unidades no estoque
+85,5</pre>
+
+<dl class="anatomy">
+  <dt>Aggregate((acumulado, nome) =&gt; …)</dt><dd><strong>Sem valor inicial:</strong> o primeiro elemento ("Caderno") é o começo. A lambda recebe o que foi acumulado até ali e o próximo elemento, e devolve o novo acumulado: <code>"Caderno"</code> → <code>"Caderno + Lápis"</code> → <code>"Caderno + Lápis + Mochila"</code>… (para juntar textos, o <code>string.Join</code> faz o mesmo mais rápido).</dd>
+  <dt>Aggregate(0m, (soma, p) =&gt; …)</dt><dd><strong>Com valor inicial</strong> (a "semente", <em>seed</em>): começa em <code>0m</code> e soma o preço de cada produto. É exatamente o que <code>Sum(p =&gt; p.Preco)</code> faz. O acumulado pode ser de outro tipo que o elemento (<code>decimal</code> × <code>Produto</code>).</dd>
+  <dt>Aggregate(0, …, unidades =&gt; …)</dt><dd><strong>Com uma terceira lambda</strong>, que transforma o resultado final: soma o estoque e, no fim, monta o texto.</dd>
+  <dt>new[] { 10, 5 }.Aggregate(100m, …)</dt><dd>Um uso que nenhum método pronto faz: aplicar descontos <strong>em sequência</strong>. R$ 100 com 10% vira 90; com mais 5%, vira 85,5. (Não é 15% direto, que daria 85.)</dd>
+</dl>
+
+<div class="tip">
+<strong>Qual usar</strong>
+<p>Se existe um método pronto (<code>Count</code>, <code>Sum</code>, <code>Average</code>, <code>Min</code>, <code>Max</code>, <code>string.Join</code>), use-o: ele diz o que faz no nome e é mais rápido. Deixe o <code>Aggregate</code> para contas que não têm nome pronto, como os descontos em sequência. E prefira sempre a versão <strong>com valor inicial</strong>, que funciona também numa lista vazia.</p>
+</div>
+
+<hr>
+
+<h2>5. Perguntas de sim ou não: <code>Any</code> e <code>All</code></h2>
+<p>Às vezes você não quer um número, mas um "sim" ou "não" sobre a lista toda:</p>
+
+<pre class="file" data-file="any.cs">// (a lista de produtos)
+
+Console.WriteLine(produtos.Any(p =&gt; p.Estoque == 0));
+Console.WriteLine(produtos.All(p =&gt; p.Preco &gt; 1m));
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run any.cs
+True      « existe ALGUM produto em falta (o Estojo)
+True      « TODOS custam mais de R$ 1</pre>
+
+<p><code>Any</code> ("algum") para no primeiro que passa; <code>All</code> ("todos") para no primeiro que falha. Por isso, para saber "tem algum?", <code>produtos.Any(p =&gt; p.Estoque == 0)</code> é melhor que <code>produtos.Count(p =&gt; p.Estoque == 0) &gt; 0</code>: o <code>Count</code> precisa olhar a lista inteira, e o <code>Any</code> não.</p>
+
+<hr>
+
+<h2 id="vazia">6. E se a lista estiver vazia?</h2>
+<p>A loja não vende brinquedos. O que cada método responde sobre uma sequência <strong>vazia</strong>?</p>
+
+<p><em>Este código tem um erro de propósito (na última linha).</em></p>
+<pre class="file" data-file="vazio.cs">// (a lista de produtos, linhas 1 a 10)
+
+var brinquedos = produtos.Where(p =&gt; p.Categoria == "Brinquedos");
+
+Console.WriteLine($"Count: {brinquedos.Count()}");
+Console.WriteLine($"Sum: {brinquedos.Sum(p =&gt; p.Preco)}");
+Console.WriteLine($"MaxBy: {brinquedos.MaxBy(p =&gt; p.Preco)?.Nome ?? "(nenhum)"}");
+Console.WriteLine($"Max com decimal?: {brinquedos.Max(p =&gt; (decimal?)p.Preco) ?? 0m}");
+Console.WriteLine($"Average: {brinquedos.Average(p =&gt; p.Preco)}");
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run vazio.cs
+Count: 0
+Sum: 0
+MaxBy: (nenhum)
+Max com decimal?: 0
+Unhandled exception. System.InvalidOperationException: Sequence contains no elements
+   at System.Linq.ThrowHelper.ThrowNoElementsException()
+   at System.Linq.Enumerable.Average[TSource,TSelector,TAccumulator,TResult](IEnumerable`1 source, Func`2 selector)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/vazio.cs:line 18</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Numa sequência vazia…</th><th>Resultado</th></tr>
+<tr><td><code>Count()</code></td><td><code>0</code></td></tr>
+<tr><td><code>Sum(…)</code></td><td><code>0</code></td></tr>
+<tr><td><code>Any(…)</code> / <code>All(…)</code></td><td><code>false</code> / <code>true</code> ("todos os zero brinquedos custam mais de R$ 1" é verdade)</td></tr>
+<tr><td><code>MinBy(…)</code> / <code>MaxBy(…)</code> de objetos</td><td><code>null</code></td></tr>
+<tr><td><code>Min</code> / <code>Max</code> / <code>Average</code> de <code>decimal?</code>, <code>int?</code>…</td><td><code>null</code></td></tr>
+<tr><td><code>Min</code> / <code>Max</code> / <code>Average</code> de <code>decimal</code>, <code>int</code>, <code>double</code></td><td><code>InvalidOperationException</code></td></tr>
+<tr><td><code>Aggregate</code> sem valor inicial</td><td><code>InvalidOperationException</code></td></tr>
+<tr><td><code>Aggregate</code> com valor inicial</td><td>o valor inicial</td></tr>
+</table>
+</div>
+
+<p>Somar nada dá zero, e contar nada também. Mas qual é a <strong>média</strong> de nenhum preço? Não existe, e o .NET não inventa um número: ele lança a exceção (veja abaixo). O truque <code>(decimal?)p.Preco</code> converte cada preço num <code>decimal</code> anulável (veja <a href="null.html">null e Tipos Anuláveis</a>); assim, numa lista vazia, o <code>Max</code> devolve <code>null</code> em vez de falhar, e o <code>?? 0m</code> troca o <code>null</code> por zero.</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>InvalidOperationException: "Sequence contains no elements"</strong>
+<p>Visto na <a href="#vazia">seção 6</a>: <code>Average</code>, <code>Min</code> e <code>Max</code> de números (e o <code>Aggregate</code> sem semente) numa sequência vazia. Em português: "a sequência não contém elementos". O código de saída é <code>134</code>. A mesma exceção aparece com o <code>Aggregate</code>:</p>
+<pre class="file" data-file="agg-vazio.cs">// (a lista de produtos, linhas 1 a 10)
+
+string nomes = produtos.Where(p =&gt; p.Preco &gt; 1000m).Select(p =&gt; p.Nome).Aggregate((a, b) =&gt; a + ", " + b);
+
+// (o record Produto)
+</pre>
+<pre class="term">$ dotnet run agg-vazio.cs
+Unhandled exception. System.InvalidOperationException: Sequence contains no elements
+   at System.Linq.ThrowHelper.ThrowNoElementsException()
+   at System.Linq.Enumerable.Aggregate[TSource](IEnumerable`1 source, Func`3 func)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/agg-vazio.cs:line 12</pre>
+<p><strong>Como consertar:</strong> confira antes com <code>Any()</code> (<code>var media = lista.Any() ? lista.Average(p =&gt; p.Preco) : 0m;</code>), use a versão anulável (<code>Average(p =&gt; (decimal?)p.Preco)</code>, que devolve <code>null</code>) ou, no <code>Aggregate</code>, dê um valor inicial. Para juntar textos, <code>string.Join</code> devolve <code>""</code> numa lista vazia.</p>
+</div>
+
+<div class="cenario">
+<strong>OverflowException: a soma não cabe no <code>int</code></strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="overflow.cs">int[] vendasDoAno = [2_000_000_000, 2_000_000_000];
+Console.WriteLine(vendasDoAno.Sum());
+</pre>
+<pre class="term">$ dotnet run overflow.cs
+Unhandled exception. System.OverflowException: Arithmetic operation resulted in an overflow.
+   at System.Int32.System.Numerics.IAdditionOperators&lt;System.Int32,System.Int32,System.Int32&gt;.op_CheckedAddition(Int32 left, Int32 right)
+   at System.Linq.Enumerable.Sum[T,TResult](ReadOnlySpan`1 span)
+   at System.Linq.Enumerable.Sum[TSource,TResult](IEnumerable`1 source)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/overflow.cs:line 2</pre>
+<p><strong>O que quer dizer:</strong> "a operação aritmética resultou num estouro". 4 bilhões não cabem num <code>int</code>, que vai só até 2.147.483.647 (veja <a href="inteiros.html">Inteiros</a>). Um <code>+</code> comum, nesse caso, "daria a volta" em silêncio e mostraria um número negativo; o <code>Sum</code> do LINQ confere cada soma (<code>CheckedAddition</code>, "adição conferida") e prefere parar o programa a dar um total errado.</p>
+<p><strong>Como consertar:</strong> some num tipo maior, convertendo cada valor: <code>vendasDoAno.Sum(v =&gt; (long)v)</code> mostra <code>4000000000</code>. Para dinheiro, use <code>decimal</code> desde o começo.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1503: <code>Count</code> sem parênteses numa consulta</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="count-prop.cs">// (a lista de produtos, linhas 1 a 10)
+
+int n = produtos.Count;
+int m = produtos.Count();
+var caros = produtos.Where(p =&gt; p.Preco &gt; 20m);
+Console.WriteLine(caros.Count);
+
+// (o record Produto)
+</pre>
+<pre class="term">$ dotnet run count-prop.cs
+/home/ana/cs/count-prop.cs(15,19): error CS1503: Argumento 1: não é possível converter de "grupo de métodos" para "bool"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> as linhas 12 e 13 compilam: uma <code>List</code> tem a <strong>propriedade</strong> <code>Count</code> (sem parênteses) e também ganha o <strong>método</strong> <code>Count()</code> do LINQ. Mas <code>caros</code> é um <code>IEnumerable&lt;Produto&gt;</code>, que só tem o método. Sem os parênteses, <code>caros.Count</code> é o método em si (um "grupo de métodos", como em <a href="delegates.html">Delegates</a>), e o <code>Console.WriteLine</code> não sabe escrever isso; a mensagem cita <code>bool</code> porque o compilador tentou, sem sucesso, cada versão do <code>WriteLine</code>.</p>
+<p><strong>Como consertar:</strong> <code>caros.Count()</code>. Regra prática: numa <code>List</code> ou num array, a propriedade (<code>lista.Count</code>, <code>array.Length</code>) é direta; num resultado do LINQ, use o método <code>Count()</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Devolve</th><th>Lista vazia</th></tr>
+<tr><td><code>Count()</code> / <code>Count(p =&gt; teste)</code></td><td>quantos (<code>int</code>; <code>LongCount</code> para <code>long</code>)</td><td><code>0</code></td></tr>
+<tr><td><code>Sum(p =&gt; valor)</code></td><td>a soma (confere estouro)</td><td><code>0</code></td></tr>
+<tr><td><code>Average(p =&gt; valor)</code></td><td>a média (<code>decimal</code> → <code>decimal</code>; <code>int</code> → <code>double</code>)</td><td>exceção</td></tr>
+<tr><td><code>Min(p =&gt; valor)</code> / <code>Max(p =&gt; valor)</code></td><td>o menor / maior valor</td><td>exceção (ou <code>null</code> com <code>T?</code>)</td></tr>
+<tr><td><code>MinBy(p =&gt; chave)</code> / <code>MaxBy(p =&gt; chave)</code></td><td>o elemento com a menor / maior chave</td><td><code>null</code></td></tr>
+<tr><td><code>Aggregate((acc, x) =&gt; …)</code></td><td>o acumulado, começando pelo 1º elemento</td><td>exceção</td></tr>
+<tr><td><code>Aggregate(semente, (acc, x) =&gt; …)</code></td><td>o acumulado, começando pela semente</td><td>a semente</td></tr>
+<tr><td><code>Any(p =&gt; teste)</code> / <code>All(p =&gt; teste)</code></td><td>algum passa? / todos passam?</td><td><code>false</code> / <code>true</code></td></tr>
+</table>
+</div>
+<p>Na sintaxe de consulta não há palavras para agregar: ponha a consulta entre parênteses e chame o método, <code>(from p in produtos where p.Estoque &gt; 0 select p).Count()</code>.</p>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Contar com condição</h3>
+<p>Complete para contar os produtos da categoria <code>"Bolsas"</code>:</p>
+<div class="ex-code">int bolsas = produtos.<input data-answer="Count(p =&gt; p.Categoria == &quot;Bolsas&quot;)|Count(p=&gt;p.Categoria==&quot;Bolsas&quot;)|Count(x =&gt; x.Categoria == &quot;Bolsas&quot;)" aria-label="contagem">;</div>
+</div>
+
+<div class="exercise">
+<h3>2. O produto mais caro</h3>
+<p>Complete para obter o <strong>produto</strong> (não só o preço) mais caro:</p>
+<div class="ex-code">Produto? maisCaro = produtos.<input data-answer="MaxBy(p =&gt; p.Preco)|MaxBy(p=&gt;p.Preco)|MaxBy(x =&gt; x.Preco)" aria-label="método">;</div>
+</div>
+
+<div class="exercise">
+<h3>3. O tipo da média</h3>
+<p>Qual é o tipo devolvido por <code>produtos.Average(p =&gt; p.Estoque)</code>, sabendo que <code>Estoque</code> é <code>int</code>?</p>
+<div class="ex-code"><input data-answer="double" aria-label="tipo"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. <code>new List&lt;decimal&gt;().Sum()</code> e <code>new List&lt;decimal&gt;().Average()</code> dão…</p>
+<label><input type="radio" name="q4"> <code>0</code> e <code>0</code>.</label>
+<label><input type="radio" name="q4"> <code>0</code> e uma <code>InvalidOperationException</code>.</label>
+<label><input type="radio" name="q4"> Duas exceções.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Qual a diferença entre <code>Max(p =&gt; p.Preco)</code> e <code>MaxBy(p =&gt; p.Preco)</code>?</p>
+<label><input type="radio" name="q5"> Nenhuma.</label>
+<label><input type="radio" name="q5"> <code>MaxBy</code> é mais antigo.</label>
+<label><input type="radio" name="q5"> <code>Max</code> devolve o maior preço; <code>MaxBy</code> devolve o produto que tem esse preço.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Para saber se <strong>existe algum</strong> produto em falta, o melhor é…</p>
+<label><input type="radio" name="q6"> <code>produtos.Any(p =&gt; p.Estoque == 0)</code>, que para no primeiro que encontrar.</label>
+<label><input type="radio" name="q6"> <code>produtos.Count(p =&gt; p.Estoque == 0) &gt; 0</code>, que olha a lista inteira.</label>
+<label><input type="radio" name="q6"> <code>produtos.Sum(p =&gt; p.Estoque) == 0</code>.</label>
+</div>
+
+<div class="trycs" data-goal="outre:Preço médio: R\$\s7\,72,out:Mais barato: Borracha,out:Mais caro: Caderno,src:\.Average\(,src:\.MinBy\(,src:\.MaxBy\(">
+<p class="try-task"><strong>Missão final:</strong> complete o relatório da papelaria. Depois da linha que conta os produtos, mostre o <strong>preço médio</strong> (com <code>Average</code> e <code>:C</code>), o nome do <strong>mais barato</strong> (com <code>MinBy</code>) e o do <strong>mais caro</strong> (com <code>MaxBy</code>). A saída deve ser <code>Preço médio: R$ 7,72</code>, <code>Mais barato: Borracha</code> e <code>Mais caro: Caderno</code>.</p>
+<pre class="script">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+var papelaria = produtos.Where(p =&gt; p.Categoria == "Papelaria");
+
+Console.WriteLine($"Produtos: {papelaria.Count()}");
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+<pre class="solucao">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+var papelaria = produtos.Where(p =&gt; p.Categoria == "Papelaria");
+
+Console.WriteLine($"Produtos: {papelaria.Count()}");
+Console.WriteLine($"Preço médio: {papelaria.Average(p =&gt; p.Preco):C}");
+Console.WriteLine($"Mais barato: {papelaria.MinBy(p =&gt; p.Preco)?.Nome}");
+Console.WriteLine($"Mais caro: {papelaria.MaxBy(p =&gt; p.Preco)?.Nome}");
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+</div>
+
+<p>Repare que a consulta <code>papelaria</code> é <a href="linq.html#adiada">adiada</a> e foi percorrida quatro vezes (uma por método). Com 7 produtos tanto faz; numa lista grande, um <code>.ToList()</code> no fim da primeira linha faria o <code>Where</code> rodar uma vez só.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Agregar é juntar a sequência inteira num valor. Esses métodos rodam <strong>na hora</strong>.</li>
+  <li><code>Count()</code> conta (com lambda, só os que passam); <code>Sum</code> soma (e confere estouro: <code>OverflowException</code>).</li>
+  <li><code>Average</code> tira a média: de <code>decimal</code> vem <code>decimal</code>; de <code>int</code> vem <code>double</code>. Não divida <code>Sum</code> por <code>Count</code> com inteiros.</li>
+  <li><code>Min</code>/<code>Max</code> dão o valor; <code>MinBy</code>/<code>MaxBy</code> dão o elemento.</li>
+  <li><code>Aggregate</code> faz qualquer acúmulo; prefira a versão com semente.</li>
+  <li><code>Any</code>/<code>All</code> respondem sim ou não sobre a lista toda.</li>
+  <li>Lista vazia: <code>Count</code> e <code>Sum</code> dão 0; <code>Average</code>, <code>Min</code> e <code>Max</code> de números lançam <code>InvalidOperationException</code> ("Sequence contains no elements"). Use <code>Any()</code> antes ou a versão anulável.</li>
+</ul>
+
+<p>Próxima aula: <a href="linq-juntar.html">Juntar (Join)</a>, para combinar duas listas, como produtos e vendas.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
