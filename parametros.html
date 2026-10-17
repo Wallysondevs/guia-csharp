@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Parâmetros — passar valores para um método | Guia C#</title>
+<meta name="description" content="Parâmetros em C# para quem nunca programou: parâmetro e argumento, vários parâmetros com o seu tipo, a ordem dos argumentos, conversões aceitas, passagem por valor (o método recebe uma cópia), arrays como parâmetro e os erros reais do dotnet 10 (CS7036, CS1501, CS1503, CS1001, CS0136), com missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Parâmetros</span></h1>
+
+<p class="intro">Na aula <a href="metodos.html">Métodos</a>, todo método fazia sempre a mesma coisa: <code>Linha()</code> desenhava sempre a mesma linha. Um método fica muito mais útil quando você pode <strong>entregar informações</strong> para ele trabalhar: "mostre o dobro <em>deste</em> número", "escreva o preço <em>deste</em> produto". Essas informações chegam pelos <strong>parâmetros</strong>. Nesta aula você vai escrever métodos que recebem valores, entender por que o método recebe uma <strong>cópia</strong> (e não a variável original) e ler os erros que aparecem quando a chamada não combina com a declaração.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A diferença entre <strong>parâmetro</strong> (na declaração) e <strong>argumento</strong> (na chamada).</li>
+  <li>Como escrever métodos com um ou vários parâmetros, cada um com o seu tipo.</li>
+  <li>Que argumento pode ser um valor, uma variável ou uma conta.</li>
+  <li>Por que a ordem dos argumentos importa, e quais conversões o C# faz sozinho.</li>
+  <li>A <strong>passagem por valor</strong>: o método recebe uma cópia, e mudar o parâmetro não muda a variável de quem chamou.</li>
+  <li>O caso dos arrays: por que o método <em>consegue</em> mudar os elementos.</li>
+  <li>Os erros <code>CS7036</code>, <code>CS1501</code>, <code>CS1503</code>, <code>CS1001</code> e <code>CS0136</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram na máquina fictícia da Ana, na pasta <code>~/cs</code>, com o <strong>.NET 10</strong> e o comando <code>dotnet run arquivo.cs</code>. Como em <a href="metodos.html">Métodos</a>, as instruções ficam no topo do arquivo e os métodos no fim.</p>
+
+<hr>
+
+<h2>A ideia: o formulário e o que você preenche</h2>
+<p>Pense no formulário de pedido da lojinha da Ana. O papel impresso tem campos com nome: <strong>Produto: ____</strong>, <strong>Preço: ____</strong>. Cada cliente preenche os campos com valores diferentes, mas o formulário é sempre o mesmo.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>No formulário</th><th>Em C#</th><th>Nome técnico</th></tr>
+<tr><td>O campo impresso, "Preço: ____"</td><td>A variável declarada entre os parênteses da <strong>declaração</strong>: <code>void MostrarPreco(decimal preco)</code></td><td><strong>parâmetro</strong></td></tr>
+<tr><td>O que o cliente escreve no campo, "12,50"</td><td>O valor entre os parênteses da <strong>chamada</strong>: <code>MostrarPreco(12.50m);</code></td><td><strong>argumento</strong></td></tr>
+</table>
+</div>
+
+<p>Muita gente usa as duas palavras como se fossem a mesma coisa. Não tem problema; mas, quando o compilador fala em <strong>argumento</strong>, ele quer dizer o valor da chamada, e quando fala em <strong>parâmetro</strong>, o nome da declaração.</p>
+
+<hr>
+
+<h2>1. Um método com um parâmetro</h2>
+
+<pre class="file" data-file="dobro.cs">MostrarDobro(4);
+MostrarDobro(10);
+MostrarDobro(-3);
+
+void MostrarDobro(int n)
+{
+    Console.WriteLine($"O dobro de {n} é {n * 2}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run dobro.cs
+O dobro de 4 é 8
+O dobro de 10 é 20
+O dobro de -3 é -6</pre>
+
+<dl class="anatomy">
+  <dt>void MostrarDobro(int n)</dt><dd>A declaração. Dentro dos parênteses está o <strong>parâmetro</strong>: um tipo (<code>int</code>) e um nome (<code>n</code>), igual a uma declaração de variável, só que sem o <code>;</code> e sem valor.</dd>
+  <dt>n</dt><dd>Dentro do corpo, <code>n</code> é uma variável comum: dá para ler, fazer contas, mostrar. Ela existe só enquanto o método roda; fora dele, <code>n</code> não existe (a aula <a href="escopo.html">Escopo</a> explica).</dd>
+  <dt>MostrarDobro(4);</dt><dd>A chamada. O <strong>argumento</strong> <code>4</code> é copiado para <code>n</code> antes de o corpo começar. É como se o método começasse com <code>int n = 4;</code>.</dd>
+</dl>
+
+<p>As três chamadas usam o mesmo método com três valores diferentes. Na primeira, <code>n</code> vale 4; na segunda, 10; na terceira, -3. Cada chamada começa do zero, com o seu próprio <code>n</code>.</p>
+
+<p>Os nomes de parâmetros seguem a convenção das variáveis: <strong>camelCase</strong>, começando com minúscula (<code>preco</code>, <code>nomeDoCliente</code>). O nome do método, como você viu, é PascalCase.</p>
+
+<div class="trycs" data-goal="outre:Olá\, Ana!\nOlá\, Bruno!\n,src:void\s+Saudar\s*\(\s*string\s+\w+\s*\)">
+<p class="try-task"><strong>Missão:</strong> escreva no fim do arquivo um método <code>Saudar</code> que recebe um <code>string</code> chamado <code>nome</code> e mostra <code>Olá, </code> seguido do nome e de <code>!</code>. As duas chamadas já estão prontas. A saída deve ser:</p>
+<pre class="out">Olá, Ana!
+Olá, Bruno!</pre>
+<pre class="script">Saudar("Ana");
+Saudar("Bruno");
+
+// escreva o método Saudar aqui
+</pre>
+<pre class="solucao">Saudar("Ana");
+Saudar("Bruno");
+
+void Saudar(string nome)
+{
+    Console.WriteLine($"Olá, {nome}!");
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Vários parâmetros</h2>
+<p>Para mostrar uma linha do recibo, a Ana precisa de duas informações: o produto e o preço. Os parâmetros ficam separados por vírgula, <strong>cada um com o seu tipo</strong>:</p>
+
+<pre class="file" data-file="item.cs">MostrarItem("Caderno", 12.50m);
+MostrarItem("Caneta", 3m);
+MostrarItem("Mochila", 89.90m);
+
+void MostrarItem(string produto, decimal preco)
+{
+    Console.WriteLine($"{produto,-10} R$ {preco,7:N2}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run item.cs
+Caderno    R$   12,50
+Caneta     R$    3,00
+Mochila    R$   89,90</pre>
+
+<dl class="anatomy">
+  <dt>(string produto, decimal preco)</dt><dd>Dois parâmetros: um texto e um número com casas decimais. Dinheiro, no guia, é sempre <code>decimal</code> (<a href="decimais.html">float, double e decimal</a>).</dd>
+  <dt>MostrarItem("Caderno", 12.50m)</dt><dd>Os argumentos vão na <strong>mesma ordem</strong> dos parâmetros: o primeiro (<code>"Caderno"</code>) vai para <code>produto</code>, o segundo (<code>12.50m</code>) vai para <code>preco</code>. O <code>m</code> diz que o número é <code>decimal</code>.</dd>
+  <dt>{produto,-10} e {preco,7:N2}</dt><dd>Só formatação: o produto ocupa 10 casas alinhado à esquerda, e o preço ocupa 7 casas com 2 decimais (<a href="formatacao.html">Formatar Números</a>). Foi o que deixou as colunas alinhadas.</dd>
+</dl>
+
+<p>Cada parâmetro precisa do seu próprio tipo, mesmo quando os tipos são iguais. Numa declaração de variáveis você pode escrever <code>int a, b;</code>, mas nos parâmetros não:</p>
+
+<pre class="file" data-file="tipojunto.cs">Somar(2, 3);
+
+void Somar(int a, b)
+{
+    Console.WriteLine(a + b);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tipojunto.cs
+/home/ana/cs/tipojunto.cs(3,20): error CS1001: Identificador esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p><em>Identificador esperado</em> (<em>Identifier expected</em>): identificador é um nome. O compilador leu o <code>b</code> como se fosse um <strong>tipo</strong> e ficou esperando o nome do parâmetro logo depois; na coluna 20 encontrou o <code>)</code>. Conserto: <code>void Somar(int a, int b)</code>.</p>
+
+<h3>O argumento pode ser uma variável ou uma conta</h3>
+<p>Um argumento não precisa ser um valor escrito na hora. Qualquer coisa que produza um valor do tipo certo serve: uma variável, uma conta, o resultado de outro método.</p>
+
+<pre class="file" data-file="total.cs">string nome = "Borracha";
+decimal precoUnitario = 1.75m;
+int quantidade = 4;
+
+MostrarTotal(nome, precoUnitario, quantidade);
+MostrarTotal("Lápis", 0.90m, 10);
+MostrarTotal(nome.ToUpper(), precoUnitario * 2, quantidade + 1);
+
+void MostrarTotal(string produto, decimal preco, int qtd)
+{
+    decimal total = preco * qtd;
+    Console.WriteLine($"{qtd} x {produto} = {total:C}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run total.cs
+4 x Borracha = R$ 7,00
+10 x Lápis = R$ 9,00
+5 x BORRACHA = R$ 17,50</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Chamada</th><th>O que chega em <code>produto</code></th><th><code>preco</code></th><th><code>qtd</code></th></tr>
+<tr><td>1ª: variáveis</td><td>o valor de <code>nome</code>: <code>"Borracha"</code></td><td><code>1,75</code></td><td><code>4</code></td></tr>
+<tr><td>2ª: valores escritos</td><td><code>"Lápis"</code></td><td><code>0,90</code></td><td><code>10</code></td></tr>
+<tr><td>3ª: contas e métodos</td><td><code>nome.ToUpper()</code> = <code>"BORRACHA"</code></td><td><code>1,75 * 2</code> = <code>3,50</code></td><td><code>4 + 1</code> = <code>5</code></td></tr>
+</table>
+</div>
+
+<p>Antes de pular para o método, o C# <strong>calcula</strong> cada argumento, da esquerda para a direita, e só então copia os resultados para os parâmetros. Repare também que os nomes não precisam combinar: a variável se chama <code>quantidade</code> e o parâmetro, <code>qtd</code>. O que liga um ao outro é a <strong>posição</strong>.</p>
+
+<hr>
+
+<h2>3. A ordem e o tipo dos argumentos</h2>
+<p>Como quem decide é a posição, trocar a ordem é um erro, e o compilador pega:</p>
+
+<pre class="file" data-file="ordemerr.cs">MostrarItem(12.50m, "Caderno");
+
+void MostrarItem(string produto, decimal preco)
+{
+    Console.WriteLine($"{produto}: {preco:C}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ordemerr.cs
+/home/ana/cs/ordemerr.cs(1,13): error CS1503: Argumento 1: não é possível converter de "decimal" para "string"
+/home/ana/cs/ordemerr.cs(1,21): error CS1503: Argumento 2: não é possível converter de "string" para "decimal"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<dl class="anatomy">
+  <dt>Argumento 1</dt><dd>O primeiro valor da chamada, <code>12.50m</code>, na coluna 13.</dd>
+  <dt>não é possível converter de "decimal" para "string"</dt><dd>O primeiro parâmetro é <code>string</code>, e um <code>decimal</code> não vira texto sozinho. Em inglês: <em>Argument 1: cannot convert from 'decimal' to 'string'</em>.</dd>
+  <dt>Argumento 2</dt><dd>O mesmo problema ao contrário, no segundo valor.</dd>
+</dl>
+
+<p>Quando os dois parâmetros têm o mesmo tipo, o compilador <strong>não</strong> tem como perceber a troca. <code>Dividir(10, 2)</code> e <code>Dividir(2, 10)</code> compilam os dois, com resultados diferentes. Por isso vale escolher nomes claros e, quando houver dúvida, usar <strong>argumentos nomeados</strong>, como <code>Dividir(dividendo: 10, divisor: 2)</code> (aula <a href="parametros-opcionais.html">Parâmetros Opcionais e Nomeados</a>).</p>
+
+<h3>Conversões que o C# faz sozinho</h3>
+<p>O argumento não precisa ser exatamente do tipo do parâmetro: basta existir uma <strong>conversão implícita</strong>, aquela que nunca perde informação (<a href="conversao-tipos.html">Conversão de Tipos</a>). Um <code>int</code> cabe num <code>decimal</code>, mas um <code>double</code> não vira <code>decimal</code> sem você pedir:</p>
+
+<pre class="file" data-file="conv.cs">MostrarPreco(10);
+MostrarPreco(12.5);
+
+void MostrarPreco(decimal preco)
+{
+    Console.WriteLine(preco.ToString("C"));
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run conv.cs
+/home/ana/cs/conv.cs(2,14): error CS1503: Argumento 1: não é possível converter de "double" para "decimal"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A linha 1 (<code>10</code>, um <code>int</code>) passou. A linha 2 não: <code>12.5</code> sem letra é <code>double</code>. Com o <code>m</code>, funciona:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run convok.cs                « o mesmo programa, com MostrarPreco(12.5m)
+R$ 10,00
+R$ 12,50</pre>
+
+<h3>Argumentos de menos ou de mais</h3>
+<p>Cada parâmetro precisa receber um argumento (a não ser os <a href="parametros-opcionais.html">opcionais</a>). Faltou um:</p>
+
+<pre class="file" data-file="poucos.cs">MostrarItem("Caderno");
+
+void MostrarItem(string produto, decimal preco)
+{
+    Console.WriteLine($"{produto}: {preco:C}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run poucos.cs
+/home/ana/cs/poucos.cs(1,1): error CS7036: Não há nenhum argumento fornecido que corresponda ao parâmetro necessário 'preco' de 'MostrarItem(string, decimal)'
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A mensagem é ótima: diz <strong>qual</strong> parâmetro ficou vazio (<code>preco</code>) e mostra a lista de tipos que o método espera, <code>(string, decimal)</code>. Em inglês: <em>There is no argument given that corresponds to the required parameter 'preco'</em>. Com um argumento a mais (<code>MostrarItem("Caderno", 12.50m, 3)</code>), o erro é o que você já viu em <a href="metodos.html">Métodos</a>:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run muitos.cs
+/home/ana/cs/muitos.cs(1,1): error CS1501: Nenhuma sobrecarga para o método "MostrarItem" leva 3 argumentos
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<hr>
+
+<h2>4. O método recebe uma cópia</h2>
+<p>Esta é a parte mais importante da aula. Quando você passa uma variável para um método, o método recebe <strong>uma cópia do valor</strong>, e não a variável. Se ele mudar o parâmetro, muda só a cópia:</p>
+
+<pre class="file" data-file="copia.cs">int pontos = 10;
+Console.WriteLine($"Antes:  pontos = {pontos}");
+Dobrar(pontos);
+Console.WriteLine($"Depois: pontos = {pontos}");
+
+void Dobrar(int valor)
+{
+    valor = valor * 2;
+    Console.WriteLine($"Dentro: valor  = {valor}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run copia.cs
+Antes:  pontos = 10
+Dentro: valor  = 20
+Depois: pontos = 10                  « continua 10</pre>
+
+<ol class="passo">
+  <li><code>pontos</code> nasce com 10.</li>
+  <li>Na chamada <code>Dobrar(pontos)</code>, o C# lê o valor de <code>pontos</code> (10) e o <strong>copia</strong> para o parâmetro <code>valor</code>. Agora existem duas variáveis, cada uma com o seu 10.</li>
+  <li>Dentro do método, <code>valor</code> vira 20. A variável <code>pontos</code> nem fica sabendo.</li>
+  <li>O método termina e <code>valor</code> deixa de existir. <code>pontos</code> continua com 10.</li>
+</ol>
+
+<p>Pense numa fotocópia: a Ana entrega uma cópia do boletim à secretaria; se a secretaria rabiscar a cópia, o boletim original da Ana continua limpo. Isso se chama <strong>passagem por valor</strong> e é o padrão do C#. Ela é uma proteção: você chama um método sem medo de ele estragar as suas variáveis.</p>
+
+<p>E se o parâmetro tiver o mesmo nome da variável? Continua sendo uma cópia:</p>
+
+<pre class="file" data-file="mesmonome.cs">int pontos = 10;
+Dobrar(pontos);
+Console.WriteLine($"Fora:   pontos = {pontos}");
+
+void Dobrar(int pontos)
+{
+    pontos = pontos * 2;
+    Console.WriteLine($"Dentro: pontos = {pontos}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run mesmonome.cs
+Dentro: pontos = 20
+Fora:   pontos = 10</pre>
+
+<p>São duas variáveis diferentes que só têm o mesmo nome: o parâmetro <code>pontos</code> do método e a variável <code>pontos</code> do programa. Dentro do método, o nome <code>pontos</code> quer dizer o parâmetro. O guia evita isso, porque confunde quem lê, mas é bom saber que é permitido. A aula <a href="escopo.html">Escopo</a> volta ao assunto.</p>
+
+<div class="tip">
+<strong>E se eu quiser que o método mude a minha variável?</strong>
+<p>O jeito mais comum é o método <strong>devolver</strong> o novo valor, e você guardar: <code>pontos = Dobrar(pontos);</code>. É o assunto da próxima aula, <a href="retorno.html">Valor de Retorno</a>. Existe também um jeito de passar a própria variável, e não a cópia: as palavras <code>ref</code> e <code>out</code>, em <a href="ref-out-in.html">ref, out e in</a>.</p>
+</div>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> rode e confira que <code>pontos</code> continua 10. Depois troque o nome do parâmetro <code>valor</code> por <code>pontos</code> (nas três linhas do método) e rode de novo: o resultado não muda.</p>
+<pre class="script">int pontos = 10;
+Console.WriteLine($"Antes:  pontos = {pontos}");
+Dobrar(pontos);
+Console.WriteLine($"Depois: pontos = {pontos}");
+
+void Dobrar(int valor)
+{
+    valor = valor * 2;
+    Console.WriteLine($"Dentro: valor  = {valor}");
+}
+</pre>
+</div>
+
+<h3>Arrays: a cópia é do endereço</h3>
+<p>Com arrays, a história muda um pouco. Um array não mora dentro da variável: a variável guarda só o <strong>endereço</strong> de onde os elementos estão (por isso arrays são chamados de <strong>tipo de referência</strong>; veja <a href="valor-referencia.html">Valor × Referência</a>). Ao passar um array, o método recebe uma cópia desse endereço, e com ele chega aos <strong>mesmos elementos</strong>:</p>
+
+<pre class="file" data-file="arrmuda.cs">int[] notas = { 6, 7, 8 };
+DarBonus(notas);
+Console.WriteLine(string.Join(", ", notas));
+
+void DarBonus(int[] lista)
+{
+    for (int i = 0; i &lt; lista.Length; i++)
+    {
+        lista[i] = lista[i] + 1;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run arrmuda.cs
+7, 8, 9                              « as notas originais mudaram</pre>
+
+<p>É como entregar à secretaria uma cópia do <strong>endereço</strong> da casa da Ana, e não uma cópia da casa: quem tem o endereço consegue entrar e mudar os móveis. Mas trocar o endereço anotado no papel não muda a casa da Ana:</p>
+
+<pre class="file" data-file="arrtroca.cs">int[] notas = { 6, 7, 8 };
+Trocar(notas);
+Console.WriteLine(string.Join(", ", notas));
+
+void Trocar(int[] lista)
+{
+    lista = new int[] { 10, 10, 10 };
+    Console.WriteLine("Dentro: " + string.Join(", ", lista));
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run arrtroca.cs
+Dentro: 10, 10, 10
+6, 7, 8                              « o array original continua o mesmo</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>O que o método faz com o parâmetro</th><th><code>int</code>, <code>decimal</code>, <code>bool</code>…</th><th>array</th></tr>
+<tr><td>Muda o parâmetro inteiro (<code>valor = 20;</code>, <code>lista = new int[3];</code>)</td><td>Não afeta quem chamou</td><td>Não afeta quem chamou</td></tr>
+<tr><td>Muda um elemento (<code>lista[0] = 99;</code>)</td><td>(não existe)</td><td><strong>Afeta</strong> quem chamou: é o mesmo array</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Formas diferentes</h2>
+<p>Parâmetros funcionam igual nas duas formas de escrever métodos que você viu em <a href="metodos.html">Métodos</a>. Na forma com classe:</p>
+
+<pre class="file" data-file="classeparam.cs">class Program
+{
+    static void Main()
+    {
+        MostrarItem("Caderno", 12.50m);
+        MostrarItem("Caneta", 3m);
+    }
+
+    static void MostrarItem(string produto, decimal preco)
+    {
+        Console.WriteLine($"{produto}: {preco:C}");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run classeparam.cs
+Caderno: R$ 12,50
+Caneta: R$ 3,00</pre>
+
+<p>Os parâmetros ainda podem ganhar recursos extras, cada um com a sua aula:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Recurso</th><th>Cara</th><th>Para quê</th><th>Aula</th></tr>
+<tr><td>Parâmetro comum (esta aula)</td><td><code>decimal preco</code></td><td>Receber uma cópia do valor</td><td>esta</td></tr>
+<tr><td>Opcional</td><td><code>int qtd = 1</code></td><td>Permitir que a chamada omita o argumento</td><td><a href="parametros-opcionais.html">Opcionais e Nomeados</a></td></tr>
+<tr><td>Argumento nomeado</td><td><code>MostrarItem(preco: 3m, produto: "Caneta")</code></td><td>Deixar a chamada clara e livre da ordem</td><td><a href="parametros-opcionais.html">Opcionais e Nomeados</a></td></tr>
+<tr><td><code>ref</code>, <code>out</code>, <code>in</code></td><td><code>ref int pontos</code></td><td>Passar a própria variável, não uma cópia</td><td><a href="ref-out-in.html">ref, out e in</a></td></tr>
+<tr><td><code>params</code></td><td><code>params int[] notas</code></td><td>Aceitar quantos argumentos vierem</td><td><a href="params.html">params</a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS7036: Não há nenhum argumento fornecido que corresponda ao parâmetro necessário 'preco'…</code></strong>
+<p><strong>O que significa:</strong> a chamada tem argumentos de menos. A mensagem diz qual parâmetro ficou sem valor e mostra a lista de tipos esperada.</p>
+<p><strong>Como consertar:</strong> passe um argumento para cada parâmetro, na ordem: <code>MostrarItem("Caderno", 12.50m);</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1501: Nenhuma sobrecarga para o método "MostrarItem" leva 3 argumentos</code></strong>
+<p><strong>O que significa:</strong> argumentos demais. Nenhuma versão do método recebe essa quantidade.</p>
+<p><strong>Como consertar:</strong> tire o argumento que sobrou, ou acrescente o parâmetro que falta na declaração.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1503: Argumento 1: não é possível converter de "decimal" para "string"</code></strong>
+<p><strong>O que significa:</strong> o argumento daquela posição tem um tipo que não combina com o parâmetro. Na maioria das vezes, a ordem foi trocada. Também acontece com <code>12.5</code> (um <code>double</code>) indo para um <code>decimal</code>, ou com um texto como <code>"3"</code> indo para um <code>int</code>.</p>
+<p><strong>Como consertar:</strong> confira a ordem dos parâmetros. Para dinheiro, escreva o <code>m</code> (<code>12.5m</code>). Para transformar texto em número, use <code>int.TryParse</code> (<a href="parse.html">Parse e TryParse</a>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1001: Identificador esperado</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run semtipo.cs
+/home/ana/cs/semtipo.cs(3,20): error CS1001: Identificador esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> faltou o tipo de um parâmetro. Aqui a declaração foi <code>void MostrarDobro(n)</code>: o compilador entendeu <code>n</code> como um tipo e esperava o nome logo depois. O mesmo erro aparece em <code>(int a, b)</code>.</p>
+<p><strong>Como consertar:</strong> todo parâmetro tem tipo e nome: <code>void MostrarDobro(int n)</code>, <code>void Somar(int a, int b)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0136: Um local ou um parâmetro denominado "n" não pode ser declarado neste escopo…</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run redecl.cs
+/home/ana/cs/redecl.cs(5,9): error CS0136: Um local ou um parâmetro denominado "n" não pode ser declarado neste escopo porque esse nome é usado em um escopo delimitador de local para definir um local ou parâmetro
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> dentro do método <code>MostrarDobro(int n)</code>, a linha 5 tenta criar outra variável <code>int n = 2;</code>. O parâmetro já é uma variável com esse nome.</p>
+<p><strong>Como consertar:</strong> se queria mudar o valor, tire o tipo: <code>n = 2;</code>. Se queria outra variável, dê outro nome.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0103: O nome "n" não existe no contexto atual</code> (fora do método)</strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run foradeescopo.cs
+/home/ana/cs/foradeescopo.cs(2,19): error CS0103: O nome "n" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> a linha 2, fora do método, tentou mostrar <code>n</code>, mas o parâmetro só existe dentro de <code>MostrarDobro</code>.</p>
+<p><strong>Como consertar:</strong> se você precisa de um valor calculado pelo método, faça o método devolvê-lo (<a href="retorno.html">Valor de Retorno</a>).</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>void Nome(int n) { … }</code></td><td>Declara um método com um parâmetro <code>int</code> chamado <code>n</code></td></tr>
+<tr><td><code>void Nome(string a, decimal b)</code></td><td>Vários parâmetros, separados por vírgula, cada um com o seu tipo</td></tr>
+<tr><td><code>Nome(5);</code></td><td>Chama passando o argumento 5, que é copiado para <code>n</code></td></tr>
+<tr><td><code>Nome(x * 2, "oi");</code></td><td>Argumentos podem ser contas, variáveis e resultados de métodos; são calculados antes da chamada</td></tr>
+<tr><td>Ordem dos argumentos</td><td>Igual à ordem dos parâmetros (a não ser com <a href="parametros-opcionais.html">argumentos nomeados</a>)</td></tr>
+<tr><td>Passagem por valor</td><td>O método recebe uma cópia; mudar o parâmetro não muda a variável de quem chamou</td></tr>
+<tr><td>Parâmetro array</td><td>A cópia é do endereço: mudar um elemento muda o array original</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Declarar o parâmetro</h3>
+<p>Complete a declaração de um método que recebe uma idade inteira chamada <code>idade</code>:</p>
+<div class="ex-code">void MostrarIdade(<input data-answer="int idade" aria-label="parâmetro">)</div>
+</div>
+
+<div class="exercise">
+<h3>2. Dois parâmetros</h3>
+<p>Complete a declaração para receber um nome (<code>string nome</code>) e uma nota (<code>double nota</code>), nessa ordem:</p>
+<div class="ex-code">void MostrarNota(<input data-answer="string nome, double nota|string nome,double nota" aria-label="parâmetros">)</div>
+</div>
+
+<div class="exercise">
+<h3>3. Quanto vale?</h3>
+<p>Depois de <code>int x = 5; Zerar(x);</code>, com <code>void Zerar(int n) { n = 0; }</code>, quanto vale <code>x</code>?</p>
+<div class="ex-code"><input data-answer="5" aria-label="valor de x"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Em <code>MostrarItem("Caneta", 3m)</code>, como se chamam <code>"Caneta"</code> e <code>3m</code>?</p>
+<label><input type="radio" name="q4"> Parâmetros</label>
+<label><input type="radio" name="q4"> Argumentos</label>
+<label><input type="radio" name="q4"> Tipos de retorno</label>
+<label><input type="radio" name="q4"> Funções locais</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. O método é <code>void MostrarPreco(decimal preco)</code>. Qual chamada <strong>não</strong> compila?</p>
+<label><input type="radio" name="q5"> <code>MostrarPreco(10);</code></label>
+<label><input type="radio" name="q5"> <code>MostrarPreco(10.5m);</code></label>
+<label><input type="radio" name="q5"> <code>MostrarPreco(10.5);</code></label>
+<label><input type="radio" name="q5"> <code>MostrarPreco(2 * 3m);</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. <code>int[] v = { 1, 2 };</code> e <code>void Mudar(int[] a) { a[0] = 9; }</code>. Depois de <code>Mudar(v);</code>, o que tem em <code>v</code>?</p>
+<label><input type="radio" name="q6"> <code>9, 2</code>: o método recebeu o endereço do mesmo array</label>
+<label><input type="radio" name="q6"> <code>1, 2</code>: o método recebeu uma cópia dos elementos</label>
+<label><input type="radio" name="q6"> Erro de compilação</label>
+<label><input type="radio" name="q6"> <code>9, 9</code></label>
+</div>
+
+<h3>Missão final: o recibo com totais</h3>
+
+<div class="trycs" data-goal="outre:^3 x Caderno = R\$ 37\,50\n2 x Caneta = R\$ 6\,00\n10 x Lápis = R\$ 9\,00\n$,src:void\s+MostrarTotal\s*\(\s*string\s+\w+\s*\,\s*decimal\s+\w+\s*\,\s*int\s+\w+\s*\)">
+<p class="try-task"><strong>Missão:</strong> escreva o método <code>MostrarTotal</code>, com três parâmetros, nesta ordem: o produto (<code>string</code>), o preço de uma unidade (<code>decimal</code>) e a quantidade (<code>int</code>). Ele calcula o total (preço × quantidade) e mostra a linha no formato abaixo, com o total em <code>:C</code>. As chamadas já estão prontas. A saída deve ser exatamente:</p>
+<pre class="out">3 x Caderno = R$ 37,50
+2 x Caneta = R$ 6,00
+10 x Lápis = R$ 9,00</pre>
+<pre class="script">MostrarTotal("Caderno", 12.50m, 3);
+MostrarTotal("Caneta", 3m, 2);
+MostrarTotal("Lápis", 0.90m, 10);
+
+// escreva o método MostrarTotal aqui
+</pre>
+<pre class="solucao">MostrarTotal("Caderno", 12.50m, 3);
+MostrarTotal("Caneta", 3m, 2);
+MostrarTotal("Lápis", 0.90m, 10);
+
+void MostrarTotal(string produto, decimal preco, int quantidade)
+{
+    decimal total = preco * quantidade;
+    Console.WriteLine($"{quantidade} x {produto} = {total:C}");
+}
+</pre>
+</div>
+
+<p>Se apareceu <code>CS1503</code>, confira a ordem e os tipos dos parâmetros. Se o total saiu sem o <code>R$</code>, faltou o <code>:C</code> dentro das chaves.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><strong>Parâmetro</strong> é a variável declarada nos parênteses do método; <strong>argumento</strong> é o valor passado na chamada.</li>
+  <li>Cada parâmetro tem tipo e nome (camelCase); vários são separados por vírgula, cada um com o seu tipo.</li>
+  <li>Argumentos vão na ordem dos parâmetros. Podem ser valores, variáveis ou contas, e o tipo tem de combinar (ou ter conversão implícita, como <code>int</code> → <code>decimal</code>).</li>
+  <li>O método recebe uma <strong>cópia</strong> do valor (passagem por valor): mudar o parâmetro não muda a variável de quem chamou. Com arrays, a cópia é do endereço, e os elementos podem mudar.</li>
+  <li>Erros típicos: <code>CS7036</code> (faltou argumento), <code>CS1501</code> (argumento a mais), <code>CS1503</code> (tipo ou ordem errada), <code>CS1001</code> (faltou o tipo do parâmetro), <code>CS0136</code> (variável com o nome do parâmetro).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
