@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# LINQ OrderBy e ThenBy — ordenar resultados | Guia C#</title>
+<meta name="description" content="Ordenar com LINQ em C# para quem nunca programou: OrderBy e OrderByDescending, critério de desempate com ThenBy e ThenByDescending, a armadilha de dois OrderBy, a ordem estável, Order() para números e textos, a ordem do português (acentos e maiúsculas) × StringComparer.Ordinal, OrderBy × List.Sort, orderby na sintaxe de consulta e os erros reais CS1061 e InvalidOperationException do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# LINQ <span class="hl">OrderBy e ThenBy</span></h1>
+
+<p class="intro">Um relatório só é útil se estiver em ordem: do mais barato ao mais caro, por categoria, em ordem alfabética. Com o <a href="linq.html">LINQ</a>, você diz <strong>por qual informação</strong> ordenar (a <strong>chave</strong>) e ele ordena: <code>OrderBy(p =&gt; p.Preco)</code>. Para desempatar ("por categoria e, dentro de cada uma, por preço"), entra o <code>ThenBy</code>. Esta aula também mostra a armadilha mais comum (dois <code>OrderBy</code> seguidos) e como os textos em português são ordenados.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Ordenar com <code>OrderBy</code> (crescente) e <code>OrderByDescending</code> (decrescente).</li>
+  <li>Desempatar com <code>ThenBy</code> e <code>ThenByDescending</code>.</li>
+  <li>Por que dois <code>OrderBy</code> seguidos não fazem o que parece.</li>
+  <li>O que é uma ordenação <strong>estável</strong>.</li>
+  <li><code>Order()</code> e <code>OrderDescending()</code> para listas de números e textos.</li>
+  <li>Como acentos e maiúsculas são ordenados, e o <code>StringComparer.Ordinal</code>.</li>
+  <li>A diferença entre <code>OrderBy</code> e o <code>Sort</code> da <code>List</code>.</li>
+  <li>Os erros reais: <code>CS1061</code> (<code>ThenBy</code> sem <code>OrderBy</code>) e a <code>InvalidOperationException</code> de uma chave que não sabe se comparar.</li>
+</ul>
+</div>
+
+<p>Todos os programas rodaram com o <strong>.NET 10</strong> (C# 14) na máquina da Ana, na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Eles usam a lista de produtos da lojinha apresentada em <a href="linq.html">O que é LINQ</a> (linhas 1 a 10 de cada arquivo) e o <code>record Produto</code> no fim; os arquivos abaixo mostram só o programa.</p>
+
+<pre class="file" data-file="produtos (trecho de todos os exemplos)">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+// … o programa de cada exemplo começa na linha 12 …
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+
+<hr>
+
+<h2>A ideia: a fila da chamada</h2>
+<p>Uma professora pede: "façam uma fila por altura". Ela não diz como trocar as pessoas de lugar; diz só o <strong>critério</strong>, a altura. Se dois alunos têm a mesma altura, ela pode completar: "e, entre os da mesma altura, por ordem alfabética". O primeiro critério é o <code>OrderBy</code>; o desempate, o <code>ThenBy</code>.</p>
+
+<p>No LINQ, o critério é uma lambda que, dado um produto, devolve a <strong>chave</strong> da ordenação: <code>p =&gt; p.Preco</code> quer dizer "ordene pelo preço".</p>
+
+<hr>
+
+<h2>1. <code>OrderBy</code> e <code>OrderByDescending</code></h2>
+
+<pre class="file" data-file="orderby.cs">// (a lista de produtos)
+
+var maisBaratos = produtos.OrderBy(p =&gt; p.Preco);
+var maisCaros = produtos.OrderByDescending(p =&gt; p.Preco);
+var porNome = produtos.OrderBy(p =&gt; p.Nome);
+
+Console.WriteLine(string.Join(", ", maisBaratos.Select(p =&gt; $"{p.Nome} {p.Preco}")));
+Console.WriteLine(string.Join(", ", maisCaros.Select(p =&gt; $"{p.Nome} {p.Preco}")));
+Console.WriteLine(string.Join(", ", porNome.Select(p =&gt; p.Nome)));
+Console.WriteLine(string.Join(", ", produtos.Select(p =&gt; p.Nome)));
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run orderby.cs
+Borracha 1,75, Lápis 2,50, Caderno 18,90, Caneca 22,50, Estojo 24,90, Garrafa 35,00, Mochila 129,90
+Mochila 129,90, Garrafa 35,00, Estojo 24,90, Caneca 22,50, Caderno 18,90, Lápis 2,50, Borracha 1,75
+Borracha, Caderno, Caneca, Estojo, Garrafa, Lápis, Mochila
+Caderno, Lápis, Mochila, Borracha, Estojo, Garrafa, Caneca   « a lista original não mudou</pre>
+
+<dl class="anatomy">
+  <dt>OrderBy</dt><dd>"Ordenar por": do <strong>menor</strong> para o <strong>maior</strong> (crescente). Para números, do menor valor; para textos, em ordem alfabética.</dd>
+  <dt>OrderByDescending</dt><dd>"Ordenar por, decrescente" (<em>descending</em> = "descendo"): do maior para o menor.</dd>
+  <dt>p =&gt; p.Preco</dt><dd>A <strong>chave</strong>: o valor pelo qual cada produto é comparado. Pode ser qualquer coisa comparável: número, texto, data, ou uma conta (<code>p =&gt; p.Preco * p.Estoque</code>).</dd>
+</dl>
+
+<p>A última linha mostra que <code>produtos</code> continua na ordem em que foi escrita: o <code>OrderBy</code> produz uma sequência <strong>nova</strong>, como todo o LINQ. E, como o <code>Where</code> e o <code>Select</code>, ele é <a href="linq.html#adiada">adiado</a>: a ordenação só acontece quando o resultado é percorrido.</p>
+
+<div class="trycs" data-goal="outre:^Lápis 40\nBorracha 25\nCaderno 12\nGarrafa 8\nCaneca 5\nMochila 3\nEstojo 0\n$,src:OrderByDescending\(">
+<p class="try-task"><strong>Missão:</strong> a Ana quer ver primeiro os produtos com <strong>mais</strong> unidades no estoque. Troque a ordenação por nome por uma ordenação <strong>decrescente</strong> pelo estoque. A primeira linha deve ser <code>Lápis 40</code> e a última, <code>Estojo 0</code>.</p>
+<pre class="script">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+var ordenados = produtos.OrderBy(p =&gt; p.Nome);
+
+foreach (Produto p in ordenados)
+{
+    Console.WriteLine($"{p.Nome} {p.Estoque}");
+}
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+<pre class="solucao">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+var ordenados = produtos.OrderByDescending(p =&gt; p.Estoque);
+
+foreach (Produto p in ordenados)
+{
+    Console.WriteLine($"{p.Nome} {p.Estoque}");
+}
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Desempatar com <code>ThenBy</code></h2>
+<p>O relatório da Ana agrupa visualmente por categoria e, dentro de cada categoria, mostra do mais caro ao mais barato:</p>
+
+<pre class="file" data-file="thenby.cs">// (a lista de produtos)
+
+var relatorio = produtos
+    .OrderBy(p =&gt; p.Categoria)
+    .ThenByDescending(p =&gt; p.Preco);
+
+foreach (Produto p in relatorio)
+{
+    Console.WriteLine($"{p.Categoria,-10} {p.Nome,-9} {p.Preco,10:C}");
+}
+
+Console.WriteLine("--- sintaxe de consulta");
+var consulta =
+    from p in produtos
+    orderby p.Categoria, p.Preco descending
+    select p.Nome;
+Console.WriteLine(string.Join(", ", consulta));
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run thenby.cs
+Bolsas     Mochila    R$ 129,90
+Bolsas     Estojo      R$ 24,90
+Cozinha    Garrafa     R$ 35,00
+Cozinha    Caneca      R$ 22,50
+Papelaria  Caderno     R$ 18,90
+Papelaria  Lápis        R$ 2,50
+Papelaria  Borracha     R$ 1,75
+--- sintaxe de consulta
+Mochila, Estojo, Garrafa, Caneca, Caderno, Lápis, Borracha</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>.OrderBy(p =&gt; p.Categoria)</code></td><td>O critério principal: categorias em ordem alfabética (Bolsas, Cozinha, Papelaria).</td></tr>
+<tr><td><code>.ThenByDescending(p =&gt; p.Preco)</code></td><td>"Depois por", decrescente: só desempata produtos da <strong>mesma</strong> categoria. Dentro de Papelaria: Caderno (18,90), Lápis (2,50), Borracha (1,75).</td></tr>
+<tr><td><code>{p.Categoria,-10}</code></td><td>Alinha o texto à esquerda numa coluna de 10 caracteres (veja <a href="formatacao.html">Formatar Números</a>).</td></tr>
+<tr><td><code>orderby p.Categoria, p.Preco descending</code></td><td>A mesma ordenação na sintaxe de consulta: os critérios separados por vírgula, e <code>descending</code> depois do que é decrescente.</td></tr>
+</table>
+</div>
+
+<p>Dá para encadear quantos <code>ThenBy</code> quiser: <code>.OrderBy(…).ThenBy(…).ThenByDescending(…)</code>. Cada um só entra em ação quando todos os anteriores empataram.</p>
+
+<h3 id="armadilha">A armadilha: dois <code>OrderBy</code> seguidos</h3>
+<p>Parece natural escrever o desempate com outro <code>OrderBy</code>. Veja o que sai:</p>
+
+<pre class="file" data-file="duasorderby.cs">// (a lista de produtos)
+
+var errado = produtos
+    .OrderBy(p =&gt; p.Categoria)
+    .OrderByDescending(p =&gt; p.Preco);
+
+Console.WriteLine(string.Join(", ", errado.Select(p =&gt; $"{p.Categoria}/{p.Nome}")));
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run duasorderby.cs
+Bolsas/Mochila, Cozinha/Garrafa, Bolsas/Estojo, Cozinha/Caneca, Papelaria/Caderno, Papelaria/Lápis, Papelaria/Borracha</pre>
+
+<p>As categorias ficaram misturadas: a lista saiu ordenada <strong>só pelo preço</strong>. O segundo <code>OrderBy</code> <strong>reordena tudo de novo</strong>, do zero, e a ordem por categoria se perde. Compila, roda, não dá erro nenhum, e o relatório sai errado. Regra: <strong>um</strong> <code>OrderBy</code> (ou <code>OrderByDescending</code>) no começo, e todos os desempates com <code>ThenBy</code>.</p>
+
+<h3>Ordem estável: o empate mantém a ordem original</h3>
+
+<pre class="file" data-file="estavel.cs">// (a lista de produtos)
+
+var porCategoria = produtos.OrderBy(p =&gt; p.Categoria);
+Console.WriteLine(string.Join(", ", porCategoria.Select(p =&gt; $"{p.Categoria}/{p.Nome}")));
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run estavel.cs
+Bolsas/Mochila, Bolsas/Estojo, Cozinha/Garrafa, Cozinha/Caneca, Papelaria/Caderno, Papelaria/Lápis, Papelaria/Borracha</pre>
+
+<p>Sem <code>ThenBy</code>, os produtos da mesma categoria ficaram na ordem em que estavam na lista (Caderno, Lápis, Borracha). O <code>OrderBy</code> do LINQ é <strong>estável</strong> (<em>stable</em>): empates nunca trocam de lugar. Isso é garantido, e você pode contar com isso.</p>
+
+<hr>
+
+<h2>3. Listas simples: <code>Order()</code> <span class="versao">.NET 7</span></h2>
+<p>Quando os próprios elementos já são a chave (uma lista de preços, de nomes), não precisa de lambda: <code>Order()</code> e <code>OrderDescending()</code> ordenam pelos próprios valores. E aqui aparece um detalhe importante sobre textos:</p>
+
+<pre class="file" data-file="order.cs">decimal[] precos = [18.90m, 2.50m, 129.90m, 1.75m];
+string[] nomes = ["lápis", "Caderno", "água", "Borracha", "estojo", "Álbum"];
+
+Console.WriteLine(string.Join(" | ", precos.Order()));
+Console.WriteLine(string.Join(" | ", precos.OrderDescending()));
+Console.WriteLine(string.Join(" | ", nomes.Order()));
+Console.WriteLine(string.Join(" | ", nomes.Order(StringComparer.Ordinal)));
+</pre>
+
+<pre class="term">$ dotnet run order.cs
+1,75 | 2,50 | 18,90 | 129,90
+129,90 | 18,90 | 2,50 | 1,75
+água | Álbum | Borracha | Caderno | estojo | lápis
+Borracha | Caderno | estojo | lápis | Álbum | água</pre>
+
+<ul>
+  <li><strong>Terceira linha:</strong> por padrão, textos são ordenados pelas regras do <strong>idioma</strong> do computador (a cultura pt-BR da Ana, veja <a href="cultura.html">Cultura</a>), como num dicionário: <code>água</code> e <code>Álbum</code> ficam no "a", e maiúsculas e minúsculas se misturam (<code>Caderno</code> antes de <code>estojo</code>). É o que uma pessoa espera ver.</li>
+  <li><strong>Quarta linha:</strong> com <code>StringComparer.Ordinal</code> ("pela ordem dos códigos"), a comparação é pelos números de cada caractere na tabela Unicode: primeiro todas as maiúsculas sem acento, depois as minúsculas, e as letras acentuadas por último. É rápido e igual em qualquer computador, mas não serve para mostrar a uma pessoa.</li>
+</ul>
+
+<p>Use a ordem padrão (do idioma) para o que vai aparecer na tela, e <code>StringComparer.Ordinal</code> para coisas técnicas, como códigos de produto. O <code>OrderBy</code> também aceita o comparador: <code>produtos.OrderBy(p =&gt; p.Nome, StringComparer.Ordinal)</code>.</p>
+
+<hr>
+
+<h2>4. <code>OrderBy</code> × <code>List.Sort</code></h2>
+<p>Na aula de <a href="lambdas.html">Lambdas</a>, a lista foi ordenada com <code>Sort</code>. A diferença:</p>
+
+<pre class="file" data-file="sort.cs">// (a lista de produtos)
+
+var ordenada = produtos.OrderBy(p =&gt; p.Preco).ToList();
+Console.WriteLine($"Original: {produtos[0].Nome}, nova: {ordenada[0].Nome}");
+
+produtos.Sort((a, b) =&gt; a.Preco.CompareTo(b.Preco));
+Console.WriteLine($"Depois do Sort: {produtos[0].Nome}");
+
+var invertida = produtos.AsEnumerable().Reverse();
+Console.WriteLine(string.Join(", ", invertida.Select(p =&gt; p.Nome)));
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run sort.cs
+Original: Caderno, nova: Borracha
+Depois do Sort: Borracha
+Mochila, Garrafa, Estojo, Caneca, Caderno, Lápis, Borracha</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th><code>lista.OrderBy(p =&gt; chave)</code></th><th><code>lista.Sort((a, b) =&gt; …)</code></th></tr>
+<tr><td>A lista original</td><td>fica igual</td><td><strong>muda</strong> (é reordenada)</td></tr>
+<tr><td>Devolve</td><td>uma sequência nova (adiada)</td><td>nada (<code>void</code>)</td></tr>
+<tr><td>Funciona em</td><td>qualquer <code>IEnumerable&lt;T&gt;</code> (arrays, resultados de outro LINQ…)</td><td>só <code>List&lt;T&gt;</code> (e arrays, com <code>Array.Sort</code>)</td></tr>
+<tr><td>Empates</td><td>mantêm a ordem (estável)</td><td>podem trocar de lugar (não estável)</td></tr>
+<tr><td>Desempate</td><td><code>ThenBy</code></td><td>dentro da própria lambda</td></tr>
+</table>
+</div>
+
+<p>O <code>Reverse()</code> ("inverter") vira a sequência de trás para frente, sem comparar nada. O <code>AsEnumerable()</code> antes dele garante que é o <code>Reverse</code> do LINQ, que devolve uma sequência nova; a <code>List</code> tem um <code>Reverse()</code> próprio, que inverte a lista no lugar e não devolve nada.</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS1061: <code>ThenBy</code> sem <code>OrderBy</code> antes</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="thenby-erro.cs">// (a lista de produtos, linhas 1 a 10)
+
+var lista = produtos.ThenBy(p =&gt; p.Nome);
+
+// (o record Produto)
+</pre>
+<pre class="term">$ dotnet run thenby-erro.cs
+/home/ana/cs/thenby-erro.cs(12,22): error CS1061: ‘List&lt;Produto&gt;’ não contém uma definição para "ThenBy" e não foi possível encontrar nenhum método de extensão "ThenBy" que aceite um primeiro argumento do tipo ‘List&lt;Produto&gt;’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> o <code>ThenBy</code> só existe <strong>depois</strong> de um <code>OrderBy</code>. Ele é uma extensão de <code>IOrderedEnumerable&lt;T&gt;</code> ("enumerável já ordenado"), o tipo que o <code>OrderBy</code> devolve; uma lista comum não tem critério principal para desempatar.</p>
+<p><strong>Como consertar:</strong> comece com <code>OrderBy</code>: <code>produtos.OrderBy(p =&gt; p.Categoria).ThenBy(p =&gt; p.Nome)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>InvalidOperationException: a chave não sabe se comparar</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="comparar-erro.cs">// (a lista de produtos, linhas 1 a 10)
+
+var ordenados = produtos.OrderBy(p =&gt; p);
+foreach (Produto p in ordenados)
+{
+    Console.WriteLine(p.Nome);
+}
+
+// (o record Produto)
+</pre>
+<pre class="term">$ dotnet run comparar-erro.cs
+Unhandled exception. System.InvalidOperationException: Failed to compare two elements in the array.
+ ---&gt; System.ArgumentException: At least one object must implement IComparable.
+   at System.Collections.Comparer.Compare(Object a, Object b)
+   at System.Linq.Enumerable.EnumerableSorter`2.CompareAnyKeys(Int32 index1, Int32 index2)
+   at System.Collections.Generic.ArraySortHelper`1.InsertionSort(Span`1 keys, Comparison`1 comparer)
+   at System.Collections.Generic.ArraySortHelper`1.IntroSort(Span`1 keys, Int32 depthLimit, Comparison`1 comparer)
+   at System.Collections.Generic.ArraySortHelper`1.Sort(Span`1 keys, Comparison`1 comparer)
+   --- End of inner exception stack trace ---
+   at System.Collections.Generic.ArraySortHelper`1.Sort(Span`1 keys, Comparison`1 comparer)
+   at System.MemoryExtensions.Sort[T](Span`1 span, Comparison`1 comparison)
+   at System.Linq.Enumerable.EnumerableSorter`2.QuickSort(Int32[] keys, Int32 lo, Int32 hi)
+   at System.Linq.Enumerable.OrderedIterator`2.MoveNext()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/comparar-erro.cs:line 13</pre>
+<p><strong>O que quer dizer:</strong> "falha ao comparar dois elementos", causada por (<code>---&gt;</code>) "pelo menos um objeto precisa implementar <code>IComparable</code>". A chave é o produto inteiro, e o C# não sabe se um <code>Produto</code> vem antes ou depois de outro: pelo nome? pelo preço? As linhas do meio são o caminho dentro do .NET; a que importa é a última, a linha 13 do seu programa (o <code>foreach</code>, onde a ordenação adiada finalmente rodou). Repare que o erro só aparece <strong>ao rodar</strong>: o compilador aceitou.</p>
+<p><strong>Como consertar:</strong> ordene por uma propriedade comparável, <code>OrderBy(p =&gt; p.Nome)</code>, ou ensine o tipo a se comparar implementando <code>IComparable&lt;Produto&gt;</code> (veja <a href="comparacao.html">IComparable e IComparer</a>).</p>
+</div>
+
+<div class="cenario">
+<strong>Dois <code>OrderBy</code>: nenhum erro, resultado errado</strong>
+<p>Visto na <a href="#armadilha">seção 2</a>: o segundo <code>OrderBy</code> desfaz o primeiro. <strong>Como consertar:</strong> troque o segundo por <code>ThenBy</code> (ou <code>ThenByDescending</code>).</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>OrderBy(p =&gt; chave)</code></td><td>Ordena crescente pela chave (estável, adiado).</td></tr>
+<tr><td><code>OrderByDescending(p =&gt; chave)</code></td><td>Ordena decrescente.</td></tr>
+<tr><td><code>.ThenBy(p =&gt; chave)</code></td><td>Desempate crescente (só depois de um <code>OrderBy</code>).</td></tr>
+<tr><td><code>.ThenByDescending(p =&gt; chave)</code></td><td>Desempate decrescente.</td></tr>
+<tr><td><code>Order()</code> / <code>OrderDescending()</code></td><td>Ordena pelos próprios elementos <span class="versao">.NET 7</span>.</td></tr>
+<tr><td><code>OrderBy(p =&gt; p.Nome, StringComparer.Ordinal)</code></td><td>Ordena textos pelo código dos caracteres, sem regras de idioma.</td></tr>
+<tr><td><code>Reverse()</code></td><td>Inverte a sequência.</td></tr>
+<tr><td><code>orderby a, b descending</code></td><td>Sintaxe de consulta: <code>OrderBy(a).ThenByDescending(b)</code>.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Do mais caro ao mais barato</h3>
+<p>Complete para ordenar os produtos do mais caro para o mais barato:</p>
+<div class="ex-code">var caros = produtos.<input data-answer="OrderByDescending(p =&gt; p.Preco)|OrderByDescending(p=&gt;p.Preco)|OrderByDescending(x =&gt; x.Preco)" aria-label="ordenação">;</div>
+</div>
+
+<div class="exercise">
+<h3>2. O desempate</h3>
+<p>Complete para ordenar por categoria e, dentro de cada uma, por nome:</p>
+<div class="ex-code">produtos.OrderBy(p =&gt; p.Categoria).<input data-answer="ThenBy(p =&gt; p.Nome)|ThenBy(p=&gt;p.Nome)|ThenBy(x =&gt; x.Nome)" aria-label="desempate"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Na sintaxe de consulta</h3>
+<p>Complete a cláusula para ordenar pelo estoque, do maior para o menor:</p>
+<div class="ex-code">from p in produtos <input data-answer="orderby p.Estoque descending" aria-label="orderby"> select p.Nome</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. <code>produtos.OrderBy(p =&gt; p.Categoria).OrderBy(p =&gt; p.Nome)</code> ordena…</p>
+<label><input type="radio" name="q4"> por categoria e, dentro de cada uma, por nome.</label>
+<label><input type="radio" name="q4"> só por nome: o segundo <code>OrderBy</code> refaz a ordem do zero.</label>
+<label><input type="radio" name="q4"> não compila.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. Dois produtos têm o mesmo preço. Depois de <code>OrderBy(p =&gt; p.Preco)</code>, em que ordem eles ficam?</p>
+<label><input type="radio" name="q5"> Na mesma ordem em que estavam na lista original (a ordenação é estável).</label>
+<label><input type="radio" name="q5"> Em ordem alfabética.</label>
+<label><input type="radio" name="q5"> Em ordem aleatória.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">6. Depois de <code>var o = produtos.OrderBy(p =&gt; p.Preco);</code>, como fica a lista <code>produtos</code>?</p>
+<label><input type="radio" name="q6"> Ordenada pelo preço.</label>
+<label><input type="radio" name="q6"> Vazia.</label>
+<label><input type="radio" name="q6"> Igual: o <code>OrderBy</code> cria uma sequência nova (quem muda a lista é o <code>Sort</code>).</label>
+</div>
+
+<div class="trycs" data-goal="outre:^Bolsas/Estojo\nBolsas/Mochila\nCozinha/Caneca\nCozinha/Garrafa\nPapelaria/Borracha\nPapelaria/Caderno\nPapelaria/Lápis\n$,src:ThenBy\(">
+<p class="try-task"><strong>Missão final:</strong> a vitrine deve mostrar os produtos por categoria e, dentro de cada categoria, em ordem alfabética. O código caiu na armadilha dos dois <code>OrderBy</code> (rode e veja as categorias misturadas). Conserte. A saída deve começar com <code>Bolsas/Estojo</code> e <code>Bolsas/Mochila</code> e terminar com <code>Papelaria/Lápis</code>.</p>
+<pre class="script">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+var vitrine = produtos
+    .OrderBy(p =&gt; p.Categoria)
+    .OrderBy(p =&gt; p.Nome);
+
+foreach (Produto p in vitrine)
+{
+    Console.WriteLine($"{p.Categoria}/{p.Nome}");
+}
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+<pre class="solucao">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+var vitrine = produtos
+    .OrderBy(p =&gt; p.Categoria)
+    .ThenBy(p =&gt; p.Nome);
+
+foreach (Produto p in vitrine)
+{
+    Console.WriteLine($"{p.Categoria}/{p.Nome}");
+}
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>OrderBy(p =&gt; chave)</code> ordena do menor para o maior; <code>OrderByDescending</code>, do maior para o menor. A lista original não muda.</li>
+  <li>Desempates vêm com <code>ThenBy</code> / <code>ThenByDescending</code>, que só existem depois de um <code>OrderBy</code> (<code>CS1061</code>).</li>
+  <li>Dois <code>OrderBy</code> seguidos: o segundo refaz tudo, sem erro nenhum. Use um <code>OrderBy</code> e depois <code>ThenBy</code>.</li>
+  <li>A ordenação é estável: empates mantêm a ordem original.</li>
+  <li><code>Order()</code> ordena listas simples. Textos seguem as regras do idioma (acentos e maiúsculas juntos); <code>StringComparer.Ordinal</code> compara pelos códigos.</li>
+  <li><code>OrderBy</code> cria uma sequência nova e adiada; <code>List.Sort</code> reordena a própria lista.</li>
+  <li>A chave precisa ser comparável; senão, <code>InvalidOperationException</code> ao rodar.</li>
+</ul>
+
+<p>Próxima aula: <a href="linq-agrupar.html">Agrupar (GroupBy)</a>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
