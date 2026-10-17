@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Escapes e Strings Literais — \n, \&quot;, @&quot;…&quot; e &quot;&quot;&quot; raw strings | Guia C#</title>
+<meta name="description" content="Sequências de escape e strings literais em C# para quem nunca programou: aspas dentro do texto (\&quot;), quebra de linha (\n), tabulação (\t), barra invertida (\\), \u00e9, \e (C# 13), o caminho C:\novo que quebra, strings literais @&quot;…&quot;, raw strings &quot;&quot;&quot; (C# 11) com interpolação $$&quot;&quot;&quot;, e os erros reais CS1009, CS1010, CS8997 e CS8999 do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Escapes e Strings Literais</span></h1>
+
+<p class="intro">Uma string começa e termina com aspas. E se o texto tiver aspas dentro, como <code>Ela disse: "Oi!"</code>? E se precisar de uma quebra de linha, de uma tabulação, ou de um caminho do Windows cheio de barras, como <code>C:\Users\ana</code>? Para isso o C# tem as <strong>sequências de escape</strong> (<code>\"</code>, <code>\n</code>, <code>\\</code>…) e dois tipos especiais de string: a <strong>string literal</strong> <code>@"…"</code> e a <strong>string bruta</strong> <code>"""…"""</code>. Nesta aula você vai ver os três e saber qual escolher em cada caso.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Por que <code>"Ela disse: "Oi!""</code> não compila e como resolver com <code>\"</code>.</li>
+  <li>As sequências de escape: <code>\n</code> (nova linha), <code>\t</code> (tabulação), <code>\\</code>, <code>\'</code>, <code>\u00e9</code> e o novo <code>\e</code> <span class="versao">C# 13</span>.</li>
+  <li>A armadilha do caminho <code>"C:\novo\tabela.txt"</code>.</li>
+  <li>Strings literais <code>@"…"</code>: barras sem escape e texto em várias linhas.</li>
+  <li>Strings brutas <code>"""…"""</code> <span class="versao">C# 11</span>: textos com aspas, JSON e interpolação com <code>$$"""</code>, e os erros reais.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: um sinal de "atenção, o próximo é especial"</h2>
+<p>Imagine que você está ditando um recado por telefone e precisa dizer "abre aspas". Se você só falar a palavra "aspas", a pessoa pode escrever a palavra em vez do símbolo. Então vocês combinam um sinal: quando você disser "<strong>símbolo:</strong> aspas", ela escreve <code>"</code>.</p>
+<p>Em C#, esse sinal é a <strong>barra invertida</strong> <code>\</code>. Dentro de uma string, ela avisa: "o próximo caractere não é o que parece". <code>\"</code> quer dizer "uma aspa de verdade, não o fim do texto"; <code>\n</code> quer dizer "uma quebra de linha". Dizemos que a barra "escapa" o caractere seguinte do seu significado normal, e daí o nome <strong>sequência de escape</strong>.</p>
+
+<hr>
+
+<h2>1. O problema das aspas</h2>
+
+<pre class="file" data-file="problema.cs">Console.WriteLine("Ela disse: "Oi!"");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run problema.cs
+/home/ana/cs/problema.cs(1,32): error CS1003: Erro de sintaxe, "," esperado
+/home/ana/cs/problema.cs(1,35): error CS1003: Erro de sintaxe, "," esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O C# lê a string <code>"Ela disse: "</code> e acha que ela acabou na segunda aspa. Depois encontra <code>Oi!</code> solto, fora de qualquer string, e outra string vazia <code>""</code>. A mensagem "<code>,</code> esperado" é o compilador tentando adivinhar: "se são vários valores, cadê a vírgula entre eles?". O conserto é avisar que aquelas aspas do meio são <strong>parte do texto</strong>.</p>
+
+<hr>
+
+<h2>2. As sequências de escape</h2>
+
+<pre class="file" data-file="escapes.cs">Console.WriteLine("Ela disse: \"Oi!\"");
+Console.WriteLine("Linha 1\nLinha 2");
+Console.WriteLine("Nome\tIdade");
+Console.WriteLine("Ana\t29");
+Console.WriteLine("C:\\Users\\ana\\notas.txt");
+Console.WriteLine('\'');
+Console.WriteLine("Caf\u00e9 \u2764");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run escapes.cs
+Ela disse: "Oi!"          « \" virou uma aspa
+Linha 1                   « \n quebrou a linha
+Linha 2
+Nome	Idade                « \t pulou para a próxima coluna de tabulação
+Ana	29
+C:\Users\ana\notas.txt    « cada \\ virou uma barra só
+'                         « \' é uma aspa simples num char
+Café ❤                    « \u seguido do código Unicode</pre>
+
+<dl class="anatomy">
+  <dt>\"</dt><dd>Uma aspa dupla dentro da string, sem terminá-la.</dd>
+  <dt>\n</dt><dd><em>New line</em>, "nova linha". O texto continua na linha de baixo. Um <code>WriteLine("a\nb")</code> mostra duas linhas.</dd>
+  <dt>\t</dt><dd><em>Tab</em>, a tabulação. O terminal pula para a próxima "parada" (em geral, de 8 em 8 colunas). Bom para colunas simples; para alinhar de verdade, use <code>{valor,10}</code> (aula <a href="formatacao.html">Formatar Números</a>).</dd>
+  <dt>\\</dt><dd>Uma barra invertida de verdade. Como a barra é o sinal de escape, para escrever uma você precisa de duas.</dd>
+  <dt>'\''</dt><dd>Num <code>char</code> (aspas simples), a aspa simples também precisa de escape. Numa string, <code>"'"</code> não precisa.</dd>
+  <dt>\u00e9</dt><dd>Um caractere pelo seu <strong>código Unicode</strong>, em hexadecimal, com 4 dígitos: <code>00e9</code> é o <code>é</code>, <code>2764</code> é o coração. Útil para caracteres que você não tem no teclado.</dd>
+</dl>
+
+<p>Cada sequência de escape ocupa <strong>dois caracteres no código, mas é um caractere só</strong> no texto: <code>"a\tb\n".Length</code> é 4 (<code>a</code>, tabulação, <code>b</code>, quebra de linha), e <code>"\\".Length</code> é 1.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escape</th><th>Nome</th><th>Resultado</th></tr>
+<tr><td><code>\"</code></td><td>aspas duplas</td><td><code>"</code></td></tr>
+<tr><td><code>\'</code></td><td>aspas simples</td><td><code>'</code></td></tr>
+<tr><td><code>\\</code></td><td>barra invertida</td><td><code>\</code></td></tr>
+<tr><td><code>\n</code></td><td>nova linha (<em>line feed</em>)</td><td>quebra de linha</td></tr>
+<tr><td><code>\r</code></td><td>retorno de carro (<em>carriage return</em>)</td><td>volta ao começo da linha (o Windows usa <code>\r\n</code> nos arquivos)</td></tr>
+<tr><td><code>\t</code></td><td>tabulação</td><td>salto até a próxima coluna</td></tr>
+<tr><td><code>\0</code></td><td>nulo</td><td>o caractere de código 0</td></tr>
+<tr><td><code>\u00e9</code></td><td>Unicode (4 dígitos hexadecimais)</td><td><code>é</code></td></tr>
+<tr><td><code>\e</code> <span class="versao">C# 13</span></td><td><em>escape</em> (código 27)</td><td>começa comandos de cor e estilo do terminal</td></tr>
+</table>
+</div>
+
+<h3>O <code>\e</code> e as cores do terminal <span class="versao">C# 13</span></h3>
+<p>Os terminais entendem comandos que começam com o caractere de código 27, chamado <em>ESC</em>. Até o C# 12, escrevia-se <code>\u001b</code>; desde o C# 13 há o atalho <code>\e</code>:</p>
+
+<pre class="file" data-file="esc.cs">Console.WriteLine("\e[1mnegrito\e[0m normal");
+Console.WriteLine((int)'\e');
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run esc.cs
+<strong>negrito</strong> normal    « \e[1m liga o negrito; \e[0m volta ao normal
+27</pre>
+
+<p>Num terminal de verdade, a palavra aparece em negrito e os comandos ficam invisíveis. Isso é um detalhe do terminal, não do C#: se a saída for para um arquivo, os códigos aparecem lá como caracteres estranhos.</p>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> mude o recado, acrescente mais <code>\n</code> e <code>\t</code>, e tente mostrar o caminho <code>D:\fotos\2026</code>.</p>
+<pre class="script" data-file="recado.cs">Console.WriteLine("Recado da Ana:\n\t\"Volto às 14h.\"\n\t— Ana");
+Console.WriteLine("Arquivo: C:\\Users\\ana\\recado.txt");
+</pre>
+</div>
+
+<hr>
+
+<h2>3. A armadilha do caminho do Windows</h2>
+<p>Caminhos do Windows usam a barra invertida, e aí mora um perigo: o C# lê as barras como escapes.</p>
+
+<pre class="file" data-file="caminho.cs">Console.WriteLine("C:\novo\tabela.txt");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run caminho.cs
+C:
+ovo	abela.txt</pre>
+
+<p>O <code>\n</code> de <code>\novo</code> virou uma quebra de linha, e o <code>\t</code> de <code>\tabela</code> virou uma tabulação. O pior: <strong>não há erro nem aviso</strong>, porque <code>\n</code> e <code>\t</code> são escapes válidos. Se a barra vier antes de uma letra que não forma escape, aí sim o compilador reclama (<code>CS1009</code>, em <a href="#erros">Quando dá errado</a>).</p>
+<p>Há dois consertos: dobrar todas as barras (<code>"C:\\novo\\tabela.txt"</code>) ou, bem mais legível, usar uma string literal.</p>
+
+<div class="note">
+<strong>E no Linux?</strong>
+<p>Caminhos do Linux, como <code>/home/ana/cs/notas.txt</code>, usam a barra normal <code>/</code>, que não é escape. Para montar caminhos que funcionem nos dois sistemas, use <code>Path.Combine</code> (aula <a href="caminhos.html">Pastas e Caminhos</a>).</p>
+</div>
+
+<hr>
+
+<h2>4. String literal: <code>@"…"</code></h2>
+<p>Com um <code>@</code> antes das aspas, a string vira uma <strong>string literal</strong> (em inglês, <em>verbatim string</em>, "palavra por palavra"): a barra invertida perde o poder de escape, e o texto é lido exatamente como está.</p>
+
+<pre class="file" data-file="verbatim.cs">string caminho = @"C:\pasta\novo\tabela.txt";
+Console.WriteLine(caminho);
+Console.WriteLine(@"Ela disse: ""Oi!""");
+string poema = @"Batatinha quando nasce
+espalha a rama pelo chão";
+Console.WriteLine(poema);
+Console.WriteLine(@"\n não é quebra aqui");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run verbatim.cs
+C:\pasta\novo\tabela.txt     « as barras ficaram como estão
+Ela disse: "Oi!"             « numa string @, aspas se escrevem dobradas: ""
+Batatinha quando nasce       « a quebra de linha do código entrou no texto
+espalha a rama pelo chão
+\n não é quebra aqui</pre>
+
+<dl class="anatomy">
+  <dt>@"C:\pasta\novo"</dt><dd>Nenhum escape funciona: <code>\n</code> é uma barra e um <code>n</code>. Perfeito para caminhos do Windows e para expressões regulares (aula <a href="regex.html">Regex</a>).</dd>
+  <dt>""</dt><dd>Como a barra não escapa mais nada, a única forma de pôr uma aspa dentro de uma string <code>@</code> é <strong>dobrá-la</strong>: <code>""</code> vira <code>"</code>.</dd>
+  <dt>várias linhas</dt><dd>A string <code>@</code> pode atravessar linhas do código, e as quebras entram no texto. Cuidado: os espaços do começo das linhas também entram.</dd>
+</dl>
+
+<p>O <code>@</code> combina com a interpolação: <code>$@"C:\Users\{nome}\Documentos"</code> (ou <code>@$"…"</code>, tanto faz a ordem) põe o valor de <code>nome</code> no caminho e mantém as barras.</p>
+
+<div class="trycs" data-goal="out:C:\\novo\\tabela.txt">
+<p class="try-task"><strong>Missão:</strong> o caminho do arquivo da Ana saiu quebrado em duas linhas, com uma tabulação no meio. Conserte a string (com <code>@</code> ou com barras dobradas) para aparecer <code>C:\novo\tabela.txt</code>.</p>
+<pre class="out">C:\novo\tabela.txt</pre>
+<pre class="script" data-file="arquivo.cs">string arquivo = "C:\novo\tabela.txt";
+Console.WriteLine(arquivo);
+</pre>
+<pre class="solucao" data-file="arquivo.cs">string arquivo = @"C:\novo\tabela.txt";
+Console.WriteLine(arquivo);
+</pre>
+</div>
+
+<hr>
+
+<h2>5. String bruta: <code>"""…"""</code> <span class="versao">C# 11</span></h2>
+<p>A string <code>@</code> resolve as barras, mas as aspas ainda precisam ser dobradas, e os espaços de recuo entram no texto. A <strong>string bruta</strong> (<em>raw string literal</em>) resolve tudo: ela começa com <strong>três aspas</strong> (ou mais) e, lá dentro, nada é especial: nem barras, nem aspas.</p>
+
+<pre class="file" data-file="raw.cs">string json = """
+    {
+      "nome": "Ana",
+      "cidade": "Recife"
+    }
+    """;
+Console.WriteLine(json);
+Console.WriteLine("""Ela disse: "Oi!" e saiu.""");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run raw.cs
+{                            « o recuo de 4 espaços sumiu
+  "nome": "Ana",             « os 2 espaços extras ficaram
+  "cidade": "Recife"
+}
+Ela disse: "Oi!" e saiu.     « aspas sem escape nenhum</pre>
+
+<dl class="anatomy">
+  <dt>""" e uma quebra de linha</dt><dd>Numa string bruta de várias linhas, as três aspas de abertura ficam <strong>sozinhas</strong> no fim da linha, e o texto começa na linha de baixo.</dd>
+  <dt>o recuo</dt><dd>As três aspas de <strong>fechamento</strong> marcam a margem. Os espaços que estão antes delas (aqui, 4) são retirados de todas as linhas. Por isso o JSON saiu sem recuo, mas com os 2 espaços a mais das linhas de dentro. Assim, o texto pode ficar recuado junto com o código, sem que esse recuo vá para a tela.</dd>
+  <dt>a primeira e a última quebra</dt><dd>A quebra logo depois das aspas de abertura e a quebra antes das de fechamento <strong>não</strong> entram no texto.</dd>
+  <dt>"""Ela disse: "Oi!" e saiu."""</dt><dd>Também existe a forma de uma linha só: as três aspas, o texto e as três aspas.</dd>
+</dl>
+
+<p>Se o texto tiver três aspas seguidas, abra e feche com quatro (<code>""""</code>), e assim por diante: a string só termina com a mesma quantidade de aspas com que começou.</p>
+
+<h3>String bruta com interpolação: <code>$"""</code> e <code>$$"""</code></h3>
+<p>Com <code>$</code> na frente, a string bruta ganha lacunas, como na aula <a href="interpolacao.html">Interpolação</a>. Num JSON, porém, as chaves fazem parte do texto. A solução é usar <strong>dois</strong> cifrões: aí as lacunas passam a ser <code>{{ }}</code>, e uma chave sozinha é só uma chave.</p>
+
+<pre class="file" data-file="rawinterp.cs">string nome = "Ana";
+int idade = 29;
+string json = $$"""
+    {
+      "nome": "{{nome}}",
+      "idade": {{idade}}
+    }
+    """;
+Console.WriteLine(json);
+string ola = $"""Olá, "{nome}"!""";
+Console.WriteLine(ola);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run rawinterp.cs
+{
+  "nome": "Ana",
+  "idade": 29
+}
+Olá, "Ana"!</pre>
+
+<dl class="anatomy">
+  <dt>$$"""</dt><dd>A quantidade de <code>$</code> diz quantas chaves formam uma lacuna. Com <code>$$</code>, <code>{{nome}}</code> é lacuna, e <code>{</code> sozinha aparece no texto.</dd>
+  <dt>$"""Olá, "{nome}"!"""</dt><dd>Com um <code>$</code> só, a lacuna é <code>{nome}</code>, como na interpolação comum, e as aspas continuam livres.</dd>
+</dl>
+
+<hr>
+
+<h2>Qual usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th><th>Exemplo</th></tr>
+<tr><td>Texto comum, talvez com uma quebra de linha</td><td>string normal com escapes</td><td><code>"Total:\n10 itens"</code></td></tr>
+<tr><td>Uma ou duas aspas dentro</td><td>string normal com <code>\"</code></td><td><code>"Ela disse: \"Oi!\""</code></td></tr>
+<tr><td>Caminho do Windows, expressão regular</td><td>string literal</td><td><code>@"C:\pasta\arquivo.txt"</code></td></tr>
+<tr><td>Texto de várias linhas, com aspas, JSON, HTML, SQL</td><td>string bruta</td><td><code>"""…"""</code></td></tr>
+<tr><td>JSON com valores de variáveis</td><td>string bruta interpolada</td><td><code>$$"""{ "nome": "{{nome}}" }"""</code></td></tr>
+</table>
+</div>
+<p>Código antigo usa muito <code>@"…"</code> para textos de várias linhas, porque a string bruta só chegou no C# 11 (.NET 7, 2022). No código novo, prefira a bruta para textos grandes.</p>
+
+<hr>
+
+<h2 id="erros">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS1009: Sequência de escape não reconhecida</code></strong>
+<pre class="file" data-file="ee1.cs">Console.WriteLine("C:\pasta\arquivo.txt");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ee1.cs
+/home/ana/cs/ee1.cs(1,22): error CS1009: Sequência de escape não reconhecida
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> <code>\p</code> não é um escape que o C# conhece. A coluna 22 aponta a barra de <code>\pasta</code>. Repare que o <code>\a</code> de <code>\arquivo</code> passaria sem erro: <code>\a</code> é um escape antigo (o "bipe" dos terminais).</p>
+<p><strong>Como consertar:</strong> <code>@"C:\pasta\arquivo.txt"</code> ou <code>"C:\\pasta\\arquivo.txt"</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1010: Newline em constante</code></strong>
+<pre class="file" data-file="ee4.cs">Console.WriteLine("Olá, mundo!);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ee4.cs
+/home/ana/cs/ee4.cs(1,19): error CS1010: Newline em constante
+/home/ana/cs/ee4.cs(1,33): error CS1026: ) esperado
+/home/ana/cs/ee4.cs(1,33): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> "quebra de linha dentro de uma constante": a string começou na coluna 19 e a linha acabou sem a aspa de fechamento. O C# engoliu o <code>);</code> como parte do texto, e por isso também reclama da falta deles. Uma string normal não pode atravessar linhas.</p>
+<p><strong>Como consertar:</strong> feche a aspa: <code>"Olá, mundo!");</code>. Para texto de várias linhas, use <code>\n</code>, <code>@"…"</code> ou <code>"""…"""</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8997: Literal de cadeia de caracteres não terminada.</code> numa string bruta</strong>
+<pre class="file" data-file="ee2.cs">string texto = """Linha um
+    Linha dois
+    """;
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ee2.cs
+/home/ana/cs/ee2.cs(1,27): error CS8997: Literal de cadeia de caracteres não terminada.
+/home/ana/cs/ee2.cs(1,27): error CS1003: Erro de sintaxe, "," esperado
+/home/ana/cs/ee2.cs(3,9): error CS8997: Literal de cadeia de caracteres não terminada.
+/home/ana/cs/ee2.cs(3,9): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o texto começou na mesma linha das três aspas. Para o C#, isso é uma string bruta de <strong>uma linha só</strong>, que precisaria fechar com <code>"""</code> antes do fim da linha. Como não fechou, ela "não terminou".</p>
+<p><strong>Como consertar:</strong> numa string bruta de várias linhas, as aspas de abertura ficam sozinhas e o texto começa na linha de baixo:</p>
+<pre class="file" data-file="ee2.cs">string texto = """
+    Linha um
+    Linha dois
+    """;
+</pre>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8999: A linha não começa com o mesmo espaço em branco que a linha de fechamento da literal de cadeia de caracteres bruta.</code></strong>
+<pre class="file" data-file="ee3.cs">string texto = """
+    Linha um
+  Linha dois
+    """;
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ee3.cs
+/home/ana/cs/ee3.cs(3,1): error CS8999: A linha não começa com o mesmo espaço em branco que a linha de fechamento da literal de cadeia de caracteres bruta.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> as aspas de fechamento estão recuadas 4 espaços, e isso é a margem. A linha 3 tem só 2 espaços, ou seja, está à esquerda da margem, e o C# não sabe o que fazer com ela.</p>
+<p><strong>Como consertar:</strong> recue todas as linhas pelo menos até onde estão as aspas de fechamento (ou puxe as aspas de fechamento para a esquerda).</p>
+</div>
+
+<div class="cenario">
+<strong>Uma quebra de linha ou uma tabulação apareceu no meio do texto</strong>
+<p><strong>O que significa:</strong> uma barra invertida formou um escape sem você querer, como o <code>\n</code> de <code>C:\novo</code>. Não há erro nem aviso.</p>
+<p><strong>Como consertar:</strong> use <code>@"…"</code> para textos com barras invertidas.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Escapes com <code>\</code></th><th>Aspas dentro</th><th>Várias linhas</th><th>Interpolação</th></tr>
+<tr><td><code>"…"</code></td><td>sim</td><td><code>\"</code></td><td>não (use <code>\n</code>)</td><td><code>$"…{x}…"</code></td></tr>
+<tr><td><code>@"…"</code></td><td>não</td><td><code>""</code></td><td>sim (o recuo entra)</td><td><code>$@"…{x}…"</code></td></tr>
+<tr><td><code>"""…"""</code> <span class="versao">C# 11</span></td><td>não</td><td>livres</td><td>sim (o recuo sai)</td><td><code>$"""…{x}…"""</code>, <code>$$"""…{{x}}…"""</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Aspas dentro</h3>
+<p>Complete para mostrar <code>O livro "Dom Casmurro"</code>:</p>
+<div class="ex-code">"O livro <input data-answer="\&quot;Dom Casmurro\&quot;" aria-label="trecho">"</div>
+</div>
+
+<div class="exercise">
+<h3>2. Duas linhas</h3>
+<p>Qual escape quebra a linha?</p>
+<div class="ex-code">"Oi<input data-answer="\n" aria-label="escape">Tchau"</div>
+</div>
+
+<div class="exercise">
+<h3>3. O símbolo da string literal</h3>
+<p>Complete para as barras ficarem como estão:</p>
+<div class="ex-code">string pasta = <input data-answer="@" aria-label="símbolo">"C:\Users\ana";</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Quanto vale <code>"a\nb".Length</code>?</p>
+<label><input type="radio" name="q4"> 4</label>
+<label><input type="radio" name="q4"> 2</label>
+<label><input type="radio" name="q4"> 3, porque <code>\n</code> é um caractere só</label>
+<label><input type="radio" name="q4"> 5</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. O que <code>Console.WriteLine("C:\novo");</code> mostra?</p>
+<label><input type="radio" name="q5"> <code>C:\novo</code></label>
+<label><input type="radio" name="q5"> <code>C:</code> numa linha e <code>ovo</code> na seguinte</label>
+<label><input type="radio" name="q5"> O erro <code>CS1009</code></label>
+<label><input type="radio" name="q5"> <code>C:novo</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Numa string <code>@"…"</code>, como se escreve uma aspa dupla?</p>
+<label><input type="radio" name="q6"> <code>""</code>, dobrada</label>
+<label><input type="radio" name="q6"> <code>\"</code></label>
+<label><input type="radio" name="q6"> Não é possível</label>
+<label><input type="radio" name="q6"> <code>'"'</code></label>
+</div>
+
+<h3>Missão final: o cardápio do café</h3>
+
+<div class="trycs" data-goal="outre:^Bem-vindo ao &quot;Café da Ana&quot;\nPão de queijo\nCafé com leite\n$,src:&quot;&quot;&quot;">
+<p class="try-task"><strong>Missão:</strong> a Ana escreveu o cardápio do café dela numa string só, com aspas e três linhas, e o programa nem compila. Reescreva com uma <strong>string bruta</strong> (<code>"""</code>) para aparecer exatamente o texto abaixo, sem espaços no começo das linhas.</p>
+<pre class="out">Bem-vindo ao "Café da Ana"
+Pão de queijo
+Café com leite</pre>
+<pre class="script" data-file="cardapio.cs">string cardapio = "Bem-vindo ao "Café da Ana"
+Pão de queijo
+Café com leite";
+Console.WriteLine(cardapio);
+</pre>
+<pre class="solucao" data-file="cardapio.cs">string cardapio = """
+    Bem-vindo ao "Café da Ana"
+    Pão de queijo
+    Café com leite
+    """;
+Console.WriteLine(cardapio);
+</pre>
+</div>
+
+<p>Depois, tente fazer o mesmo com uma string normal (com <code>\"</code> e <code>\n</code>) e com uma string literal (<code>@"…"</code>, com <code>""</code>). Qual ficou mais fácil de ler?</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>A barra invertida <code>\</code> começa uma sequência de escape: <code>\"</code>, <code>\\</code>, <code>\n</code>, <code>\t</code>, <code>\u00e9</code>, <code>\e</code> <span class="versao">C# 13</span>. Cada uma é um caractere só.</li>
+  <li><code>"C:\novo"</code> vira quebra de linha sem aviso. Escape desconhecido (<code>\p</code>) dá <code>CS1009</code>.</li>
+  <li><code>@"…"</code>: string literal. Barras ficam como estão, aspas se dobram (<code>""</code>), pode ter várias linhas.</li>
+  <li><code>"""…"""</code>: string bruta <span class="versao">C# 11</span>. Nada é especial lá dentro; as aspas de fechamento marcam a margem, e o recuo sai do texto.</li>
+  <li><code>$"""…{x}…"""</code> interpola; <code>$$"""…{{x}}…"""</code> deixa as chaves simples livres (JSON).</li>
+  <li>String normal sem fechar: <code>CS1010</code>. Bruta com texto na linha das aspas: <code>CS8997</code>. Linha fora da margem: <code>CS8999</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
