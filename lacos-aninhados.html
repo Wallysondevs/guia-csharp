@@ -571,7 +571,7 @@ Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
 $ echo $?
 130</pre>
 <p><strong>O que significa:</strong> o laço de dentro faz <code>linha++</code> em vez de <code>coluna++</code>. O <code>coluna</code> fica em 1 para sempre, <code>1 &lt;= 5</code> é sempre verdade, e o laço nunca termina: um <strong>laço infinito</strong>. O compilador não avisa nada, porque o código é válido. O <strong>Ctrl+C</strong> interrompe o programa, e o código de saída 130 quer dizer "interrompido pelo Ctrl+C".</p>
-<p><strong>Como consertar:</strong> confira as três partes de cada <code>for</code>: a variável que é criada, a que é testada e a que anda têm de ser <strong>a mesma</strong>. Copiar e colar um <code>for</code> para fazer o de dentro é a origem mais comum deste erro. No editor do guia, um laço infinito também trava a caixa: use o botão de parar.</p>
+<p><strong>Como consertar:</strong> confira as três partes de cada <code>for</code>: a variável que é criada, a que é testada e a que anda têm de ser <strong>a mesma</strong>. Copiar e colar um <code>for</code> para fazer o de dentro é a origem mais comum deste erro.</p>
 </div>
 
 <hr>
