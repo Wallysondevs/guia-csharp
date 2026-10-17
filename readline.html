@@ -70,7 +70,7 @@ Olá, Ana!</pre>
 
 <div class="tip">
 <strong>No editor do guia</strong>
-<p>Nas caixas "Experimente", o programa pode pedir a entrada e você digita no terminal da caixa (veja <a href="simulador.html">O Editor do Guia</a>). Nas missões desta aula, a entrada já vem pronta, escrita na caixa, para o resultado ser sempre o mesmo: é como se alguém tivesse digitado por você.</p>
+<p>Nas caixas "Experimente", o programa pode pedir a entrada: aparece um campo no terminal da caixa, logo depois da pergunta, e você digita e tecla <kbd>Enter</kbd>. <kbd>Ctrl</kbd>+<kbd>D</kbd> é o fim da entrada (o <code>ReadLine</code> devolve <code>null</code>), e <kbd>Ctrl</kbd>+<kbd>C</kbd> ou o botão <strong>Parar</strong> interrompe. Por dentro há um truque: o navegador não deixa o programa ficar esperando o teclado, então, a cada Enter, o editor roda o programa <strong>de novo, desde o começo</strong>, com as linhas que você já digitou. A saída é a mesma; só muda o que depende do relógio, como <code>DateTime.Now</code> (veja <a href="simulador.html">O Editor do Guia</a>). Nas missões desta aula, a entrada já vem pronta, escrita na caixa, para o resultado ser sempre o mesmo: é como se alguém tivesse digitado por você.</p>
 </div>
 
 <div class="trycs" data-stdin="Bia" data-goal="out:Olá, Bia! Bem-vinda à lojinha.">
@@ -112,7 +112,7 @@ Qual é o seu nome? Ana
 Olá, Ana! Seu nome tem 3 letras.</pre>
 
 <dl class="anatomy">
-  <dt>warning</dt><dd>São <strong>avisos</strong>, não erros: o programa compilou e rodou (aula <a href="avisos.html">Avisos do Compilador</a>). Eles aparecem só quando o arquivo é compilado; se você rodar de novo sem mudar nada, o <code>dotnet</code> reaproveita a compilação e não os mostra outra vez. Não é porque sumiram.</dd>
+  <dt>warning</dt><dd>São <strong>avisos</strong>, não erros: o programa compilou e rodou (aula <a href="avisos.html">Avisos do Compilador</a>). Eles aparecem só quando o arquivo é compilado; se você rodar de novo sem mudar nada, o <code>dotnet</code> reaproveita a compilação e não os mostra outra vez. Não é porque sumiram. (O editor do guia compila a cada Rodar, então mostra os avisos sempre.)</dd>
   <dt>CS8600 (linha 2, coluna 15)</dt><dd>"Conversão de um possível valor nulo em tipo não anulável": o <code>ReadLine()</code> pode dar <code>null</code>, e você está guardando numa <code>string</code>, que promete nunca ser <code>null</code>. Em inglês: <em>Converting null literal or possible null value to non-nullable type</em>.</dd>
   <dt>CS8602 (linha 3, coluna 48)</dt><dd>"Desreferência de uma referência possivelmente nula": o <code>nome.Length</code> pede o tamanho de algo que pode ser <code>null</code>. "Desreferenciar" é usar o ponto (<code>.</code>) para pegar alguma coisa de dentro de um objeto. Em inglês: <em>Dereference of a possibly null reference</em>.</dd>
 </dl>
