@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Queue&lt;T&gt; (Fila) — primeiro a entrar, primeiro a sair: Enqueue e Dequeue | Guia C#</title>
+<meta name="description" content="Queue em C# para quem nunca programou: a fila (primeiro a entrar, primeiro a sair), Enqueue, Dequeue, Peek, Count, atender até esvaziar com while, a InvalidOperationException real de fila vazia (Queue empty.), TryDequeue e TryPeek, o foreach que não tira ninguém, o erro CS1061 do inicializador e a PriorityQueue, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Queue&lt;T&gt;</span> (Fila)</h1>
+
+<p class="intro">Na padaria, quem chega primeiro é atendido primeiro. Ninguém fura a fila, e o caixa não escolhe um cliente do meio. Muitos programas precisam exatamente disso: pedidos esperando para ser preparados, documentos esperando a impressora, mensagens esperando para ser enviadas. Para esses casos, o C# tem a <strong>fila</strong>: <code>Queue&lt;T&gt;</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma fila e a regra "primeiro a entrar, primeiro a sair".</li>
+  <li>Entrar na fila com <code>Enqueue</code>, sair com <code>Dequeue</code>, espiar com <code>Peek</code>.</li>
+  <li>Atender todo mundo até a fila esvaziar, com <code>while</code>.</li>
+  <li>O que acontece quando a fila está vazia: <code>InvalidOperationException: Queue empty.</code></li>
+  <li>Os jeitos seguros: <code>TryDequeue</code> e <code>TryPeek</code>.</li>
+  <li>Por que o <code>foreach</code> não tira ninguém da fila.</li>
+  <li>A fila com prioridade: <code>PriorityQueue&lt;TElement, TPriority&gt;</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> na máquina da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Você pode repetir cada um no editor do guia.</p>
+
+<hr>
+
+<h2>A ideia: a fila da padaria</h2>
+<p>Uma fila tem duas pontas. Quem chega entra no <strong>fim</strong>; quem é atendido sai do <strong>começo</strong>:</p>
+
+<pre class="syntax">  sai daqui                          entra aqui
+     ↓                                   ↓
+  [ Ana ]  [ Bruno ]  [ Carla ]   ←   Davi chegou
+  começo                    fim</pre>
+
+<p>Essa regra tem um nome em inglês que você vai encontrar muito: <strong>FIFO</strong>, de <em>First In, First Out</em>, "o primeiro a entrar é o primeiro a sair". Na fila, você <strong>não</strong> pega o item do meio nem pela posição: só existe "o próximo".</p>
+
+<p>Os nomes dos métodos vêm do inglês <em>queue</em> ("fila", pronuncia-se "quiú"):</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>Tradução</th><th>Na padaria</th></tr>
+<tr><td><code>Enqueue(x)</code></td><td>"enfileirar"</td><td>Um cliente chega e vai para o fim da fila.</td></tr>
+<tr><td><code>Dequeue()</code></td><td>"desenfileirar"</td><td>O primeiro da fila é atendido e sai. O método <strong>devolve</strong> quem saiu.</td></tr>
+<tr><td><code>Peek()</code></td><td>"espiar"</td><td>O caixa olha quem é o próximo, sem chamá-lo.</td></tr>
+<tr><td><code>Count</code></td><td>"contagem"</td><td>Quantas pessoas estão esperando.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. Entrar, espiar e sair</h2>
+
+<pre class="file" data-file="fila.cs">var fila = new Queue&lt;string&gt;();
+
+fila.Enqueue("Ana");
+fila.Enqueue("Bruno");
+fila.Enqueue("Carla");
+Console.WriteLine($"Na fila: {fila.Count}");
+
+Console.WriteLine($"Próxima: {fila.Peek()}");
+
+string atendida = fila.Dequeue();
+Console.WriteLine($"Atendida: {atendida}");
+Console.WriteLine($"Na fila: {fila.Count}");
+Console.WriteLine($"Próxima: {fila.Peek()}");
+
+fila.Enqueue("Davi");
+Console.WriteLine(string.Join(" &lt;- ", fila));
+Console.WriteLine(fila.Contains("Carla"));
+Console.WriteLine(fila);
+</pre>
+
+<dl class="anatomy">
+  <dt>new Queue&lt;string&gt;()</dt><dd>Cria uma fila vazia de textos. O <code>T</code> de <code>Queue&lt;T&gt;</code> é o tipo de quem espera na fila (veja <a href="generics.html">Generics</a>).</dd>
+  <dt>fila.Enqueue("Ana");</dt><dd>A Ana entra no fim da fila. Como a fila estava vazia, ela também é a primeira.</dd>
+  <dt>fila.Peek()</dt><dd>Devolve quem está no começo, <strong>sem</strong> tirar. Depois do <code>Peek</code>, a fila continua com 3.</dd>
+  <dt>string atendida = fila.Dequeue();</dt><dd>Tira quem está no começo e devolve. Guardamos a resposta numa variável para usá-la.</dd>
+  <dt>string.Join(" &lt;- ", fila)</dt><dd>Junta todos os nomes com <code>" &lt;- "</code> no meio, do começo para o fim. É só para mostrar: não tira ninguém.</dd>
+  <dt>fila.Contains("Carla")</dt><dd>"A Carla está na fila?" Funciona, mas é lento numa fila grande: olha pessoa por pessoa.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fila.cs
+Na fila: 3
+Próxima: Ana
+Atendida: Ana
+Na fila: 2                       « o Dequeue tirou a Ana
+Próxima: Bruno                   « agora o Bruno é o primeiro
+Bruno &lt;- Carla &lt;- Davi           « o Davi entrou no fim
+True
+System.Collections.Generic.Queue`1[System.String]</pre>
+
+<p>Repare que o <code>Peek</code> não mudou nada (a fila tinha 3 antes e depois dele), e que o Davi, que chegou por último, ficou no fim, mesmo depois da saída da Ana. Na última linha, como as outras coleções, a fila passada direto para o <code>Console.WriteLine</code> mostra só o nome do tipo.</p>
+
+<h3>Criar a fila já com pessoas</h3>
+<p>Para começar com uma fila cheia, passe uma coleção para o construtor. Os itens entram na ordem em que estão nela:</p>
+
+<pre class="file" data-file="criar.cs">var fila = new Queue&lt;string&gt;(["Ana", "Bruno", "Carla"]);
+</pre>
+
+<p>O que <strong>não</strong> funciona é o inicializador com chaves, <code>new Queue&lt;string&gt; { "Ana" }</code>, nem <code>Queue&lt;string&gt; fila = ["Ana"];</code>. Os dois precisam de um método <code>Add</code>, e a fila não tem <code>Add</code>: na fila se entra com <code>Enqueue</code>. O erro está em <a href="#errado">Quando dá errado</a>.</p>
+
+<hr>
+
+<h2>2. Atender até a fila esvaziar</h2>
+<p>O padrão mais comum com uma fila: enquanto tiver alguém esperando, atenda o próximo.</p>
+
+<pre class="file" data-file="atender.cs">var fila = new Queue&lt;string&gt;(["Ana", "Bruno", "Carla"]);
+
+while (fila.Count &gt; 0)
+{
+    string cliente = fila.Dequeue();
+    Console.WriteLine($"Atendendo {cliente}... faltam {fila.Count}");
+}
+Console.WriteLine("Fila vazia. Hora do café!");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run atender.cs
+Atendendo Ana... faltam 2
+Atendendo Bruno... faltam 1
+Atendendo Carla... faltam 0
+Fila vazia. Hora do café!</pre>
+
+<dl class="anatomy">
+  <dt>while (fila.Count &gt; 0)</dt><dd>"Enquanto houver alguém na fila" (veja <a href="while.html">while</a>). Cada volta do laço tira uma pessoa, então em algum momento o <code>Count</code> chega a 0 e o laço para.</dd>
+  <dt>string cliente = fila.Dequeue();</dt><dd>Chama o próximo. Na primeira volta é a Ana, na segunda o Bruno, na terceira a Carla: sempre na ordem de chegada.</dd>
+</dl>
+
+<h3 id="foreach">E o <code>foreach</code>?</h3>
+<p>Dá para percorrer uma fila com <code>foreach</code>, mas ele só <strong>olha</strong>: ninguém sai da fila.</p>
+
+<pre class="file" data-file="foreach.cs">var fila = new Queue&lt;string&gt;(["Ana", "Bruno"]);
+
+foreach (string pessoa in fila)
+{
+    Console.WriteLine($"Vejo {pessoa} na fila");
+}
+Console.WriteLine($"Ainda na fila: {fila.Count}");
+
+foreach (string pessoa in fila)
+{
+    fila.Enqueue(pessoa + " (de novo)");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run foreach.cs
+Vejo Ana na fila
+Vejo Bruno na fila
+Ainda na fila: 2                 « o foreach não tirou ninguém
+Unhandled exception. System.InvalidOperationException: Collection was modified; enumeration operation may not execute.
+   at System.Collections.Generic.Queue`1.Enumerator.MoveNext()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/foreach.cs:line 9
+$ echo $?
+134</pre>
+
+<p>O segundo <code>foreach</code> mostra outra regra, igual à das outras coleções: enquanto um <code>foreach</code> percorre a fila, você não pode mudá-la. O <code>Enqueue</code> funcionou, mas na hora de ir para o próximo (<code>MoveNext</code>) o <code>foreach</code> percebeu e lançou a <code>InvalidOperationException</code> ("a coleção foi modificada; o percurso não pode continuar"), apontando a linha 9, a do <code>foreach</code>. Para atender <em>e</em> receber gente nova ao mesmo tempo, use o <code>while</code> com <code>Dequeue</code>: ele não percorre a fila, só pergunta o <code>Count</code> a cada volta.</p>
+
+<div class="trycs" data-goal="out:Na fila: 0,out:Atendendo Carla,exit:0,src:Dequeue\s*\(">
+<p class="try-task"><strong>Missão:</strong> o programa usa <code>foreach</code> e, no fim, a fila continua com 3 pessoas. Troque o <code>foreach</code> por um <code>while</code> com <code>Dequeue</code>, para que cada cliente atendido <strong>saia</strong> da fila e a última linha seja <code>Na fila: 0</code>.</p>
+<pre class="script">var fila = new Queue&lt;string&gt;(["Ana", "Bruno", "Carla"]);
+
+foreach (string cliente in fila)
+{
+    Console.WriteLine($"Atendendo {cliente}");
+}
+
+Console.WriteLine($"Na fila: {fila.Count}");
+</pre>
+<pre class="solucao">var fila = new Queue&lt;string&gt;(["Ana", "Bruno", "Carla"]);
+
+while (fila.Count &gt; 0)
+{
+    string cliente = fila.Dequeue();
+    Console.WriteLine($"Atendendo {cliente}");
+}
+
+Console.WriteLine($"Na fila: {fila.Count}");
+</pre>
+</div>
+
+<hr>
+
+<h2 id="vazia">3. A fila vazia: <code>Queue empty.</code></h2>
+<p>E se o caixa chamar o próximo quando não tem ninguém? No C#, isso é uma exceção:</p>
+
+<pre class="file" data-file="vazia.cs">var fila = new Queue&lt;string&gt;();
+fila.Enqueue("Ana");
+
+Console.WriteLine(fila.Dequeue());
+Console.WriteLine(fila.Dequeue());
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run vazia.cs
+Ana
+Unhandled exception. System.InvalidOperationException: Queue empty.
+   at System.Collections.Generic.Queue`1.ThrowForEmptyQueue()
+   at System.Collections.Generic.Queue`1.Dequeue()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/vazia.cs:line 5
+$ echo $?
+134</pre>
+
+<dl class="anatomy">
+  <dt>InvalidOperationException</dt><dd>"Exceção de operação inválida": a operação não faz sentido no estado atual do objeto. Não dá para atender ninguém numa fila vazia.</dd>
+  <dt>Queue empty.</dt><dd>"Fila vazia." A mensagem é curta, mas diz tudo.</dd>
+  <dt>Queue`1.Dequeue()</dt><dd>Quem lançou foi o <code>Dequeue</code>. Com o <code>Peek</code> numa fila vazia, a mensagem é a mesma, e o rastro mostra <code>Queue`1.Peek()</code>.</dd>
+  <dt>vazia.cs:line 5</dt><dd>O segundo <code>Dequeue</code>: a Ana já tinha saído na linha 4.</dd>
+</dl>
+
+<h3>Os jeitos seguros: <code>TryDequeue</code> e <code>TryPeek</code></h3>
+<p>Como no <code>TryGetValue</code> do <a href="dictionary.html">Dictionary</a>, os métodos com <code>Try</code> ("tentar") não lançam exceção: devolvem <code>true</code> ou <code>false</code> e entregam o item num parâmetro <code>out</code> (veja <a href="ref-out-in.html">ref, out e in</a>).</p>
+
+<pre class="file" data-file="try.cs">var fila = new Queue&lt;string&gt;();
+fila.Enqueue("Ana");
+
+while (fila.TryDequeue(out string? cliente))
+{
+    Console.WriteLine($"Atendendo {cliente}");
+}
+
+if (!fila.TryPeek(out string? proximo))
+    Console.WriteLine($"Ninguém na fila (proximo = {proximo ?? "null"})");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run try.cs
+Atendendo Ana
+Ninguém na fila (proximo = null)</pre>
+
+<dl class="anatomy">
+  <dt>while (fila.TryDequeue(out string? cliente))</dt><dd>"Enquanto conseguir tirar alguém, chame essa pessoa de <code>cliente</code>." Quando a fila esvazia, o <code>TryDequeue</code> devolve <code>false</code> e o laço para. É o mesmo laço da seção 2, numa linha.</dd>
+  <dt>string?</dt><dd>O <code>?</code> diz que a variável pode ficar <code>null</code>: é o que o <code>out</code> recebe quando a fila está vazia (veja <a href="referencias-anulaveis.html">Referências Anuláveis</a>).</dd>
+  <dt>proximo ?? "null"</dt><dd>Mostra a palavra "null" quando <code>proximo</code> é <code>null</code> (o operador <code>??</code> de <a href="operadores-null.html">Operadores ??, ?. e ??=</a>).</dd>
+</dl>
+
+<div class="tip">
+<strong>Qual usar?</strong>
+<p>Se você tem certeza de que a fila não está vazia (acabou de testar o <code>Count</code>, por exemplo), <code>Dequeue</code> é direto. Se a fila pode estar vazia, prefira <code>TryDequeue</code>: ele pergunta e tira de uma vez só.</p>
+</div>
+
+<hr>
+
+<h2>4. Fila com prioridade: <code>PriorityQueue</code></h2>
+<p>No pronto-socorro, a ordem não é a de chegada: quem está mais grave passa na frente. Para isso existe a <code>PriorityQueue&lt;TElement, TPriority&gt;</code> ("fila de prioridade"), em que cada item entra com um número de <strong>prioridade</strong>, e o <strong>menor</strong> número sai primeiro.</p>
+
+<pre class="file" data-file="prioridade.cs">var triagem = new PriorityQueue&lt;string, int&gt;();
+
+triagem.Enqueue("Ana (resfriado)", 3);
+triagem.Enqueue("Bruno (braço quebrado)", 1);
+triagem.Enqueue("Carla (dor de cabeça)", 4);
+triagem.Enqueue("Davi (febre alta)", 2);
+
+while (triagem.TryDequeue(out string? paciente, out int prioridade))
+{
+    Console.WriteLine($"{prioridade}: {paciente}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run prioridade.cs
+1: Bruno (braço quebrado)
+2: Davi (febre alta)
+3: Ana (resfriado)
+4: Carla (dor de cabeça)</pre>
+
+<dl class="anatomy">
+  <dt>PriorityQueue&lt;string, int&gt;</dt><dd>Dois tipos: o do item (<code>string</code>, o paciente) e o da prioridade (<code>int</code>).</dd>
+  <dt>triagem.Enqueue("…", 3)</dt><dd>Entra com a prioridade 3. A ordem em que os pacientes chegaram não importa.</dd>
+  <dt>TryDequeue(out … paciente, out int prioridade)</dt><dd>Tira o de <strong>menor</strong> prioridade e entrega o item e a prioridade dele.</dd>
+</dl>
+
+<div class="warning">
+<strong>Prioridades iguais não têm ordem garantida</strong>
+<p>Se dois pacientes entram com a mesma prioridade, a <code>PriorityQueue</code> não promete que o que chegou primeiro sai primeiro. Se o desempate importa, inclua-o na prioridade (por exemplo, a gravidade e depois a hora de chegada).</p>
+<p>Ela também não aceita <code>foreach</code> direto: <code>foreach (var x in triagem)</code> dá <code>error CS1579: A instrução foreach não pode operar em variáveis do tipo 'PriorityQueue&lt;string, int&gt;'…</code>. A única ordem que ela garante é a do <code>Dequeue</code>.</p>
+</div>
+
+<hr>
+
+<h2>Qual coleção usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Use</th></tr>
+<tr><td>Atender na ordem de chegada (primeiro a entrar, primeiro a sair)</td><td><code>Queue&lt;T&gt;</code></td></tr>
+<tr><td>Atender o mais urgente primeiro</td><td><code>PriorityQueue&lt;TElement, TPriority&gt;</code></td></tr>
+<tr><td>Atender o <strong>último</strong> que chegou (desfazer, voltar)</td><td><a href="stack.html"><code>Stack&lt;T&gt;</code></a> (Pilha)</td></tr>
+<tr><td>Pegar qualquer item pela posição</td><td><a href="list.html"><code>List&lt;T&gt;</code></a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>InvalidOperationException: Queue empty.</code></strong>
+<p><strong>O que significa:</strong> um <code>Dequeue()</code> ou <code>Peek()</code> numa fila sem ninguém. O rastro mostra qual dos dois e a linha do seu programa.</p>
+<p><strong>Como consertar:</strong> teste antes com <code>fila.Count &gt; 0</code> ou use <code>TryDequeue</code>/<code>TryPeek</code> (<a href="#vazia">seção 3</a>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>InvalidOperationException: Collection was modified; enumeration operation may not execute.</code></strong>
+<p><strong>O que significa:</strong> você chamou <code>Enqueue</code> ou <code>Dequeue</code> dentro de um <code>foreach</code> que percorre a mesma fila.</p>
+<p><strong>Como consertar:</strong> para atender, use <code>while (fila.TryDequeue(out var x))</code>, que pode receber gente nova a qualquer momento (<a href="#foreach">seção 2</a>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1061: ‘Queue&lt;string&gt;’ não contém uma definição para "Add"…</code></strong>
+<p><strong>O que significa:</strong> você tentou criar a fila com um inicializador entre chaves ou com colchetes. Os dois chamam <code>Add</code> por baixo, e a fila não tem <code>Add</code>:</p>
+<pre class="term" data-cwd="~/cs">$ cat colexpr.cs
+Queue&lt;string&gt; fila = ["Ana", "Bruno"];
+$ dotnet run colexpr.cs
+/home/ana/cs/colexpr.cs(1,22): error CS1061: ‘Queue&lt;string&gt;’ não contém uma definição para "Add" e não foi possível encontrar nenhum método de extensão "Add" que aceite um primeiro argumento do tipo ‘Queue&lt;string&gt;’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>Como consertar:</strong> passe a coleção para o construtor: <code>new Queue&lt;string&gt;(["Ana", "Bruno"])</code>, ou chame <code>Enqueue</code> para cada um.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0021: Não é possível aplicar a indexação com [] a uma expressão do tipo "Queue&lt;string&gt;"</code></strong>
+<p><strong>O que significa:</strong> <code>fila[0]</code>. A fila não tem posições: só existe "o próximo".</p>
+<p><strong>Como consertar:</strong> para ver o primeiro, use <code>Peek()</code>. Se você precisa mesmo de posições, a coleção certa é a <code>List&lt;T&gt;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0029: Não é possível converter implicitamente tipo "void" em "int"</code></strong>
+<p><strong>O que significa:</strong> você escreveu <code>int x = fila.Enqueue(2);</code>. O <code>Enqueue</code> não devolve nada (<code>void</code>); quem devolve um item é o <code>Dequeue</code>.</p>
+<p><strong>Como consertar:</strong> chame <code>fila.Enqueue(2);</code> sozinho, numa linha.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>new Queue&lt;T&gt;()</code></td><td>Fila vazia</td></tr>
+<tr><td><code>new Queue&lt;T&gt;(colecao)</code></td><td>Fila com os itens da coleção, na ordem</td></tr>
+<tr><td><code>f.Enqueue(x)</code></td><td>Põe <code>x</code> no fim</td></tr>
+<tr><td><code>f.Dequeue()</code></td><td>Tira e devolve o primeiro; <code>InvalidOperationException</code> se vazia</td></tr>
+<tr><td><code>f.Peek()</code></td><td>Devolve o primeiro sem tirar; <code>InvalidOperationException</code> se vazia</td></tr>
+<tr><td><code>f.TryDequeue(out var x)</code></td><td>Tira se puder; devolve <code>bool</code></td></tr>
+<tr><td><code>f.TryPeek(out var x)</code></td><td>Espia se puder; devolve <code>bool</code></td></tr>
+<tr><td><code>f.Count</code></td><td>Quantos esperam</td></tr>
+<tr><td><code>f.Contains(x)</code></td><td><code>x</code> está na fila? (lento: olha um por um)</td></tr>
+<tr><td><code>f.Clear()</code></td><td>Esvazia</td></tr>
+<tr><td><code>f.ToArray()</code></td><td>Cópia em array, do primeiro ao último</td></tr>
+<tr><td><code>new PriorityQueue&lt;TElement, TPriority&gt;()</code></td><td>Fila em que sai primeiro a <strong>menor</strong> prioridade</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Entrar na fila</h3>
+<p>Complete para o Davi entrar no fim da fila:</p>
+<div class="ex-code">fila.<input data-answer="Enqueue" aria-label="método">("Davi");</div>
+</div>
+
+<div class="exercise">
+<h3>2. Ver sem tirar</h3>
+<p>Complete para ver quem é o próximo, <strong>sem</strong> tirá-lo da fila:</p>
+<div class="ex-code">string proximo = fila.<input data-answer="Peek()|Peek ()" aria-label="método">;</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">3. Entram na fila, nesta ordem, "A", "B" e "C". Depois há um <code>Dequeue()</code>. Quem sai?</p>
+<label><input type="radio" name="q3"> "C", o último que entrou</label>
+<label><input type="radio" name="q3"> "A", o primeiro que entrou</label>
+<label><input type="radio" name="q3"> "B", o do meio</label>
+<label><input type="radio" name="q3"> Depende: a ordem não é garantida</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">4. O que acontece com <code>new Queue&lt;int&gt;().Dequeue()</code>?</p>
+<label><input type="radio" name="q4"> Devolve 0</label>
+<label><input type="radio" name="q4"> Devolve <code>null</code></label>
+<label><input type="radio" name="q4"> Não compila</label>
+<label><input type="radio" name="q4"> <code>InvalidOperationException: Queue empty.</code></label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Uma fila tem 3 pessoas. Depois de um <code>foreach</code> que mostra cada uma, quantas continuam na fila?</p>
+<label><input type="radio" name="q5"> 0</label>
+<label><input type="radio" name="q5"> 1</label>
+<label><input type="radio" name="q5"> 3</label>
+<label><input type="radio" name="q5"> Dá exceção</label>
+</div>
+
+<h3>Missão final: a fila da impressora</h3>
+
+<div class="trycs" data-goal="outre:Imprimindo boleto\.pdf\nImprimindo trabalho\.docx\nImprimindo foto\.png\n,out:Impressos: 3,exit:0,src:Enqueue,src:Dequeue">
+<p class="try-task"><strong>Missão:</strong> três documentos foram mandados para a impressora, nesta ordem: <code>boleto.pdf</code>, <code>trabalho.docx</code> e <code>foto.png</code>. Ponha os três na fila com <code>Enqueue</code>. Depois, tire um por um com <code>Dequeue</code> (ou <code>TryDequeue</code>) até a fila esvaziar, mostrando <code>Imprimindo NOME</code>, e conte quantos foram impressos.</p>
+<pre class="out">Imprimindo boleto.pdf
+Imprimindo trabalho.docx
+Imprimindo foto.png
+Impressos: 3</pre>
+<pre class="script">var impressora = new Queue&lt;string&gt;();
+int impressos = 0;
+
+// ponha os três documentos na fila
+
+// imprima até a fila esvaziar
+
+Console.WriteLine($"Impressos: {impressos}");
+</pre>
+<pre class="solucao">var impressora = new Queue&lt;string&gt;();
+int impressos = 0;
+
+impressora.Enqueue("boleto.pdf");
+impressora.Enqueue("trabalho.docx");
+impressora.Enqueue("foto.png");
+
+while (impressora.Count &gt; 0)
+{
+    string documento = impressora.Dequeue();
+    Console.WriteLine($"Imprimindo {documento}");
+    impressos++;
+}
+
+Console.WriteLine($"Impressos: {impressos}");
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma <code>Queue&lt;T&gt;</code> é uma fila: o <strong>primeiro a entrar é o primeiro a sair</strong> (FIFO).</li>
+  <li><code>Enqueue</code> põe no fim; <code>Dequeue</code> tira e devolve o primeiro; <code>Peek</code> mostra o primeiro sem tirar.</li>
+  <li>Para atender todos: <code>while (fila.Count &gt; 0)</code> com <code>Dequeue</code>, ou <code>while (fila.TryDequeue(out var x))</code>.</li>
+  <li><code>Dequeue</code> e <code>Peek</code> numa fila vazia lançam <code>InvalidOperationException: Queue empty.</code>; <code>TryDequeue</code> e <code>TryPeek</code> devolvem <code>false</code>.</li>
+  <li>O <code>foreach</code> só olha a fila; mudar a fila dentro dele dá <code>Collection was modified</code>.</li>
+  <li>A fila não tem <code>Add</code> nem posições: crie com <code>new Queue&lt;T&gt;(colecao)</code>.</li>
+  <li>Para o mais urgente primeiro, use <code>PriorityQueue&lt;TElement, TPriority&gt;</code> (sai a menor prioridade).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
