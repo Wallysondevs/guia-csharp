@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Tipos e Limites — tamanhos, MinValue e MaxValue de cada tipo | Guia C#</title>
+<meta name="description" content="Referência dos tipos do C#: o tamanho em bytes, o MinValue e o MaxValue reais de sbyte, byte, short, int, long, float, double, decimal e char, a precisão do float, do double e do decimal, o tipo de cada literal e os sufixos (L, u, f, m), o valor padrão, o que acontece no estouro e nas conversões, e as diferenças entre o editor do guia e o dotnet.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Tipos e Limites</span></h1>
+
+<p class="intro">Cada tipo de número do C# ocupa um tamanho fixo na memória, e por isso tem um menor e um maior valor. Esta página junta, em tabelas, o tamanho e os limites de cada tipo, a precisão dos números com vírgula, o tipo de cada literal, o valor padrão e o que acontece quando uma conta passa do limite. Para aprender com calma, veja <a href="tipos-dados.html">Tipos de Dados</a>, <a href="inteiros.html">Inteiros</a> e <a href="decimais.html">float, double e decimal</a>.</p>
+
+<p>Todos os valores foram impressos de verdade pelos programas desta página, no <code>dotnet</code> 10.0.112 da máquina da Ana (pasta <code>~/cs/ref</code>, cultura pt-BR, por isso a vírgula decimal) e conferidos no editor do guia. Quando os dois diferem, a página diz.</p>
+
+<p>Atalhos: <a href="#limites">Tamanhos e limites</a> · <a href="#precisao">Precisão (float, double, decimal)</a> · <a href="#especiais">Valores especiais</a> · <a href="#outros">Outros tipos</a> · <a href="#literais">O tipo de cada literal</a> · <a href="#padrao">Valor padrão</a> · <a href="#estouro">Estouro e conversões</a> · <a href="#erros">Quando dá errado</a> · <a href="#experimente">Experimente</a></p>
+
+<hr>
+
+<h2 id="limites">Tamanhos e limites</h2>
+<p>Todo tipo numérico tem as constantes <code>MinValue</code> (o menor valor) e <code>MaxValue</code> (o maior). O <code>sizeof</code> diz quantos bytes ele ocupa. Este programa mostra todos:</p>
+
+<pre class="file" data-file="limites.cs">// limites.cs — tamanho e limites de cada tipo numérico
+Console.WriteLine($"{"Tipo",-8} {"Bytes",5}  {"Mínimo",28}  {"Máximo",28}");
+Linha("sbyte", sizeof(sbyte), sbyte.MinValue, sbyte.MaxValue);
+Linha("byte", sizeof(byte), byte.MinValue, byte.MaxValue);
+Linha("short", sizeof(short), short.MinValue, short.MaxValue);
+Linha("ushort", sizeof(ushort), ushort.MinValue, ushort.MaxValue);
+Linha("int", sizeof(int), int.MinValue, int.MaxValue);
+Linha("uint", sizeof(uint), uint.MinValue, uint.MaxValue);
+Linha("long", sizeof(long), long.MinValue, long.MaxValue);
+Linha("ulong", sizeof(ulong), ulong.MinValue, ulong.MaxValue);
+Linha("char", sizeof(char), (int)char.MinValue, (int)char.MaxValue);
+Linha("float", sizeof(float), float.MinValue, float.MaxValue);
+Linha("double", sizeof(double), double.MinValue, double.MaxValue);
+Linha("decimal", sizeof(decimal), decimal.MinValue, decimal.MaxValue);
+Linha("bool", sizeof(bool), 0, 1);
+
+static void Linha(string tipo, int bytes, object min, object max) =&gt;
+    Console.WriteLine($"{tipo,-8} {bytes,5}  {min,28}  {max,28}");
+</pre>
+<pre class="term" data-cwd="~/cs/ref">$ dotnet run limites.cs
+Tipo     Bytes                        Mínimo                        Máximo
+sbyte        1                          -128                           127
+byte         1                             0                           255
+short        2                        -32768                         32767
+ushort       2                             0                         65535
+int          4                   -2147483648                    2147483647
+uint         4                             0                    4294967295
+long         8          -9223372036854775808           9223372036854775807
+ulong        8                             0          18446744073709551615
+char         2                             0                         65535
+float        4                -3,4028235E+38                 3,4028235E+38
+double       8      -1,7976931348623157E+308       1,7976931348623157E+308
+decimal     16  -79228162514264337593543950335  79228162514264337593543950335
+bool         1                             0                             1</pre>
+
+<p>O <code>E+38</code> é a notação científica: <code>3,4028235E+38</code> é 3,4 × 10<sup>38</sup>, um número com 39 algarismos. O editor do guia mostra exatamente a mesma tabela.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>Nome no .NET</th><th>Bytes</th><th>Faixa (em palavras)</th><th>Literal</th><th>Para quê</th><th>Aula</th></tr>
+<tr><td><code>sbyte</code></td><td><code>System.SByte</code></td><td>1</td><td>−128 a 127</td><td><code>(sbyte)5</code></td><td>quase nunca</td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>byte</code></td><td><code>System.Byte</code></td><td>1</td><td>0 a 255</td><td><code>(byte)5</code></td><td>bytes de arquivos e imagens</td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>short</code></td><td><code>System.Int16</code></td><td>2</td><td>−32 768 a 32 767</td><td><code>(short)5</code></td><td>economizar memória em arrays enormes</td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>ushort</code></td><td><code>System.UInt16</code></td><td>2</td><td>0 a 65 535</td><td><code>(ushort)5</code></td><td>raro</td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>int</code></td><td><code>System.Int32</code></td><td>4</td><td>cerca de ±2,1 bilhões</td><td><code>5</code></td><td><strong>o padrão</strong> para contar: quantidades, idades, índices</td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>uint</code></td><td><code>System.UInt32</code></td><td>4</td><td>0 a cerca de 4,3 bilhões</td><td><code>5u</code></td><td>raro (interoperar com C)</td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>long</code></td><td><code>System.Int64</code></td><td>8</td><td>cerca de ±9,2 quintilhões</td><td><code>5L</code></td><td>quando o <code>int</code> não basta: populações, milissegundos, bytes de um disco</td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>ulong</code></td><td><code>System.UInt64</code></td><td>8</td><td>0 a cerca de 18,4 quintilhões</td><td><code>5ul</code></td><td>raro</td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>float</code></td><td><code>System.Single</code></td><td>4</td><td>±3,4 × 10<sup>38</sup>, uns 7 algarismos certos</td><td><code>5f</code></td><td>gráficos e jogos</td><td><a href="decimais.html">float, double e decimal</a></td></tr>
+<tr><td><code>double</code></td><td><code>System.Double</code></td><td>8</td><td>±1,8 × 10<sup>308</sup>, uns 15 a 17 algarismos</td><td><code>5.0</code></td><td><strong>o padrão</strong> para medidas: altura, distância, ciência</td><td><a href="decimais.html">float, double e decimal</a></td></tr>
+<tr><td><code>decimal</code></td><td><code>System.Decimal</code></td><td>16</td><td>±7,9 × 10<sup>28</sup>, 28 a 29 algarismos, exato na base 10</td><td><code>5m</code></td><td><strong>dinheiro</strong></td><td><a href="decimais.html">float, double e decimal</a></td></tr>
+<tr><td><code>char</code></td><td><code>System.Char</code></td><td>2</td><td>códigos 0 a 65 535 (UTF-16)</td><td><code>'a'</code></td><td>um caractere</td><td><a href="char-bool.html">char e bool</a></td></tr>
+<tr><td><code>bool</code></td><td><code>System.Boolean</code></td><td>1</td><td><code>false</code> ou <code>true</code></td><td><code>true</code></td><td>sim ou não</td><td><a href="char-bool.html">char e bool</a></td></tr>
+<tr><td><code>string</code></td><td><code>System.String</code></td><td>(varia)</td><td>até cerca de 1 bilhão de caracteres</td><td><code>"a"</code></td><td>texto</td><td><a href="strings.html">Strings</a></td></tr>
+<tr><td><code>object</code></td><td><code>System.Object</code></td><td>(varia)</td><td>qualquer valor</td><td>—</td><td>a base de todos os tipos</td><td><a href="object.html">A Classe object</a></td></tr>
+</table>
+</div>
+
+<ul>
+  <li>Os tamanhos são <strong>iguais em todo computador</strong>: no C#, <code>int</code> é sempre 32 bits, no Windows, no Linux, no celular e no editor do guia. (Em C, isso não é garantido.)</li>
+  <li>Os tipos sem sinal (<code>byte</code>, <code>ushort</code>, <code>uint</code>, <code>ulong</code>) começam no 0 e vão até o dobro. O <code>u</code> é de "unsigned", "sem sinal". O único sem sinal comum é o <code>byte</code>; o <code>sbyte</code> ("signed byte") é o contrário.</li>
+  <li>O <code>sizeof</code> funciona com estes tipos sem nada especial. Com outros (structs suas, <code>nint</code>), ele pede código <code>unsafe</code> (erro <code>CS0233</code>).</li>
+</ul>
+
+<h2 id="precisao">Precisão: float, double e decimal</h2>
+<p>Os três guardam números com vírgula, mas com precisão diferente. A conta 1 ÷ 3 mostra até onde cada um vai, e 0,1 + 0,2 mostra o erro de arredondamento do <code>double</code>:</p>
+
+<pre class="file" data-file="flutuante.cs">// flutuante.cs — os valores especiais do float e do double
+using System.Runtime.CompilerServices;
+
+Console.WriteLine($"double.Epsilon = {double.Epsilon}");
+Console.WriteLine($"float.Epsilon = {float.Epsilon}");
+Console.WriteLine($"1.0 / 0 = {1.0 / 0}");
+Console.WriteLine($"-1.0 / 0 = {-1.0 / 0}");
+Console.WriteLine($"0.0 / 0 = {0.0 / 0}");
+Console.WriteLine($"0.1 + 0.2 = {0.1 + 0.2}");
+Console.WriteLine($"0.1f + 0.2f = {0.1f + 0.2f}");
+Console.WriteLine($"0.1m + 0.2m = {0.1m + 0.2m}");
+Console.WriteLine($"1.0 / 3 = {1.0 / 3}");
+Console.WriteLine($"1.0f / 3 = {1.0f / 3}");
+Console.WriteLine($"1.0m / 3 = {1.0m / 3}");
+double nan = double.NaN;
+Console.WriteLine($"NaN == NaN: {nan == double.NaN}");
+Console.WriteLine($"double.IsNaN(0.0 / 0): {double.IsNaN(0.0 / 0)}");
+Console.WriteLine($"Half: {Unsafe.SizeOf&lt;Half&gt;()} bytes, máximo {Half.MaxValue}");
+Console.WriteLine($"Int128: {Unsafe.SizeOf&lt;Int128&gt;()} bytes");
+Console.WriteLine($"Int128.MaxValue = {Int128.MaxValue}");
+Console.WriteLine($"nint.Size = {nint.Size}");
+</pre>
+<pre class="term" data-cwd="~/cs/ref">$ dotnet run flutuante.cs
+double.Epsilon = 5E-324
+float.Epsilon = 1E-45
+1.0 / 0 = ∞
+-1.0 / 0 = -∞
+0.0 / 0 = NaN
+0.1 + 0.2 = 0,30000000000000004
+0.1f + 0.2f = 0,3
+0.1m + 0.2m = 0,3
+1.0 / 3 = 0,3333333333333333
+1.0f / 3 = 0,33333334
+1.0m / 3 = 0,3333333333333333333333333333
+NaN == NaN: False
+double.IsNaN(0.0 / 0): True
+Half: 2 bytes, máximo 65500
+Int128: 16 bytes
+Int128.MaxValue = 170141183460469231731687303715884105727
+nint.Size = 8</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>1 ÷ 3</th><th>Algarismos certos</th><th>0,1 + 0,2</th><th>Base</th><th>Use para</th></tr>
+<tr><td><code>float</code></td><td><code>0,33333334</code></td><td>uns 7 (o último já está errado)</td><td><code>0,3</code> (o erro existe, mas some no arredondamento da tela)</td><td>2</td><td>gráficos, jogos, sensores</td></tr>
+<tr><td><code>double</code></td><td><code>0,3333333333333333</code></td><td>15 a 17</td><td><code>0,30000000000000004</code></td><td>2</td><td>medidas e ciência</td></tr>
+<tr><td><code>decimal</code></td><td><code>0,3333333333333333333333333333</code></td><td>28 a 29</td><td><code>0,3</code> (exato)</td><td>10</td><td><strong>dinheiro</strong></td></tr>
+</table>
+</div>
+
+<p>Por que o <code>double</code> erra em 0,1 + 0,2? Ele guarda os números em base 2, e 0,1 em base 2 é uma dízima infinita (como 1/3 em base 10). O <code>decimal</code> guarda em base 10, por isso 0,1 é exato. É a razão de o guia usar <code>decimal</code> para dinheiro, sempre. Aula: <a href="decimais.html">float, double e decimal</a>.</p>
+
+<h2 id="especiais">Valores especiais do float e do double</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Constante</th><th>Valor (lab)</th><th>O que é</th></tr>
+<tr><td><code>double.Epsilon</code></td><td><code>5E-324</code></td><td>o menor <code>double</code> positivo. <strong>Não</strong> serve para comparar números com tolerância; para isso, use algo como <code>Math.Abs(a - b) &lt; 1e-9</code>.</td></tr>
+<tr><td><code>float.Epsilon</code></td><td><code>1E-45</code></td><td>o menor <code>float</code> positivo</td></tr>
+<tr><td><code>double.PositiveInfinity</code></td><td><code>∞</code></td><td>o resultado de <code>1.0 / 0</code>. Dividir um <code>double</code> por zero <strong>não</strong> dá erro.</td></tr>
+<tr><td><code>double.NegativeInfinity</code></td><td><code>-∞</code></td><td>o resultado de <code>-1.0 / 0</code></td></tr>
+<tr><td><code>double.NaN</code></td><td><code>NaN</code></td><td>"not a number", não é um número: <code>0.0 / 0</code>, <code>Math.Sqrt(-1)</code>. É diferente de tudo, até de si mesmo (<code>NaN == NaN</code> é <code>False</code>): teste com <code>double.IsNaN(x)</code>.</td></tr>
+</table>
+</div>
+<p>Com inteiros é diferente: <code>7 / 0</code> com uma variável lança <code>DivideByZeroException</code>, e com constantes nem compila (veja <a href="ref-excecoes.html">Exceções</a> e <a href="ref-erros.html">Erros do Compilador</a>).</p>
+
+<h2 id="outros">Outros tipos numéricos</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>Bytes</th><th>Limite (lab)</th><th>O que é</th><th>Desde</th></tr>
+<tr><td><code>nint</code>, <code>nuint</code></td><td>8 no lab, <strong>4 no editor</strong></td><td><code>nint.MaxValue</code>: <code>9223372036854775807</code> no lab, <code>2147483647</code> no editor</td><td>inteiro do tamanho de um endereço de memória: 64 bits num Linux de 64 bits, 32 no WebAssembly do editor. Use <code>nint.Size</code> para saber.</td><td>C# 9</td></tr>
+<tr><td><code>Half</code></td><td>2</td><td><code>65500</code></td><td>ponto flutuante de 16 bits (inteligência artificial, placas de vídeo). Não tem palavra-chave nem literal.</td><td>.NET 5</td></tr>
+<tr><td><code>Int128</code>, <code>UInt128</code></td><td>16</td><td><code>Int128.MaxValue</code> = <code>170141183460469231731687303715884105727</code></td><td>inteiros de 128 bits, sem palavra-chave</td><td>.NET 7</td></tr>
+<tr><td><code>BigInteger</code></td><td>(varia)</td><td>sem limite</td><td>inteiro de qualquer tamanho (<code>using System.Numerics;</code>), mais lento</td><td>.NET 4</td></tr>
+</table>
+</div>
+
+<h2 id="literais">O tipo de cada literal</h2>
+<p>Um número escrito no código (um <strong>literal</strong>) já tem tipo. O <code>GetType().Name</code> mostra qual:</p>
+
+<pre class="file" data-file="nomes.cs">// nomes.cs — o nome .NET de cada apelido, e o tipo de cada literal
+Console.WriteLine($"{typeof(int).FullName} {typeof(string).FullName} {typeof(bool).FullName} {typeof(decimal).FullName}");
+object[] literais = [5, 5L, 5u, 5ul, 3_000_000_000, 5.0, 5f, 5m, 5e3, 'a', "a", true, 0x1F, 0b1010];
+string[] textos = ["5", "5L", "5u", "5ul", "3_000_000_000", "5.0", "5f", "5m", "5e3", "'a'", "\"a\"", "true", "0x1F", "0b1010"];
+for (int i = 0; i &lt; literais.Length; i++)
+{
+    Console.WriteLine($"{textos[i],-14} {literais[i].GetType().Name,-8} {literais[i]}");
+}
+</pre>
+<pre class="term" data-cwd="~/cs/ref">$ dotnet run nomes.cs
+System.Int32 System.String System.Boolean System.Decimal
+5              Int32    5
+5L             Int64    5
+5u             UInt32   5
+5ul            UInt64   5
+3_000_000_000  UInt32   3000000000
+5.0            Double   5
+5f             Single   5
+5m             Decimal  5
+5e3            Double   5000
+'a'            Char     a
+"a"            String   a
+true           Boolean  True
+0x1F           Int32    31
+0b1010         Int32    10</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Literal</th><th>Tipo</th><th>Regra</th></tr>
+<tr><td><code>5</code>, <code>-40</code></td><td><code>int</code></td><td>inteiro sem sufixo: <code>int</code>; se não cabe, <code>uint</code>, depois <code>long</code>, depois <code>ulong</code>. Por isso <code>3_000_000_000</code> é <code>uint</code>.</td></tr>
+<tr><td><code>5L</code></td><td><code>long</code></td><td>sufixo <code>L</code> (use o maiúsculo: o <code>l</code> minúsculo parece o número 1)</td></tr>
+<tr><td><code>5u</code>, <code>5ul</code></td><td><code>uint</code>, <code>ulong</code></td><td>sufixos <code>u</code> e <code>ul</code> (maiúsculas ou minúsculas)</td></tr>
+<tr><td><code>5.0</code>, <code>5e3</code></td><td><code>double</code></td><td>com ponto ou expoente, sem sufixo: <code>double</code>. No código, o separador é sempre o <strong>ponto</strong>, em qualquer país.</td></tr>
+<tr><td><code>5f</code></td><td><code>float</code></td><td>sufixo <code>f</code> ou <code>F</code></td></tr>
+<tr><td><code>5m</code></td><td><code>decimal</code></td><td>sufixo <code>m</code> ou <code>M</code> ("money")</td></tr>
+<tr><td><code>0x1F</code>, <code>0b1010</code></td><td><code>int</code></td><td>hexadecimal (<code>0x</code>) e binário (<code>0b</code>, <span class="versao">C# 7</span>)</td></tr>
+<tr><td><code>1_000_000</code></td><td><code>int</code></td><td>o <code>_</code> separa os milhares só para quem lê; o compilador ignora <span class="versao">C# 7</span></td></tr>
+<tr><td><code>'a'</code></td><td><code>char</code></td><td>aspas simples, um caractere</td></tr>
+<tr><td><code>"a"</code></td><td><code>string</code></td><td>aspas duplas (aula <a href="escapes.html">Escapes e Strings Literais</a>)</td></tr>
+<tr><td><code>true</code>, <code>false</code></td><td><code>bool</code></td><td>—</td></tr>
+</table>
+</div>
+
+<h2 id="padrao">Valor padrão (<code>default</code>)</h2>
+<p>Campos de uma classe, itens de um array novo e <code>default(T)</code> começam com o valor padrão do tipo. (Variáveis locais, não: o compilador exige que você dê um valor antes de usar.)</p>
+<pre class="file" data-file="padroes.cs">// padroes.cs — valor padrão (default) de cada tipo
+Console.WriteLine($"int: [{default(int)}]");
+Console.WriteLine($"double: [{default(double)}]");
+Console.WriteLine($"decimal: [{default(decimal)}]");
+Console.WriteLine($"bool: [{default(bool)}]");
+Console.WriteLine($"char: [{(int)default(char)}] (o caractere de código 0)");
+Console.WriteLine($"string: [{default(string) ?? "null"}]");
+Console.WriteLine($"int?: [{(default(int?) is null ? "null" : "?")}]");
+Console.WriteLine($"DateTime: [{default(DateTime)}]");
+</pre>
+<pre class="term" data-cwd="~/cs/ref">$ dotnet run padroes.cs
+int: [0]
+double: [0]
+decimal: [0]
+bool: [False]
+char: [0] (o caractere de código 0)
+string: [null]
+int?: [null]
+DateTime: [01/01/0001 00:00:00]</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>Valor padrão</th><th>Aula</th></tr>
+<tr><td>todos os números</td><td><code>0</code></td><td><a href="variaveis.html">Variáveis</a></td></tr>
+<tr><td><code>bool</code></td><td><code>false</code></td><td><a href="char-bool.html">char e bool</a></td></tr>
+<tr><td><code>char</code></td><td><code>'\0'</code> (o caractere de código 0, invisível)</td><td><a href="char-bool.html">char e bool</a></td></tr>
+<tr><td><code>string</code>, classes, arrays</td><td><code>null</code></td><td><a href="null.html">null</a></td></tr>
+<tr><td><code>int?</code> e outros anuláveis</td><td><code>null</code></td><td><a href="null.html">null</a></td></tr>
+<tr><td>structs (<code>DateTime</code>…)</td><td>todos os campos no padrão: <code>DateTime</code> vira 1º de janeiro do ano 1, meia-noite</td><td><a href="structs.html">Structs</a></td></tr>
+</table>
+</div>
+
+<h2 id="estouro">Estouro e conversões</h2>
+<p>O que acontece quando o valor não cabe no tipo, ou quando um <code>double</code> vira <code>int</code>:</p>
+
+<pre class="file" data-file="estouro.cs">// estouro.cs — o que acontece quando passa do limite
+int maior = int.MaxValue;
+Console.WriteLine($"int.MaxValue + 1 = {maior + 1}");
+byte b = 255;
+b++;
+Console.WriteLine($"byte 255 + 1 = {b}");
+Console.WriteLine($"(int)3.99 = {(int)3.99}");
+Console.WriteLine($"(int)-3.99 = {(int)-3.99}");
+double grande = 1e20, nada = double.NaN;
+Console.WriteLine($"(int)1e20 = {(int)grande}");
+Console.WriteLine($"(int)NaN = {(int)nada}");
+int trezentos = 300;
+Console.WriteLine($"(byte)300 = {(byte)trezentos}");
+Console.WriteLine($"Math.Round(2.5) = {Math.Round(2.5)}, Math.Round(3.5) = {Math.Round(3.5)}");
+Console.WriteLine($"Convert.ToInt32(2.5) = {Convert.ToInt32(2.5)}, Convert.ToInt32(3.5) = {Convert.ToInt32(3.5)}");
+Console.WriteLine($"7 / 2 = {7 / 2}, 7 % 2 = {7 % 2}, -7 / 2 = {-7 / 2}, -7 % 2 = {-7 % 2}");
+Console.WriteLine(checked(maior + 1));
+</pre>
+<pre class="term" data-cwd="~/cs/ref">$ dotnet run estouro.cs
+int.MaxValue + 1 = -2147483648
+byte 255 + 1 = 0
+(int)3.99 = 3
+(int)-3.99 = -3
+(int)1e20 = 2147483647
+(int)NaN = 0
+(byte)300 = 44
+Math.Round(2.5) = 2, Math.Round(3.5) = 4
+Convert.ToInt32(2.5) = 2, Convert.ToInt32(3.5) = 4
+7 / 2 = 3, 7 % 2 = 1, -7 / 2 = -3, -7 % 2 = -1
+Unhandled exception. System.OverflowException: Arithmetic operation resulted in an overflow.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/ref/estouro.cs:line 17
+$ echo $?
+134</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Resultado (lab)</th><th>Por quê</th><th>Aula</th></tr>
+<tr><td><code>int.MaxValue + 1</code></td><td><code>-2147483648</code></td><td>o inteiro "dá a volta", sem aviso (o padrão é <code>unchecked</code>)</td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>checked(int.MaxValue + 1)</code></td><td><code>OverflowException</code></td><td>com <code>checked</code>, o estouro vira exceção</td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>byte b = 255; b++;</code></td><td><code>0</code></td><td>também dá a volta</td><td><a href="incremento.html">++ e --</a></td></tr>
+<tr><td><code>(int)3.99</code>, <code>(int)-3.99</code></td><td><code>3</code>, <code>-3</code></td><td>o cast <strong>corta</strong> a parte decimal, na direção do zero; não arredonda</td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
+<tr><td><code>(int)</code> de um <code>double</code> grande demais</td><td><code>2147483647</code> no lab; <code>-2147483648</code> no editor</td><td>desde o .NET 9, o <code>dotnet</code> "satura" no limite; o editor (WebAssembly) dá outro valor. Não conte com nenhum dos dois: confira o limite antes</td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
+<tr><td><code>(int)</code> de <code>NaN</code></td><td><code>0</code> no lab; <code>-2147483648</code> no editor</td><td>idem: teste com <code>double.IsNaN</code> antes</td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
+<tr><td><code>(byte)300</code> (de uma variável)</td><td><code>44</code></td><td>fica só o byte de baixo: 300 − 256 = 44</td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
+<tr><td><code>Math.Round(2.5)</code>, <code>Math.Round(3.5)</code></td><td><code>2</code>, <code>4</code></td><td>arredonda o ",5" para o <strong>par</strong> mais próximo ("arredondamento bancário"). Para o arredondamento da escola, <code>Math.Round(x, MidpointRounding.AwayFromZero)</code></td><td><a href="math.html">Math</a></td></tr>
+<tr><td><code>Convert.ToInt32(2.5)</code></td><td><code>2</code></td><td>arredonda como o <code>Math.Round</code> (ao contrário do cast, que corta)</td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
+<tr><td><code>7 / 2</code>, <code>-7 / 2</code></td><td><code>3</code>, <code>-3</code></td><td>divisão de inteiros corta a parte decimal</td><td><a href="operadores-aritmeticos.html">Operadores Aritméticos</a></td></tr>
+<tr><td><code>-7 % 2</code></td><td><code>-1</code></td><td>o resto tem o sinal de quem é dividido</td><td><a href="operadores-aritmeticos.html">Operadores Aritméticos</a></td></tr>
+</table>
+</div>
+
+<h3>Conversões que acontecem sozinhas (implícitas)</h3>
+<p>O C# converte sozinho quando não há risco de perder informação. Quando há, ele exige o cast <code>(tipo)</code>:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>De</th><th>Vira sozinho em</th><th>Precisa de cast para</th></tr>
+<tr><td><code>byte</code></td><td><code>short</code>, <code>ushort</code>, <code>int</code>, <code>uint</code>, <code>long</code>, <code>ulong</code>, <code>float</code>, <code>double</code>, <code>decimal</code></td><td><code>sbyte</code>, <code>char</code></td></tr>
+<tr><td><code>int</code></td><td><code>long</code>, <code>float</code>, <code>double</code>, <code>decimal</code></td><td><code>byte</code>, <code>short</code>, <code>uint</code>, <code>char</code>…</td></tr>
+<tr><td><code>long</code></td><td><code>float</code>, <code>double</code>, <code>decimal</code></td><td><code>int</code> e menores</td></tr>
+<tr><td><code>char</code></td><td><code>ushort</code>, <code>int</code>, <code>long</code>, <code>double</code>…</td><td><code>byte</code>, <code>short</code></td></tr>
+<tr><td><code>float</code></td><td><code>double</code></td><td>todos os inteiros, <code>decimal</code></td></tr>
+<tr><td><code>double</code></td><td>(nenhum)</td><td>todos os inteiros, <code>float</code>, <code>decimal</code></td></tr>
+<tr><td><code>decimal</code></td><td>(nenhum)</td><td>todos os inteiros, <code>float</code>, <code>double</code></td></tr>
+</table>
+</div>
+<p>Repare: <code>int</code> → <code>float</code> é implícito mas pode perder algarismos (o <code>float</code> só tem uns 7). E <code>double</code> e <code>decimal</code> nunca viram um no outro sozinhos. Aula: <a href="conversao-tipos.html">Conversão de Tipos</a>.</p>
+
+<hr>
+
+<h2 id="erros">Quando dá errado</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Mensagem real (lab)</th><th>O que significa e como consertar</th><th>Aula</th></tr>
+<tr><td><code>decimal preco = 15.90;</code></td><td><code>error CS0664: Literal do tipo double não pode ser convertido implicitamente no tipo "decimal"; use um sufixo "M" para criar um literal desse tipo</code></td><td><code>15.90</code> é <code>double</code>. Escreva <code>15.90m</code>.</td><td><a href="decimais.html">float, double e decimal</a></td></tr>
+<tr><td><code>float altura = 1.65;</code></td><td><code>error CS0664: … no tipo "float"; use um sufixo "F" …</code></td><td>Escreva <code>1.65f</code> (ou use <code>double</code>).</td><td><a href="decimais.html">float, double e decimal</a></td></tr>
+<tr><td><code>int populacao = 3_000_000_000;</code></td><td><code>error CS0266: Não é possível converter implicitamente tipo "uint" em "int". Existe uma conversão explícita (há uma conversão ausente?)</code></td><td>O número não cabe no <code>int</code> (o literal virou <code>uint</code>). Use <code>long</code>.</td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>byte b = (byte)300;</code></td><td><code>error CS0221: O valor de constante "300" não pode ser convertido em "byte" (use a sintaxe "unchecked" para substituir)</code></td><td>Com uma <strong>constante</strong>, o compilador vê o estouro e recusa. Com uma variável, o cast passa e dá 44.</td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
+<tr><td><code>(int)1e20</code></td><td><code>error CS0221: O valor de constante "1E+20" não pode ser convertido em "int" …</code></td><td>O mesmo, com um <code>double</code> constante.</td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
+<tr><td><code>sizeof(nint)</code></td><td><code>error CS0233: 'nint' não tem um tamanho predefinido, portanto, sizeof só pode ser usado em um contexto desprotegido</code></td><td>Use <code>nint.Size</code>.</td><td><a href="memoria.html">Memória</a></td></tr>
+<tr><td><code>checked(maior + 1)</code></td><td><code>Unhandled exception. System.OverflowException: Arithmetic operation resulted in an overflow.</code></td><td>A conta passou do limite dentro de um <code>checked</code>. Use um tipo maior (<code>long</code>), ou trate a exceção.</td><td><a href="try-catch.html">try e catch</a></td></tr>
+</table>
+</div>
+
+<div class="cenario">
+<strong>O estouro silencioso</strong>
+<p>A Ana somou a população de três países num <code>int</code>:</p>
+<pre class="file" data-file="populacao.cs">// A população de três países, somada
+int brasil = 213_000_000;
+int india = 1_450_000_000;
+int china = 1_410_000_000;
+int soma = brasil + india + china;
+Console.WriteLine($"Soma: {soma}");
+</pre>
+<pre class="term" data-cwd="~/cs/ref">$ dotnet run populacao.cs
+Soma: -1221967296</pre>
+<p><strong>O que aconteceu:</strong> cada população cabe no <code>int</code> (o máximo é 2 147 483 647), mas a soma, 3 073 000 000, não. A conta deu a volta e virou um número negativo, sem erro nem aviso. É o defeito mais traiçoeiro dos inteiros.</p>
+<p><strong>Como consertar:</strong> use <code>long</code> quando a conta pode passar de 2 bilhões. Para que um estouro vire erro em vez de número errado, use <code>checked</code> na conta, ou ligue <code>&lt;CheckForOverflowUnderflow&gt;true&lt;/CheckForOverflowUnderflow&gt;</code> no <code>.csproj</code> (aula <a href="csproj.html">O Arquivo .csproj</a>).</p>
+</div>
+
+<h2 id="experimente">Experimente</h2>
+<div class="trycs" data-goal="out:Soma: 3073000000">
+<p class="try-task"><strong>Missão:</strong> conserte o programa da população para mostrar a soma certa, <code>Soma: 3073000000</code>. Dica: o tipo que cabe tudo isso tem 8 bytes.</p>
+<pre class="script">// A população de três países, somada
+int brasil = 213_000_000;
+int india = 1_450_000_000;
+int china = 1_410_000_000;
+int soma = brasil + india + china;
+Console.WriteLine($"Soma: {soma}");
+</pre>
+<pre class="solucao">// A população de três países, somada
+long brasil = 213_000_000;
+long india = 1_450_000_000;
+long china = 1_410_000_000;
+long soma = brasil + india + china;
+Console.WriteLine($"Soma: {soma}");
+</pre>
+</div>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> troque os tipos e os valores e veja os limites. O que acontece com <code>short.MaxValue + 1</code>? E com <code>(short)(short.MaxValue + 1)</code>? E com <code>0.1f + 0.7f</code>?</p>
+<pre class="script">Console.WriteLine($"short vai de {short.MinValue} a {short.MaxValue}");
+Console.WriteLine(short.MaxValue + 1);
+Console.WriteLine(1.0 / 3);
+Console.WriteLine(1.0m / 3);
+Console.WriteLine(0.1 + 0.2 == 0.3);
+Console.WriteLine(0.1m + 0.2m == 0.3m);
+</pre>
+</div>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Os tamanhos são fixos: <code>byte</code> 1, <code>short</code> 2, <code>int</code> 4, <code>long</code> 8, <code>float</code> 4, <code>double</code> 8, <code>decimal</code> 16, <code>char</code> 2 bytes. Só o <code>nint</code> muda (8 no lab, 4 no editor).</li>
+  <li><code>int</code> vai até 2 147 483 647; para mais, <code>long</code>. Para dinheiro, <code>decimal</code>; para medidas, <code>double</code>.</li>
+  <li>Sufixos: <code>L</code> (long), <code>u</code>, <code>ul</code>, <code>f</code> (float), <code>m</code> (decimal). Sem sufixo, inteiro é <code>int</code> e número com ponto é <code>double</code>.</li>
+  <li>Inteiro que passa do limite dá a volta sem aviso; com <code>checked</code>, lança <code>OverflowException</code>.</li>
+  <li>O cast <code>(int)</code> corta a parte decimal; <code>Math.Round</code> e <code>Convert.ToInt32</code> arredondam para o par.</li>
+  <li><code>double</code> dividido por zero dá <code>∞</code> ou <code>NaN</code>; <code>NaN</code> se testa com <code>double.IsNaN</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
