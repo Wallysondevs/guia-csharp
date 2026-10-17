@@ -126,6 +126,11 @@ Invariante: 1,234.50 | ¤1,234.50 | 10/17/2026</pre>
   <dt>CultureInfo.InvariantCulture</dt><dd>A cultura <strong>invariante</strong>, "que não varia": não é de país nenhum. Usa ponto nos decimais, vírgula no milhar, datas mês/dia/ano e o símbolo genérico de moeda <code>¤</code>. Ela é igual em todo computador, em qualquer configuração. Para que serve? Seção 3.</dd>
 </dl>
 
+<div class="note">
+<strong>No editor do guia</strong>
+<p>As linhas de pt-BR, pt-PT, en-US, en-GB, es-ES e de-DE e a invariante saem iguais às do terminal. A do Japão, não: o editor não traz os dados de japonês, e a linha sai <code>ja-JP: 1.234,50 | ￥ 1.235 | 17/10/2026 | sábado, 17 de outubro de 2026</code> (só o iene muda; o resto fica no formato do Brasil). Para ver as culturas da Ásia, rode no terminal.</p>
+</div>
+
 <p>Atenção: <code>"C"</code> só troca o <strong>desenho</strong> da moeda, não converte o valor. <code>1234,5</code> reais escritos com <code>$</code> continuam sendo 1234,5, e não viram dólares.</p>
 
 <hr>
