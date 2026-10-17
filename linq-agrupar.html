@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# LINQ GroupBy — agrupar por categoria | Guia C#</title>
+<meta name="description" content="Agrupar com LINQ em C# para quem nunca programou: GroupBy por uma chave, o grupo (IGrouping) com Key e seus elementos, a ordem dos grupos, um resumo por categoria com Count e Sum, GroupBy com seletor de elemento, chaves calculadas (faixas de preço, bool), group by into na sintaxe de consulta, CountBy do .NET 9, ToLookup e os erros reais CS1061 e ArgumentException do ToDictionary, no dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# LINQ <span class="hl">GroupBy</span></h1>
+
+<p class="intro">"Quantos produtos há em cada categoria?" "Quanto vale o estoque de cada seção da loja?" Para responder, primeiro é preciso <strong>separar</strong> os produtos em montes: um monte para Papelaria, outro para Bolsas, outro para Cozinha. É isso que o <code>GroupBy</code> ("agrupar por") faz: ele reparte uma sequência em <strong>grupos</strong>, um para cada valor da chave que você escolher. Depois, você pode percorrer cada grupo ou fazer contas com ele.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Agrupar com <code>GroupBy(p =&gt; p.Categoria)</code> e percorrer os grupos.</li>
+  <li>O que é um grupo: a <strong>chave</strong> (<code>Key</code>) e os <strong>elementos</strong>.</li>
+  <li>Em que ordem os grupos saem, e como ordená-los.</li>
+  <li>Fazer um resumo por grupo com <code>Count()</code> e <code>Sum()</code>.</li>
+  <li>Agrupar só uma parte de cada elemento (o seletor de elemento) e agrupar por uma chave calculada.</li>
+  <li>A sintaxe de consulta <code>group … by … into</code>.</li>
+  <li>Os atalhos <code>CountBy</code> <span class="versao">.NET 9</span> e <code>ToLookup</code>.</li>
+  <li>Os erros reais: <code>CS1061</code> num grupo e a <code>ArgumentException</code> do <code>ToDictionary</code> com chaves repetidas.</li>
+</ul>
+</div>
+
+<p>Todos os programas rodaram com o <strong>.NET 10</strong> (C# 14) na máquina da Ana, na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Eles usam a lista de produtos da lojinha apresentada em <a href="linq.html">O que é LINQ</a> (linhas 1 a 10 de cada arquivo) e o <code>record Produto</code> no fim; os arquivos abaixo mostram só o programa.</p>
+
+<pre class="file" data-file="produtos (trecho de todos os exemplos)">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+// … o programa de cada exemplo começa na linha 12 …
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+
+<hr>
+
+<h2>A ideia: as caixas com etiqueta</h2>
+<p>Chegou uma caixa grande com os produtos todos misturados. A Ana pega caixas menores, escreve uma <strong>etiqueta</strong> em cada uma ("Papelaria", "Bolsas", "Cozinha") e vai pondo cada produto na caixa da sua categoria. Se aparece um produto de uma categoria nova, ela pega mais uma caixa.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na lojinha</th><th>No LINQ</th></tr>
+<tr><td>O critério ("separe por categoria")</td><td>A <strong>chave</strong>: <code>GroupBy(p =&gt; p.Categoria)</code></td></tr>
+<tr><td>Uma caixa pequena</td><td>Um <strong>grupo</strong> (<code>IGrouping&lt;string, Produto&gt;</code>)</td></tr>
+<tr><td>A etiqueta da caixa</td><td><code>grupo.Key</code> ("chave")</td></tr>
+<tr><td>O que está dentro da caixa</td><td>Os elementos do grupo: percorra com <code>foreach (Produto p in grupo)</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. O primeiro <code>GroupBy</code></h2>
+
+<pre class="file" data-file="groupby.cs">// (a lista de produtos)
+
+var grupos = produtos.GroupBy(p =&gt; p.Categoria);
+
+foreach (var grupo in grupos)
+{
+    Console.WriteLine($"== {grupo.Key}");
+    foreach (Produto p in grupo)
+    {
+        Console.WriteLine($"   {p.Nome} {p.Preco:C}");
+    }
+}
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run groupby.cs
+== Papelaria
+   Caderno R$ 18,90
+   Lápis R$ 2,50
+   Borracha R$ 1,75
+== Bolsas
+   Mochila R$ 129,90
+   Estojo R$ 24,90
+== Cozinha
+   Garrafa R$ 35,00
+   Caneca R$ 22,50</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>produtos.GroupBy(p =&gt; p.Categoria)</code></td><td>Reparte os produtos pela categoria. O resultado é uma sequência de <strong>grupos</strong>, um por categoria diferente (aqui, 3). Como todo o LINQ, é <a href="linq.html#adiada">adiado</a>.</td></tr>
+<tr><td><code>foreach (var grupo in grupos)</code></td><td>O laço de fora passa por cada grupo. O tipo de cada um é <code>IGrouping&lt;string, Produto&gt;</code>: "um grupo com chave <code>string</code> e elementos <code>Produto</code>". O <code>var</code> poupa escrever esse nome comprido.</td></tr>
+<tr><td><code>grupo.Key</code></td><td>A chave do grupo, a "etiqueta da caixa": <code>"Papelaria"</code>, <code>"Bolsas"</code>…</td></tr>
+<tr><td><code>foreach (Produto p in grupo)</code></td><td>O laço de dentro passa pelos produtos do grupo. Um grupo <strong>é</strong> uma sequência de produtos, que se percorre como qualquer outra (veja <a href="lacos-aninhados.html">Laços Aninhados</a>).</td></tr>
+</table>
+</div>
+
+<p><strong>A ordem dos grupos:</strong> eles saem na ordem em que cada chave <strong>apareceu pela primeira vez</strong> na lista. O primeiro produto é o Caderno (Papelaria), o terceiro é a Mochila (Bolsas) e o sexto é a Garrafa (Cozinha). Dentro de cada grupo, os produtos também mantêm a ordem original. Para outra ordem, ordene os grupos (seção 2) ou ordene os produtos antes do <code>GroupBy</code>.</p>
+
+<div class="trycs" data-goal="out:Papelaria: Caderno\, Lápis\, Borracha,out:Bolsas: Mochila\, Estojo,out:Cozinha: Garrafa\, Caneca">
+<p class="try-task"><strong>Missão:</strong> em vez de contar os produtos de cada categoria, mostre os <strong>nomes</strong>, separados por vírgula. Dica: um grupo é uma sequência de produtos, então <code>g.Select(p =&gt; p.Nome)</code> funciona nele, e o <code>string.Join(", ", …)</code> junta os nomes. A primeira linha deve ser <code>Papelaria: Caderno, Lápis, Borracha</code>.</p>
+<pre class="script">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+var grupos = produtos.GroupBy(p =&gt; p.Categoria);
+
+foreach (var g in grupos)
+{
+    Console.WriteLine($"{g.Key}: {g.Count()} produtos");
+}
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+<pre class="solucao">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+var grupos = produtos.GroupBy(p =&gt; p.Categoria);
+
+foreach (var g in grupos)
+{
+    Console.WriteLine($"{g.Key}: {string.Join(", ", g.Select(p =&gt; p.Nome))}");
+}
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Um resumo por grupo</h2>
+<p>O uso mais comum do <code>GroupBy</code> não é listar, e sim <strong>resumir</strong>: uma linha por grupo, com contas sobre os elementos dele. Como cada grupo é uma sequência, todos os métodos do LINQ funcionam nele: <code>g.Count()</code> conta, <code>g.Sum(…)</code> soma (os dois são o assunto da próxima aula, <a href="linq-agregar.html">Agregar</a>):</p>
+
+<pre class="file" data-file="resumo.cs">// (a lista de produtos)
+
+var resumo = produtos
+    .GroupBy(p =&gt; p.Categoria)
+    .OrderBy(g =&gt; g.Key)
+    .Select(g =&gt; new
+    {
+        Categoria = g.Key,
+        Quantos = g.Count(),
+        Valor = g.Sum(p =&gt; p.Preco * p.Estoque)
+    });
+
+foreach (var linha in resumo)
+{
+    Console.WriteLine($"{linha.Categoria,-10} {linha.Quantos} produtos  {linha.Valor,10:C}");
+}
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run resumo.cs
+Bolsas     2 produtos   R$ 389,70
+Cozinha    2 produtos   R$ 392,50
+Papelaria  3 produtos   R$ 370,55</pre>
+
+<dl class="anatomy">
+  <dt>.GroupBy(p =&gt; p.Categoria)</dt><dd>Faz os 3 grupos.</dd>
+  <dt>.OrderBy(g =&gt; g.Key)</dt><dd>Ordena os <strong>grupos</strong> pela chave: agora o <code>g</code> da lambda é um grupo, não um produto. As categorias saem em ordem alfabética.</dd>
+  <dt>.Select(g =&gt; new { … })</dt><dd>Transforma cada grupo numa linha do relatório, com um <a href="linq-filtrar.html">tipo anônimo</a>.</dd>
+  <dt>g.Count()</dt><dd>Quantos produtos há no grupo.</dd>
+  <dt>g.Sum(p =&gt; p.Preco * p.Estoque)</dt><dd>A soma, para cada produto do grupo, de preço × quantidade: o valor do estoque da categoria. Em Bolsas: 129,90 × 3 + 24,90 × 0 = 389,70.</dd>
+</dl>
+
+<p>É o mesmo que uma tabela dinâmica de planilha, ou o <code>GROUP BY</code> da linguagem SQL dos bancos de dados: <strong>agrupar</strong> e depois <strong>agregar</strong> (contar, somar, tirar a média) cada grupo.</p>
+
+<hr>
+
+<h2>3. Outras formas de agrupar</h2>
+
+<h3>Agrupar só uma parte: o seletor de elemento</h3>
+<p>Um segundo parâmetro no <code>GroupBy</code> diz <strong>o que</strong> entra em cada grupo. Com <code>p =&gt; p.Nome</code>, cada grupo guarda só os nomes, em vez dos produtos inteiros. O mesmo agrupamento na sintaxe de consulta vem logo abaixo:</p>
+
+<pre class="file" data-file="elementos.cs">// (a lista de produtos)
+
+var nomesPorCategoria = produtos.GroupBy(p =&gt; p.Categoria, p =&gt; p.Nome);
+
+foreach (var g in nomesPorCategoria)
+{
+    Console.WriteLine($"{g.Key}: {string.Join(", ", g)}");
+}
+
+var consulta =
+    from p in produtos
+    group p.Nome by p.Categoria into g
+    orderby g.Key
+    select $"{g.Key} ({g.Count()})";
+
+Console.WriteLine(string.Join(" | ", consulta));
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run elementos.cs
+Papelaria: Caderno, Lápis, Borracha
+Bolsas: Mochila, Estojo
+Cozinha: Garrafa, Caneca
+Bolsas (2) | Cozinha (2) | Papelaria (3)</pre>
+
+<ul>
+  <li><code>GroupBy(p =&gt; p.Categoria, p =&gt; p.Nome)</code>: a chave é a categoria; os elementos, os nomes. Cada <code>g</code> é um <code>IGrouping&lt;string, string&gt;</code>, e <code>string.Join(", ", g)</code> junta os nomes direto.</li>
+  <li>Na sintaxe de consulta, <code>group p.Nome by p.Categoria</code> diz "agrupe os nomes pela categoria". O <code>into g</code> ("para dentro de <code>g</code>") dá nome a cada grupo e deixa a consulta continuar (com <code>orderby</code>, <code>select</code>…). Sem o <code>into</code>, o <code>group</code> tem de ser a última cláusula.</li>
+</ul>
+
+<h3>Agrupar por uma chave calculada</h3>
+<p>A chave não precisa ser uma propriedade: pode ser qualquer conta. Abaixo, faixas de preço com uma <a href="switch-expressoes.html">expressão switch</a> e uma chave <code>bool</code>:</p>
+
+<pre class="file" data-file="faixas.cs">// (a lista de produtos)
+
+var porFaixa = produtos.GroupBy(p =&gt; p.Preco switch
+{
+    &lt; 10m =&gt; "até R$ 10",
+    &lt; 50m =&gt; "R$ 10 a R$ 50",
+    _ =&gt; "acima de R$ 50"
+});
+
+foreach (var g in porFaixa)
+{
+    Console.WriteLine($"{g.Key}: {string.Join(", ", g.Select(p =&gt; p.Nome))}");
+}
+
+var situacao = produtos.GroupBy(p =&gt; p.Estoque == 0);
+foreach (var g in situacao)
+{
+    Console.WriteLine($"Em falta? {g.Key}: {g.Count()} produto(s)");
+}
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run faixas.cs
+R$ 10 a R$ 50: Caderno, Estojo, Garrafa, Caneca
+até R$ 10: Lápis, Borracha
+acima de R$ 50: Mochila
+Em falta? False: 6 produto(s)
+Em falta? True: 1 produto(s)</pre>
+
+<p>A faixa "R$ 10 a R$ 50" veio primeiro porque o primeiro produto da lista (o Caderno, 18,90) caiu nela. Com a chave <code>bool</code>, há no máximo dois grupos: <code>False</code> e <code>True</code>.</p>
+
+<h3>Atalhos: <code>CountBy</code> <span class="versao">.NET 9</span> e <code>ToLookup</code></h3>
+
+<pre class="file" data-file="countby.cs">// (a lista de produtos)
+
+foreach (var par in produtos.CountBy(p =&gt; p.Categoria))
+{
+    Console.WriteLine($"{par.Key}: {par.Value}");
+}
+
+ILookup&lt;string, Produto&gt; porCategoria = produtos.ToLookup(p =&gt; p.Categoria);
+Console.WriteLine(string.Join(", ", porCategoria["Cozinha"].Select(p =&gt; p.Nome)));
+Console.WriteLine(porCategoria["Brinquedos"].Count());
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run countby.cs
+Papelaria: 3
+Bolsas: 2
+Cozinha: 2
+Garrafa, Caneca
+0                « uma categoria que não existe dá um grupo vazio, sem erro</pre>
+
+<ul>
+  <li><code>CountBy</code> ("contar por") faz o <code>GroupBy</code> e o <code>Count</code> de uma vez, e devolve pares chave/valor (<code>par.Key</code>, <code>par.Value</code>). Existe desde o .NET 9; em código mais antigo, você vai ver <code>GroupBy(…).Select(g =&gt; new { g.Key, Total = g.Count() })</code>. Há também o <code>AggregateBy</code>, para somas e outras contas por chave.</li>
+  <li><code>ToLookup</code> ("tabela de consulta") agrupa <strong>na hora</strong> (não é adiado) e deixa buscar um grupo pela chave, com colchetes, como um <a href="dictionary.html">dicionário</a>: <code>porCategoria["Cozinha"]</code>. Use quando for consultar os grupos várias vezes, por chave.</li>
+</ul>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS1061: usar o grupo como se fosse um produto</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="grupo-erro.cs">// (a lista de produtos, linhas 1 a 10)
+
+var grupos = produtos.GroupBy(p =&gt; p.Categoria);
+foreach (var g in grupos)
+{
+    Console.WriteLine(g.Nome);
+}
+
+// (o record Produto)
+</pre>
+<pre class="term">$ dotnet run grupo-erro.cs
+/home/ana/cs/grupo-erro.cs(15,25): error CS1061: ‘IGrouping&lt;string, Produto&gt;’ não contém uma definição para "Nome" e não foi possível encontrar nenhum método de extensão "Nome" que aceite um primeiro argumento do tipo ‘IGrouping&lt;string, Produto&gt;’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> <code>g</code> é a <strong>caixa</strong>, não um produto. A caixa tem uma etiqueta (<code>Key</code>) e vários produtos dentro, mas não tem um <code>Nome</code>.</p>
+<p><strong>Como consertar:</strong> para a etiqueta, <code>g.Key</code>; para os produtos, percorra o grupo (<code>foreach (Produto p in g)</code>) ou use o LINQ nele (<code>g.Select(p =&gt; p.Nome)</code>).</p>
+</div>
+
+<div class="cenario">
+<strong>Mostrar o grupo direto: sai o nome do tipo</strong>
+<pre class="file" data-file="imprimir-grupo.cs">// (a lista de produtos)
+
+var grupos = produtos.GroupBy(p =&gt; p.Categoria);
+foreach (var g in grupos)
+{
+    Console.WriteLine(g);
+}
+
+// (o record Produto)
+</pre>
+<pre class="term">$ dotnet run imprimir-grupo.cs
+System.Linq.Grouping`2[System.String,Produto]
+System.Linq.Grouping`2[System.String,Produto]
+System.Linq.Grouping`2[System.String,Produto]</pre>
+<p><strong>O que quer dizer:</strong> não é um erro, mas também não é o que se queria. O grupo não sabe se escrever como texto, e o <code>Console.WriteLine</code> mostra o nome do tipo (veja <a href="object.html">A Classe object</a>).</p>
+<p><strong>Como consertar:</strong> escreva o que interessa: <code>Console.WriteLine($"{g.Key}: {g.Count()}")</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>ArgumentException: <code>ToDictionary</code> com chave repetida</strong>
+<p><em>Este código tem um erro de propósito.</em> A Ana queria "um dicionário por categoria" e tentou o <code>ToDictionary</code>:</p>
+<pre class="file" data-file="dicionario-erro.cs">// (a lista de produtos, linhas 1 a 10)
+
+var porCategoria = produtos.ToDictionary(p =&gt; p.Categoria);
+Console.WriteLine(porCategoria.Count);
+
+// (o record Produto)
+</pre>
+<pre class="term">$ dotnet run dicionario-erro.cs
+Unhandled exception. System.ArgumentException: An item with the same key has already been added. Key: Papelaria
+   at System.Collections.Generic.Dictionary`2.TryInsert(TKey key, TValue value, InsertionBehavior behavior)
+   at System.Collections.Generic.Dictionary`2.Add(TKey key, TValue value)
+   at System.Linq.Enumerable.SpanToDictionary[TSource,TKey](ReadOnlySpan`1 source, Func`2 keySelector, IEqualityComparer`1 comparer)
+   at System.Linq.Enumerable.ToDictionary[TSource,TKey](IEnumerable`1 source, Func`2 keySelector, IEqualityComparer`1 comparer)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/dicionario-erro.cs:line 12</pre>
+<p><strong>O que quer dizer:</strong> "um item com a mesma chave já foi adicionado. Chave: Papelaria". Num dicionário, cada chave aparece <strong>uma vez só</strong>, com <strong>um</strong> valor. O <code>ToDictionary</code> pôs o Caderno na chave "Papelaria" e, ao chegar no Lápis, não tinha onde pô-lo.</p>
+<p><strong>Como consertar:</strong> quando uma chave tem <strong>vários</strong> elementos, você quer grupos: <code>GroupBy</code> ou <code>ToLookup</code>. Se quiser mesmo um dicionário, agrupe antes: <code>produtos.GroupBy(p =&gt; p.Categoria).ToDictionary(g =&gt; g.Key, g =&gt; g.ToList())</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>GroupBy(p =&gt; chave)</code></td><td>Reparte em grupos pela chave (adiado). Os grupos saem na ordem em que cada chave apareceu.</td></tr>
+<tr><td><code>GroupBy(p =&gt; chave, p =&gt; elemento)</code></td><td>O mesmo, guardando só o elemento escolhido em cada grupo.</td></tr>
+<tr><td><code>g.Key</code></td><td>A chave do grupo.</td></tr>
+<tr><td><code>foreach (var x in g)</code>, <code>g.Count()</code>, <code>g.Sum(…)</code></td><td>Um grupo é uma sequência: percorra ou use o LINQ nele.</td></tr>
+<tr><td><code>.OrderBy(g =&gt; g.Key)</code></td><td>Ordena os grupos pela chave.</td></tr>
+<tr><td><code>group p by chave</code> / <code>group p by chave into g</code></td><td>Sintaxe de consulta (com <code>into</code>, a consulta continua).</td></tr>
+<tr><td><code>CountBy(p =&gt; chave)</code></td><td>Pares chave/quantidade <span class="versao">.NET 9</span>.</td></tr>
+<tr><td><code>ToLookup(p =&gt; chave)</code></td><td>Agrupa na hora; busca com <code>lookup[chave]</code> (chave ausente = grupo vazio).</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Agrupar</h3>
+<p>Complete para agrupar os produtos pela categoria:</p>
+<div class="ex-code">var grupos = produtos.<input data-answer="GroupBy(p =&gt; p.Categoria)|GroupBy(p=&gt;p.Categoria)|GroupBy(x =&gt; x.Categoria)" aria-label="agrupamento">;</div>
+</div>
+
+<div class="exercise">
+<h3>2. A etiqueta</h3>
+<p>Dentro de <code>foreach (var g in grupos)</code>, qual expressão dá a categoria do grupo?</p>
+<div class="ex-code"><input data-answer="g.Key" aria-label="chave"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Na sintaxe de consulta</h3>
+<p>Complete para agrupar os produtos pela categoria e continuar a consulta com o grupo chamado <code>g</code>:</p>
+<div class="ex-code">from p in produtos <input data-answer="group p by p.Categoria into g" aria-label="group"> select g.Key</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Em que ordem saem os grupos de <code>produtos.GroupBy(p =&gt; p.Categoria)</code>?</p>
+<label><input type="radio" name="q4"> Em ordem alfabética da chave.</label>
+<label><input type="radio" name="q4"> Na ordem em que cada categoria aparece pela primeira vez na lista.</label>
+<label><input type="radio" name="q4"> Do grupo maior para o menor.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Quantos grupos <code>produtos.GroupBy(p =&gt; p.Estoque &gt; 10)</code> pode ter, no máximo?</p>
+<label><input type="radio" name="q5"> Um por produto.</label>
+<label><input type="radio" name="q5"> Um.</label>
+<label><input type="radio" name="q5"> Dois: <code>True</code> e <code>False</code>.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. A Ana precisa de "todos os produtos de cada categoria". Qual destas linhas dá erro ao rodar?</p>
+<label><input type="radio" name="q6"> <code>produtos.ToDictionary(p =&gt; p.Categoria)</code></label>
+<label><input type="radio" name="q6"> <code>produtos.ToLookup(p =&gt; p.Categoria)</code></label>
+<label><input type="radio" name="q6"> <code>produtos.GroupBy(p =&gt; p.Categoria).ToList()</code></label>
+</div>
+
+<div class="trycs" data-goal="outre:^Bolsas: R\$\s389\,70\nCozinha: R\$\s392\,50\nPapelaria: R\$\s370\,55\n$,src:\.Sum\(">
+<p class="try-task"><strong>Missão final:</strong> mostre quanto vale o estoque de cada categoria, com as categorias em <strong>ordem alfabética</strong>. Ordene os grupos pela chave e troque o <code>?</code> pela soma de <code>p.Preco * p.Estoque</code> do grupo, com <code>:C</code>. A saída deve ser exatamente <code>Bolsas: R$ 389,70</code>, <code>Cozinha: R$ 392,50</code> e <code>Papelaria: R$ 370,55</code>.</p>
+<pre class="script">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+var grupos = produtos.GroupBy(p =&gt; p.Categoria);
+
+foreach (var g in grupos)
+{
+    Console.WriteLine($"{g.Key}: ?");
+}
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+<pre class="solucao">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+var grupos = produtos
+    .GroupBy(p =&gt; p.Categoria)
+    .OrderBy(g =&gt; g.Key);
+
+foreach (var g in grupos)
+{
+    Console.WriteLine($"{g.Key}: {g.Sum(p =&gt; p.Preco * p.Estoque):C}");
+}
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>GroupBy(p =&gt; chave)</code> reparte uma sequência em grupos, um para cada valor da chave.</li>
+  <li>Cada grupo (<code>IGrouping&lt;TChave, T&gt;</code>) tem a etiqueta <code>Key</code> e é uma sequência dos seus elementos: percorra com <code>foreach</code> ou use o LINQ nele (<code>g.Count()</code>, <code>g.Sum(…)</code>).</li>
+  <li>Os grupos saem na ordem em que cada chave apareceu; para ordenar, <code>.OrderBy(g =&gt; g.Key)</code>.</li>
+  <li>Agrupar e depois resumir com <code>Select</code> faz uma linha de relatório por grupo.</li>
+  <li>O segundo parâmetro escolhe o que entra no grupo; a chave pode ser calculada (faixas, <code>bool</code>).</li>
+  <li>Sintaxe de consulta: <code>group p by chave into g</code>. Atalhos: <code>CountBy</code> (.NET 9) e <code>ToLookup</code>.</li>
+  <li>Chave com vários elementos é grupo, não dicionário: <code>ToDictionary</code> com chave repetida dá <code>ArgumentException</code>.</li>
+</ul>
+
+<p>Próxima aula: <a href="linq-agregar.html">Agregar (Count, Sum, Average)</a>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
