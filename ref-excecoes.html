@@ -226,7 +226,7 @@ Repeated 261726 times:
    at Program.&lt;Main&gt;$(System.String[])
 $ echo $?
 134</pre>
-<p>Uma <a href="recursao.html">recursão</a> sem caso de parada enche a pilha de chamadas. O .NET encerra o programa na hora: nenhum <code>catch</code> pega uma <code>StackOverflowException</code>. O <code>Repeated 261726 times</code> é quantas vezes o <code>Contar</code> chegou a se chamar. No editor do guia, a mensagem é outra: <code>Unhandled exception. System.StackOverflowException: The requested operation caused a stack overflow.</code>, seguida de muitas linhas <code>at Program.&lt;&lt;Main&gt;$&gt;g__Contar|0_0(Int32 n)</code>. <strong>Como consertar:</strong> toda recursão precisa de um caso que para sem chamar de novo.</p>
+<p>Uma <a href="recursao.html">recursão</a> sem caso de parada enche a pilha de chamadas. O .NET encerra o programa na hora: nenhum <code>catch</code> pega uma <code>StackOverflowException</code>. O <code>Repeated 261726 times</code> é quantas vezes o <code>Contar</code> chegou a se chamar; o número muda um pouco de uma execução para outra (numa segunda vez, deu 261831). O editor do guia mostra a mesma mensagem e o mesmo código 134, mas com uma pilha menor: <code>Repeated 999 times</code>. <strong>Como consertar:</strong> toda recursão precisa de um caso que para sem chamar de novo.</p>
 
 <hr>
 
