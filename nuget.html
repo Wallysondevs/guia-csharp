@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Pacotes NuGet — dotnet package add, list, remove e #:package | Guia C#</title>
+<meta name="description" content="Pacotes NuGet para quem está começando: o que é o nuget.org, dotnet package search, dotnet package add, a linha PackageReference no .csproj, a pasta ~/.nuget/packages, versões, --outdated, --vulnerable, dependências transitivas, dotnet package remove, a diretiva #:package dos arquivos soltos e os erros NU1102, NU1903, CS1061 e sem internet, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Pacotes NuGet</span></h1>
+
+<p class="intro">O .NET já vem com muita coisa: listas, arquivos, JSON, datas. Mas um dia a Ana vai querer escrever "1.234" por extenso, mostrar "há 3 dias", desenhar uma tabela colorida no terminal ou ler uma planilha. Alguém no mundo já escreveu esse código, testou e deixou de graça para todos. Esse código empacotado se chama <strong>pacote</strong>, e a loja onde ficam os pacotes do .NET se chama <strong>NuGet</strong>. Nesta aula você vai procurar, instalar, atualizar e remover pacotes, e entender o que o <code>dotnet</code> faz com eles.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é um pacote, o que é o <code>nuget.org</code> e como procurar com <code>dotnet package search</code>.</li>
+  <li>A instalar com <code>dotnet package add</code> e a ler a linha <code>PackageReference</code> que ele põe no <code>.csproj</code>.</li>
+  <li>Onde os pacotes ficam (<code>~/.nuget/packages</code>) e o que é "restaurar".</li>
+  <li>Versões: escolher, ver as desatualizadas (<code>--outdated</code>), as perigosas (<code>--vulnerable</code>) e as dependências das dependências.</li>
+  <li>A remover com <code>dotnet package remove</code> e a usar pacotes num arquivo solto com <code>#:package</code> <span class="versao">.NET 10</span>.</li>
+  <li>Os erros: pacote que não existe, versão que não existe (<code>NU1102</code>), o <code>using</code> esquecido (<code>CS1061</code>) e a falta de internet.</li>
+</ul>
+</div>
+
+<p>Todas as saídas desta aula são reais, feitas com o <strong>.NET 10 SDK</strong> (<code>10.0.112</code>) na máquina fictícia da Ana, conectada à internet, no projeto <code>~/projetos/Prazo</code>. As versões dos pacotes são as do dia da gravação: na sua máquina, os números podem ser mais novos. O editor do guia não baixa pacotes: tudo o que usa NuGet roda no terminal.</p>
+
+<hr>
+
+<h2>A ideia: a loja de aplicativos do programador</h2>
+<p>No celular, você não escreve o aplicativo do banco: você o baixa da loja. A loja guarda milhões de aplicativos, cada um com nome, versão, autor e número de downloads. O NuGet é a loja de aplicativos do programador .NET, com uma diferença: o que você baixa não é um programa para usar, e sim <strong>código para o seu programa usar</strong>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na loja do celular</th><th>No .NET</th></tr>
+<tr><td>A loja</td><td><strong><code>nuget.org</code></strong>, o site oficial, com centenas de milhares de pacotes</td></tr>
+<tr><td>Um aplicativo</td><td>Um <strong>pacote</strong>: um arquivo <code>.nupkg</code> com <code>.dll</code> prontas</td></tr>
+<tr><td>Instalar</td><td><code>dotnet package add Nome</code></td></tr>
+<tr><td>A lista de apps instalados</td><td>As linhas <code>&lt;PackageReference&gt;</code> do <code>.csproj</code></td></tr>
+<tr><td>Atualizar</td><td>Trocar a versão (seção 5)</td></tr>
+</table>
+</div>
+
+<p>"NuGet" se pronuncia "new get" ("novo pegar"). O nome serve para três coisas: o formato dos pacotes, o site <code>nuget.org</code> e a ferramenta que o <code>dotnet</code> usa por baixo para baixá-los.</p>
+
+<hr>
+
+<h2>1. Procurar um pacote</h2>
+<p>A Ana quer escrever números e tempos "como gente fala": "3 dias", "mil duzentos e trinta e quatro". O pacote mais conhecido para isso é o <strong>Humanizer</strong> ("humanizador"). Dá para procurar no site <code>nuget.org</code> ou no próprio terminal:</p>
+
+<pre class="term" data-cwd="~/projetos/Prazo">$ dotnet package search humanizer --take 5
+****************************************
+Source: nuget.org (https://api.nuget.org/v3/index.json)
+| Package ID       | Latest Version | Owners           | Total Downloads |
+| ---------------- | -------------- | ---------------- | --------------- |
+| Humanizer        | 3.0.10         | dotnetfoundation | 164.607.656     |
+|                  |                | , Humanizer      |                 |
+| ---------------- | -------------- | ---------------- | --------------- |
+| Humanizer.Core   | 3.0.10         | dotnetfoundation | 1.117.217.029   |
+|                  |                | , Humanizer      |                 |
+| ---------------- | -------------- | ---------------- | --------------- |
+| Humanizer.Core.h | 3.0.10         | dotnetfoundation | 159.550.846     |
+| e                |                | , Humanizer      |                 |
+| ---------------- | -------------- | ---------------- | --------------- |
+| Humanizer.Core.e | 3.0.10         | dotnetfoundation | 159.531.102     |
+| l                |                | , Humanizer      |                 |
+| ---------------- | -------------- | ---------------- | --------------- |
+| Humanizer.Core.f | 3.0.10         | dotnetfoundation | 161.283.743     |
+| r                |                | , Humanizer      |                 |
+| ---------------- | -------------- | ---------------- | --------------- |</pre>
+
+<dl class="anatomy">
+  <dt>--take 5</dt><dd>"Pegue 5": só os 5 primeiros resultados (o padrão é 20).</dd>
+  <dt>Package ID</dt><dd>O nome do pacote, que você vai digitar no <code>add</code>. A tabela corta os nomes compridos em duas linhas: <code>Humanizer.Core.h</code> + <code>e</code> é o <code>Humanizer.Core.he</code> (hebraico), <code>Humanizer.Core.el</code> é o grego, <code>Humanizer.Core.fr</code>, o francês.</dd>
+  <dt>Latest Version</dt><dd>A versão mais nova.</dd>
+  <dt>Owners</dt><dd>Os donos: aqui, a <em>.NET Foundation</em>, a fundação que cuida de muitos projetos abertos do .NET.</dd>
+  <dt>Total Downloads</dt><dd>Quantas vezes foi baixado. O <code>Humanizer.Core</code> passa de 1 bilhão.</dd>
+</dl>
+
+<p>O Humanizer vem em pedaços: o <code>Humanizer.Core</code> (o código, com as regras do inglês), um pacote para cada idioma (<code>Humanizer.Core.pt-BR</code> é o português do Brasil) e o <code>Humanizer</code>, que traz o <code>Core</code> com <strong>todos</strong> os idiomas. A Ana só precisa do português, então ela vai instalar o <code>Humanizer.Core.pt-BR</code>.</p>
+
+<div class="tip">
+<strong>Como escolher um pacote:</strong> no <code>nuget.org</code>, veja o número de downloads, a data da última versão (um pacote parado há 5 anos pode não funcionar bem no .NET 10), o dono e o link para o código-fonte. Desconfie de nomes parecidos com os de pacotes famosos: já houve pacotes falsos feitos para enganar quem erra uma letra.
+</div>
+
+<hr>
+
+<h2>2. Instalar: <code>dotnet package add</code></h2>
+<p>Dentro da pasta do projeto (criado com <code>dotnet new console -o Prazo</code>):</p>
+
+<pre class="term" data-cwd="~/projetos/Prazo">$ dotnet package add Humanizer.Core.pt-BR
+info : A validação da cadeia de certificados X.509 usará o pacote de certificados de fallback em '/usr/lib/dotnet/sdk/10.0.112/trustedroots/codesignctl.pem'.
+info : A validação da cadeia de certificados X.509 usará o pacote de certificados de fallback em '/usr/lib/dotnet/sdk/10.0.112/trustedroots/timestampctl.pem'.
+info : Adicionando PackageReference do pacote 'Humanizer.Core.pt-BR' ao projeto '/home/ana/projetos/Prazo/Prazo.csproj'.
+info :   GET https://api.nuget.org/v3/registration5-gz-semver2/humanizer.core.pt-br/index.json
+info :   OK https://api.nuget.org/v3/registration5-gz-semver2/humanizer.core.pt-br/index.json 267 ms
+info : Restaurando pacotes para /home/ana/projetos/Prazo/Prazo.csproj...
+«… mais 4 linhas de download …»
+info : Instalado Humanizer.Core.pt-BR3.0.10 de https://api.nuget.org/v3/index.json para /home/ana/.nuget/packages/humanizer.core.pt-br/3.0.10 com hash de conteúdo «…»
+info : Instalado Humanizer.Core3.0.10 de https://api.nuget.org/v3/index.json para /home/ana/.nuget/packages/humanizer.core/3.0.10 com hash de conteúdo «…»
+«… 3 linhas de consulta à lista de vulnerabilidades …»
+info : O pacote 'Humanizer.Core.pt-BR' é compatível com todas as estruturas especificadas no projeto '/home/ana/projetos/Prazo/Prazo.csproj'.
+info : PackageReference do pacote 'Humanizer.Core.pt-BR' versão '3.0.10' adicionada ao arquivo '/home/ana/projetos/Prazo/Prazo.csproj'.
+info : Gerando arquivo do MSBuild /home/ana/projetos/Prazo/obj/Prazo.csproj.nuget.g.targets.
+info : Gravando o arquivo de ativos no disco. Caminho: /home/ana/projetos/Prazo/obj/project.assets.json
+log  : /home/ana/projetos/Prazo/Prazo.csproj restaurado (em 420 ms).</pre>
+
+<p>É bastante coisa, mas dá para ler em ordem:</p>
+<dl class="anatomy">
+  <dt>A validação da cadeia de certificados X.509…</dt><dd>Os pacotes do <code>nuget.org</code> são <strong>assinados</strong> digitalmente, e o <code>dotnet</code> confere a assinatura para saber que ninguém mexeu neles no caminho. Essas linhas só dizem qual lista de certificados ele usa para conferir. Pode ignorar.</dd>
+  <dt>Adicionando PackageReference…</dt><dd>Vai acrescentar o pacote ao <code>.csproj</code>.</dd>
+  <dt>GET … / OK … 267 ms</dt><dd>Perguntou ao <code>nuget.org</code> quais versões existem ("GET" = pedir; "OK" = recebeu, em 267 milissegundos).</dd>
+  <dt>Instalado Humanizer.Core.pt-BR3.0.10 … para /home/ana/.nuget/packages/…</dt><dd>Baixou o pacote e o guardou na pasta <code>~/.nuget/packages</code> (seção 4). O "hash de conteúdo" é uma impressão digital do arquivo.</dd>
+  <dt>Instalado Humanizer.Core3.0.10</dt><dd>A Ana pediu <strong>um</strong> pacote e vieram <strong>dois</strong>: o <code>pt-BR</code> precisa do <code>Core</code>, e o NuGet baixou os dois sozinho. Isso é uma <strong>dependência</strong>.</dd>
+  <dt>é compatível com todas as estruturas</dt><dd>O pacote funciona com o <code>net10.0</code> do projeto ("estrutura" é a tradução de <em>framework</em>).</dd>
+  <dt>versão '3.0.10' adicionada ao arquivo</dt><dd>Sem dizer a versão, o <code>add</code> escolhe a mais nova e a anota no <code>.csproj</code>.</dd>
+  <dt>restaurado (em 420 ms)</dt><dd>"Restaurar" é deixar todos os pacotes do projeto baixados e prontos.</dd>
+</dl>
+
+<h3>O que mudou no <code>.csproj</code></h3>
+<pre class="term" data-cwd="~/projetos/Prazo">$ cat Prazo.csproj
+&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+
+  &lt;PropertyGroup&gt;
+    &lt;OutputType&gt;Exe&lt;/OutputType&gt;
+    &lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;
+    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+    &lt;Nullable&gt;enable&lt;/Nullable&gt;
+  &lt;/PropertyGroup&gt;
+
+  &lt;ItemGroup&gt;
+    &lt;PackageReference Include="Humanizer.Core.pt-BR" Version="3.0.10" /&gt;
+  &lt;/ItemGroup&gt;
+
+&lt;/Project&gt;</pre>
+
+<dl class="anatomy">
+  <dt>&lt;ItemGroup&gt;</dt><dd>Um grupo de itens novo (veja <a href="csproj.html">O Arquivo .csproj</a>).</dd>
+  <dt>&lt;PackageReference … /&gt;</dt><dd>"Referência de pacote": o projeto usa este pacote.</dd>
+  <dt>Include="Humanizer.Core.pt-BR"</dt><dd>Qual pacote.</dd>
+  <dt>Version="3.0.10"</dt><dd>Qual versão. Ela fica anotada para que, em qualquer máquina, o projeto use a <strong>mesma</strong> versão.</dd>
+</dl>
+
+<p>O <code>dotnet package add</code> é só um atalho para escrever essa linha (e restaurar). Você também pode escrevê-la à mão no <code>.csproj</code>: o próximo <code>dotnet build</code> baixa o pacote.</p>
+
+<div class="note">
+<strong>A ordem antiga:</strong> em tutoriais e no .NET 8, o comando é <code>dotnet add package Nome</code>. No .NET 10 ele continua funcionando e faz exatamente o mesmo; a forma nova, <code>dotnet package add</code>, junta todos os comandos de pacote debaixo de <code>dotnet package</code> (<code>add</code>, <code>list</code>, <code>remove</code>, <code>search</code>).
+</div>
+
+<hr>
+
+<h2>3. Usar o pacote</h2>
+<pre class="file" data-file="Program.cs">using Humanizer;
+
+Console.WriteLine(TimeSpan.FromDays(3).Humanize());
+Console.WriteLine(TimeSpan.FromMinutes(90).Humanize(2));
+Console.WriteLine(1234.ToWords());
+Console.WriteLine("caderno".ToQuantity(3));
+Console.WriteLine("lápis".ToQuantity(1));
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Prazo">$ dotnet run
+3 dias
+1 hora, 30 minutos
+mil duzentos e trinta e quatro
+3 cadernos
+1 lápi</pre>
+
+<dl class="anatomy">
+  <dt>using Humanizer;</dt><dd>O pacote trouxe um namespace novo, <code>Humanizer</code>. Sem este <code>using</code>, nada funciona (veja "Quando dá errado").</dd>
+  <dt>TimeSpan.FromDays(3).Humanize()</dt><dd><code>Humanize</code> ("humanizar") é um <strong>método de extensão</strong> que o pacote acrescentou ao <code>TimeSpan</code> (veja <a href="extensoes.html">Métodos de Extensão</a>). Ele escreveu "3 dias" em português porque a máquina da Ana está em pt-BR (veja <a href="cultura.html">Cultura</a>).</dd>
+  <dt>.Humanize(2)</dt><dd>Com até 2 partes: "1 hora, 30 minutos".</dd>
+  <dt>1234.ToWords()</dt><dd>"Para palavras": o número por extenso. Útil para cheques e recibos.</dd>
+  <dt>"caderno".ToQuantity(3)</dt><dd>"Para quantidade": põe o número e o plural.</dd>
+  <dt>"lápis".ToQuantity(1) → 1 lápi</dt><dd><strong>Errado!</strong> Para o singular, o Humanizer tirou o "s" do fim, como se faz em inglês (<em>pencils</em> → <em>pencil</em>). As traduções do pacote cobrem os números e os tempos, mas o plural das palavras segue as regras do inglês. Lição: um pacote famoso também tem limites. <strong>Teste</strong> o que você vai usar.</dd>
+</dl>
+
+<p>Para o plural, a Ana decidiu escrever a própria função: dizer o singular e o plural, e escolher pelo número. Experimente:</p>
+
+<div class="trycs" data-goal="outre:^1 caderno\n3 cadernos\n1 lápis\n2 pães\n$">
+<p class="try-task"><strong>Missão:</strong> a função <code>Quantidade</code> abaixo só acrescenta um "s", e erra quase tudo ("1 cadernos", "1 lápiss", "2 pãos"). Mude o <code>return</code> para usar o <code>singular</code> quando <code>n == 1</code> e o <code>plural</code> nos outros casos (dica: o operador <code>? :</code>, veja <a href="ternario.html">Operador Ternário</a>). A saída tem de ser exatamente <code>1 caderno</code>, <code>3 cadernos</code>, <code>1 lápis</code> e <code>2 pães</code>.</p>
+<pre class="script">Console.WriteLine(Quantidade(1, "caderno", "cadernos"));
+Console.WriteLine(Quantidade(3, "caderno", "cadernos"));
+Console.WriteLine(Quantidade(1, "lápis", "lápis"));
+Console.WriteLine(Quantidade(2, "pão", "pães"));
+
+static string Quantidade(int n, string singular, string plural)
+{
+    return $"{n} {singular}s";
+}
+</pre>
+<pre class="solucao">Console.WriteLine(Quantidade(1, "caderno", "cadernos"));
+Console.WriteLine(Quantidade(3, "caderno", "cadernos"));
+Console.WriteLine(Quantidade(1, "lápis", "lápis"));
+Console.WriteLine(Quantidade(2, "pão", "pães"));
+
+static string Quantidade(int n, string singular, string plural)
+{
+    return $"{n} {(n == 1 ? singular : plural)}";
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>4. Onde os pacotes ficam</h2>
+<p>O pacote <strong>não</strong> fica dentro do projeto. Ele vai para uma pasta da Ana, compartilhada por todos os projetos dela:</p>
+
+<pre class="term" data-cwd="~/projetos/Prazo">$ ls ~/.nuget/packages/
+humanizer.core
+humanizer.core.pt-br
+microsoft.aspnetcore.app.ref
+microsoft.dotnet.ilcompiler
+microsoft.netcore.app.host.linux-x64
+microsoft.netcore.app.ref
+microsoft.net.illink.tasks
+runtime.linux-x64.microsoft.dotnet.ilcompiler
+$ ls ~/.nuget/packages/humanizer.core/3.0.10
+analyzers
+buildTransitive
+humanizer.core.3.0.10.nupkg
+humanizer.core.3.0.10.nupkg.sha512
+humanizer.core.nuspec
+lib
+logo.png</pre>
+
+<dl class="anatomy">
+  <dt>~/.nuget/packages/</dt><dd>O "depósito" de pacotes da Ana. A pasta começa com ponto, então fica escondida no <code>ls ~</code> comum. Os outros nomes da lista vieram de outros testes da Ana (o projeto para o .NET 8 da aula <a href="csproj.html">O Arquivo .csproj</a>, por exemplo): o próprio .NET também usa pacotes por baixo.</dd>
+  <dt>humanizer.core/3.0.10</dt><dd>Uma pasta por pacote (em minúsculas) e, dentro, uma por versão. Dois projetos que usam a mesma versão usam a mesma cópia: o download acontece uma vez só.</dd>
+  <dt>.nupkg</dt><dd>O pacote original, como veio do <code>nuget.org</code>. Na verdade, é um arquivo <code>.zip</code> com outro nome.</dd>
+  <dt>lib</dt><dd>As <code>.dll</code> que o seu programa usa.</dd>
+  <dt>.nuspec</dt><dd>A "ficha" do pacote: nome, versão, autor, dependências.</dd>
+</dl>
+
+<h3>Restaurar em outra máquina</h3>
+<p>Como os pacotes não ficam no projeto, quem copia o projeto (por exemplo, com o Git) recebe só o <code>.csproj</code> com as linhas <code>PackageReference</code>. Não tem problema: o <code>build</code>, o <code>run</code> e o <code>test</code> restauram sozinhos. A Ana simulou isso apagando as pastas geradas:</p>
+
+<pre class="term" data-cwd="~/projetos/Prazo">$ rm -rf bin obj
+$ dotnet build | head -3
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Prazo/Prazo.csproj restaurado (em 442 ms).
+  Prazo -&gt; /home/ana/projetos/Prazo/bin/Debug/net10.0/Prazo.dll</pre>
+
+<p>Por isso as pastas <code>bin</code> e <code>obj</code> nunca vão para o Git: tudo o que está nelas o <code>dotnet</code> refaz. O <code>dotnet new gitignore</code> cria um arquivo <code>.gitignore</code> que já as deixa de fora.</p>
+
+<hr>
+
+<h2>5. Versões</h2>
+<h3>Escolher a versão: <code>--version</code></h3>
+<p>Às vezes você precisa de uma versão específica (um tutorial antigo, um colega que usa outra). A Ana voltou para a <code>3.0.1</code>:</p>
+
+<pre class="term" data-cwd="~/projetos/Prazo">$ dotnet package add Humanizer.Core.pt-BR --version 3.0.1
+«…»
+info : PackageReference do pacote 'Humanizer.Core.pt-BR' versão '3.0.1' atualizada no arquivo '/home/ana/projetos/Prazo/Prazo.csproj'.
+«…»</pre>
+
+<p>Como o pacote já estava no projeto, a linha foi <strong>atualizada</strong> (não duplicada). As versões seguem o formato <code>MAIOR.MENOR.CORREÇÃO</code>: de <code>3.0.1</code> para <code>3.0.10</code> são só correções; de <code>2.x</code> para <code>3.x</code>, mudanças que podem quebrar o seu código.</p>
+
+<h3>O que está desatualizado: <code>--outdated</code></h3>
+<pre class="term" data-cwd="~/projetos/Prazo">$ dotnet package list --outdated
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Prazo/Prazo.csproj restaurado (em 395 ms).
+
+As fontes a seguir foram usadas:
+   https://api.nuget.org/v3/index.json
+
+O projeto 'Prazo' tem as seguintes atualizações para seus pacotes
+   [net10.0]:
+   Pacote de Nível Superior      Solicitado   Resolvido   Mais Recente
+   &gt; Humanizer.Core.pt-BR        3.0.1        3.0.1       3.0.10      </pre>
+
+<dl class="anatomy">
+  <dt>Pacote de Nível Superior</dt><dd>Os pacotes que <strong>você</strong> pediu (os do <code>.csproj</code>).</dd>
+  <dt>Solicitado / Resolvido</dt><dd>A versão escrita no <code>.csproj</code> e a que o NuGet de fato usou. Quase sempre são iguais.</dd>
+  <dt>Mais Recente</dt><dd>A mais nova no <code>nuget.org</code>.</dd>
+</dl>
+
+<p>Para atualizar para a mais nova, basta rodar o <code>add</code> de novo, sem <code>--version</code>:</p>
+<pre class="term" data-cwd="~/projetos/Prazo">$ dotnet package add Humanizer.Core.pt-BR
+«…»
+info : PackageReference do pacote 'Humanizer.Core.pt-BR' versão '3.0.10' atualizada no arquivo '/home/ana/projetos/Prazo/Prazo.csproj'.
+«…»
+$ grep PackageReference Prazo.csproj
+    &lt;PackageReference Include="Humanizer.Core.pt-BR" Version="3.0.10" /&gt;</pre>
+
+<h3>As dependências das dependências: <code>--include-transitive</code></h3>
+<pre class="term" data-cwd="~/projetos/Prazo">$ dotnet package list --include-transitive
+  Determinando os projetos a serem restaurados...
+  Todos os projetos estão atualizados para restauração.
+O projeto 'Prazo' tem as seguintes referências de pacote
+   [net10.0]:
+   Pacote de Nível Superior      Solicitado   Resolvido
+   &gt; Humanizer.Core.pt-BR        3.0.10       3.0.10
+
+   Pacote Transitivo      Resolvido
+   &gt; Humanizer.Core       3.0.10   </pre>
+
+<p>Um pacote <strong>transitivo</strong> é o que veio "de carona": a Ana não pediu o <code>Humanizer.Core</code>, mas o <code>pt-BR</code> precisa dele. Sem <code>--include-transitive</code>, o <code>dotnet package list</code> mostra só a primeira tabela.</p>
+
+<h3>Pacotes perigosos: <code>NU1903</code> e <code>--vulnerable</code></h3>
+<p>Pacotes antigos podem ter falhas de segurança conhecidas. O NuGet confere uma lista pública de falhas a cada restauração (eram aquelas linhas de "vulnerabilidades" do <code>add</code>). A Ana instalou de propósito uma versão velha do <code>Newtonsoft.Json</code>, um pacote de JSON muito usado:</p>
+
+<pre class="term" data-cwd="~/projetos/Prazo">$ dotnet package add Newtonsoft.Json --version 12.0.1
+«…»
+warn : NU1903: O pacote 'Newtonsoft.Json' 12.0.1 tem uma alta vulnerabilidade de gravidade conhecida, https://github.com/advisories/GHSA-5crp-9r3c-p9vr
+«…»
+$ dotnet package list --vulnerable
+  Determinando os projetos a serem restaurados...
+/home/ana/projetos/Prazo/Prazo.csproj : warning NU1903: O pacote 'Newtonsoft.Json' 12.0.1 tem uma alta vulnerabilidade de gravidade conhecida, https://github.com/advisories/GHSA-5crp-9r3c-p9vr
+  Todos os projetos estão atualizados para restauração.
+
+As fontes a seguir foram usadas:
+   https://api.nuget.org/v3/index.json
+
+O projeto `Prazo` tem os pacotes vulneráveis a seguir
+   [net10.0]:
+   Pacote de Nível Superior      Solicitado   Resolvido   Severidade   URL do aviso
+   &gt; Newtonsoft.Json             12.0.1       12.0.1      High         https://github.com/advisories/GHSA-5crp-9r3c-p9vr</pre>
+
+<p>O aviso <code>NU1903</code> ("vulnerabilidade de gravidade alta") aparece também em todo <code>dotnet build</code>, até você atualizar. O link explica a falha e diz a partir de qual versão ela foi corrigida. O conserto é atualizar (<code>dotnet package add Newtonsoft.Json</code>, sem versão) ou, como a Ana nem usava o pacote, removê-lo.</p>
+
+<hr>
+
+<h2>6. Remover: <code>dotnet package remove</code></h2>
+<pre class="term" data-cwd="~/projetos/Prazo">$ dotnet package remove Newtonsoft.Json
+info : Removendo PackageReference do pacote 'Newtonsoft.Json' do projeto '/home/ana/projetos/Prazo/Prazo.csproj'.
+$ grep PackageReference Prazo.csproj
+    &lt;PackageReference Include="Humanizer.Core.pt-BR" Version="3.0.10" /&gt;</pre>
+
+<p>O <code>remove</code> tira a linha do <code>.csproj</code>. A cópia em <code>~/.nuget/packages</code> continua lá (outro projeto pode estar usando). Para limpar o depósito inteiro: <code>dotnet nuget locals all --clear</code>; os pacotes serão baixados de novo quando algum projeto precisar.</p>
+
+<hr>
+
+<h2>7. Pacotes num arquivo solto: <code>#:package</code> <span class="versao">.NET 10</span></h2>
+<p>Num arquivo rodado com <code>dotnet run arquivo.cs</code> não há <code>.csproj</code> para pôr o <code>PackageReference</code>. No lugar dele, use a diretiva <code>#:package Nome@Versão</code> no começo do arquivo (como o <code>#:property</code> da aula <a href="csproj.html">O Arquivo .csproj</a>):</p>
+
+<pre class="file" data-file="numeros.cs">#:package Humanizer.Core.pt-BR@3.0.10
+
+using Humanizer;
+
+foreach (int n in new[] { 7, 15, 100, 2026 })
+{
+    Console.WriteLine($"{n,5} = {n.ToWords()}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/pacotes">$ dotnet run numeros.cs
+    7 = sete
+   15 = quinze
+  100 = cem
+ 2026 = dois mil e vinte e seis</pre>
+
+<dl class="anatomy">
+  <dt>#:package</dt><dd>"Pacote": uma diretiva que só o <code>dotnet run</code> de arquivo solto entende. Ela vem antes de todo o resto, até dos <code>using</code>.</dd>
+  <dt>Humanizer.Core.pt-BR@3.0.10</dt><dd>O nome, uma arroba e a versão. O primeiro <code>dotnet run</code> baixa o pacote (se ele ainda não estiver em <code>~/.nuget/packages</code>).</dd>
+</dl>
+
+<p>É ótimo para scripts pequenos: um arquivo só, que qualquer pessoa com o .NET 10 roda, e os pacotes vêm sozinhos.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>Nome errado: <code>Não há versões disponíveis do pacote</code></strong>
+<pre class="term" data-cwd="~/projetos/Prazo">$ dotnet package add Humanizr
+info : Adicionando PackageReference do pacote 'Humanizr' ao projeto '/home/ana/projetos/Prazo/Prazo.csproj'.
+info :   NotFound https://api.nuget.org/v3/registration5-gz-semver2/humanizr/index.json 244 ms
+info :   NotFound https://api.nuget.org/v3/registration5-gz-semver2/humanizr/index.json 99 ms
+error: Não há versões disponíveis do pacote 'Humanizr'.</pre>
+<p><strong>O que aconteceu:</strong> não existe pacote com esse nome (<code>NotFound</code> = "não encontrado"). Faltou o <code>e</code> de <code>Humanizer</code>. O <code>.csproj</code> não foi mudado.</p>
+<p><strong>Como resolver:</strong> confira o nome com <code>dotnet package search</code> ou no <code>nuget.org</code>, e copie de lá.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error: NU1102: Não é possível encontrar o pacote … com a versão (&gt;= 9.9.9)</code></strong>
+<pre class="term" data-cwd="~/projetos/Prazo">$ dotnet package add Humanizer.Core.pt-BR --version 9.9.9
+info : Adicionando PackageReference do pacote 'Humanizer.Core.pt-BR' ao projeto '/home/ana/projetos/Prazo/Prazo.csproj'.
+info : Restaurando pacotes para /home/ana/projetos/Prazo/Prazo.csproj...
+error: NU1102: Não é possível encontrar o pacote Humanizer.Core.pt-BR com a versão (&gt;= 9.9.9)
+error:   - Encontradas 6 versões em nuget.org [Versão mais próxima: 3.0.10]
+error:   - Encontradas 0 versões em /usr/lib/dotnet/library-packs
+error: O pacote 'Humanizer.Core.pt-BR' é incompatível com as estruturas 'tudo' no projeto '/home/ana/projetos/Prazo/Prazo.csproj'.</pre>
+<p><strong>O que aconteceu:</strong> o pacote existe, mas não nessa versão. A mensagem ajuda: há 6 versões no <code>nuget.org</code>, e a mais próxima é a <code>3.0.10</code>. (A <code>/usr/lib/dotnet/library-packs</code> é uma segunda "loja", local, que o .NET do Ubuntu também consulta.) A última linha é consequência da primeira, e o <code>.csproj</code> ficou como estava.</p>
+<p><strong>Como resolver:</strong> use uma versão que existe (a lista fica na página do pacote no <code>nuget.org</code>) ou tire o <code>--version</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1061: ‘TimeSpan’ não contém uma definição para "Humanize"</code></strong>
+<pre class="term" data-cwd="~/projetos/Prazo">$ dotnet build 2&gt;&amp;1 | grep -E " error " | sort -u | head -1
+/home/ana/projetos/Prazo/Program.cs(2,40): error CS1061: ‘TimeSpan’ não contém uma definição para "Humanize" e não foi possível encontrar nenhum método de extensão "Humanize" que aceite um primeiro argumento do tipo ‘TimeSpan’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?) [/home/ana/projetos/Prazo/Prazo.csproj]</pre>
+<p><strong>O que aconteceu:</strong> a Ana apagou o <code>using Humanizer;</code>. O pacote está instalado, mas os métodos de extensão dele só aparecem com o <code>using</code> do namespace. A própria mensagem desconfia: "você está se esquecendo de usar uma diretiva (<code>using</code>) ou uma referência de assembly (o pacote)?". Em inglês: <code>'TimeSpan' does not contain a definition for 'Humanize'</code>. O mesmo erro aparece se o pacote não estiver no <code>.csproj</code>.</p>
+<p><strong>Como resolver:</strong> confira as duas coisas: o <code>using Humanizer;</code> no arquivo e a linha <code>PackageReference</code> no <code>.csproj</code> (<code>dotnet package list</code>). Se fosse uma classe do pacote (não um método de extensão), o erro seria o <code>CS0246</code> ("o nome do tipo não pode ser encontrado").</p>
+</div>
+
+<div class="cenario">
+<strong>Sem internet: <code>Resource temporarily unavailable (api.nuget.org:443)</code></strong>
+<pre class="term" data-cwd="~/projetos/Prazo">$ dotnet package add Spectre.Console
+«… as duas linhas dos certificados …»
+info : Adicionando PackageReference do pacote 'Spectre.Console' ao projeto '/home/ana/projetos/Prazo/Prazo.csproj'.
+info :   GET https://api.nuget.org/v3/registration5-gz-semver2/spectre.console/index.json
+info : Foi encontrado um erro ao buscar 'GET https://api.nuget.org/v3/registration5-gz-semver2/spectre.console/index.json'. A solicitação agora será repetida.
+info : Resource temporarily unavailable (api.nuget.org:443)
+info :   Resource temporarily unavailable
+«… mais uma tentativa igual …»
+info :   GET https://api.nuget.org/v3/registration5-gz-semver2/spectre.console/index.json
+error: Resource temporarily unavailable (api.nuget.org:443)
+error:   Resource temporarily unavailable</pre>
+<p><strong>O que aconteceu:</strong> a Ana estava sem internet. O NuGet tentou três vezes falar com o <code>api.nuget.org</code> e desistiu ("recurso temporariamente indisponível"; <code>443</code> é a porta das conexões seguras, <code>https</code>).</p>
+<p><strong>Como resolver:</strong> conecte-se e tente de novo. Os pacotes que já estão em <code>~/.nuget/packages</code> continuam funcionando sem internet; só os novos precisam dela.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>O que faz</th></tr>
+<tr><td><code>dotnet package search texto</code></td><td>Procura pacotes no <code>nuget.org</code> (<code>--take N</code> limita).</td></tr>
+<tr><td><code>dotnet package add Nome</code></td><td>Instala a versão mais nova (ou atualiza para ela).</td></tr>
+<tr><td><code>dotnet package add Nome --version 1.2.3</code></td><td>Instala uma versão específica.</td></tr>
+<tr><td><code>dotnet package list</code></td><td>Lista os pacotes do projeto.</td></tr>
+<tr><td><code>dotnet package list --include-transitive</code></td><td>Inclui as dependências das dependências.</td></tr>
+<tr><td><code>dotnet package list --outdated</code></td><td>Mostra o que tem versão mais nova.</td></tr>
+<tr><td><code>dotnet package list --vulnerable</code></td><td>Mostra os pacotes com falhas de segurança conhecidas.</td></tr>
+<tr><td><code>dotnet package remove Nome</code></td><td>Tira o pacote do projeto.</td></tr>
+<tr><td><code>dotnet restore</code></td><td>Baixa o que faltar (o <code>build</code> já faz isso).</td></tr>
+<tr><td><code>dotnet nuget locals all --clear</code></td><td>Esvazia o depósito <code>~/.nuget/packages</code> e os caches.</td></tr>
+<tr><td><code>&lt;PackageReference Include="Nome" Version="1.2.3" /&gt;</code></td><td>A linha do <code>.csproj</code>.</td></tr>
+<tr><td><code>#:package Nome@1.2.3</code></td><td>O mesmo, num arquivo solto.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Instalar</h3>
+<p>Complete o comando que instala o pacote <code>Spectre.Console</code>:</p>
+<div class="ex-code">dotnet package <input data-answer="add" aria-label="subcomando"> Spectre.Console</div>
+</div>
+
+<div class="exercise">
+<h3>2. A linha do .csproj</h3>
+<p>Complete a linha que o <code>add</code> escreve no <code>.csproj</code>:</p>
+<div class="ex-code">&lt;<input data-answer="PackageReference" aria-label="item"> Include="Spectre.Console" Version="0.50.0" /&gt;</div>
+</div>
+
+<div class="exercise">
+<h3>3. Num arquivo solto</h3>
+<p>Complete a diretiva que traz o Humanizer em português, versão 3.0.10, para um arquivo solto:</p>
+<div class="ex-code"><input data-answer="#:package" aria-label="diretiva"> Humanizer.Core.pt-BR@3.0.10</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. A Ana copiou o projeto <code>Prazo</code> para outro computador, sem as pastas <code>bin</code> e <code>obj</code>. O que acontece no primeiro <code>dotnet build</code>?</p>
+<label><input type="radio" name="q4"> Falha, porque o pacote não veio junto.</label>
+<label><input type="radio" name="q4"> Compila sem o pacote e dá erro ao rodar.</label>
+<label><input type="radio" name="q4"> Restaura (baixa) o pacote da versão do <code>.csproj</code> e compila.</label>
+<label><input type="radio" name="q4"> Pede para rodar <code>dotnet package add</code> de novo.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. O <code>dotnet build</code> mostra <code>warning NU1903</code>. O que isso quer dizer?</p>
+<label><input type="radio" name="q5"> Que existe uma versão mais nova, só isso.</label>
+<label><input type="radio" name="q5"> Que a versão usada tem uma falha de segurança conhecida; é hora de atualizar.</label>
+<label><input type="radio" name="q5"> Que o pacote não existe.</label>
+<label><input type="radio" name="q5"> Que falta o <code>using</code>.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Onde o NuGet guarda os pacotes baixados no Linux?</p>
+<label><input type="radio" name="q6"> Em <code>~/.nuget/packages</code>, compartilhado por todos os projetos.</label>
+<label><input type="radio" name="q6"> Dentro da pasta <code>bin</code> de cada projeto.</label>
+<label><input type="radio" name="q6"> No próprio <code>.csproj</code>.</label>
+<label><input type="radio" name="q6"> Em <code>/usr/lib/dotnet/sdk</code>.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um <strong>pacote</strong> é código pronto para o seu programa usar; o <code>nuget.org</code> é a loja; o NuGet é a ferramenta.</li>
+  <li><code>dotnet package search</code> procura; <code>dotnet package add Nome</code> instala e escreve <code>&lt;PackageReference Include="Nome" Version="…" /&gt;</code> no <code>.csproj</code>.</li>
+  <li>Os pacotes ficam em <code>~/.nuget/packages</code>, não no projeto. O <code>build</code> restaura sozinho o que faltar.</li>
+  <li>Depois de instalar, falta o <code>using</code> do namespace do pacote.</li>
+  <li><code>--version</code> escolhe a versão; <code>list --outdated</code> mostra o que atualizar; <code>list --vulnerable</code> e o aviso <code>NU1903</code> mostram o que é perigoso.</li>
+  <li><code>dotnet package remove</code> tira o pacote. Num arquivo solto, use <code>#:package Nome@Versão</code>.</li>
+  <li>Teste o que você usa: até um pacote famoso tem limites (o "1 lápi").</li>
+</ul>
+
+<div class="pager"></div>
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
