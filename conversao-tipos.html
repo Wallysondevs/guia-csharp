@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Conversão de Tipos — implícita, explícita e o cast (int) | Guia C#</title>
+<meta name="description" content="Conversão de tipos em C# para quem nunca programou: conversões implícitas (int para long, double e decimal), o cast explícito (int)7.9 que corta a parte decimal, a perda de dados ((byte)300 = 44), checked e OverflowException, cast × Math.Round × Convert.ToInt32, a promoção nas contas ((double)soma / quantidade) e os erros CS0266, CS0030 e CS0221, com saídas reais do .NET 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Conversão de Tipos</span></h1>
+
+<p class="intro">Nas aulas anteriores, o compilador reclamou várias vezes: "não é possível converter implicitamente tipo <code>double</code> em <code>int</code>". Nesta aula você vai entender essa regra. Algumas conversões o C# faz sozinho, porque nunca perdem nada. Outras você precisa <strong>pedir</strong>, com um <em>cast</em>, porque podem perder dados. Saber a diferença evita médias erradas, centavos sumidos e números que viram outros sem aviso.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>As conversões <strong>implícitas</strong>, que o C# faz sozinho (<code>int</code> para <code>long</code>, <code>double</code>, <code>decimal</code>).</li>
+  <li>O <strong>cast</strong> explícito, <code>(int)valor</code>, e o que ele faz com a parte decimal (corta, não arredonda).</li>
+  <li>A perda de dados: <code>(byte)300</code> dá <code>44</code>, e como o <code>checked</code> transforma isso em <code>OverflowException</code>.</li>
+  <li>Cast × <code>Math.Round</code> × <code>Convert.ToInt32</code>.</li>
+  <li>A <strong>promoção</strong> nas contas: por que <code>soma / quantidade</code> dá 8 e <code>(double)soma / quantidade</code> dá 8,33.</li>
+  <li>Por que texto não vira número com cast (<code>CS0030</code>).</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: o copo e a jarra</h2>
+<p>Despejar um copo d'água numa jarra grande é sempre seguro: cabe tudo, não se perde nada. Já despejar a jarra cheia num copo pode derramar. Se alguém pedir isso, você vai querer ter certeza de que a pessoa sabe o que está fazendo.</p>
+<p>O C# pensa igual:</p>
+<ul>
+  <li>de um tipo "menor" para um "maior" (<code>int</code> para <code>long</code>), a conversão é <strong>implícita</strong>: o C# faz sozinho, sem você escrever nada;</li>
+  <li>de um tipo "maior" para um "menor" (<code>double</code> para <code>int</code>), pode derramar, então a conversão tem de ser <strong>explícita</strong>: você escreve o tipo de destino entre parênteses, e isso se chama <strong>cast</strong> (em inglês, "molde").</li>
+</ul>
+
+<hr>
+
+<h2>1. Conversões implícitas: o C# faz sozinho</h2>
+
+<pre class="file" data-file="implicita.cs">int pontos = 1500;
+long total = pontos;
+double media = pontos;
+decimal saldo = pontos;
+char letra = 'A';
+int codigo = letra;
+float f = 2.5f;
+double d = f;
+Console.WriteLine(total);
+Console.WriteLine(media);
+Console.WriteLine(saldo);
+Console.WriteLine(codigo);
+Console.WriteLine(d);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run implicita.cs
+1500
+1500
+1500
+65
+2,5</pre>
+
+<dl class="anatomy">
+  <dt>long total = pontos;</dt><dd>Todo <code>int</code> cabe num <code>long</code>. Nenhuma palavra extra.</dd>
+  <dt>double media = pontos; · decimal saldo = pontos;</dt><dd>Um inteiro também entra num <code>double</code> ou num <code>decimal</code>: <code>1500</code> vira <code>1500,0</code>, que aparece como <code>1500</code>.</dd>
+  <dt>int codigo = letra;</dt><dd>Um <code>char</code> entra num <code>int</code>: vale o código do caractere, <code>65</code> (aula <a href="char-bool.html">char e bool</a>).</dd>
+  <dt>double d = f;</dt><dd><code>float</code> cabe em <code>double</code>.</dd>
+</dl>
+
+<p>O caminho das conversões implícitas entre os números mais usados:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>De</th><th>Vira sozinho em</th></tr>
+<tr><td><code>byte</code></td><td><code>short</code>, <code>ushort</code>, <code>int</code>, <code>uint</code>, <code>long</code>, <code>ulong</code>, <code>float</code>, <code>double</code>, <code>decimal</code></td></tr>
+<tr><td><code>short</code></td><td><code>int</code>, <code>long</code>, <code>float</code>, <code>double</code>, <code>decimal</code></td></tr>
+<tr><td><code>char</code></td><td><code>ushort</code>, <code>int</code>, <code>uint</code>, <code>long</code>, <code>ulong</code>, <code>float</code>, <code>double</code>, <code>decimal</code></td></tr>
+<tr><td><code>int</code></td><td><code>long</code>, <code>float</code>, <code>double</code>, <code>decimal</code></td></tr>
+<tr><td><code>long</code></td><td><code>float</code>, <code>double</code>, <code>decimal</code></td></tr>
+<tr><td><code>float</code></td><td><code>double</code></td></tr>
+<tr><td><code>double</code></td><td>nenhum</td></tr>
+<tr><td><code>decimal</code></td><td>nenhum</td></tr>
+</table>
+</div>
+
+<p>Repare nas duas últimas linhas: <code>double</code> e <code>decimal</code> não viram nada sozinhos, nem um no outro. O <code>double</code> tem um alcance enorme (até 10<sup>308</sup>) e o <code>decimal</code> tem mais dígitos exatos; nenhum dos dois "cabe" inteiro no outro.</p>
+
+<h3>A exceção: <code>long</code> para <code>double</code> perde dígitos</h3>
+<p>Há um caso em que a conversão implícita perde algo: inteiros muito grandes num <code>float</code> ou <code>double</code>. O valor continua perto, mas os últimos dígitos se perdem:</p>
+
+<pre class="file" data-file="longfloat.cs">long grande = 123456789012345678;
+float f = grande;
+double d = grande;
+Console.WriteLine(grande);
+Console.WriteLine(f);
+Console.WriteLine(d);
+Console.WriteLine((long)d);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run longfloat.cs
+123456789012345678
+1,2345679E+17
+1,2345678901234568E+17
+123456789012345680       « voltou diferente: …678 virou …680</pre>
+
+<p>O C# deixa porque o tamanho do número se mantém (só a precisão cai), e isso raramente importa. Mas é por isso que códigos, CPFs e números de cartão nunca devem ir para <code>double</code>.</p>
+
+<hr>
+
+<h2>2. Conversão explícita: o cast</h2>
+<p>Quando a conversão pode perder dados, o C# exige que você peça, escrevendo o tipo de destino entre parênteses, na frente do valor:</p>
+
+<pre class="file" data-file="explicita.cs">double nota = 7.9;
+int inteiro = (int)nota;
+Console.WriteLine(inteiro);
+Console.WriteLine((int)-7.9);
+long grande = 1000;
+int menor = (int)grande;
+Console.WriteLine(menor);
+decimal preco = 19.99m;
+int reais = (int)preco;
+Console.WriteLine(reais);
+double d = (double)preco;
+Console.WriteLine(d);
+decimal volta = (decimal)0.1;
+Console.WriteLine(volta);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run explicita.cs
+7          « 7,9 virou 7: cortou, não arredondou
+-7
+1000
+19
+19,99
+0,1</pre>
+
+<dl class="anatomy">
+  <dt>(int)nota</dt><dd>O <strong>cast</strong>: "converta <code>nota</code> para <code>int</code>". De <code>double</code> para inteiro, a parte depois da vírgula é <strong>jogada fora</strong>: 7,9 vira 7, e -7,9 vira -7 (o corte é sempre em direção ao zero).</dd>
+  <dt>(int)grande</dt><dd>De <code>long</code> para <code>int</code>. 1000 cabe, então nada se perde. O compilador não olha o valor; olha os tipos, e um <code>long</code> <em>poderia</em> não caber.</dd>
+  <dt>(int)preco</dt><dd>De <code>decimal</code> para <code>int</code>: também corta, <code>19</code>.</dd>
+  <dt>(double)preco · (decimal)0.1</dt><dd>Entre <code>decimal</code> e <code>double</code>, sempre com cast, nas duas direções.</dd>
+</dl>
+
+<p>Sem o cast, cada uma dessas linhas daria o erro que você já conhece:</p>
+
+<pre class="file" data-file="conv_erro_long.cs">long visitas = 1000;
+int v = visitas;
+Console.WriteLine(v);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run conv_erro_long.cs
+/home/ana/cs/conv_erro_long.cs(2,9): error CS0266: Não é possível converter implicitamente tipo "long" em "int". Existe uma conversão explícita (há uma conversão ausente?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Agora a mensagem faz sentido: "existe uma conversão <strong>explícita</strong>" = existe um cast; "há uma conversão ausente?" = "você esqueceu de escrever o cast?". Em inglês: <code>Cannot implicitly convert type 'long' to 'int'. An explicit conversion exists (are you missing a cast?)</code>.</p>
+
+<hr>
+
+<h2>3. Quando o cast derrama</h2>
+<p>O cast é uma promessa: "eu sei que cabe". Se não couber, o C# não reclama. Ele faz o que der:</p>
+
+<pre class="file" data-file="perda.cs">int grande = 300;
+byte pequeno = (byte)grande;
+Console.WriteLine(pequeno);
+long enorme = 5_000_000_000;
+int corte = (int)enorme;
+Console.WriteLine(corte);
+int negativo = -1;
+uint semSinal = (uint)negativo;
+Console.WriteLine(semSinal);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run perda.cs
+44              « 300 num byte
+705032704       « 5 bilhões num int
+4294967295      « -1 num uint</pre>
+
+<p>Entre inteiros, o cast guarda só os bits que cabem e joga o resto fora. O <code>byte</code> tem 8 bits (0 a 255): 300 - 256 = 44. É o mesmo "dar a volta" do estouro (aula <a href="inteiros.html">Inteiros</a>). Nenhum erro, nenhum aviso: o programa segue com um número que não tem nada a ver com o original.</p>
+
+<h3><code>checked</code> também vale para o cast</h3>
+<p>O mesmo <code>checked</code> da aula de inteiros transforma o "derramou" em erro:</p>
+
+<pre class="file" data-file="perdachecked.cs">int grande = 300;
+byte pequeno = checked((byte)grande);
+Console.WriteLine(pequeno);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run perdachecked.cs
+Unhandled exception. System.OverflowException: Arithmetic operation resulted in an overflow.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/perdachecked.cs:line 2</pre>
+
+<p>Com <code>decimal</code>, a conferência é sempre ligada, mesmo sem <code>checked</code>: <code>(int)</code> de um <code>decimal</code> grande demais lança <code>System.OverflowException: Value was either too large or too small for an Int32.</code> ("o valor era grande ou pequeno demais para um <code>Int32</code>").</p>
+
+<h3>Valores fixos: o compilador confere</h3>
+<p>Se o valor é fixo no código, o compilador vê que não cabe e não compila. Um programa com <code>Console.WriteLine((int)1e20);</code> dá:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run doubleint.cs
+/home/ana/cs/doubleint.cs(1,19): error CS0221: O valor de constante "1E+20" não pode ser convertido em "int" (use a sintaxe "unchecked" para substituir)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<div class="warning">
+<strong>Um <code>double</code> fora da faixa não tem resultado confiável</strong>
+<p>Com variáveis, o .NET 10 do laboratório converte <code>(int)</code> de <code>1e20</code> em <code>2147483647</code> (o maior <code>int</code>) e de <code>double.NaN</code> em <code>0</code>. Mas esse comportamento já mudou entre versões do .NET (até o .NET 8 o resultado dependia do processador). Não escreva programas que dependam dele: confira a faixa antes, ou use <code>checked</code>.</p>
+</div>
+
+<hr>
+
+<h2>4. Cortar ou arredondar?</h2>
+<p>O cast <strong>corta</strong>. Quando você quer <strong>arredondar</strong>, há outras ferramentas:</p>
+
+<pre class="file" data-file="arredondar.cs">double nota = 7.9;
+Console.WriteLine((int)nota);
+Console.WriteLine((int)Math.Round(nota));
+Console.WriteLine(Convert.ToInt32(nota));
+Console.WriteLine(Convert.ToInt32(2.5));
+Console.WriteLine(Convert.ToInt32(3.5));
+Console.WriteLine(Math.Round(2.5));
+Console.WriteLine(Math.Round(2.5, MidpointRounding.AwayFromZero));
+Console.WriteLine((int)Math.Floor(7.9));
+Console.WriteLine((int)Math.Ceiling(7.1));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run arredondar.cs
+7
+8
+8
+2          « 2,5 virou 2!
+4          « 3,5 virou 4
+2
+3
+7
+8</pre>
+
+<dl class="anatomy">
+  <dt>(int)nota → 7</dt><dd>Corta a parte decimal.</dd>
+  <dt>(int)Math.Round(nota) → 8</dt><dd><code>Math.Round</code> ("arredondar") devolve um <code>double</code> arredondado (<code>8</code>), e o cast o transforma em <code>int</code> sem perder nada.</dd>
+  <dt>Convert.ToInt32(nota) → 8</dt><dd>A classe <code>Convert</code> ("converter") arredonda em vez de cortar.</dd>
+  <dt>Convert.ToInt32(2.5) → 2 · Convert.ToInt32(3.5) → 4</dt><dd>A surpresa: quando o número está exatamente no meio (x,5), o .NET arredonda para o <strong>par</strong> mais próximo. É o "arredondamento do banqueiro", que evita que os arredondamentos puxem sempre para cima. <code>Math.Round</code> faz o mesmo.</dd>
+  <dt>MidpointRounding.AwayFromZero → 3</dt><dd>Para o arredondamento da escola (x,5 sobe), peça <code>AwayFromZero</code>, "para longe do zero".</dd>
+  <dt>Math.Floor · Math.Ceiling</dt><dd>"Piso" (arredonda sempre para baixo) e "teto" (sempre para cima). Detalhes em <a href="math.html">Matemática</a>.</dd>
+</dl>
+
+<hr>
+
+<h2>5. Conversões dentro das contas (promoção)</h2>
+<p>Quando uma conta mistura tipos, o C# converte o menor para o maior antes de calcular. Isso se chama <strong>promoção</strong>. E quando a conta tem só inteiros, ela é feita em inteiros, mesmo que o resultado vá para um <code>double</code>:</p>
+
+<pre class="file" data-file="notas.cs">int soma = 7 + 8 + 10;
+int quantidade = 3;
+double media = soma / quantidade;
+Console.WriteLine($"Média: {media}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run notas.cs
+Média: 8           « 25 / 3 devia dar 8,33…</pre>
+
+<p><code>soma / quantidade</code> é <code>int</code> dividido por <code>int</code>: o resultado é o <code>int</code> 8 (a divisão inteira joga fora o resto, aula <a href="operadores-aritmeticos.html">Operadores Aritméticos</a>). Só <strong>depois</strong> o 8 é convertido para <code>double</code>. O conserto é converter um dos lados <strong>antes</strong> da divisão:</p>
+
+<pre class="file" data-file="promocao.cs">int a = 7;
+int b = 2;
+Console.WriteLine(a / b);
+Console.WriteLine((double)a / b);
+Console.WriteLine((double)(a / b));
+Console.WriteLine(a / 2.0);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run promocao.cs
+3
+3,5
+3
+3,5</pre>
+
+<dl class="anatomy">
+  <dt>a / b → 3</dt><dd>Divisão inteira.</dd>
+  <dt>(double)a / b → 3,5</dt><dd>O cast vale só para o <code>a</code>, que vira <code>7,0</code>. Agora é <code>double</code> dividido por <code>int</code>; o <code>b</code> é promovido a <code>double</code>, e a divisão é com vírgula.</dd>
+  <dt>(double)(a / b) → 3</dt><dd>Aqui os parênteses fazem a divisão inteira <strong>primeiro</strong> (3) e só depois convertem: <code>3,0</code>. Tarde demais.</dd>
+  <dt>a / 2.0 → 3,5</dt><dd>Com um número fixo, basta escrevê-lo com ponto: <code>2.0</code> é <code>double</code>.</dd>
+</dl>
+
+<div class="trycs" data-goal="out:Média: 8\,33,src:\(double\)\s*soma">
+<p class="try-task"><strong>Missão:</strong> a média das notas 7, 8 e 10 sai <code>Média: 8,00</code>. Use um cast <code>(double)</code> em <code>soma</code>, antes da divisão, para mostrar <code>Média: 8,33</code>. (O <code>:F2</code> dentro das chaves mostra o número com 2 casas; aula <a href="formatacao.html">Formatar Números</a>.)</p>
+<pre class="script" data-file="media.cs">int soma = 7 + 8 + 10;
+int quantidade = 3;
+double media = soma / quantidade;
+Console.WriteLine($"Média: {media:F2}");
+</pre>
+<pre class="solucao" data-file="media.cs">int soma = 7 + 8 + 10;
+int quantidade = 3;
+double media = (double)soma / quantidade;
+Console.WriteLine($"Média: {media:F2}");
+</pre>
+</div>
+
+<h3>O tipo do resultado</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Conta</th><th>Resultado</th><th>Por quê</th></tr>
+<tr><td><code>int + long</code></td><td><code>long</code></td><td>O <code>int</code> é promovido a <code>long</code></td></tr>
+<tr><td><code>int + double</code></td><td><code>double</code></td><td>O <code>int</code> é promovido a <code>double</code></td></tr>
+<tr><td><code>int * decimal</code></td><td><code>decimal</code></td><td>O <code>int</code> é promovido a <code>decimal</code></td></tr>
+<tr><td><code>char + int</code></td><td><code>int</code></td><td>O <code>char</code> vira o seu código</td></tr>
+<tr><td><code>short + short</code>, <code>byte + byte</code></td><td><code>int</code></td><td>Contas com tipos menores que <code>int</code> são sempre feitas em <code>int</code></td></tr>
+<tr><td><code>decimal * double</code></td><td>não compila (<code>CS0019</code>)</td><td>Não há promoção entre os dois</td></tr>
+</table>
+</div>
+<p>Todos esses tipos foram conferidos com <code>GetType()</code> no laboratório.</p>
+
+<hr>
+
+<h2>6. Texto não vira número com cast</h2>
+<p>O cast só converte entre tipos "parentes", como os números entre si. Uma <code>string</code> não é parente de <code>int</code>:</p>
+
+<pre class="file" data-file="castcomstring.cs">string texto = "42";
+int numero = (int)texto;
+Console.WriteLine(numero);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run castcomstring.cs
+/home/ana/cs/castcomstring.cs(2,14): error CS0030: Não é possível converter tipo "string" em "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Repare na diferença para o <code>CS0266</code>: aqui a mensagem não diz "implicitamente" nem "existe uma conversão explícita". O <code>CS0030</code> quer dizer: <strong>não existe</strong> conversão nenhuma, nem com cast. O mesmo acontece com <code>(bool)5</code> e <code>(int)true</code>. Para transformar texto em número existe <code>int.Parse</code> e <code>int.TryParse</code>, a próxima aula: <a href="parse.html">Texto → Número</a>.</p>
+
+<p>O caminho contrário, de número para texto, é fácil: todo valor tem o método <code>ToString()</code>:</p>
+
+<pre class="file" data-file="convtostring.cs">int idade = 29;
+string texto = idade.ToString();
+Console.WriteLine(texto + "!");
+double altura = 1.65;
+Console.WriteLine(altura.ToString());
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run convtostring.cs
+29!
+1,65</pre>
+
+<p>O <code>ToString()</code> usa a cultura do computador: <code>1,65</code> no Ubuntu da Ana. A aula <a href="cultura.html">Cultura</a> mostra como escolher outra.</p>
+
+<hr>
+
+<h2>7. A classe <code>Convert</code></h2>
+<p>Além do cast, o .NET tem a classe <code>Convert</code>, com um método para cada tipo de destino: <code>Convert.ToInt32</code>, <code>Convert.ToDouble</code>, <code>Convert.ToBoolean</code>, <code>Convert.ToString</code>… Ela é mais "esperta" que o cast em alguns pontos:</p>
+
+<pre class="file" data-file="convert1.cs">Console.WriteLine(Convert.ToInt32(true));
+Console.WriteLine(Convert.ToBoolean(0));
+Console.WriteLine(Convert.ToDouble(10));
+Console.WriteLine(Convert.ToInt32(300.6));
+Console.WriteLine(Convert.ToByte(300));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run convert1.cs
+1
+False
+10
+301
+Unhandled exception. System.OverflowException: Value was either too large or too small for an unsigned byte.
+   at System.Convert.ThrowByteOverflowException()
+   at System.Convert.ToByte(Int32 value)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/convert1.cs:line 5</pre>
+
+<ul>
+  <li>Converte <code>bool</code> em número (<code>true</code> = 1) e número em <code>bool</code> (0 = <code>false</code>), o que o cast não faz.</li>
+  <li>Arredonda em vez de cortar (<code>300,6</code> virou <code>301</code>).</li>
+  <li>Confere sempre a faixa: <code>Convert.ToByte(300)</code> lança <code>OverflowException</code> em vez de dar 44.</li>
+</ul>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Quero…</th><th>Use</th></tr>
+<tr><td>Guardar num tipo maior</td><td>Nada: a conversão é implícita</td></tr>
+<tr><td>Jogar fora a parte decimal</td><td><code>(int)valor</code></td></tr>
+<tr><td>Arredondar para inteiro</td><td><code>(int)Math.Round(valor)</code> ou <code>Convert.ToInt32(valor)</code></td></tr>
+<tr><td>Converter entre <code>decimal</code> e <code>double</code></td><td><code>(decimal)d</code>, <code>(double)m</code></td></tr>
+<tr><td>Converter para um tipo menor, com erro se não couber</td><td><code>checked((byte)x)</code> ou <code>Convert.ToByte(x)</code></td></tr>
+<tr><td>Fazer uma divisão com vírgula entre inteiros</td><td><code>(double)a / b</code></td></tr>
+<tr><td>Número para texto</td><td><code>valor.ToString()</code></td></tr>
+<tr><td>Texto para número</td><td><code>int.Parse</code> / <code>int.TryParse</code> (aula <a href="parse.html">Texto → Número</a>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0266: Não é possível converter implicitamente tipo "…" em "…". Existe uma conversão explícita (há uma conversão ausente?)</code></strong>
+<p><strong>O que significa:</strong> a conversão pode perder dados (<code>double</code> para <code>int</code>, <code>long</code> para <code>int</code>, <code>double</code> para <code>decimal</code>), então o C# não a faz sozinho.</p>
+<p><strong>Como consertar:</strong> se você sabe que é seguro (ou quer mesmo cortar), escreva o cast: <code>(int)valor</code>. Se não, mude o tipo da variável de destino para um que caiba.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0030: Não é possível converter tipo "string" em "int"</code></strong>
+<p><strong>O que significa:</strong> não existe conversão entre os dois tipos, nem com cast.</p>
+<p><strong>Como consertar:</strong> de texto para número, <code>int.Parse</code> ou <code>int.TryParse</code>; de <code>bool</code> para número, <code>ativo ? 1 : 0</code> ou <code>Convert.ToInt32(ativo)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0221: O valor de constante "1E+20" não pode ser convertido em "int" (use a sintaxe "unchecked" para substituir)</code></strong>
+<p><strong>O que significa:</strong> um cast de um valor fixo que não cabe no tipo de destino.</p>
+<p><strong>Como consertar:</strong> use um tipo que caiba. O <code>unchecked( … )</code> que a mensagem sugere só serve se você quer mesmo o valor "derramado".</p>
+</div>
+
+<div class="cenario">
+<strong>A média (ou a porcentagem) saiu sem a parte decimal</strong>
+<p><strong>O que significa:</strong> a divisão foi feita entre dois inteiros, antes de o resultado ir para o <code>double</code>.</p>
+<p><strong>Como consertar:</strong> <code>(double)soma / quantidade</code>, com o cast <strong>dentro</strong> da conta, num dos lados. <code>(double)(soma / quantidade)</code> não resolve.</p>
+</div>
+
+<div class="cenario">
+<strong>Um número virou outro sem erro (<code>44</code>, <code>705032704</code>, <code>4294967295</code>)</strong>
+<p><strong>O que significa:</strong> um cast de inteiro para um tipo menor (ou sem sinal) em que o valor não cabia.</p>
+<p><strong>Como consertar:</strong> use <code>checked((byte)x)</code> ou <code>Convert.ToByte(x)</code> para ter <code>OverflowException</code>, ou um tipo maior.</p>
+</div>
+
+<div class="cenario">
+<strong><code>System.OverflowException: Value was either too large or too small for an Int32.</code></strong>
+<p><strong>O que significa:</strong> uma conversão conferida (de <code>decimal</code>, com <code>Convert</code> ou dentro de <code>checked</code>) recebeu um valor fora da faixa do tipo.</p>
+<p><strong>Como consertar:</strong> confira o valor antes, ou use um tipo maior (<code>long</code>).</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th><th>Exemplo</th></tr>
+<tr><td><code>long l = i;</code></td><td>Implícita (do menor para o maior)</td><td><code>int</code> → <code>long</code>, <code>double</code>, <code>decimal</code></td></tr>
+<tr><td><code>(int)x</code></td><td>Cast explícito; com vírgula, corta</td><td><code>(int)7.9</code> = 7, <code>(int)-7.9</code> = -7</td></tr>
+<tr><td><code>(byte)300</code> (com variável)</td><td>Inteiros: guarda os bits que cabem</td><td>44</td></tr>
+<tr><td><code>checked((byte)x)</code></td><td>Cast conferido</td><td><code>OverflowException</code></td></tr>
+<tr><td><code>(double)a / b</code></td><td>Divisão com vírgula entre inteiros</td><td><code>7 / 2</code> = 3; <code>(double)7 / 2</code> = 3,5</td></tr>
+<tr><td><code>Math.Round(x)</code></td><td>Arredonda (x,5 vai para o par)</td><td><code>Math.Round(2.5)</code> = 2</td></tr>
+<tr><td><code>Math.Round(x, MidpointRounding.AwayFromZero)</code></td><td>Arredonda como na escola</td><td>2,5 → 3</td></tr>
+<tr><td><code>Convert.ToInt32(x)</code></td><td>Arredonda e confere a faixa</td><td><code>Convert.ToInt32(7.9)</code> = 8</td></tr>
+<tr><td><code>x.ToString()</code></td><td>Número para texto</td><td><code>"1,65"</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O cast</h3>
+<p>Complete para converter o <code>double</code> em <code>int</code>:</p>
+<div class="ex-code">int inteiro = <input data-answer="(int)" aria-label="cast">nota;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Cortar</h3>
+<p>Quanto vale <code>(int)9.99</code>?</p>
+<div class="ex-code"><input data-answer="9" aria-label="valor"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Derramou</h3>
+<p>Com <code>int x = 260;</code>, quanto vale <code>(byte)x</code>?</p>
+<div class="ex-code"><input data-answer="4" aria-label="valor"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Qual linha compila <strong>sem</strong> cast?</p>
+<label><input type="radio" name="q4"> <code>int i = 3.0;</code></label>
+<label><input type="radio" name="q4"> <code>double d = 3;</code></label>
+<label><input type="radio" name="q4"> <code>decimal m = 3.0;</code></label>
+<label><input type="radio" name="q4"> <code>int i = 3L;</code></label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Com <code>int a = 9, b = 2;</code>, qual expressão vale <code>4,5</code>?</p>
+<label><input type="radio" name="q5"> <code>a / b</code></label>
+<label><input type="radio" name="q5"> <code>(double)(a / b)</code></label>
+<label><input type="radio" name="q5"> <code>(double)a / b</code></label>
+<label><input type="radio" name="q5"> <code>(int)a / b</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. <code>int n = (int)"15";</code> O que acontece?</p>
+<label><input type="radio" name="q6"> <code>n</code> vale 15</label>
+<label><input type="radio" name="q6"> <code>n</code> vale o código do caractere <code>'1'</code></label>
+<label><input type="radio" name="q6"> <code>FormatException</code></label>
+<label><input type="radio" name="q6"> Não compila: <code>CS0030</code>; para texto, use <code>int.Parse</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">7. O que <code>Convert.ToInt32(4.5)</code> devolve?</p>
+<label><input type="radio" name="q7"> 4: no meio, o .NET arredonda para o par</label>
+<label><input type="radio" name="q7"> 5</label>
+<label><input type="radio" name="q7"> 4,5</label>
+<label><input type="radio" name="q7"> <code>OverflowException</code></label>
+</div>
+
+<h3>Missão final: reais e centavos</h3>
+
+<div class="trycs" data-goal="out:19 reais e 99 centavos,src:\(int\)">
+<p class="try-task"><strong>Missão:</strong> o programa quer separar o preço R$ 19,99 em reais e centavos, mas não compila: um <code>decimal</code> não entra sozinho num <code>int</code> (<code>CS0266</code>). Use o cast <code>(int)</code> nas duas linhas (na segunda, em volta da conta inteira, com parênteses) para mostrar <code>19 reais e 99 centavos</code>.</p>
+<pre class="script" data-file="troco.cs">decimal preco = 19.99m;
+int reais = preco;
+int centavos = (preco - reais) * 100;
+Console.WriteLine($"{reais} reais e {centavos} centavos");
+</pre>
+<pre class="solucao" data-file="troco.cs">decimal preco = 19.99m;
+int reais = (int)preco;
+int centavos = (int)((preco - reais) * 100);
+Console.WriteLine($"{reais} reais e {centavos} centavos");
+</pre>
+</div>
+
+<p>Na solução, <code>(int)preco</code> corta para 19; <code>preco - reais</code> é <code>0,99</code> (um <code>decimal</code>, exato); vezes 100 dá <code>99,00</code>; e o <code>(int)</code> de fora faz dele o inteiro 99. Com <code>double</code> no lugar de <code>decimal</code>, a mesma conta dá <strong>98</strong> centavos no laboratório: <code>19,99</code> não é exato em <code>double</code>, a diferença vira <code>0,98999…</code>, e o cast corta. Mais um motivo para dinheiro ser <code>decimal</code>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Implícita: do tipo menor para o maior, o C# converte sozinho (<code>int</code> → <code>long</code>, <code>double</code>, <code>decimal</code>; <code>char</code> → <code>int</code>).</li>
+  <li>Explícita (<strong>cast</strong>): <code>(int)x</code>, quando pode perder dados. Sem o cast: <code>CS0266</code>.</li>
+  <li>De número com vírgula para inteiro, o cast <strong>corta</strong>: <code>(int)7.9</code> = 7. Para arredondar: <code>Math.Round</code> ou <code>Convert.ToInt32</code> (x,5 vai para o par).</li>
+  <li>Entre inteiros, um cast que não cabe dá a volta sem aviso (<code>(byte)300</code> = 44). <code>checked</code> e <code>Convert</code> lançam <code>OverflowException</code>.</li>
+  <li>Contas com tipos misturados promovem o menor; só com inteiros, a divisão é inteira. Use <code>(double)soma / quantidade</code>.</li>
+  <li>Texto e número não se convertem com cast (<code>CS0030</code>): número → texto com <code>ToString()</code>, texto → número com <code>Parse</code>/<code>TryParse</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
