@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# LINQ Juntar — Join, GroupJoin, LeftJoin e Zip | Guia C#</title>
+<meta name="description" content="Juntar duas listas com LINQ em C#: Join pela chave, join … equals na sintaxe de consulta, GroupJoin e join … into, LeftJoin e RightJoin do .NET 10, chaves compostas e Zip por posição, com saídas reais do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">LINQ: Juntar</span></h1>
+
+<p class="intro">Na lojinha da Ana, os <strong>clientes</strong> ficam numa lista e os <strong>pedidos</strong> em outra. O pedido não guarda o nome do cliente, só o número dele (o <code>ClienteId</code>). Para escrever "Ana pagou 45,90", o programa precisa <strong>juntar</strong> as duas listas: para cada pedido, achar o cliente que tem aquele número. O LINQ faz isso com <code>Join</code>, <code>GroupJoin</code> e, no .NET 10, <code>LeftJoin</code> e <code>RightJoin</code>. E quando as listas combinam pela <strong>posição</strong> (o 1º nome com a 1ª nota), quem resolve é o <code>Zip</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma <strong>chave</strong> e como o <code>Join</code> casa os itens de duas listas por ela.</li>
+  <li>O mesmo <code>Join</code> na sintaxe de consulta: <code>join … in … on … equals …</code>, e por que a ordem dos lados importa (erros <code>CS1937</code> e <code>CS1938</code>).</li>
+  <li>O <code>GroupJoin</code> (e o <code>join … into</code>): cada cliente com a <strong>lista</strong> dos seus pedidos, inclusive quem não tem nenhum.</li>
+  <li>O <code>LeftJoin</code> e o <code>RightJoin</code> <span class="versao">.NET 10</span>, e o jeito antigo com <code>DefaultIfEmpty</code>.</li>
+  <li>Chaves compostas (duas informações ao mesmo tempo) e o <code>Zip</code>, que junta pela posição.</li>
+</ul>
+</div>
+
+<p>Esta aula usa o que você viu em <a href="linq.html">O que é LINQ</a>, <a href="linq-filtrar.html">Where e Select</a> e <a href="linq-agregar.html">Count e Sum</a>, além dos <a href="records.html">records</a> e das <a href="lambdas.html">lambdas</a> (<code>c =&gt; c.Id</code>). Os exemplos rodaram com <code>dotnet run</code> no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código</h2>
+<p>Pense numa pilha de <strong>comandas</strong> de lanchonete. Cada comanda diz "mesa 3: dois sucos". Num caderno à parte, o garçom anotou "mesa 3: Ana". Para saber o que a Ana pediu, ele pega cada comanda, olha o número da mesa e procura esse número no caderno. O número da mesa é a <strong>chave</strong>: a informação que aparece <strong>nas duas listas</strong> e liga uma à outra.</p>
+<p>Juntar (em inglês, <em>join</em>) é exatamente isso: para cada item de uma lista, achar os itens da outra lista que têm a <strong>mesma chave</strong>, e montar um resultado com as duas partes. Bancos de dados fazem isso o tempo todo (o <code>JOIN</code> do SQL), e o LINQ faz o mesmo com as listas do seu programa.</p>
+
+<p>Em toda a aula, os dados são estes dois <a href="records.html">records</a>. Repare que o pedido 104 é de um cliente número 9, que não existe, e que a Carla (número 3) não fez pedido nenhum. Esses dois "sobrando" vão mostrar a diferença entre cada tipo de junção.</p>
+
+<pre class="file" data-file="dados">record Cliente(int Id, string Nome);
+record Pedido(int Numero, int ClienteId, decimal Valor);
+
+// clientes: 1 Ana, 2 Bruno, 3 Carla
+// pedidos:  101 (cliente 1, 45,90)  102 (cliente 2, 12,50)
+//           103 (cliente 1, 30,00)  104 (cliente 9, 99,00)
+</pre>
+
+<hr>
+
+<h2>1. <code>Join</code>: casar pela chave</h2>
+<p>O método <code>Join</code> (juntar) recebe a outra lista e três lambdas: como achar a chave de um lado, como achar a chave do outro e o que montar com cada par que casou.</p>
+
+<pre class="file" data-file="join1.cs">List&lt;Cliente&gt; clientes =
+[
+    new(1, "Ana"),
+    new(2, "Bruno"),
+    new(3, "Carla"),
+];
+
+List&lt;Pedido&gt; pedidos =
+[
+    new(101, 1, 45.90m),
+    new(102, 2, 12.50m),
+    new(103, 1, 30.00m),
+    new(104, 9, 99.00m),
+];
+
+var juntos = clientes.Join(
+    pedidos,
+    c =&gt; c.Id,
+    p =&gt; p.ClienteId,
+    (c, p) =&gt; $"Pedido {p.Numero}: {c.Nome} pagou {p.Valor}");
+
+foreach (var linha in juntos)
+{
+    Console.WriteLine(linha);
+}
+
+record Cliente(int Id, string Nome);
+record Pedido(int Numero, int ClienteId, decimal Valor);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run join1.cs
+Pedido 101: Ana pagou 45,90
+Pedido 103: Ana pagou 30,00
+Pedido 102: Bruno pagou 12,50</pre>
+
+<dl class="anatomy">
+  <dt>clientes.Join(</dt><dd>A lista "de fora" (em inglês, <em>outer</em>). O resultado segue a ordem dela: primeiro tudo da Ana, depois do Bruno.</dd>
+  <dt>pedidos,</dt><dd>A lista "de dentro" (<em>inner</em>), a que vai ser procurada.</dd>
+  <dt>c =&gt; c.Id,</dt><dd>Seletor da chave de fora: "a chave de um cliente é o <code>Id</code> dele".</dd>
+  <dt>p =&gt; p.ClienteId,</dt><dd>Seletor da chave de dentro: "a chave de um pedido é o <code>ClienteId</code>". As duas chaves têm de ser do <strong>mesmo tipo</strong> (aqui, <code>int</code>).</dd>
+  <dt>(c, p) =&gt; …</dt><dd>O seletor do resultado: recebe um cliente e um pedido <strong>que casaram</strong> e devolve o que você quiser. Aqui, um texto.</dd>
+</dl>
+
+<p>Olhe o que <strong>não</strong> apareceu:</p>
+<ul>
+  <li>A <strong>Carla</strong> não tem pedido, então não formou par nenhum e sumiu.</li>
+  <li>O <strong>pedido 104</strong> aponta para o cliente 9, que não existe; também sumiu.</li>
+</ul>
+<p>Esse comportamento tem nome: <strong>junção interna</strong> (<em>inner join</em>). Só entra no resultado quem tem par dos dois lados. Na seção 3 você vai ver como manter quem ficou sem par.</p>
+
+<div class="note">
+<strong>A ordem do resultado</strong>
+<p>O <code>Join</code> percorre a lista de fora na ordem dela e, para cada item, devolve os pares na ordem em que aparecem na lista de dentro. Por isso o pedido 103 veio <strong>antes</strong> do 102: os dois da Ana vêm juntos, porque a Ana é a primeira cliente. Quer outra ordem? Use <a href="linq-ordenar.html"><code>OrderBy</code></a> depois.</p>
+</div>
+
+<h3>A mesma coisa na sintaxe de consulta</h3>
+<p>O LINQ tem uma segunda forma de escrever, parecida com SQL (a "sintaxe de consulta", que você conheceu em <a href="linq.html">O que é LINQ</a>). Nela, a junção usa as palavras <code>join</code>, <code>on</code> e <code>equals</code>:</p>
+
+<pre class="file" data-file="join2.cs">List&lt;Cliente&gt; clientes = [new(1, "Ana"), new(2, "Bruno"), new(3, "Carla")];
+List&lt;Pedido&gt; pedidos = [new(101, 1, 45.90m), new(102, 2, 12.50m), new(103, 1, 30.00m), new(104, 9, 99.00m)];
+
+var juntos =
+    from c in clientes
+    join p in pedidos on c.Id equals p.ClienteId
+    select new { c.Nome, p.Numero, p.Valor };
+
+foreach (var item in juntos)
+{
+    Console.WriteLine(item);
+}
+
+record Cliente(int Id, string Nome);
+record Pedido(int Numero, int ClienteId, decimal Valor);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run join2.cs
+{ Nome = Ana, Numero = 101, Valor = 45,90 }
+{ Nome = Ana, Numero = 103, Valor = 30,00 }
+{ Nome = Bruno, Numero = 102, Valor = 12,50 }</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>from c in clientes</code></td><td>"Para cada cliente <code>c</code>": a lista de fora.</td></tr>
+<tr><td><code>join p in pedidos</code></td><td>"Junte com cada pedido <code>p</code>": a lista de dentro.</td></tr>
+<tr><td><code>on c.Id equals p.ClienteId</code></td><td>A condição: a chave do cliente <strong>é igual</strong> à chave do pedido. À esquerda do <code>equals</code> fica a lista de fora; à direita, a de dentro.</td></tr>
+<tr><td><code>select new { c.Nome, p.Numero, p.Valor }</code></td><td>Monta um <strong>tipo anônimo</strong> (um objeto sem nome de classe) com três campos. O <code>WriteLine</code> mostra os campos entre chaves.</td></tr>
+</table>
+</div>
+
+<p>As duas formas geram o mesmo resultado; o compilador transforma a de consulta numa chamada a <code>Join</code>. Muita gente acha a de consulta mais fácil de ler quando há junções, porque o <code>on … equals …</code> fica parecido com a frase em português.</p>
+
+<div class="warning">
+<strong>É <code>equals</code>, não <code>==</code></strong>
+<p>Dentro do <code>join</code>, a comparação é sempre a palavra <code>equals</code> ("é igual a"). O <code>==</code> não é aceito ali, e a ordem dos lados é fixa. Os dois erros estão em "Quando dá errado".</p>
+</div>
+
+<div class="trycs" data-goal="out:Caneta x 10 = 25\,00,out:Caderno x 2 = 30\,00,src:\.Join\s*\(|join\s+\w+\s+in">
+<p class="try-task"><strong>Missão:</strong> a lista <code>vendas</code> só tem o número do produto. Troque o laço por um <code>Join</code> (ou <code>join … equals</code>) com <code>produtos</code> para mostrar o <strong>nome</strong>, a quantidade e o total de cada venda: <code>Caneta x 10 = 25,00</code>.</p>
+<pre class="script">List&lt;Produto&gt; produtos = [new(1, "Caderno", 15.00m), new(2, "Caneta", 2.50m), new(3, "Borracha", 1.20m)];
+List&lt;Venda&gt; vendas = [new(2, 10), new(1, 2), new(2, 4)];
+
+// Troque este laço por um Join que mostre o NOME do produto
+foreach (var v in vendas)
+{
+    Console.WriteLine($"Produto {v.ProdutoId} x {v.Quantidade}");
+}
+
+record Produto(int Id, string Nome, decimal Preco);
+record Venda(int ProdutoId, int Quantidade);
+</pre>
+<pre class="solucao">List&lt;Produto&gt; produtos = [new(1, "Caderno", 15.00m), new(2, "Caneta", 2.50m), new(3, "Borracha", 1.20m)];
+List&lt;Venda&gt; vendas = [new(2, 10), new(1, 2), new(2, 4)];
+
+var linhas = vendas.Join(
+    produtos,
+    v =&gt; v.ProdutoId,
+    p =&gt; p.Id,
+    (v, p) =&gt; $"{p.Nome} x {v.Quantidade} = {p.Preco * v.Quantidade}");
+
+foreach (var linha in linhas)
+{
+    Console.WriteLine(linha);
+}
+
+record Produto(int Id, string Nome, decimal Preco);
+record Venda(int ProdutoId, int Quantidade);
+</pre>
+</div>
+
+<p>Na solução, a lista de fora é <code>vendas</code>, e por isso o resultado sai na ordem das vendas (Caneta, Caderno, Caneta):</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run vendas.cs
+Caneta x 10 = 25,00
+Caderno x 2 = 30,00
+Caneta x 4 = 10,00</pre>
+
+<hr>
+
+<h2>2. <code>GroupJoin</code>: cada um com a sua lista</h2>
+<p>Às vezes você não quer um par por linha, e sim <strong>cada cliente com todos os pedidos dele</strong> num pacote só: "Ana: 2 pedidos, total 75,90". É o <code>GroupJoin</code> (juntar agrupando). A diferença está no último lambda: em vez de um pedido, ele recebe <strong>a coleção</strong> dos pedidos daquele cliente.</p>
+
+<pre class="file" data-file="grupo.cs">List&lt;Cliente&gt; clientes = [new(1, "Ana"), new(2, "Bruno"), new(3, "Carla")];
+List&lt;Pedido&gt; pedidos = [new(101, 1, 45.90m), new(102, 2, 12.50m), new(103, 1, 30.00m), new(104, 9, 99.00m)];
+
+var porCliente = clientes.GroupJoin(
+    pedidos,
+    c =&gt; c.Id,
+    p =&gt; p.ClienteId,
+    (c, seus) =&gt; new { c.Nome, Quantos = seus.Count(), Total = seus.Sum(p =&gt; p.Valor) });
+
+foreach (var r in porCliente)
+{
+    Console.WriteLine($"{r.Nome}: {r.Quantos} pedido(s), total {r.Total}");
+}
+
+Console.WriteLine("--- com into ---");
+var consulta =
+    from c in clientes
+    join p in pedidos on c.Id equals p.ClienteId into seus
+    select new { c.Nome, Numeros = string.Join(", ", seus.Select(p =&gt; p.Numero)) };
+foreach (var r in consulta)
+{
+    Console.WriteLine($"{r.Nome}: [{r.Numeros}]");
+}
+
+record Cliente(int Id, string Nome);
+record Pedido(int Numero, int ClienteId, decimal Valor);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run grupo.cs
+Ana: 2 pedido(s), total 75,90
+Bruno: 1 pedido(s), total 12,50
+Carla: 0 pedido(s), total 0
+--- com into ---
+Ana: [101, 103]
+Bruno: [102]
+Carla: []</pre>
+
+<dl class="anatomy">
+  <dt>clientes.GroupJoin(</dt><dd>Mesma ideia do <code>Join</code>: a lista de fora é a dos clientes.</dd>
+  <dt>pedidos, c =&gt; c.Id, p =&gt; p.ClienteId,</dt><dd>A lista de dentro e as duas chaves, iguaizinhas às do <code>Join</code>.</dd>
+  <dt>(c, seus) =&gt;</dt><dd>A diferença: <code>seus</code> é um <code>IEnumerable&lt;Pedido&gt;</code>, a coleção de <strong>todos</strong> os pedidos do cliente <code>c</code>. Pode estar vazia.</dd>
+  <dt>seus.Count(), seus.Sum(p =&gt; p.Valor)</dt><dd>Como <code>seus</code> é uma coleção, dá para usar nela qualquer operador do LINQ, como os de <a href="linq-agregar.html">agregar</a>.</dd>
+  <dt>join … into seus</dt><dd>Na sintaxe de consulta, o <code>into</code> ("para dentro de") transforma o <code>join</code> num <code>GroupJoin</code>: os pedidos de cada cliente vão para dentro de <code>seus</code>.</dd>
+</dl>
+
+<p>Repare na <strong>Carla</strong>: desta vez ela aparece, com 0 pedidos e total 0. O <code>GroupJoin</code> devolve <strong>um resultado para cada item da lista de fora</strong>, tenha ele par ou não. Já o pedido 104 (do cliente 9) continua de fora, porque nenhum cliente o "puxou".</p>
+
+<div class="tip">
+<strong><code>GroupJoin</code> × <code>GroupBy</code></strong>
+<p>O <a href="linq-agrupar.html"><code>GroupBy</code></a> agrupa <strong>uma</strong> lista pelo valor de uma chave. O <code>GroupJoin</code> agrupa a segunda lista <strong>em torno de cada item da primeira</strong>. Com <code>pedidos.GroupBy(p =&gt; p.ClienteId)</code>, a Carla não apareceria (ela não tem pedido) e o cliente 9 apareceria (ele tem). Com o <code>GroupJoin</code> a partir de <code>clientes</code>, é o contrário.</p>
+</div>
+
+<hr>
+
+<h2>3. Manter quem ficou sem par: <code>LeftJoin</code> e <code>RightJoin</code> <span class="versao">.NET 10</span></h2>
+<p>E se você quer <strong>uma linha por pedido</strong>, como no <code>Join</code>, mas sem perder a Carla? Isso é a <strong>junção à esquerda</strong> (<em>left join</em>): todo item da lista da esquerda (a de fora) aparece; quando não há par, o outro lado vem como <code>null</code>. Até o .NET 9 isso exigia uma receita de três passos. O .NET 10 ganhou os métodos <code>LeftJoin</code> e <code>RightJoin</code>:</p>
+
+<pre class="file" data-file="esquerda.cs">List&lt;Cliente&gt; clientes = [new(1, "Ana"), new(2, "Bruno"), new(3, "Carla")];
+List&lt;Pedido&gt; pedidos = [new(101, 1, 45.90m), new(102, 2, 12.50m), new(103, 1, 30.00m), new(104, 9, 99.00m)];
+
+// LeftJoin (.NET 10)
+var esquerda = clientes.LeftJoin(
+    pedidos,
+    c =&gt; c.Id,
+    p =&gt; p.ClienteId,
+    (c, p) =&gt; $"{c.Nome} -&gt; {(p is null ? "sem pedido" : p.Numero.ToString())}");
+foreach (var l in esquerda) Console.WriteLine(l);
+
+Console.WriteLine("--- jeito antigo ---");
+var antigo =
+    from c in clientes
+    join p in pedidos on c.Id equals p.ClienteId into seus
+    from p in seus.DefaultIfEmpty()
+    select $"{c.Nome} -&gt; {(p is null ? "sem pedido" : p.Numero.ToString())}";
+foreach (var l in antigo) Console.WriteLine(l);
+
+Console.WriteLine("--- RightJoin ---");
+var direita = clientes.RightJoin(
+    pedidos,
+    c =&gt; c.Id,
+    p =&gt; p.ClienteId,
+    (c, p) =&gt; $"Pedido {p.Numero} -&gt; {c?.Nome ?? "cliente desconhecido"}");
+foreach (var l in direita) Console.WriteLine(l);
+
+record Cliente(int Id, string Nome);
+record Pedido(int Numero, int ClienteId, decimal Valor);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run esquerda.cs
+Ana -&gt; 101
+Ana -&gt; 103
+Bruno -&gt; 102
+Carla -&gt; sem pedido
+--- jeito antigo ---
+Ana -&gt; 101
+Ana -&gt; 103
+Bruno -&gt; 102
+Carla -&gt; sem pedido
+--- RightJoin ---
+Pedido 101 -&gt; Ana
+Pedido 102 -&gt; Bruno
+Pedido 103 -&gt; Ana
+Pedido 104 -&gt; cliente desconhecido</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Trecho</th><th>O que faz</th></tr>
+<tr><td><code>clientes.LeftJoin(pedidos, …)</code></td><td>Todo cliente aparece. Quem não tem pedido aparece uma vez, com <code>p</code> valendo <code>null</code>.</td></tr>
+<tr><td><code>p is null ? "sem pedido" : …</code></td><td>Por isso o seletor precisa tratar o <code>null</code>. Com as <a href="referencias-anulaveis.html">referências anuláveis</a> ligadas, o compilador sabe que ali <code>p</code> é <code>Pedido?</code>: usar <code>p.Numero</code> direto dá o aviso <code>CS8602: Desreferência de uma referência possivelmente nula</code>.</td></tr>
+<tr><td><code>join … into seus</code> + <code>from p in seus.DefaultIfEmpty()</code></td><td>A receita antiga: um <code>GroupJoin</code>, e depois "abrir" cada grupo; o <code>DefaultIfEmpty()</code> ("padrão se vazio") troca um grupo vazio por um grupo com um único <code>null</code>.</td></tr>
+<tr><td><code>clientes.RightJoin(pedidos, …)</code></td><td>O espelho: todo <strong>pedido</strong> aparece, e o cliente pode vir <code>null</code> (o pedido 104). Por isso o <code>c?.Nome ?? "…"</code> (veja <a href="operadores-null.html">?. e ??</a>).</td></tr>
+</table>
+</div>
+
+<div class="note">
+<strong>Código antigo usa a receita</strong>
+<p>O <code>LeftJoin</code> e o <code>RightJoin</code> só existem do .NET 10 em diante. Num projeto .NET 8, <code>clientes.LeftJoin(…)</code> dá o erro <code>CS1061</code> (<code>‘List&lt;Cliente&gt;’ não contém uma definição para "LeftJoin"…</code>). Por isso você ainda vai ver muito o <code>join … into</code> + <code>DefaultIfEmpty()</code> em tutoriais e projetos: ele faz a mesma coisa.</p>
+</div>
+
+<hr>
+
+<h2>4. Chave composta: casar por duas coisas</h2>
+<p>A Ana tem duas lojas, Centro e Bairro, e o preço do caderno é diferente em cada uma. Para achar o estoque certo, não basta o nome do produto: a chave é <strong>produto e loja</strong> juntos. Monte as duas chaves como tipos anônimos com os <strong>mesmos nomes de campo, na mesma ordem</strong>:</p>
+
+<pre class="file" data-file="chave.cs">List&lt;Preco&gt; precos = [new("Caderno", "Centro", 15.00m), new("Caderno", "Bairro", 14.00m), new("Caneta", "Centro", 2.50m)];
+List&lt;Estoque&gt; estoques = [new("Caderno", "Bairro", 7), new("Caneta", "Centro", 40)];
+
+var juntos =
+    from p in precos
+    join e in estoques on new { p.Produto, p.Loja } equals new { e.Produto, e.Loja }
+    select $"{p.Produto} na loja {p.Loja}: {e.Quantidade} un. a {p.Valor}";
+foreach (var l in juntos) Console.WriteLine(l);
+
+record Preco(string Produto, string Loja, decimal Valor);
+record Estoque(string Produto, string Loja, int Quantidade);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run chave.cs
+Caderno na loja Bairro: 7 un. a 14,00
+Caneta na loja Centro: 40 un. a 2,50</pre>
+
+<p>O caderno do Centro não tem estoque cadastrado, então sumiu (é um <code>join</code> interno). Dois tipos anônimos são iguais quando <strong>todos</strong> os campos são iguais; é isso que faz a chave composta funcionar. Na forma de método, o mesmo seria <code>p =&gt; new { p.Produto, p.Loja }</code> e <code>e =&gt; new { e.Produto, e.Loja }</code>. Uma <a href="tuplas.html">tupla</a> também serve: <code>p =&gt; (p.Produto, p.Loja)</code>.</p>
+
+<hr>
+
+<h2>5. <code>Zip</code>: juntar pela posição</h2>
+<p>Às vezes as duas listas não têm chave nenhuma: elas simplesmente andam <strong>lado a lado</strong>. O 1º aluno tirou a 1ª nota, o 2º tirou a 2ª, e assim por diante. Para isso existe o <code>Zip</code>, nome que vem do <strong>zíper</strong>: os dentes dos dois lados se encaixam um a um.</p>
+
+<pre class="file" data-file="zip.cs">string[] alunos = ["Ana", "Bruno", "Carla"];
+double[] notas = [9.5, 7.0, 8.0];
+
+foreach (var par in alunos.Zip(notas))
+{
+    Console.WriteLine(par);
+}
+
+foreach (var (aluno, nota) in alunos.Zip(notas))
+{
+    Console.WriteLine($"{aluno} tirou {nota}");
+}
+
+var frases = alunos.Zip(notas, (a, n) =&gt; $"{a}: {n:N1}");
+Console.WriteLine(string.Join(" | ", frases));
+
+string[] turmas = ["A", "B", "A"];
+foreach (var (a, n, t) in alunos.Zip(notas, turmas))
+{
+    Console.WriteLine($"{a} ({t}) = {n}");
+}
+
+int[] curtos = [1, 2];
+Console.WriteLine(alunos.Zip(curtos).Count());
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run zip.cs
+(Ana, 9,5)
+(Bruno, 7)
+(Carla, 8)
+Ana tirou 9,5
+Bruno tirou 7
+Carla tirou 8
+Ana: 9,5 | Bruno: 7,0 | Carla: 8,0
+Ana (A) = 9,5
+Bruno (B) = 7
+Carla (A) = 8
+2</pre>
+
+<dl class="anatomy">
+  <dt>alunos.Zip(notas)</dt><dd>Devolve <a href="tuplas.html">tuplas</a> <code>(First, Second)</code>: <code>(Ana, 9,5)</code>, <code>(Bruno, 7)</code>… <code>First</code> ("primeiro") vem de <code>alunos</code>, <code>Second</code> ("segundo") vem de <code>notas</code>.</dd>
+  <dt>var (aluno, nota)</dt><dd><strong>Desconstrói</strong> cada tupla em duas variáveis com nomes melhores que <code>First</code> e <code>Second</code>.</dd>
+  <dt>Zip(notas, (a, n) =&gt; …)</dt><dd>Com um segundo argumento, o <code>Zip</code> monta o resultado que você quiser em vez da tupla.</dd>
+  <dt>Zip(notas, turmas)</dt><dd>Também junta <strong>três</strong> listas de uma vez, em tuplas de três.</dd>
+  <dt>alunos.Zip(curtos).Count()</dt><dd>Deu <code>2</code>: o <code>Zip</code> para quando a lista <strong>mais curta</strong> acaba. A Carla ficou sem par e foi descartada em silêncio.</dd>
+</dl>
+
+<div class="warning">
+<strong>O <code>Zip</code> não avisa quando sobra gente</strong>
+<p>Se você esqueceu uma nota, o último aluno simplesmente some do resultado, sem erro e sem aviso. Quando as listas <strong>precisam</strong> ter o mesmo tamanho, confira antes: <code>if (alunos.Length != notas.Length) …</code>.</p>
+</div>
+
+<div class="trycs" data-goal="out:Ana tem 29 anos,out:Carla tem 21 anos,src:\.Zip\s*\(">
+<p class="try-task"><strong>Missão:</strong> use <code>Zip</code> para juntar <code>nomes</code> e <code>idades</code> e mostrar uma linha por pessoa: <code>Ana tem 29 anos</code>.</p>
+<pre class="script">string[] nomes = ["Ana", "Bruno", "Carla"];
+int[] idades = [29, 34, 21];
+
+// Use Zip para juntar nomes e idades
+Console.WriteLine(nomes.Length);
+</pre>
+<pre class="solucao">string[] nomes = ["Ana", "Bruno", "Carla"];
+int[] idades = [29, 34, 21];
+
+foreach (var (nome, idade) in nomes.Zip(idades))
+{
+    Console.WriteLine($"{nome} tem {idade} anos");
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Qual usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Use</th><th>Quem fica de fora</th></tr>
+<tr><td>Um par por linha, só quem tem par dos dois lados</td><td><code>Join</code> / <code>join … equals</code></td><td>Os sem par dos dois lados</td></tr>
+<tr><td>Cada item da 1ª lista com a coleção dos seus pares</td><td><code>GroupJoin</code> / <code>join … into</code></td><td>Os sem par da 2ª lista</td></tr>
+<tr><td>Um par por linha, mantendo todos da 1ª lista</td><td><code>LeftJoin</code> <span class="versao">.NET 10</span> (antes: <code>into</code> + <code>DefaultIfEmpty</code>)</td><td>Os sem par da 2ª lista</td></tr>
+<tr><td>Um par por linha, mantendo todos da 2ª lista</td><td><code>RightJoin</code> <span class="versao">.NET 10</span></td><td>Os sem par da 1ª lista</td></tr>
+<tr><td>Casar por duas informações</td><td>Chave composta: <code>new { a, b } equals new { a, b }</code></td><td>Depende do tipo de junção</td></tr>
+<tr><td>Casar pela posição (1º com 1º)</td><td><code>Zip</code></td><td>O que sobra da lista mais longa</td></tr>
+<tr><td>Buscar <strong>um</strong> item pela chave, muitas vezes</td><td>Um <a href="dictionary.html"><code>Dictionary</code></a> (<code>ToDictionary(c =&gt; c.Id)</code>)</td><td>—</td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>E se eu usar dois <code>foreach</code> e um <code>if</code>?</strong>
+<p>Funciona, mas compara cada cliente com <strong>todos</strong> os pedidos: com 1.000 clientes e 1.000 pedidos, são um milhão de comparações. O <code>Join</code> monta uma tabela de busca com as chaves da lista de dentro e procura nela, o que é muito mais rápido em listas grandes, além de ficar mais curto de ler.</p>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<h3>Os lados do <code>equals</code> trocados</h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="troca.cs">List&lt;Cliente&gt; clientes = [new(1, "Ana"), new(2, "Bruno"), new(3, "Carla")];
+List&lt;Pedido&gt; pedidos = [new(101, 1, 45.90m), new(102, 2, 12.50m), new(103, 1, 30.00m), new(104, 9, 99.00m)];
+
+var juntos =
+    from c in clientes
+    join p in pedidos on p.ClienteId equals c.Id
+    select c.Nome;
+Console.WriteLine(juntos.Count());
+
+record Cliente(int Id, string Nome);
+record Pedido(int Numero, int ClienteId, decimal Valor);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run troca.cs
+/home/ana/cs/troca.cs(6,26): error CS1937: O nome "p" não está no escopo à esquerda de "equals". Considere trocar as expressões em cada lado de "equals".
+/home/ana/cs/troca.cs(6,45): error CS1938: O nome "c" não está no escopo à direita de "equals". Considere trocar as expressões em cada lado de "equals".
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> no <code>join</code>, o lado <strong>esquerdo</strong> do <code>equals</code> só enxerga a variável do <code>from</code> (<code>c</code>), e o <strong>direito</strong> só enxerga a do <code>join</code> (<code>p</code>). Em inglês: <em>The name 'p' is not in scope on the left side of 'equals'</em>. <strong>Como consertar:</strong> faça o que a própria mensagem sugere e troque os lados: <code>on c.Id equals p.ClienteId</code>.</p>
+</div>
+
+<div class="cenario">
+<h3>Usar <code>==</code> no lugar de <code>equals</code></h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="igual.cs">List&lt;Cliente&gt; clientes = [new(1, "Ana"), new(2, "Bruno"), new(3, "Carla")];
+List&lt;Pedido&gt; pedidos = [new(101, 1, 45.90m), new(102, 2, 12.50m), new(103, 1, 30.00m), new(104, 9, 99.00m)];
+
+var juntos =
+    from c in clientes
+    join p in pedidos on c.Id == p.ClienteId
+    select c.Nome;
+Console.WriteLine(juntos.Count());
+
+record Cliente(int Id, string Nome);
+record Pedido(int Numero, int ClienteId, decimal Valor);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run igual.cs
+/home/ana/cs/igual.cs(6,45): error CS0744: Palavra-chave contextual esperada 'equals'
+/home/ana/cs/igual.cs(6,45): error CS1525: Termo de expressão inválido "select"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> "esperava a palavra <code>equals</code>". O compilador leu <code>c.Id == p.ClienteId</code> como uma expressão só, ficou esperando o <code>equals</code> e tropeçou no <code>select</code> (o segundo erro é consequência do primeiro). <strong>Como consertar:</strong> <code>on c.Id equals p.ClienteId</code>. O <code>join</code> só sabe comparar por igualdade; para outras condições (maior que, contém…), use <code>from</code> duas vezes e um <code>where</code>.</p>
+</div>
+
+<div class="cenario">
+<h3>Chaves de tipos diferentes</h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="tipos.cs">List&lt;Cliente&gt; clientes = [new(1, "Ana"), new(2, "Bruno")];
+List&lt;Pedido&gt; pedidos = [new(101, "1", 45.90m)];
+
+var juntos = clientes.Join(pedidos, c =&gt; c.Id, p =&gt; p.ClienteId, (c, p) =&gt; c.Nome);
+Console.WriteLine(juntos.Count());
+
+record Cliente(int Id, string Nome);
+record Pedido(int Numero, string ClienteId, decimal Valor);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run tipos.cs
+/home/ana/cs/tipos.cs(4,23): error CS0411: Os argumentos de tipo do método "Enumerable.Join&lt;TOuter, TInner, TKey, TResult&gt;(IEnumerable&lt;TOuter&gt;, IEnumerable&lt;TInner&gt;, Func&lt;TOuter, TKey&gt;, Func&lt;TInner, TKey&gt;, Func&lt;TOuter, TInner, TResult&gt;)" não podem ser inferidos com base no uso. Tente especificar explicitamente os argumentos de tipo.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> a mensagem assusta, mas o ponto é o <code>TKey</code>, que aparece <strong>duas vezes</strong>: as duas chaves precisam ser do mesmo tipo. Aqui uma é <code>int</code> (<code>c.Id</code>) e a outra é <code>string</code> (<code>p.ClienteId</code>), e o compilador não consegue escolher um <code>TKey</code> único. <strong>Como consertar:</strong> deixe as chaves do mesmo tipo, de preferência nos próprios dados (<code>int ClienteId</code>). Se não der, converta num dos lados: <code>c =&gt; c.Id.ToString()</code>.</p>
+</div>
+
+<div class="cenario">
+<h3>Sumiu gente do resultado (sem erro nenhum)</h3>
+<p>O programa compila e roda, mas a Carla não aparece, ou o último aluno do <code>Zip</code> some. <strong>O que quer dizer:</strong> não é bug do LINQ: o <code>Join</code> é interno (só quem tem par) e o <code>Zip</code> para na lista mais curta. <strong>Como consertar:</strong> para manter todos da primeira lista, use <code>GroupJoin</code> ou <code>LeftJoin</code>; no <code>Zip</code>, confira os tamanhos antes.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Exemplo</th><th>Resultado</th></tr>
+<tr><td><code>Join</code></td><td><code>a.Join(b, x =&gt; x.Id, y =&gt; y.AId, (x, y) =&gt; …)</code></td><td>Um item por par que casou</td></tr>
+<tr><td><code>join</code> (consulta)</td><td><code>from x in a join y in b on x.Id equals y.AId select …</code></td><td>Igual ao <code>Join</code></td></tr>
+<tr><td><code>GroupJoin</code></td><td><code>a.GroupJoin(b, x =&gt; x.Id, y =&gt; y.AId, (x, ys) =&gt; …)</code></td><td>Um item por elemento de <code>a</code>, com a coleção <code>ys</code></td></tr>
+<tr><td><code>join … into</code></td><td><code>join y in b on x.Id equals y.AId into ys</code></td><td>Igual ao <code>GroupJoin</code></td></tr>
+<tr><td><code>LeftJoin</code> <span class="versao">.NET 10</span></td><td><code>a.LeftJoin(b, …, (x, y) =&gt; …)</code></td><td>Todos de <code>a</code>; <code>y</code> pode ser <code>null</code></td></tr>
+<tr><td><code>RightJoin</code> <span class="versao">.NET 10</span></td><td><code>a.RightJoin(b, …, (x, y) =&gt; …)</code></td><td>Todos de <code>b</code>; <code>x</code> pode ser <code>null</code></td></tr>
+<tr><td>Left join antigo</td><td><code>… into ys from y in ys.DefaultIfEmpty()</code></td><td>Igual ao <code>LeftJoin</code></td></tr>
+<tr><td>Chave composta</td><td><code>on new { x.A, x.B } equals new { y.A, y.B }</code></td><td>Casa só se as duas partes forem iguais</td></tr>
+<tr><td><code>Zip</code></td><td><code>a.Zip(b)</code>, <code>a.Zip(b, (x, y) =&gt; …)</code>, <code>a.Zip(b, c)</code></td><td>Pares (ou trios) pela posição; para na mais curta</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<p>1. Complete a junção na sintaxe de consulta:</p>
+<div class="ex-code">from c in clientes join p in pedidos on c.Id <input data-answer="equals"> p.ClienteId select c.Nome</div>
+</div>
+
+<div class="exercise">
+<p>2. Que palavra transforma o <code>join</code> num <code>GroupJoin</code>?</p>
+<div class="ex-code">join p in pedidos on c.Id equals p.ClienteId <input data-answer="into"> seus</div>
+</div>
+
+<div class="exercise">
+<p>3. Quantos itens tem <code>new[] { 1, 2, 3, 4 }.Zip(new[] { "a", "b" })</code>?</p>
+<div class="ex-code">Resposta: <input data-answer="2|dois"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Com <code>clientes.Join(pedidos, …)</code>, o que acontece com um cliente que não fez pedido?</p>
+<label><input type="radio" name="q4"> Aparece com o pedido <code>null</code>.</label>
+<label><input type="radio" name="q4"> Não aparece no resultado.</label>
+<label><input type="radio" name="q4"> O programa lança uma exceção.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Você quer uma linha por pedido, inclusive pedidos de clientes que não existem, com "cliente desconhecido". Partindo de <code>clientes</code>, qual método do .NET 10 serve?</p>
+<label><input type="radio" name="q5"> <code>Join</code></label>
+<label><input type="radio" name="q5"> <code>LeftJoin</code></label>
+<label><input type="radio" name="q5"> <code>RightJoin</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que <code>join p in pedidos on p.ClienteId equals c.Id</code> não compila?</p>
+<label><input type="radio" name="q6"> Porque à esquerda do <code>equals</code> só vale a variável do <code>from</code>, e à direita só a do <code>join</code> (<code>CS1937</code>/<code>CS1938</code>).</label>
+<label><input type="radio" name="q6"> Porque <code>equals</code> só compara textos.</label>
+<label><input type="radio" name="q6"> Porque falta o <code>into</code>.</label>
+</div>
+
+<div class="trycs" data-goal="out:Turma A (Manhã): 3 aluno(s) [Ana\, Carla\, Davi],out:Turma C (Noite): 0 aluno(s) [],src:GroupJoin|\binto\b">
+<p class="try-task"><strong>Missão final:</strong> mostre cada turma com a quantidade e os nomes dos seus alunos, no formato <code>Turma A (Manhã): 3 aluno(s) [Ana, Carla, Davi]</code>. A turma C não tem ninguém, mas <strong>precisa aparecer</strong>: use <code>GroupJoin</code> (ou <code>join … into</code>).</p>
+<pre class="script">List&lt;Turma&gt; turmas = [new("A", "Manhã"), new("B", "Tarde"), new("C", "Noite")];
+List&lt;Aluno&gt; alunos = [new("Ana", "A"), new("Bruno", "B"), new("Carla", "A"), new("Davi", "A")];
+
+// Use GroupJoin (ou join ... into) para mostrar cada turma com os seus alunos.
+// Turmas sem ninguém também precisam aparecer.
+
+record Turma(string Codigo, string Turno);
+record Aluno(string Nome, string Turma);
+</pre>
+<pre class="solucao">List&lt;Turma&gt; turmas = [new("A", "Manhã"), new("B", "Tarde"), new("C", "Noite")];
+List&lt;Aluno&gt; alunos = [new("Ana", "A"), new("Bruno", "B"), new("Carla", "A"), new("Davi", "A")];
+
+var resultado = turmas.GroupJoin(
+    alunos,
+    t =&gt; t.Codigo,
+    a =&gt; a.Turma,
+    (t, seus) =&gt; $"Turma {t.Codigo} ({t.Turno}): {seus.Count()} aluno(s) [{string.Join(", ", seus.Select(a =&gt; a.Nome))}]");
+
+foreach (var linha in resultado)
+{
+    Console.WriteLine(linha);
+}
+
+record Turma(string Codigo, string Turno);
+record Aluno(string Nome, string Turma);
+</pre>
+</div>
+
+<p>A solução, rodando na máquina da Ana:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run turmas.cs
+Turma A (Manhã): 3 aluno(s) [Ana, Carla, Davi]
+Turma B (Tarde): 1 aluno(s) [Bruno]
+Turma C (Noite): 0 aluno(s) []</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Juntar é casar os itens de duas listas por uma <strong>chave</strong> que aparece nas duas (o <code>Id</code> do cliente e o <code>ClienteId</code> do pedido). As chaves precisam ser do mesmo tipo (senão, <code>CS0411</code>).</li>
+  <li><code>Join</code> (ou <code>join … in … on … equals …</code>) é a junção interna: só entra quem tem par dos dois lados. No <code>equals</code>, a lista de fora fica à esquerda (senão, <code>CS1937</code>/<code>CS1938</code>), e <code>==</code> não vale (<code>CS0744</code>).</li>
+  <li><code>GroupJoin</code> (ou <code>join … into</code>) dá cada item da primeira lista com a <strong>coleção</strong> dos seus pares, mesmo vazia.</li>
+  <li><code>LeftJoin</code> e <code>RightJoin</code> <span class="versao">.NET 10</span> mantêm todos de um lado, com <code>null</code> no outro; antes, a receita era <code>into</code> + <code>DefaultIfEmpty()</code>.</li>
+  <li>Chave composta: <code>new { x.A, x.B } equals new { y.A, y.B }</code>.</li>
+  <li><code>Zip</code> junta pela <strong>posição</strong>, devolve tuplas <code>(First, Second)</code> e para quando a lista mais curta acaba, sem avisar.</li>
+</ul>
+
+<p>Próxima aula: <a href="pattern-matching.html">Pattern Matching</a>, o jeito moderno de perguntar "que forma tem este objeto?".</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
