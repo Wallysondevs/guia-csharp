@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# finally — o código que roda sempre | Guia C#</title>
+<meta name="description" content="O bloco finally em C#: o que roda com e sem exceção, try/finally sem catch, finally com return, break e continue, fechar arquivos com finally, os erros CS0157 e CS1524 e os casos em que o finally não roda, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">finally</span></h1>
+
+<p class="intro">Na aula <a href="try-catch.html">try e catch</a>, você aprendeu a tratar uma exceção. Mas há coisas que precisam acontecer <strong>dando certo ou dando errado</strong>: fechar um arquivo, devolver uma conexão, mostrar "fim do atendimento". Para isso existe um terceiro bloco, o <code>finally</code> ("finalmente"). Nesta aula você vai ver quando ele roda, em que ordem, como ele salva os dados de um arquivo e os poucos casos em que ele <strong>não</strong> roda.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Escrever <code>try</code>/<code>catch</code>/<code>finally</code> e o caminho do programa em cada caso.</li>
+  <li>Usar <code>try</code>/<code>finally</code> sem <code>catch</code>, deixando a exceção subir.</li>
+  <li>O que acontece com o <code>finally</code> quando a exceção não é tratada.</li>
+  <li>O <code>finally</code> junto com <code>return</code>, <code>break</code> e <code>continue</code>.</li>
+  <li>Fechar um arquivo no <code>finally</code>, e o que se perde quando ele não é fechado.</li>
+  <li>Os erros <code>CS0157</code>, <code>CS1524</code> e <code>CS0103</code>, e quando o <code>finally</code> não roda.</li>
+</ul>
+</div>
+
+<p>Todos os programas rodaram na máquina da Ana, com o .NET 10 (C# 14), usando <code>dotnet run arquivo.cs</code> na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código</h2>
+<p>No fim do expediente, a Ana fecha o caixa da lojinha. Não importa como foi o dia: vendeu muito, vendeu pouco, a maquininha deu problema, faltou troco. O caixa <strong>sempre</strong> é fechado, contado e trancado antes de ela ir embora. Se ela esquecer num dia ruim, justamente no dia em que tudo deu errado, o prejuízo é maior.</p>
+<p>O <code>finally</code> é esse "fechar o caixa": um bloco que roda <strong>sempre</strong> no fim do <code>try</code>, tenha acontecido exceção ou não, tenha ela sido tratada ou não.</p>
+
+<hr>
+
+<h2>1. <code>try</code>, <code>catch</code> e <code>finally</code></h2>
+<p>O programa abaixo registra duas vendas. A primeira dá certo; a segunda tem um valor inválido:</p>
+
+<pre class="file" data-file="caixa.cs">string[] valores = ["10", "abc"];
+foreach (string v in valores)
+{
+    Console.WriteLine($"--- {v} ---");
+    try
+    {
+        Console.WriteLine("Abrindo o caixa");
+        int n = int.Parse(v);
+        Console.WriteLine($"Venda de R$ {n}");
+    }
+    catch (FormatException)
+    {
+        Console.WriteLine("Valor inválido");
+    }
+    finally
+    {
+        Console.WriteLine("Fechando o caixa");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run caixa.cs
+--- 10 ---
+Abrindo o caixa
+Venda de R$ 10
+Fechando o caixa
+--- abc ---
+Abrindo o caixa
+Valor inválido
+Fechando o caixa</pre>
+
+<dl class="anatomy">
+  <dt>try { … }</dt><dd>O código vigiado, como na aula anterior.</dd>
+  <dt>catch (FormatException) { … }</dt><dd>Roda só se o <code>try</code> lançar <code>FormatException</code>.</dd>
+  <dt>finally</dt><dd>"Finalmente." Vem <strong>depois</strong> de todos os <code>catch</code>, e só pode haver um.</dd>
+  <dt>{ Console.WriteLine("Fechando o caixa"); }</dt><dd>Roda sempre: depois do <code>try</code> que deu certo, ou depois do <code>catch</code> que tratou o problema.</dd>
+</dl>
+
+<p>Os dois caminhos, lado a lado:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Bloco</th><th>Com <code>"10"</code> (tudo certo)</th><th>Com <code>"abc"</code> (exceção)</th></tr>
+<tr><td><code>try</code></td><td>roda inteiro</td><td>roda até o <code>int.Parse</code>; o resto é pulado</td></tr>
+<tr><td><code>catch (FormatException)</code></td><td>pulado</td><td>roda</td></tr>
+<tr><td><code>finally</code></td><td><strong>roda</strong></td><td><strong>roda</strong></td></tr>
+<tr><td>depois do bloco todo</td><td>roda</td><td>roda</td></tr>
+</table>
+</div>
+
+<p>Se é para rodar sempre, por que não escrever a linha simplesmente depois do <code>try</code>/<code>catch</code>? Porque "depois" nem sempre é alcançado: a exceção pode não ser do tipo do <code>catch</code>, o <code>catch</code> pode lançar outra, o método pode ter um <code>return</code> no meio. O <code>finally</code> roda em todos esses casos, como as próximas seções mostram.</p>
+
+<div class="trycs" data-goal="outre:Fechando o caixa[\s\S]*Fechando o caixa,src:finally">
+<p class="try-task"><strong>Missão:</strong> o programa "esquece" de fechar o caixa. Acrescente um <code>finally</code>, depois do <code>catch</code>, que mostre <code>Fechando o caixa</code>. A mensagem deve aparecer nas <strong>duas</strong> vendas.</p>
+<pre class="script" data-file="caixa.cs">string[] valores = ["10", "abc"];
+foreach (string v in valores)
+{
+    Console.WriteLine($"--- {v} ---");
+    try
+    {
+        Console.WriteLine("Abrindo o caixa");
+        int n = int.Parse(v);
+        Console.WriteLine($"Venda de R$ {n}");
+    }
+    catch (FormatException)
+    {
+        Console.WriteLine("Valor inválido");
+    }
+}
+</pre>
+<pre class="solucao" data-file="caixa.cs">string[] valores = ["10", "abc"];
+foreach (string v in valores)
+{
+    Console.WriteLine($"--- {v} ---");
+    try
+    {
+        Console.WriteLine("Abrindo o caixa");
+        int n = int.Parse(v);
+        Console.WriteLine($"Venda de R$ {n}");
+    }
+    catch (FormatException)
+    {
+        Console.WriteLine("Valor inválido");
+    }
+    finally
+    {
+        Console.WriteLine("Fechando o caixa");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. <code>try</code>/<code>finally</code> sem <code>catch</code></h2>
+<p>O <code>catch</code> é opcional. Um <code>try</code> pode ter só o <code>finally</code>. Isso faz sentido quando o método <strong>não sabe</strong> tratar o problema, mas precisa arrumar a casa antes de a exceção subir para quem o chamou:</p>
+
+<pre class="file" data-file="sobe.cs">try
+{
+    Vender("abc");
+}
+catch (FormatException)
+{
+    Console.WriteLine("Main: valor inválido");
+}
+
+void Vender(string valor)
+{
+    try
+    {
+        Console.WriteLine("Abrindo o caixa");
+        int n = int.Parse(valor);
+        Console.WriteLine($"Venda de R$ {n}");
+    }
+    finally
+    {
+        Console.WriteLine("Fechando o caixa");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sobe.cs
+Abrindo o caixa
+Fechando o caixa
+Main: valor inválido</pre>
+
+<p>Siga a ordem: o <code>int.Parse</code> lançou dentro de <code>Vender</code>. Ali não há <code>catch</code>, então a exceção vai subir, mas <strong>antes</strong> de sair do método o <code>finally</code> roda (<code>Fechando o caixa</code>). Só então a exceção chega às instruções do topo, onde o <code>catch</code> a trata (<code>Main: valor inválido</code>).</p>
+
+<p>As combinações permitidas são três: <code>try</code>/<code>catch</code>, <code>try</code>/<code>finally</code> e <code>try</code>/<code>catch</code>/<code>finally</code>. Um <code>try</code> sozinho é erro (<code>CS1524</code>, em <a href="#errado">Quando dá errado</a>).</p>
+
+<hr>
+
+<h2>3. E se ninguém tratar a exceção?</h2>
+<p>Sem nenhum <code>catch</code> no caminho, a exceção encerra o programa. O <code>finally</code> roda mesmo assim, mas repare <strong>quando</strong>:</p>
+
+<pre class="file" data-file="naotratada.cs">try
+{
+    Console.WriteLine("Abrindo o caixa");
+    int n = int.Parse("abc");
+}
+finally
+{
+    Console.WriteLine("Fechando o caixa");
+}
+Console.WriteLine("Fim");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run naotratada.cs
+Abrindo o caixa
+Unhandled exception. System.FormatException: The input string 'abc' was not in a correct format.
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+   at System.Int32.Parse(String s)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/naotratada.cs:line 4
+Fechando o caixa
+$ echo $?
+134</pre>
+
+<p>O relatório da exceção apareceu <strong>antes</strong> do <code>Fechando o caixa</code>. O .NET trabalha em duas etapas: primeiro ele procura um <code>catch</code> em toda a pilha; como não achou nenhum, já escreve o relatório. Depois ele desce a pilha rodando os <code>finally</code> e, por fim, encerra o programa com 134. O <code>Fim</code>, que está fora do <code>try</code>, nunca roda.</p>
+
+<div class="note">
+<strong>No editor do guia, a ordem é outra</strong>
+<p>Rodando este programa no editor desta página, o <code>Fechando o caixa</code> aparece <strong>antes</strong> do relatório. O resultado é o mesmo (o <code>finally</code> rodou e o código de saída é 134); só a ordem das linhas muda. Isso só acontece com exceção <strong>não tratada</strong>; quando há um <code>catch</code>, a ordem é igual nos dois.</p>
+</div>
+
+<hr>
+
+<h2>4. <code>finally</code> com <code>return</code>, <code>break</code> e <code>continue</code></h2>
+<p>O <code>finally</code> também roda quando o <code>try</code> termina "pulando para fora" sem exceção nenhuma. O caso mais comum é um <code>return</code>:</p>
+
+<pre class="file" data-file="retorno.cs">Console.WriteLine(Dobro(21));
+
+int Dobro(int n)
+{
+    try
+    {
+        Console.WriteLine("No try, antes do return");
+        return n * 2;
+    }
+    finally
+    {
+        Console.WriteLine("No finally");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run retorno.cs
+No try, antes do return
+No finally
+42</pre>
+
+<p>O <code>return n * 2;</code> calcula o valor (<code>42</code>) e se prepara para sair do método. Antes de sair, roda o <code>finally</code> (<code>No finally</code>). Só depois o <code>42</code> chega ao <code>Console.WriteLine</code> da linha 1, que o mostra.</p>
+
+<p>Num laço, <code>break</code> e <code>continue</code> (aula <a href="break-continue.html">break e continue</a>) também passam pelo <code>finally</code>:</p>
+
+<pre class="file" data-file="laco.cs">for (int i = 1; i &lt;= 3; i++)
+{
+    try
+    {
+        if (i == 2) continue;
+        if (i == 3) break;
+        Console.WriteLine($"Volta {i}");
+    }
+    finally
+    {
+        Console.WriteLine($"finally da volta {i}");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run laco.cs
+Volta 1
+finally da volta 1
+finally da volta 2
+finally da volta 3</pre>
+
+<dl class="anatomy">
+  <dt>Volta 1</dt><dd>O <code>try</code> rodou inteiro; depois, o <code>finally</code>.</dd>
+  <dt>Volta 2</dt><dd>O <code>continue</code> pulou para a próxima volta, mas passou pelo <code>finally</code> antes.</dd>
+  <dt>Volta 3</dt><dd>O <code>break</code> saiu do laço, também passando pelo <code>finally</code>.</dd>
+</dl>
+
+<hr>
+
+<h2>5. O uso de verdade: fechar o que foi aberto</h2>
+<p>Mostrar mensagens é bom para entender, mas o trabalho real do <code>finally</code> é <strong>liberar recursos</strong>: fechar arquivos, conexões com bancos de dados, conexões de rede. A Ana grava a lista de compras num arquivo com um <code>StreamWriter</code> ("escritor de fluxo", aula <a href="streams.html">StreamReader e StreamWriter</a>). No meio, uma quantidade inválida lança uma exceção:</p>
+
+<div class="warning"><strong>Este código perde dados de propósito.</strong></div>
+<pre class="file" data-file="lista.cs">var escritor = new StreamWriter("compras.txt");
+try
+{
+    escritor.WriteLine("arroz");
+    escritor.WriteLine("feijão");
+    int quantidade = int.Parse("duas");
+    escritor.WriteLine($"café x{quantidade}");
+}
+catch (FormatException)
+{
+    Console.WriteLine("Quantidade inválida");
+}
+Console.WriteLine("Fim do programa");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run lista.cs
+Quantidade inválida
+Fim do programa
+$ ls -l compras.txt
+-rw-rw-r-- 1 ana ana 0 out 17 13:02 compras.txt
+$ cat compras.txt</pre>
+
+<p>O arquivo foi criado, mas tem <strong>0 bytes</strong>: nem o <code>arroz</code> nem o <code>feijão</code>, que foram escritos <em>antes</em> da exceção, chegaram ao disco. O motivo: o <code>StreamWriter</code> guarda o texto numa área de memória (o <em>buffer</em>) e só grava no disco de vez em quando, ou quando é <strong>fechado</strong>. Ninguém o fechou, e o texto se perdeu quando o programa terminou.</p>
+
+<p>Com o <code>Close()</code> ("fechar") no <code>finally</code>, o arquivo é fechado com ou sem exceção:</p>
+
+<pre class="file" data-file="lista2.cs">var escritor = new StreamWriter("compras.txt");
+try
+{
+    escritor.WriteLine("arroz");
+    escritor.WriteLine("feijão");
+    int quantidade = int.Parse("duas");
+    escritor.WriteLine($"café x{quantidade}");
+}
+catch (FormatException)
+{
+    Console.WriteLine("Quantidade inválida");
+}
+finally
+{
+    escritor.Close();
+    Console.WriteLine("Arquivo fechado");
+}
+Console.WriteLine("Fim do programa");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run lista2.cs
+Quantidade inválida
+Arquivo fechado
+Fim do programa
+$ cat compras.txt
+arroz
+feijão</pre>
+
+<dl class="anatomy">
+  <dt>var escritor = new StreamWriter("compras.txt");</dt><dd>Abre (e cria) o arquivo. Fica <strong>fora</strong> do <code>try</code>: assim a variável existe no <code>finally</code>. Se a abertura falhar, não há nada para fechar, e o <code>finally</code> nem é alcançado.</dd>
+  <dt>escritor.WriteLine("arroz");</dt><dd>Escreve no buffer, ainda não no disco.</dd>
+  <dt>escritor.Close();</dt><dd>Grava o que estava no buffer e fecha o arquivo.</dd>
+</dl>
+
+<p>O <code>café</code> não entrou, porque a linha dele nunca rodou, mas o que já tinha sido escrito foi salvo. É isso que o <code>finally</code> garante.</p>
+
+<div class="trycs" data-goal="out:feijão,src:finally">
+<p class="try-task"><strong>Missão:</strong> rode e veja que o arquivo sai vazio (depois de <code>No arquivo:</code> não aparece nada). Acrescente um <code>finally</code> que feche o escritor com <code>escritor.Close();</code> e rode de novo: o <code>arroz</code> e o <code>feijão</code> devem aparecer.</p>
+<pre class="script" data-file="lista.cs">var escritor = new StreamWriter("compras.txt");
+try
+{
+    escritor.WriteLine("arroz");
+    escritor.WriteLine("feijão");
+    int quantidade = int.Parse("duas");
+    escritor.WriteLine($"café x{quantidade}");
+}
+catch (FormatException)
+{
+    Console.WriteLine("Quantidade inválida");
+}
+Console.WriteLine("No arquivo:");
+Console.WriteLine(File.ReadAllText("compras.txt"));
+</pre>
+<pre class="solucao" data-file="lista.cs">var escritor = new StreamWriter("compras.txt");
+try
+{
+    escritor.WriteLine("arroz");
+    escritor.WriteLine("feijão");
+    int quantidade = int.Parse("duas");
+    escritor.WriteLine($"café x{quantidade}");
+}
+catch (FormatException)
+{
+    Console.WriteLine("Quantidade inválida");
+}
+finally
+{
+    escritor.Close();
+}
+Console.WriteLine("No arquivo:");
+Console.WriteLine(File.ReadAllText("compras.txt"));
+</pre>
+</div>
+
+<h3>Quando a abertura também pode falhar</h3>
+<p>Às vezes a própria abertura precisa estar dentro do <code>try</code>, porque é ela que pode lançar (uma pasta que não existe, um arquivo sem permissão). Aí a variável é declarada antes, valendo <code>null</code>, e o <code>finally</code> só fecha se ela chegou a ser criada:</p>
+
+<pre class="file" data-file="nulo.cs">StreamWriter? escritor = null;
+try
+{
+    escritor = new StreamWriter("/pasta-que-nao-existe/compras.txt");
+    escritor.WriteLine("arroz");
+}
+catch (DirectoryNotFoundException e)
+{
+    Console.WriteLine($"Não deu para criar: {e.Message}");
+}
+finally
+{
+    escritor?.Close();
+    Console.WriteLine("finally rodou");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run nulo.cs
+Não deu para criar: Could not find a part of the path '/pasta-que-nao-existe/compras.txt'.
+finally rodou</pre>
+
+<dl class="anatomy">
+  <dt>StreamWriter? escritor = null;</dt><dd>O <code>?</code> diz que a variável pode ficar <code>null</code> (aula <a href="referencias-anulaveis.html">Referências Anuláveis</a>). Ela nasce fora do <code>try</code> para existir no <code>finally</code>.</dd>
+  <dt>DirectoryNotFoundException</dt><dd>"Pasta não encontrada": <em>Could not find a part of the path</em>, "não foi possível encontrar uma parte do caminho".</dd>
+  <dt>escritor?.Close();</dt><dd>O <code>?.</code> só chama <code>Close()</code> se <code>escritor</code> não for <code>null</code> (aula <a href="operadores-null.html">Operadores ??, ?. e ??=</a>). Aqui ele é <code>null</code>, porque a abertura falhou, e nada acontece.</dd>
+</dl>
+
+<div class="tip">
+<strong>Existe um jeito mais curto: <code>using</code></strong>
+<p>Abrir, usar e fechar no <code>finally</code> é tão comum que o C# tem um atalho para isso: <code>using var escritor = new StreamWriter("compras.txt");</code>. O compilador gera o <code>try</code>/<code>finally</code> sozinho. É a forma que o guia usa com arquivos, e ela tem aula própria: <a href="using-dispose.html">using e IDisposable</a>. Vale entender o <code>finally</code> primeiro, porque é exatamente isso que o <code>using</code> faz por baixo.</p>
+</div>
+
+<hr>
+
+<h2>Formas diferentes, qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Forma</th></tr>
+<tr><td>Tratar um problema</td><td><code>try</code>/<code>catch</code></td></tr>
+<tr><td>Arrumar a casa, mas deixar a exceção subir</td><td><code>try</code>/<code>finally</code></td></tr>
+<tr><td>Tratar e arrumar a casa</td><td><code>try</code>/<code>catch</code>/<code>finally</code></td></tr>
+<tr><td>Fechar arquivo, conexão ou qualquer coisa com <code>Dispose()</code></td><td><code>using</code> (é um <code>try</code>/<code>finally</code> pronto): <a href="using-dispose.html">using e IDisposable</a></td></tr>
+<tr><td>Algo que só deve rodar quando deu certo</td><td>No fim do <code>try</code>, não no <code>finally</code></td></tr>
+<tr><td>Algo que só deve rodar quando deu errado</td><td>No <code>catch</code>, não no <code>finally</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS1524: "Catch ou finally esperado"</strong>
+<pre class="file" data-file="sotry.cs">try
+{
+    Console.WriteLine("oi");
+}
+Console.WriteLine("fim");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run sotry.cs
+/home/ana/cs/sotry.cs(4,1): error CS1524: Catch ou finally esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> um <code>try</code> sozinho não serve para nada; depois das chaves dele, o compilador esperava um <code>catch</code> ou um <code>finally</code>.</p>
+<p><strong>Como consertar:</strong> acrescente o <code>catch</code> ou o <code>finally</code> que faltou, ou tire o <code>try</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0157: <code>return</code> dentro do <code>finally</code></strong>
+<pre class="file" data-file="retfin.cs">Console.WriteLine(Teste());
+int Teste()
+{
+    try
+    {
+        return 1;
+    }
+    finally
+    {
+        return 2;
+    }
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run retfin.cs
+/home/ana/cs/retfin.cs(10,9): error CS0157: O controle não pode sair do corpo de uma cláusula finally
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> "o controle não pode sair do corpo de um <code>finally</code>". O <code>finally</code> é para arrumar a casa, não para decidir o resultado. <code>return</code>, <code>break</code> e <code>continue</code> que saiam dele são proibidos (em Java isso é permitido, e é fonte de defeitos difíceis de achar).</p>
+<p><strong>Como consertar:</strong> deixe o <code>return</code> no <code>try</code> (ou depois do bloco) e use o <code>finally</code> só para liberar recursos.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0103: a variável do <code>try</code> não existe no <code>finally</code></strong>
+<pre class="file" data-file="escopo.cs">try
+{
+    var escritor = new StreamWriter("compras.txt");
+    escritor.WriteLine("arroz");
+}
+finally
+{
+    escritor.Close();
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run escopo.cs
+/home/ana/cs/escopo.cs(8,5): error CS0103: O nome "escritor" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>try</code> e o <code>finally</code> são blocos separados; o que nasce num não existe no outro (aula <a href="escopo.html">Escopo</a>).</p>
+<p><strong>Como consertar:</strong> declare a variável antes do <code>try</code>, como em <code>lista2.cs</code> ou em <code>nulo.cs</code>. Ou use <code>using</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>O <code>finally</code> não rodou</strong>
+<p>Há poucos casos, todos em que o programa é encerrado "à força":</p>
+<pre class="file" data-file="sair.cs">try
+{
+    Console.WriteLine("Saindo com Environment.Exit");
+    Environment.Exit(3);
+}
+finally
+{
+    Console.WriteLine("finally");
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run sair.cs
+Saindo com Environment.Exit
+$ echo $?
+3</pre>
+<p><strong>O que significa:</strong> <code>Environment.Exit(3)</code> encerra o programa na hora, com o código de saída 3, sem passar pelos <code>finally</code>. O mesmo acontece num estouro da pilha (<code>Stack overflow.</code>, aula <a href="excecoes.html">Exceções</a>), quando a memória acaba ou quando o processo é morto de fora (<code>kill -9</code>, falta de luz).</p>
+<p><strong>Como consertar:</strong> evite <code>Environment.Exit</code> no meio do programa; prefira terminar normalmente (um <code>return</code> nas instruções do topo). E nunca confie no <code>finally</code> para algo que precisa sobreviver a uma queda de energia: para isso, grave os dados assim que puder.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Sintaxe / caso</th><th>O que acontece</th></tr>
+<tr><td><code>try { … } finally { … }</code></td><td>O <code>finally</code> roda sempre; a exceção, se houver, continua subindo</td></tr>
+<tr><td><code>try { … } catch (T) { … } finally { … }</code></td><td>O <code>finally</code> roda depois do <code>try</code> ou do <code>catch</code></td></tr>
+<tr><td><code>return</code> no <code>try</code></td><td>O valor é calculado, o <code>finally</code> roda, e só então o método devolve</td></tr>
+<tr><td><code>break</code> / <code>continue</code> no <code>try</code></td><td>O <code>finally</code> roda antes de sair da volta</td></tr>
+<tr><td>Exceção não tratada</td><td>O relatório sai primeiro, depois roda o <code>finally</code>, depois o programa termina com 134</td></tr>
+<tr><td><code>Environment.Exit(n)</code>, <code>Stack overflow</code>, <code>kill -9</code></td><td>O <code>finally</code> <strong>não</strong> roda</td></tr>
+<tr><td><code>CS1524</code></td><td><code>try</code> sem <code>catch</code> nem <code>finally</code></td></tr>
+<tr><td><code>CS0157</code></td><td><code>return</code>, <code>break</code> ou <code>continue</code> saindo do <code>finally</code></td></tr>
+<tr><td><code>CS0103</code></td><td>Variável declarada no <code>try</code> usada no <code>finally</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O bloco que sempre roda</h3>
+<p>Complete:</p>
+<div class="ex-code">try { … } catch (FormatException) { … } <input data-answer="finally" aria-label="palavra-chave"> { escritor.Close(); }</div>
+</div>
+
+<div class="exercise">
+<h3>2. Fechar se existir</h3>
+<p>Complete com o operador que só chama <code>Close()</code> se <code>escritor</code> não for <code>null</code>:</p>
+<div class="ex-code">escritor<input data-answer="?." aria-label="operador">Close();</div>
+</div>
+
+<div class="exercise">
+<h3>3. O código do erro</h3>
+<p>Que erro (<code>CSxxxx</code>) dá um <code>return</code> dentro do <code>finally</code>?</p>
+<div class="ex-code"><input data-answer="CS0157" aria-label="código"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O que este trecho mostra?</p>
+<pre class="file" data-file="trecho.cs">try
+{
+    Console.WriteLine("A");
+    int x = int.Parse("x");
+    Console.WriteLine("B");
+}
+catch (FormatException)
+{
+    Console.WriteLine("C");
+}
+finally
+{
+    Console.WriteLine("D");
+}
+Console.WriteLine("E");
+</pre>
+<label><input type="radio" name="q4"> A B C D E</label>
+<label><input type="radio" name="q4"> A C D E</label>
+<label><input type="radio" name="q4"> A C E</label>
+<label><input type="radio" name="q4"> A D E</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Um método tem <code>try { return 5; } finally { Console.WriteLine("F"); }</code>. O que acontece ao chamá-lo?</p>
+<label><input type="radio" name="q5"> Devolve 5 e o <code>finally</code> não roda, porque o <code>return</code> sai do método.</label>
+<label><input type="radio" name="q5"> Não compila: <code>return</code> não pode ficar dentro de <code>try</code>.</label>
+<label><input type="radio" name="q5"> Mostra <code>F</code> e depois devolve 5.</label>
+<label><input type="radio" name="q5"> Devolve 5 e mostra <code>F</code> na próxima chamada.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Em qual caso o <code>finally</code> <strong>não</strong> roda?</p>
+<label><input type="radio" name="q6"> O <code>try</code> lança uma exceção que nenhum <code>catch</code> trata.</label>
+<label><input type="radio" name="q6"> O <code>try</code> tem um <code>break</code> dentro de um laço.</label>
+<label><input type="radio" name="q6"> O <code>catch</code> trata a exceção.</label>
+<label><input type="radio" name="q6"> O <code>try</code> chama <code>Environment.Exit(1)</code>.</label>
+</div>
+
+<div class="trycs" data-goal="outre:Abrindo o caixa\nFechando o caixa\nMain: valor inválido,src:finally">
+<p class="try-task"><strong>Missão final:</strong> o método <code>Vender</code> não sabe tratar o valor inválido (quem trata é o código do topo), mas precisa fechar o caixa de qualquer jeito. Acrescente ao <code>try</code> de <code>Vender</code> um <code>finally</code> (sem <code>catch</code>!) que mostre <code>Fechando o caixa</code>.</p>
+<pre class="script" data-file="sobe.cs">try
+{
+    Vender("abc");
+}
+catch (FormatException)
+{
+    Console.WriteLine("Main: valor inválido");
+}
+
+void Vender(string valor)
+{
+    Console.WriteLine("Abrindo o caixa");
+    int n = int.Parse(valor);
+    Console.WriteLine($"Venda de R$ {n}");
+}
+</pre>
+<pre class="solucao" data-file="sobe.cs">try
+{
+    Vender("abc");
+}
+catch (FormatException)
+{
+    Console.WriteLine("Main: valor inválido");
+}
+
+void Vender(string valor)
+{
+    try
+    {
+        Console.WriteLine("Abrindo o caixa");
+        int n = int.Parse(valor);
+        Console.WriteLine($"Venda de R$ {n}");
+    }
+    finally
+    {
+        Console.WriteLine("Fechando o caixa");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>finally</code> vem depois dos <code>catch</code> e roda <strong>sempre</strong>: com sucesso, com exceção tratada e com exceção não tratada (nesse caso, depois do relatório).</li>
+  <li><code>try</code>/<code>finally</code> sem <code>catch</code> arruma a casa e deixa a exceção subir para quem sabe tratá-la.</li>
+  <li><code>return</code>, <code>break</code> e <code>continue</code> no <code>try</code> passam pelo <code>finally</code> antes de sair. Sair <em>de dentro</em> do <code>finally</code> é proibido (<code>CS0157</code>).</li>
+  <li>O uso de verdade é liberar recursos: um <code>StreamWriter</code> que não é fechado pode perder tudo o que foi escrito.</li>
+  <li>A variável do recurso nasce <strong>antes</strong> do <code>try</code> (senão, <code>CS0103</code>); se a abertura pode falhar, comece com <code>null</code> e feche com <code>?.Close()</code>.</li>
+  <li>O <code>finally</code> não roda com <code>Environment.Exit</code>, estouro da pilha ou processo morto.</li>
+  <li>Na prática, para arquivos, use <code>using</code>, que gera o <code>try</code>/<code>finally</code> para você.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
