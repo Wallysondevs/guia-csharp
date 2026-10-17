@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Arrays — vários valores numa variável só | Guia C#</title>
+<meta name="description" content="Arrays em C# para quem nunca programou: criar com int[] notas = [7, 8, 6] (expressão de coleção do C# 12) ou new int[5], o índice que começa em 0, Length, trocar um elemento, percorrer com for e foreach, soma, média, maior valor e busca, os valores padrão (0, false, null), mostrar com string.Join, por que b = a não copia e a == b não compara, e a IndexOutOfRangeException real com código 134, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Arrays</span></h1>
+
+<p class="intro">A Ana dá aula para uma turma de 5 alunos e quer guardar as notas. Com o que você viu até aqui, ela criaria <code>nota1</code>, <code>nota2</code>, <code>nota3</code>, <code>nota4</code> e <code>nota5</code>. E se a turma tiver 40 alunos? Quarenta variáveis, quarenta <code>Console.WriteLine</code>, e nenhum laço consegue passar por elas, porque cada uma tem um nome diferente. O <strong>array</strong> (em inglês, "arranjo", "fileira"; em português também se diz <strong>vetor</strong> ou <strong>matriz</strong>) resolve isso: <strong>uma</strong> variável que guarda <strong>vários valores do mesmo tipo</strong>, um ao lado do outro, cada um com um número de posição.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como criar um array: <code>int[] notas = [7, 8, 6, 9, 10];</code> e <code>new int[5]</code>.</li>
+  <li>Por que a primeira posição é a <strong>0</strong>, e como ler e trocar um elemento pelo <strong>índice</strong>.</li>
+  <li>O <code>Length</code>, e como percorrer o array com <code>for</code> e com <code>foreach</code>.</li>
+  <li>As receitas que todo programa usa: somar, tirar a média, achar o maior e procurar.</li>
+  <li>Os valores que um array novo já tem (<code>0</code>, <code>false</code>, <code>null</code>) e como mostrar o array inteiro com <code>string.Join</code>.</li>
+  <li>Por que <code>b = a</code> não copia e <code>a == b</code> não compara os valores.</li>
+  <li>O erro mais comum: o índice que passa do fim, e a <code>IndexOutOfRangeException</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas foram rodados com o <strong>.NET 10</strong> (<code>dotnet --version</code> = <code>10.0.112</code>, C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Antes desta aula, é bom ter visto o <a href="for.html">for</a> e o <a href="foreach.html">foreach</a>: arrays e laços andam sempre juntos.</p>
+
+<hr>
+
+<h2>A ideia: a fileira de armários numerados</h2>
+<p>Pense nos armários de um vestiário: uma fileira de portinhas iguais, coladas uma na outra. A fileira tem <strong>um nome</strong> ("armários da turma B") e cada portinha tem <strong>um número</strong>. Para guardar ou pegar alguma coisa, você não precisa de um nome novo para cada armário: diz "armário 3 da turma B".</p>
+
+<p>Um array é exatamente isso:</p>
+<ul>
+  <li>a fileira inteira tem <strong>um nome</strong>: <code>notas</code>;</li>
+  <li>todas as portinhas guardam o <strong>mesmo tipo</strong> de coisa: <code>int</code>, por exemplo;</li>
+  <li>cada portinha tem um <strong>número de posição</strong>, o <strong>índice</strong>, escrito entre colchetes: <code>notas[3]</code>;</li>
+  <li>o número de portinhas é decidido quando a fileira é construída e <strong>não muda</strong> depois.</li>
+</ul>
+
+<p>Só tem uma surpresa: a contagem das portinhas começa no <strong>0</strong>, não no 1. Já já você vê o porquê.</p>
+
+<hr>
+
+<h2>1. O primeiro array</h2>
+
+<pre class="file" data-file="notas.cs">int[] notas = [7, 8, 6, 9, 10];
+Console.WriteLine($"Primeira nota: {notas[0]}");
+Console.WriteLine($"Terceira nota: {notas[2]}");
+Console.WriteLine($"Última nota: {notas[4]}");
+Console.WriteLine($"Quantas notas: {notas.Length}");
+</pre>
+
+<dl class="anatomy">
+  <dt>int[]</dt><dd>O tipo: "array de <code>int</code>". Os colchetes vazios <strong>depois do tipo</strong> dizem que não é um <code>int</code> só, e sim uma fileira deles. Todos os elementos são <code>int</code>: um array não mistura tipos.</dd>
+  <dt>notas</dt><dd>O nome do array, com as regras de qualquer variável (aula <a href="identificadores.html">Nomes e Convenções</a>). Costuma ir no plural: <code>notas</code>, <code>precos</code>, <code>alunos</code>.</dd>
+  <dt>= [7, 8, 6, 9, 10]</dt><dd>Os valores iniciais, entre <strong>colchetes</strong>, separados por vírgula, na ordem das posições. Isso se chama <strong>expressão de coleção</strong> <span class="versao">C# 12</span>. O compilador conta os valores: o array tem 5 elementos.</dd>
+  <dt>notas[0]</dt><dd>Depois de criado, o número entre colchetes ao lado do nome é o <strong>índice</strong>, a posição que você quer. <code>notas[0]</code> é o primeiro elemento, que vale 7.</dd>
+  <dt>notas[4]</dt><dd>O último. Num array de 5, as posições vão de <strong>0 a 4</strong>.</dd>
+  <dt>notas.Length</dt><dd>"Comprimento": quantos elementos o array tem. Vale 5, e nunca muda.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run notas.cs
+Primeira nota: 7
+Terceira nota: 6
+Última nota: 10
+Quantas notas: 5</pre>
+
+<hr>
+
+<h2>2. Por que o índice começa em 0</h2>
+<p>O índice não é "o número do armário" no sentido de contagem humana. Ele é a <strong>distância</strong> desde o começo da fileira: o primeiro elemento está a 0 passos do começo, o segundo a 1 passo, e assim por diante.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Índice</th><td><code>[0]</code></td><td><code>[1]</code></td><td><code>[2]</code></td><td><code>[3]</code></td><td><code>[4]</code></td></tr>
+<tr><th>Valor</th><td>7</td><td>8</td><td>6</td><td>9</td><td>10</td></tr>
+<tr><th>Passos desde o começo</th><td>0</td><td>1</td><td>2</td><td>3</td><td>4</td></tr>
+<tr><th>Para a Ana</th><td>aluno 1</td><td>aluno 2</td><td>aluno 3</td><td>aluno 4</td><td>aluno 5</td></tr>
+</table>
+</div>
+
+<p>Na memória, os 5 inteiros ficam colados. Para achar <code>notas[3]</code>, o computador faz uma conta só: "começo da fileira + 3 elementos". Por isso acessar qualquer posição é igualmente rápido, seja a primeira ou a milésima. Quase todas as linguagens (C, Java, JavaScript, Python) contam do 0 pelo mesmo motivo.</p>
+
+<p>A consequência que você vai usar o tempo todo: <strong>num array de N elementos, os índices vão de 0 a N−1</strong>. O último elemento é sempre <code>notas[notas.Length - 1]</code>. (Há um atalho para ele, <code>notas[^1]</code>, na aula <a href="indices-intervalos.html">Índices e Intervalos</a>.)</p>
+
+<div class="trycs" data-goal="out:Segunda nota: 8,src:notas\[1\]">
+<p class="try-task"><strong>Missão:</strong> complete o segundo <code>WriteLine</code> para mostrar a nota do <strong>segundo</strong> aluno, <code>Segunda nota: 8</code>. Qual é o índice do segundo elemento?</p>
+<pre class="out">Primeira nota: 7
+Segunda nota: 8</pre>
+<pre class="script">int[] notas = [7, 8, 6, 9, 10];
+Console.WriteLine($"Primeira nota: {notas[0]}");
+Console.WriteLine($"Segunda nota: {0}");   // troque o 0 pelo elemento certo
+</pre>
+<pre class="solucao">int[] notas = [7, 8, 6, 9, 10];
+Console.WriteLine($"Primeira nota: {notas[0]}");
+Console.WriteLine($"Segunda nota: {notas[1]}");
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Trocar um elemento</h2>
+<p>Cada elemento funciona como uma variável comum: recebe valor com <code>=</code> e entra em contas.</p>
+
+<pre class="file" data-file="trocar.cs">int[] notas = [7, 8, 6, 9, 10];
+Console.WriteLine($"Antes: notas[2] = {notas[2]}");
+notas[2] = 10;
+notas[0]++;
+Console.WriteLine($"Depois: notas[2] = {notas[2]}");
+Console.WriteLine($"E notas[0] = {notas[0]}");
+</pre>
+
+<dl class="anatomy">
+  <dt>notas[2] = 10;</dt><dd>O terceiro aluno fez a recuperação: a portinha 2 recebe 10. O 6 que estava lá some.</dd>
+  <dt>notas[0]++;</dt><dd>Um ponto extra para o primeiro aluno: o 7 vira 8 (aula <a href="incremento.html">++ e --</a>). Também valeria <code>notas[0] += 1;</code>.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run trocar.cs
+Antes: notas[2] = 6
+Depois: notas[2] = 10
+E notas[0] = 8</pre>
+
+<h3>O índice pode ser uma variável</h3>
+<p>Entre os colchetes pode ir qualquer conta que dê um <code>int</code>: <code>notas[i]</code>, <code>notas[i + 1]</code>, <code>notas[notas.Length - 1]</code>. É isso que deixa o array poderoso: um laço faz <code>i</code> valer 0, 1, 2, 3, 4, e <code>notas[i]</code> passa por todos os elementos. O índice tem de ser <strong>inteiro</strong>: com <code>double i = 1;</code>, o <code>notas[i]</code> dá <code>error CS0266: Não é possível converter implicitamente tipo "double" em "int"</code>. Não existe a portinha 1,5.</p>
+
+<hr>
+
+<h2>4. Percorrer o array</h2>
+
+<h3>Com <code>for</code></h3>
+<p>O <code>for (int i = 0; i &lt; notas.Length; i++)</code> dá exatamente os índices do array: 0, 1, 2, 3 e 4. Com ele, a Ana mostra todas as notas e calcula a média:</p>
+
+<pre class="file" data-file="percorre.cs">int[] notas = [7, 8, 6, 9, 10];
+int soma = 0;
+for (int i = 0; i &lt; notas.Length; i++)
+{
+    Console.WriteLine($"Aluno {i + 1}: nota {notas[i]}");
+    soma += notas[i];
+}
+Console.WriteLine($"Soma: {soma}");
+Console.WriteLine($"Média: {soma / (double)notas.Length}");
+</pre>
+
+<dl class="anatomy">
+  <dt>i &lt; notas.Length</dt><dd>Começa no 0 e usa <code>&lt;</code>: passa por 0, 1, 2, 3, 4 e para antes do 5. Usar o <code>Length</code> (em vez de escrever <code>5</code>) faz o laço continuar certo se a turma crescer.</dd>
+  <dt>i + 1</dt><dd>Para a Ana, o aluno <code>[0]</code> é o "aluno 1". Na tela, a contagem humana; no código, o índice.</dd>
+  <dt>soma += notas[i];</dt><dd>A cada volta, soma o elemento da posição <code>i</code>.</dd>
+  <dt>soma / (double)notas.Length</dt><dd>Converter um dos lados para <code>double</code> faz a divisão ter casas decimais (aula <a href="conversao-tipos.html">Conversão de Tipos</a>). Sem isso, 39 / 5 daria 7, e não 7,8.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run percorre.cs
+Aluno 1: nota 7
+Aluno 2: nota 8
+Aluno 3: nota 6
+Aluno 4: nota 9
+Aluno 5: nota 10
+Soma: 40
+Média: 8</pre>
+
+<p>Se a turma crescer para 40 alunos, só a primeira linha muda. É para isso que o array existe.</p>
+
+<h3>Com <code>foreach</code></h3>
+<p>Quando você só precisa <strong>dos valores</strong>, e não da posição, o <code>foreach</code> ("para cada") é mais simples: não tem índice, não tem condição, e não tem como passar do fim.</p>
+
+<pre class="file" data-file="foreach-arr.cs">string[] compras = ["arroz", "feijão", "café"];
+foreach (string item in compras)
+{
+    Console.WriteLine($"- {item}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run foreach-arr.cs
+- arroz
+- feijão
+- café</pre>
+
+<p>Mas o <code>foreach</code> só <strong>lê</strong>. Tentar mudar o elemento por ele não compila:</p>
+
+<pre class="term" data-cwd="~/cs">$ cat foreach-muda.cs
+int[] notas = [7, 8, 6];
+foreach (int nota in notas)
+{
+    nota = nota + 1;
+}
+$ dotnet run foreach-muda.cs
+/home/ana/cs/foreach-muda.cs(4,5): error CS1656: Não é possível atribuir a "nota" porque ele é um "variável de iteração foreach"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A <code>nota</code> é uma <strong>cópia</strong> do valor de cada portinha, e o C# não deixa mudá-la, justamente para ninguém achar que mudou o array. Para mudar os elementos, use o <code>for</code> com índice: <code>notas[i] = notas[i] + 1;</code>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Use</th><th>Quando</th></tr>
+<tr><td><code>foreach (int n in notas)</code></td><td>Só ler os valores, do primeiro ao último. O mais simples e o mais seguro.</td></tr>
+<tr><td><code>for (int i = 0; i &lt; notas.Length; i++)</code></td><td>Você precisa da <strong>posição</strong> (mostrar "aluno 3", lembrar onde estava o maior), quer <strong>mudar</strong> os elementos, ou percorrer de outro jeito (de trás para a frente, de 2 em 2).</td></tr>
+</table>
+</div>
+
+<div class="trycs" data-goal="out:Aprovados: 3,src:(for|foreach)\s*\(">
+<p class="try-task"><strong>Missão:</strong> a Ana quer saber quantos alunos passaram (nota <strong>7 ou mais</strong>). Dentro do laço, some 1 em <code>aprovados</code> quando a nota for maior ou igual a 7. O resultado tem de ser <code>Aprovados: 3</code>. Aqui, <code>for</code> ou <code>foreach</code>: você escolhe.</p>
+<pre class="out">Aprovados: 3</pre>
+<pre class="script">int[] notas = [7, 4, 9, 6, 8];
+int aprovados = 0;
+foreach (int nota in notas)
+{
+    // se a nota for 7 ou mais, conte mais um aprovado
+
+}
+Console.WriteLine($"Aprovados: {aprovados}");
+</pre>
+<pre class="solucao">int[] notas = [7, 4, 9, 6, 8];
+int aprovados = 0;
+foreach (int nota in notas)
+{
+    if (nota &gt;= 7)
+    {
+        aprovados++;
+    }
+}
+Console.WriteLine($"Aprovados: {aprovados}");
+</pre>
+</div>
+
+<hr>
+
+<h2>5. Duas receitas que todo programa usa</h2>
+<p>Além de <strong>acumular</strong> (a soma, que você já viu), quase todo programa com array precisa <strong>achar o maior</strong> ou <strong>procurar</strong> um valor.</p>
+
+<h3>Achar o maior</h3>
+<p>A Ana anotou os pontos de 6 rodadas de um jogo e quer o recorde:</p>
+
+<pre class="file" data-file="maior.cs">int[] pontos = [12, 45, 7, 45, 30, 18];
+int maior = pontos[0];
+int posicao = 0;
+for (int i = 1; i &lt; pontos.Length; i++)
+{
+    if (pontos[i] &gt; maior)
+    {
+        maior = pontos[i];
+        posicao = i;
+    }
+}
+Console.WriteLine($"Maior pontuação: {maior} (rodada {posicao + 1})");
+</pre>
+
+<dl class="anatomy">
+  <dt>int maior = pontos[0];</dt><dd>O "campeão provisório" é o primeiro elemento. Não comece com <code>maior = 0</code>: se todos os valores fossem negativos (temperaturas no inverno da Sibéria), o 0 ganharia sem estar no array.</dd>
+  <dt>for (int i = 1; …)</dt><dd>Começa no 1, porque o elemento 0 já é o campeão.</dd>
+  <dt>if (pontos[i] &gt; maior)</dt><dd>Achou alguém maior? Ele vira o novo campeão, e <code>posicao</code> guarda onde estava.</dd>
+  <dt>&gt; e não &gt;=</dt><dd>O 45 aparece duas vezes (rodadas 2 e 4). Com <code>&gt;</code>, o empate não troca o campeão, e fica a <strong>primeira</strong> vez.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run maior.cs
+Maior pontuação: 45 (rodada 2)</pre>
+
+<h3>Procurar um valor</h3>
+<p>Na lojinha da Ana, cada produto tem um código. O 330 está cadastrado? Em que posição?</p>
+
+<pre class="file" data-file="procura.cs">int[] codigos = [101, 205, 330, 412, 587];
+int procurado = 330;
+int achou = -1;
+for (int i = 0; i &lt; codigos.Length; i++)
+{
+    if (codigos[i] == procurado)
+    {
+        achou = i;
+        break;
+    }
+}
+if (achou &gt;= 0)
+{
+    Console.WriteLine($"Código {procurado} está na posição {achou}");
+}
+else
+{
+    Console.WriteLine($"Código {procurado} não existe");
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>int achou = -1;</dt><dd>−1 não é um índice válido. Por isso ele serve de sinal: "ainda não achei".</dd>
+  <dt>break;</dt><dd>Achou: não precisa olhar o resto (aula <a href="break-continue.html">break e continue</a>).</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run procura.cs
+Código 330 está na posição 2</pre>
+
+<p>Essas receitas são tão comuns que o .NET já as traz prontas: <code>Array.IndexOf(codigos, 330)</code> faz a busca, <code>Array.Sort</code> ordena (aula <a href="classe-array.html">A Classe Array</a>), e <code>notas.Max()</code>, <code>notas.Sum()</code> e <code>notas.Average()</code> vêm do LINQ (aula <a href="linq-agregar.html">Agregar</a>). Mas vale saber fazer à mão: é o mesmo raciocínio que você vai usar para coisas que não vêm prontas.</p>
+
+<hr>
+
+<h2>6. As formas de criar um array</h2>
+
+<pre class="file" data-file="formas.cs">int[] a = [1, 2, 3];
+int[] b = { 1, 2, 3 };
+int[] c = new int[] { 1, 2, 3 };
+int[] d = new int[3];
+var e = new[] { 1, 2, 3 };
+int[] f = [];
+Console.WriteLine(string.Join(" ", a));
+Console.WriteLine(string.Join(" ", b));
+Console.WriteLine(string.Join(" ", c));
+Console.WriteLine(string.Join(" ", d));
+Console.WriteLine(string.Join(" ", e));
+Console.WriteLine($"f tem {f.Length} elementos");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run formas.cs
+1 2 3
+1 2 3
+1 2 3
+0 0 0
+1 2 3
+f tem 0 elementos</pre>
+
+<dl class="anatomy">
+  <dt>int[] a = [1, 2, 3];</dt><dd>Expressão de coleção <span class="versao">C# 12</span>: a forma moderna, e a que o guia usa. Os mesmos colchetes servem para criar listas e outras coleções (aula <a href="list.html">List&lt;T&gt;</a>).</dd>
+  <dt>int[] b = { 1, 2, 3 };</dt><dd>Com chaves: a forma clássica, que existe desde o C# 1. Você vai ver muito em código e cursos mais antigos. Só funciona na linha em que a variável é criada.</dd>
+  <dt>int[] c = new int[] { 1, 2, 3 };</dt><dd>A forma completa, com <code>new</code> ("novo"). Também antiga.</dd>
+  <dt>int[] d = new int[3];</dt><dd>Um array de <strong>3 elementos</strong>, ainda sem valores escolhidos: todos começam com o valor padrão do tipo, que no <code>int</code> é 0 (seção 7). Use quando você sabe o tamanho, mas os valores vêm depois (do teclado, de uma conta).</dd>
+  <dt>var e = new[] { 1, 2, 3 };</dt><dd>O compilador descobre o tipo pelos valores: <code>int[]</code>. Pouco usado hoje.</dd>
+  <dt>int[] f = [];</dt><dd>Um array <strong>vazio</strong>, com 0 elementos. Existe e tem <code>Length</code> 0; só não tem portinha nenhuma.</dd>
+</dl>
+
+<h3>Qual usar</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Forma</th></tr>
+<tr><td>Você já sabe os valores</td><td><code>int[] notas = [7, 8, 6];</code></td></tr>
+<tr><td>Você sabe o tamanho, os valores vêm depois</td><td><code>int[] notas = new int[40];</code></td></tr>
+<tr><td>Começar vazio</td><td><code>int[] notas = [];</code></td></tr>
+<tr><td>Código antigo (antes do C# 12)</td><td><code>{ 7, 8, 6 }</code> ou <code>new int[] { 7, 8, 6 }</code>: leia sem susto, é o mesmo array</td></tr>
+</table>
+</div>
+
+<h3>Encher o array pelo teclado</h3>
+<p>Com <code>new int[3]</code> e um <code>for</code>, a Ana lê as notas com o <code>Console.ReadLine</code> da aula <a href="readline.html">Ler do Teclado</a>:</p>
+
+<pre class="file" data-file="ler.cs">int[] notas = new int[3];
+for (int i = 0; i &lt; notas.Length; i++)
+{
+    Console.Write($"Nota do aluno {i + 1}: ");
+    if (!int.TryParse(Console.ReadLine(), out notas[i]))
+    {
+        Console.WriteLine("Nota inválida.");
+        return;
+    }
+}
+Console.WriteLine($"Você digitou: {string.Join(", ", notas)}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ler.cs
+Nota do aluno 1: 8
+Nota do aluno 2: 7
+Nota do aluno 3: 10
+Você digitou: 8, 7, 10</pre>
+
+<dl class="anatomy">
+  <dt>out notas[i]</dt><dd>O <code>TryParse</code> guarda o número direto na portinha <code>i</code>. Um elemento de array funciona em qualquer lugar onde uma variável funcionaria.</dd>
+</dl>
+
+<hr>
+
+<h2>7. O que um array novo já tem</h2>
+<p>Em C#, as portinhas de um <code>new int[3]</code> nunca têm "lixo": cada uma começa com o <strong>valor padrão</strong> do tipo.</p>
+
+<pre class="file" data-file="padrao.cs">int[] inteiros = new int[3];
+decimal[] precos = new decimal[3];
+bool[] presencas = new bool[3];
+string[] nomes = new string[3];
+Console.WriteLine($"int:     [{string.Join(", ", inteiros)}]");
+Console.WriteLine($"decimal: [{string.Join(", ", precos)}]");
+Console.WriteLine($"bool:    [{string.Join(", ", presencas)}]");
+Console.WriteLine($"string:  [{string.Join(", ", nomes)}]");
+Console.WriteLine(nomes[0] is null);
+Console.WriteLine(nomes[0].Length);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run padrao.cs
+int:     [0, 0, 0]
+decimal: [0, 0, 0]
+bool:    [False, False, False]
+string:  [, , ]                 « três nada: as portinhas têm null
+True
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/padrao.cs:line 10</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo do elemento</th><th>Valor padrão</th></tr>
+<tr><td><code>int</code>, <code>long</code>, <code>double</code>, <code>decimal</code>…</td><td><code>0</code></td></tr>
+<tr><td><code>bool</code></td><td><code>false</code></td></tr>
+<tr><td><code>char</code></td><td>o caractere de código 0 (invisível)</td></tr>
+<tr><td><code>string</code> e outros tipos de referência</td><td><code>null</code></td></tr>
+</table>
+</div>
+
+<div class="warning">
+<strong>Pegadinha: o <code>new string[3]</code> está cheio de <code>null</code>, e o compilador não avisa</strong>
+<p>O tipo é <code>string[]</code>, sem <code>?</code>, mas as portinhas começam com <code>null</code>. As referências anuláveis (aula <a href="referencias-anulaveis.html">Referências Anuláveis</a>) não conferem os elementos de um array: o <code>nomes[0].Length</code> compilou sem nenhum aviso e quebrou com <code>NullReferenceException</code> ao rodar (código 134). Com arrays de texto, prefira dar os valores na criação (<code>["Ana", "Bia", "Caio"]</code>) ou encher todas as posições antes de usar.</p>
+</div>
+
+<hr>
+
+<h2>8. Mostrar o array inteiro</h2>
+<p>Parece natural passar o array direto para o <code>WriteLine</code>. Não dá certo:</p>
+
+<pre class="file" data-file="imprimir.cs">int[] notas = [7, 8, 6, 9, 10];
+Console.WriteLine(notas);
+Console.WriteLine(string.Join(", ", notas));
+Console.WriteLine($"Notas: [{string.Join(" | ", notas)}]");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run imprimir.cs
+System.Int32[]
+7, 8, 6, 9, 10
+Notas: [7 | 8 | 6 | 9 | 10]</pre>
+
+<p>O <code>Console.WriteLine(notas)</code> mostra só o <strong>nome do tipo</strong>: <code>System.Int32[]</code> ("array de <code>Int32</code>", que é o nome completo do <code>int</code>). Para ver os valores, use <code>string.Join(separador, array)</code>, que "junta" todos os elementos num texto só, com o separador entre eles (aula <a href="metodos-string.html">Métodos de String</a>).</p>
+
+<hr>
+
+<h2>9. <code>b = a</code> não copia, e <code>a == b</code> não compara</h2>
+<p>Com variáveis de tipos simples, como <code>int</code>, <code>b = a</code> copia o valor. Com arrays, é diferente: a variável não guarda a fileira em si, e sim <strong>o endereço</strong> dela, como um papelzinho dizendo "os armários ficam no corredor 3". Isso se chama <strong>tipo de referência</strong> (aula <a href="valor-referencia.html">Valor × Referência</a>).</p>
+
+<h3>Duas variáveis, o mesmo array</h3>
+
+<pre class="file" data-file="copiar.cs">int[] a = [7, 8, 9];
+int[] b = a;
+b[0] = 100;
+Console.WriteLine($"a: {string.Join(" ", a)}");
+Console.WriteLine($"b: {string.Join(" ", b)}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run copiar.cs
+a: 100 8 9          « o a mudou também!
+b: 100 8 9</pre>
+
+<p>O <code>b = a</code> copiou o <strong>papelzinho</strong>, não os armários. Agora <code>a</code> e <code>b</code> apontam para a mesma fileira: mudar por um muda o que o outro vê. Para uma cópia de verdade, crie um array novo com os mesmos elementos. O <code>..</code> dentro dos colchetes "espalha" os elementos de <code>a</code> no array novo <span class="versao">C# 12</span>:</p>
+
+<pre class="file" data-file="copiar2.cs">int[] a = [7, 8, 9];
+int[] b = [.. a];
+b[0] = 100;
+Console.WriteLine($"a: {string.Join(" ", a)}");
+Console.WriteLine($"b: {string.Join(" ", b)}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run copiar2.cs
+a: 7 8 9
+b: 100 8 9          « agora sim, duas fileiras</pre>
+
+<p>Em código mais antigo, você vai ver a cópia feita com <code>(int[])a.Clone()</code> ou <code>Array.Copy</code> (aula <a href="classe-array.html">A Classe Array</a>). O resultado é o mesmo.</p>
+
+<h3>Comparar</h3>
+
+<pre class="file" data-file="comparar.cs">int[] a = [7, 8, 9];
+int[] b = [7, 8, 9];
+Console.WriteLine(a == b);
+Console.WriteLine(a.Equals(b));
+Console.WriteLine(a.SequenceEqual(b));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run comparar.cs
+False               « os valores são iguais, mas são duas fileiras
+False
+True</pre>
+
+<p>O <code>==</code> (e o <code>Equals</code>) pergunta "é <strong>o mesmo</strong> array?", e não "têm os mesmos valores?". São duas fileiras diferentes, então a resposta é <code>False</code>. Para comparar os valores, um por um, na ordem, use <code>a.SequenceEqual(b)</code> ("sequência igual"), que vem do LINQ (aula <a href="linq.html">O que é LINQ</a>) e já está disponível nos programas de arquivo único.</p>
+
+<hr>
+
+<h2>10. O índice que passa do fim</h2>
+<p>Agora o erro mais importante desta aula. Este é o erro do "um a mais" da aula <a href="for.html">for</a>, agora com um array: <code>&lt;=</code> no lugar de <code>&lt;</code>.</p>
+
+<pre class="file" data-file="fora.cs">int[] notas = [7, 8, 6, 9, 10];
+int soma = 0;
+for (int i = 0; i &lt;= notas.Length; i++)
+{
+    soma += notas[i];
+}
+Console.WriteLine($"Soma: {soma}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run fora.cs                « compilou sem nenhum aviso
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/fora.cs:line 5
+$ echo $?
+134</pre>
+
+<dl class="anatomy">
+  <dt>Unhandled exception</dt><dd>"Exceção não tratada": o programa encontrou um problema que ninguém tratou e parou ali (aula <a href="excecoes.html">Exceções</a>). O <code>Soma:</code> nem chegou a aparecer.</dd>
+  <dt>System.IndexOutOfRangeException</dt><dd>"Exceção de índice fora do intervalo". O nome já diz o problema.</dd>
+  <dt>Index was outside the bounds of the array.</dt><dd>"O índice estava fora dos limites do array." Quando <code>i</code> chegou a 5, o <code>notas[5]</code> pediu a sexta portinha de uma fileira de cinco.</dd>
+  <dt>at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/fora.cs:line 5</dt><dd>Onde aconteceu: no arquivo <code>fora.cs</code>, <strong>linha 5</strong>, a do <code>soma += notas[i];</code>. O <code>&lt;Main&gt;$</code> é o nome que o C# dá ao <code>Main</code> escondido das instruções de nível superior.</dd>
+  <dt>134</dt><dd>O código de saída de um programa que terminou com exceção, no Linux. Um script percebe que algo deu errado.</dd>
+</dl>
+
+<p>A boa notícia: o C# <strong>confere todo índice</strong>, sempre. Ele nunca lê nem escreve fora do array em silêncio (como o C faz): para o programa na hora, e diz a linha. O conserto é trocar o <code>&lt;=</code> por <code>&lt;</code>, ou usar o <code>foreach</code>, que não tem como passar do fim.</p>
+
+<div class="warning">
+<strong>Regra do guia: todo índice fica entre 0 e <code>Length - 1</code></strong>
+<p>Percorra com <code>for (int i = 0; i &lt; v.Length; i++)</code>, com <code>&lt;</code>, ou com <code>foreach</code>. Se o índice vem de fora (do teclado, dos <a href="args.html">argumentos</a>, de uma conta), confira <strong>antes</strong> de usar: <code>if (i &gt;= 0 &amp;&amp; i &lt; v.Length)</code>.</p>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.</code></strong>
+<p><strong>O que significa:</strong> um índice foi negativo ou chegou a <code>Length</code> (ou passou). Quase sempre é um <code>&lt;=</code> no laço, um <code>v[v.Length]</code> no lugar de <code>v[v.Length - 1]</code>, ou um índice que veio de fora sem conferir. O programa termina com o código 134.</p>
+<p><strong>Como consertar:</strong> olhe a linha que a mensagem aponta (<code>line 5</code>). Use <code>&lt;</code> nos laços, <code>foreach</code> quando puder, e confira índices de fora com <code>if</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0650</code> e <code>error CS0270</code>: o array do jeito do C</strong>
+<pre class="term" data-cwd="~/cs">$ cat estilo-c.cs
+int notas[5];
+$ dotnet run estilo-c.cs
+/home/ana/cs/estilo-c.cs(1,10): error CS0650: Declarador de matriz incorreto: para declarar uma matriz gerenciada, o especificador de classificação antecede o identificador de variável. Para declarar um campo de buffer de tamanho fixo, use a palavra-chave fixed antes do tipo de campo.
+/home/ana/cs/estilo-c.cs(1,11): error CS0270: O tamanho de matriz não pode ser especificado em uma declaração de variável (tente inicializar com uma expressão 'new')
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> quem vem do C ou do C++ escreve os colchetes depois do nome. Em C#, eles vão <strong>depois do tipo</strong> ("o especificador de classificação antecede o identificador"), e o tamanho não entra ali: vai no <code>new</code>. O tradutor chama o array de "matriz".</p>
+<p><strong>Como consertar:</strong> <code>int[] notas = new int[5];</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0029: Não é possível converter implicitamente tipo "string" em "int"</code></strong>
+<p><strong>O que significa:</strong> um valor de outro tipo entrou na lista, como em <code>int[] notas = [7, 8, "nove"];</code>. Um array de <code>int</code> só aceita <code>int</code>.</p>
+<p><strong>Como consertar:</strong> escreva o valor do tipo certo (<code>9</code>), ou mude o tipo do array, se a ideia era guardar textos.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0165: Uso de variável local não atribuída "notas"</code></strong>
+<p><strong>O que significa:</strong> você escreveu <code>int[] notas;</code> e depois <code>notas[0] = 7;</code>. A variável existe, mas a fileira nunca foi construída: não há portinha nenhuma.</p>
+<p><strong>Como consertar:</strong> crie o array antes de usar: <code>int[] notas = new int[5];</code> ou <code>int[] notas = [7, 8, 6];</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0847: Inicializador de matriz de comprimento "3" é esperado</code></strong>
+<p><strong>O que significa:</strong> em <code>new int[3] { 7, 8 }</code>, o tamanho diz 3 e a lista tem 2. Em C#, os dois têm de bater (ao contrário do C, que completaria com zeros).</p>
+<p><strong>Como consertar:</strong> tire o tamanho e deixe o compilador contar: <code>int[] notas = [7, 8];</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1656: Não é possível atribuir a "nota" porque ele é um "variável de iteração foreach"</code></strong>
+<p><strong>O que significa:</strong> você tentou mudar a variável do <code>foreach</code>. Ela é só uma cópia de leitura de cada elemento.</p>
+<p><strong>Como consertar:</strong> use um <code>for</code> com índice e mude <code>notas[i]</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1061: ‘int[]’ não contém uma definição para "Add"</code></strong>
+<p><strong>O que significa:</strong> você tentou acrescentar um elemento com <code>notas.Add(10)</code>. O array tem tamanho fixo: não cresce nem diminui.</p>
+<p><strong>Como consertar:</strong> se a quantidade muda enquanto o programa roda, use uma <code>List&lt;int&gt;</code>, que cresce (aula <a href="list.html">List&lt;T&gt;</a>). Com array, só criando outro maior: <code>notas = [.. notas, 10];</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Apareceu <code>System.Int32[]</code> em vez dos valores</strong>
+<p><strong>O que significa:</strong> o <code>Console.WriteLine(notas)</code> mostra o nome do tipo, e não os elementos.</p>
+<p><strong>Como consertar:</strong> <code>Console.WriteLine(string.Join(", ", notas));</code>, ou um <code>foreach</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Mudei um array e o outro mudou junto</strong>
+<p><strong>O que significa:</strong> as duas variáveis apontam para o <strong>mesmo</strong> array, por causa de um <code>b = a</code>.</p>
+<p><strong>Como consertar:</strong> faça uma cópia de verdade: <code>int[] b = [.. a];</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>int[] v = [1, 2, 3];</code></td><td>Array de 3 <code>int</code> com esses valores (C# 12)</td></tr>
+<tr><td><code>int[] v = { 1, 2, 3 };</code> / <code>new int[] { 1, 2, 3 }</code></td><td>O mesmo, nas formas antigas</td></tr>
+<tr><td><code>int[] v = new int[5];</code></td><td>Array de 5, todos com o valor padrão (0)</td></tr>
+<tr><td><code>int[] v = [];</code></td><td>Array vazio (0 elementos)</td></tr>
+<tr><td><code>v[0]</code> / <code>v[v.Length - 1]</code></td><td>Primeiro e último elemento</td></tr>
+<tr><td><code>v[i] = 10;</code></td><td>Troca o elemento da posição <code>i</code></td></tr>
+<tr><td><code>v.Length</code></td><td>Quantos elementos (fixo)</td></tr>
+<tr><td><code>for (int i = 0; i &lt; v.Length; i++)</code></td><td>Percorre com índice</td></tr>
+<tr><td><code>foreach (int x in v)</code></td><td>Percorre só lendo os valores</td></tr>
+<tr><td><code>string.Join(", ", v)</code></td><td>Texto com todos os elementos</td></tr>
+<tr><td><code>int[] b = [.. a];</code></td><td>Cópia de verdade (C# 12)</td></tr>
+<tr><td><code>a.SequenceEqual(b)</code></td><td>Compara os valores (o <code>==</code> compara se é o mesmo array)</td></tr>
+<tr><td><code>IndexOutOfRangeException</code></td><td>Índice menor que 0 ou maior que <code>Length - 1</code> (código 134)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O último elemento</h3>
+<p>Complete para mostrar o último elemento de um array de 7 dias:</p>
+<div class="ex-code">Console.WriteLine(dias[<input data-answer="6|dias.Length - 1|dias.Length-1|^1" aria-label="índice">]);</div>
+</div>
+
+<div class="exercise">
+<h3>2. Percorrer</h3>
+<p>Complete a condição para percorrer o array <code>precos</code> inteiro, sem passar do fim:</p>
+<div class="ex-code">for (int i = 0; <input data-answer="i &lt; precos.Length|i&lt;precos.Length|i &lt;= precos.Length - 1|i&lt;=precos.Length-1" aria-label="condição">; i++)</div>
+</div>
+
+<div class="exercise">
+<h3>3. Criar com tamanho</h3>
+<p>Complete para criar um array de 20 <code>decimal</code>, todos valendo 0:</p>
+<div class="ex-code">decimal[] saldos = <input data-answer="new decimal[20]" aria-label="criação">;</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Depois de <code>bool[] presencas = new bool[4];</code>, quanto vale <code>presencas[2]</code>?</p>
+<label><input type="radio" name="q4"> <code>true</code></label>
+<label><input type="radio" name="q4"> <code>null</code></label>
+<label><input type="radio" name="q4"> <code>false</code></label>
+<label><input type="radio" name="q4"> Lixo: qualquer valor</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. O que este programa mostra?</p>
+<pre class="file" data-file="ex5.cs">int[] a = [1, 2, 3];
+int[] b = a;
+b[1] = 50;
+Console.WriteLine(a[1]);
+</pre>
+<label><input type="radio" name="q5"> <code>2</code></label>
+<label><input type="radio" name="q5"> <code>50</code></label>
+<label><input type="radio" name="q5"> <code>1</code></label>
+<label><input type="radio" name="q5"> Erro: não dá para copiar arrays com <code>=</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Um laço com <code>i &lt;= notas.Length</code> roda num array de 5 notas. O que acontece?</p>
+<label><input type="radio" name="q6"> O compilador recusa com um erro</label>
+<label><input type="radio" name="q6"> Soma uma nota a mais, com valor 0</label>
+<label><input type="radio" name="q6"> Funciona: o C# para sozinho no fim</label>
+<label><input type="radio" name="q6"> Quando <code>i</code> chega a 5, o programa para com <code>IndexOutOfRangeException</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">7. Por que, ao procurar o maior valor, o "campeão" começa como <code>v[0]</code> e não como <code>0</code>?</p>
+<label><input type="radio" name="q7"> Porque, se todos os valores forem negativos, o 0 ganharia sem estar no array</label>
+<label><input type="radio" name="q7"> Porque <code>0</code> não é um <code>int</code></label>
+<label><input type="radio" name="q7"> Porque o C# não deixa comparar com 0</label>
+<label><input type="radio" name="q7"> Tanto faz: dá sempre o mesmo resultado</label>
+</div>
+
+<h3>Missão final: as temperaturas da semana</h3>
+
+<div class="trycs" data-goal="out:Maior: 32 (dia 7),out:Menor: 25 (dia 5),out:Média: 28\,9,src:(for|foreach)\s*\(">
+<p class="try-task"><strong>Missão:</strong> a Ana anotou a temperatura máxima de cada dia da semana. Complete o programa para mostrar a <strong>maior</strong> e a <strong>menor</strong> temperatura, com o dia de cada uma (o dia 1 é <code>temperaturas[0]</code>), e a <strong>média</strong> com uma casa decimal. Use um laço.</p>
+<pre class="out">Maior: 32 (dia 7)
+Menor: 25 (dia 5)
+Média: 28,9</pre>
+<pre class="script">int[] temperaturas = [28, 31, 30, 27, 25, 29, 32];
+int maior = 0, diaMaior = 0;
+int menor = 0, diaMenor = 0;
+int soma = 0;
+
+// percorra o array aqui
+
+Console.WriteLine($"Maior: {maior} (dia {diaMaior})");
+Console.WriteLine($"Menor: {menor} (dia {diaMenor})");
+Console.WriteLine($"Média: {soma / (double)temperaturas.Length:F1}");
+</pre>
+<pre class="solucao">int[] temperaturas = [28, 31, 30, 27, 25, 29, 32];
+int maior = temperaturas[0], diaMaior = 1;
+int menor = temperaturas[0], diaMenor = 1;
+int soma = 0;
+
+for (int i = 0; i &lt; temperaturas.Length; i++)
+{
+    if (temperaturas[i] &gt; maior)
+    {
+        maior = temperaturas[i];
+        diaMaior = i + 1;
+    }
+    if (temperaturas[i] &lt; menor)
+    {
+        menor = temperaturas[i];
+        diaMenor = i + 1;
+    }
+    soma += temperaturas[i];
+}
+
+Console.WriteLine($"Maior: {maior} (dia {diaMaior})");
+Console.WriteLine($"Menor: {menor} (dia {diaMenor})");
+Console.WriteLine($"Média: {soma / (double)temperaturas.Length:F1}");
+</pre>
+</div>
+
+<p>A solução faz as receitas da seção 5 num laço só. O <code>menor</code> também começa com o primeiro elemento: se começasse com 0, nenhuma temperatura seria menor que ele, e a resposta sairia <code>Menor: 0</code>, que nem está no array. A soma é 202, e 202 ÷ 7 = 28,857…, que o <code>:F1</code> (uma casa decimal, aula <a href="formatacao.html">Formatar Números</a>) arredonda para <code>28,9</code>, com vírgula, porque o notebook da Ana está em português.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um <strong>array</strong> guarda vários valores do <strong>mesmo tipo</strong> com um nome só: <code>int[] notas = [7, 8, 6];</code>. O tamanho é fixo depois de criado e fica em <code>notas.Length</code>.</li>
+  <li>O <strong>índice</strong> começa em <strong>0</strong>: num array de N, as posições vão de 0 a N−1. Cada elemento (<code>notas[i]</code>) funciona como uma variável comum.</li>
+  <li>Percorra com <code>for (int i = 0; i &lt; v.Length; i++)</code> quando precisar da posição ou for mudar os elementos, e com <code>foreach</code> para só ler.</li>
+  <li><code>new int[5]</code> cria 5 elementos com o valor padrão: 0, <code>false</code>, ou <code>null</code> para <code>string</code> (sem aviso do compilador).</li>
+  <li>Para mostrar, <code>string.Join(", ", v)</code>; o <code>WriteLine(v)</code> mostra só <code>System.Int32[]</code>.</li>
+  <li>Arrays são de <strong>referência</strong>: <code>b = a</code> faz as duas variáveis apontarem para o mesmo array, e <code>a == b</code> pergunta se é o mesmo array. Copie com <code>[.. a]</code> e compare com <code>SequenceEqual</code>.</li>
+  <li>O C# confere todo índice: passar do fim dá <code>IndexOutOfRangeException</code>, com a linha do erro e o código de saída 134.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
