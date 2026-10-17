@@ -1,0 +1,4 @@
+node_modules/
+tools/.cache-*.json
+tools/*-src/
+*.tmp
