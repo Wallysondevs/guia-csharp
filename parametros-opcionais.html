@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Parâmetros Opcionais e Nomeados — valores padrão e argumentos com nome | Guia C#</title>
+<meta name="description" content="Parâmetros opcionais e argumentos nomeados em C# para quem nunca programou: dar um valor padrão a um parâmetro, as regras (opcionais no fim, só constantes), chamar com nome para pular opcionais e deixar true/false legíveis, misturar posição e nome, e os erros reais do dotnet 10 (CS1737, CS1736, CS1739, CS8323, CS1744, CS1740, CS0839), com missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Parâmetros Opcionais e Nomeados</span></h1>
+
+<p class="intro">Até agora, toda chamada precisava passar um argumento para cada parâmetro, na ordem certa. Duas ferramentas deixam isso mais flexível. Um <strong>parâmetro opcional</strong> tem um valor padrão, e a chamada pode deixá-lo de fora. Um <strong>argumento nomeado</strong> diz, na chamada, para qual parâmetro vai cada valor: <code>FazerPedido("Caderno", embrulhar: true)</code>. Juntas, elas evitam chamadas compridas e deixam claro o que cada valor quer dizer.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como dar um <strong>valor padrão</strong> a um parâmetro (<code>int quantidade = 1</code>) e chamar o método com ou sem ele.</li>
+  <li>As duas regras dos opcionais: vêm <strong>depois</strong> dos obrigatórios e o padrão tem de ser uma <strong>constante</strong>.</li>
+  <li>Como passar argumentos <strong>pelo nome</strong>, em qualquer ordem.</li>
+  <li>Como pular um opcional do meio e manter os outros.</li>
+  <li>Por que <code>true, false</code> numa chamada pedem um nome.</li>
+  <li>Os erros <code>CS1737</code>, <code>CS1736</code>, <code>CS1739</code>, <code>CS8323</code>, <code>CS1744</code>, <code>CS1740</code> e <code>CS0839</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram na máquina fictícia da Ana, na pasta <code>~/cs</code>, com o <strong>.NET 10</strong> e o comando <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: o formulário já preenchido</h2>
+<p>O formulário de pedido da lojinha vem com alguns campos já preenchidos a lápis: <strong>Quantidade: <u>1</u></strong>, <strong>Embrulhar: <u>não</u></strong>. O cliente só escreve o que quer mudar. E, quando escreve, diz qual campo está preenchendo: "embrulhar: sim". Ninguém precisa preencher os campos na ordem do papel.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>No formulário</th><th>Em C#</th><th>Nome técnico</th></tr>
+<tr><td>Campo que já vem preenchido a lápis</td><td><code>int quantidade = 1</code> na declaração</td><td>parâmetro <strong>opcional</strong>, com valor <strong>padrão</strong></td></tr>
+<tr><td>Escrever "Embrulhar: sim", dizendo o campo</td><td><code>embrulhar: true</code> na chamada</td><td>argumento <strong>nomeado</strong></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. Parâmetros opcionais</h2>
+
+<pre class="file" data-file="opc1.cs">Saudar("Ana");
+Saudar("Bruno", "Bom dia");
+
+void Saudar(string nome, string saudacao = "Olá")
+{
+    Console.WriteLine($"{saudacao}, {nome}!");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run opc1.cs
+Olá, Ana!
+Bom dia, Bruno!</pre>
+
+<dl class="anatomy">
+  <dt>string saudacao = "Olá"</dt><dd>Um parâmetro com <strong>valor padrão</strong>. O <code>= "Olá"</code> quer dizer: "se a chamada não mandar nada para <code>saudacao</code>, use <code>"Olá"</code>". Por isso ele é <strong>opcional</strong>.</dd>
+  <dt>string nome</dt><dd>Um parâmetro comum, sem padrão: é <strong>obrigatório</strong>. Toda chamada tem de passar um nome.</dd>
+  <dt>Saudar("Ana");</dt><dd>Só o obrigatório. <code>saudacao</code> recebe o padrão, <code>"Olá"</code>.</dd>
+  <dt>Saudar("Bruno", "Bom dia");</dt><dd>Os dois. O valor passado vence o padrão.</dd>
+</dl>
+
+<p>Um método pode ter vários opcionais. Aqui, a quantidade e o desconto têm padrão:</p>
+
+<pre class="file" data-file="opc2.cs">MostrarItem("Caderno", 12.50m);
+MostrarItem("Caneta", 3m, 4);
+MostrarItem("Borracha", 1.75m, 2, 10);
+
+void MostrarItem(string produto, decimal preco, int quantidade = 1, int descontoPorcento = 0)
+{
+    decimal total = preco * quantidade * (100 - descontoPorcento) / 100;
+    Console.WriteLine($"{quantidade} x {produto} (-{descontoPorcento}%) = {total:C}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run opc2.cs
+1 x Caderno (-0%) = R$ 12,50
+4 x Caneta (-0%) = R$ 12,00
+2 x Borracha (-10%) = R$ 3,15</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Chamada</th><th><code>quantidade</code></th><th><code>descontoPorcento</code></th></tr>
+<tr><td><code>MostrarItem("Caderno", 12.50m)</code></td><td>1 (padrão)</td><td>0 (padrão)</td></tr>
+<tr><td><code>MostrarItem("Caneta", 3m, 4)</code></td><td>4</td><td>0 (padrão)</td></tr>
+<tr><td><code>MostrarItem("Borracha", 1.75m, 2, 10)</code></td><td>2</td><td>10</td></tr>
+</table>
+</div>
+
+<p>Os argumentos continuam indo por posição: o terceiro valor vai para <code>quantidade</code>, o quarto para <code>descontoPorcento</code>. Por isso, só com posição, não dá para mandar o desconto sem mandar também a quantidade. A seção 3 resolve isso.</p>
+
+<div class="trycs" data-goal="outre:1 x Lápis = R\$ 0\,90\n,src:int\s+\w+\s*=\s*1\b">
+<p class="try-task"><strong>Missão:</strong> a última chamada não passa a quantidade, e o programa não compila (<code>CS7036</code>). Sem mudar as chamadas, dê ao parâmetro <code>quantidade</code> o valor padrão <code>1</code>.</p>
+<pre class="out">3 x Caderno = R$ 37,50
+1 x Lápis = R$ 0,90</pre>
+<pre class="script">MostrarTotal("Caderno", 12.50m, 3);
+MostrarTotal("Lápis", 0.90m);
+
+void MostrarTotal(string produto, decimal preco, int quantidade)
+{
+    Console.WriteLine($"{quantidade} x {produto} = {preco * quantidade:C}");
+}
+</pre>
+<pre class="solucao">MostrarTotal("Caderno", 12.50m, 3);
+MostrarTotal("Lápis", 0.90m);
+
+void MostrarTotal(string produto, decimal preco, int quantidade = 1)
+{
+    Console.WriteLine($"{quantidade} x {produto} = {preco * quantidade:C}");
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. As regras dos opcionais</h2>
+
+<h3>Regra 1: opcionais vêm depois dos obrigatórios</h3>
+<p>Como os argumentos vão por posição, um opcional no começo não faria sentido: em <code>Saudar("Ana")</code>, o <code>"Ana"</code> iria para o primeiro parâmetro, e o obrigatório ficaria sem nada.</p>
+
+<pre class="file" data-file="opcordem.cs">Saudar("Ana");
+
+void Saudar(string saudacao = "Olá", string nome)
+{
+    Console.WriteLine($"{saudacao}, {nome}!");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run opcordem.cs
+/home/ana/cs/opcordem.cs(1,1): error CS7036: Não há nenhum argumento fornecido que corresponda ao parâmetro necessário 'nome' de 'Saudar(string, string)'
+/home/ana/cs/opcordem.cs(3,49): error CS1737: Os parâmetros opcionais devem aparecer após todos os parâmetros necessários
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O erro que importa é o segundo, <code>CS1737</code> (<em>Optional parameters must appear after all required parameters</em>), na linha 3: na declaração. O <code>CS7036</code> da linha 1 é consequência, porque <code>"Ana"</code> foi parar em <code>saudacao</code>. Conserto: <code>void Saudar(string nome, string saudacao = "Olá")</code>.</p>
+
+<h3>Regra 2: o padrão tem de ser uma constante</h3>
+<p>O valor padrão é decidido na hora de <strong>compilar</strong>, e não na hora de rodar. Por isso ele tem de ser um valor fixo: um número, um texto entre aspas, <code>true</code>/<code>false</code>, <code>null</code> ou uma <a href="constantes.html"><code>const</code></a>. Algo que só se sabe com o programa rodando, como a data e a hora de agora, não serve:</p>
+
+<pre class="file" data-file="opcconst.cs">Registrar("Venda");
+
+void Registrar(string texto, DateTime quando = DateTime.Now)
+{
+    Console.WriteLine($"{quando}: {texto}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run opcconst.cs
+/home/ana/cs/opcconst.cs(3,48): error CS1736: Valor do parâmetro padrão "quando" deve ser uma constante de tempo de compilação
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O truque de sempre: use <code>null</code> como padrão e troque pelo valor de verdade dentro do método. O <code>DateTime?</code> é um <code>DateTime</code> que aceita <code>null</code>, e o <code>??</code> quer dizer "se for <code>null</code>, use este outro" (aulas <a href="null.html">null e Tipos Anuláveis</a> e <a href="operadores-null.html">Operadores ??, ?. e ??=</a>). Para a saída não mudar a cada execução, o exemplo usa uma data fixa no lugar de <code>DateTime.Now</code>:</p>
+
+<pre class="file" data-file="opcnull.cs">Registrar("Venda", new DateTime(2026, 3, 14, 9, 30, 0));
+Registrar("Troca");
+
+void Registrar(string texto, DateTime? quando = null)
+{
+    DateTime data = quando ?? new DateTime(2026, 1, 1);
+    Console.WriteLine($"{data:dd/MM/yyyy HH:mm} {texto}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run opcnull.cs
+14/03/2026 09:30 Venda
+01/01/2026 00:00 Troca</pre>
+
+<p>No programa de verdade, a linha seria <code>DateTime data = quando ?? DateTime.Now;</code>, e o padrão seria "agora".</p>
+
+<hr>
+
+<h2>3. Argumentos nomeados</h2>
+<p>Na chamada, você pode escrever o <strong>nome do parâmetro</strong>, dois-pontos e o valor. Os quatro jeitos abaixo fazem a mesma coisa:</p>
+
+<pre class="file" data-file="nomeados.cs">MostrarItem("Caneta", 3m);
+MostrarItem(produto: "Caneta", preco: 3m);
+MostrarItem(preco: 3m, produto: "Caneta");
+MostrarItem("Caneta", preco: 3m);
+
+void MostrarItem(string produto, decimal preco)
+{
+    Console.WriteLine($"{produto}: {preco:C}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run nomeados.cs
+Caneta: R$ 3,00
+Caneta: R$ 3,00
+Caneta: R$ 3,00
+Caneta: R$ 3,00</pre>
+
+<dl class="anatomy">
+  <dt>produto: "Caneta"</dt><dd>"O valor <code>"Caneta"</code> vai para o parâmetro <code>produto</code>". O nome tem de ser exatamente o da declaração, e os dois-pontos o separam do valor.</dd>
+  <dt>MostrarItem(preco: 3m, produto: "Caneta")</dt><dd>Com nomes, a <strong>ordem não importa</strong>: quem decide é o nome, e não a posição.</dd>
+  <dt>MostrarItem("Caneta", preco: 3m)</dt><dd>Dá para misturar: os primeiros por posição, os seguintes por nome.</dd>
+</dl>
+
+<h3>Pular um opcional do meio</h3>
+<p>Aqui está a grande vantagem de juntar os dois recursos. Com nome, você manda só o opcional que quer e deixa os outros no padrão:</p>
+
+<pre class="file" data-file="pular.cs">MostrarItem("Borracha", 1.75m, descontoPorcento: 20);
+MostrarItem("Borracha", 1.75m, quantidade: 4);
+
+void MostrarItem(string produto, decimal preco, int quantidade = 1, int descontoPorcento = 0)
+{
+    decimal total = preco * quantidade * (100 - descontoPorcento) / 100;
+    Console.WriteLine($"{quantidade} x {produto} (-{descontoPorcento}%) = {total:C}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pular.cs
+1 x Borracha (-20%) = R$ 1,40
+4 x Borracha (-0%) = R$ 7,00</pre>
+
+<p>Na primeira chamada, o desconto foi passado, e a quantidade ficou no padrão (1). Só com posição, isso seria impossível: não existe "deixar um buraco" na chamada.</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pularpos.cs             « MostrarItem("Borracha", 1.75m, , 10);
+/home/ana/cs/pularpos.cs(1,32): error CS0839: Argumento ausente
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<h3>Nomes deixam <code>true</code> e <code>false</code> legíveis</h3>
+<p>Leia a primeira chamada abaixo sem olhar o método. O que quer dizer <code>true, false</code>?</p>
+
+<pre class="file" data-file="bools.cs">FazerPedido("Caderno", true, false);
+FazerPedido("Caderno", embrulhar: true, entregar: false);
+
+void FazerPedido(string produto, bool embrulhar, bool entregar)
+{
+    Console.WriteLine($"{produto}: embrulhar={embrulhar}, entregar={entregar}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run bools.cs
+Caderno: embrulhar=True, entregar=False
+Caderno: embrulhar=True, entregar=False</pre>
+
+<p>As duas fazem o mesmo, mas só a segunda se explica sozinha. Sem o nome, quem lê precisa abrir o método para descobrir; e, se trocar a ordem dos dois <code>bool</code>, o compilador não percebe (os dois são do mesmo tipo). Regra do guia: <strong>quando passar <code>true</code>, <code>false</code> ou um número "mágico", use o nome</strong>.</p>
+
+<h3>Também vale para os métodos do .NET</h3>
+<p>Os parâmetros dos métodos da biblioteca também têm nomes, e muitos têm opcionais. O <code>Split</code> de um texto, por exemplo, tem um segundo parâmetro opcional, <code>options</code>, que pode pedir para jogar fora os pedaços vazios:</p>
+
+<pre class="file" data-file="biblio.cs">Console.WriteLine(Math.Round(2.675m, 2));
+Console.WriteLine(Math.Round(2.675m, decimals: 1));
+string texto = "maçã;banana;;uva";
+Console.WriteLine(texto.Split(';').Length);
+Console.WriteLine(texto.Split(';', StringSplitOptions.RemoveEmptyEntries).Length);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run biblio.cs
+2,68
+2,7
+4                                    « "maçã", "banana", "" e "uva"
+3                                    « o pedaço vazio entre ;; foi descartado</pre>
+
+<p>No editor, ao digitar o <code>(</code> de uma chamada, a lista de parâmetros aparece com os nomes e os valores padrão (veja <a href="editores.html">Editores e IDEs</a>). É de lá que você tira o nome para um argumento nomeado, como o <code>decimals</code> do <code>Math.Round</code>.</p>
+
+<hr>
+
+<h2>Formas diferentes</h2>
+<p>Na forma com classe, nada muda:</p>
+
+<pre class="file" data-file="classeopc.cs">class Program
+{
+    static void Main()
+    {
+        Saudar("Ana");
+        Saudar(nome: "Bruno", saudacao: "Boa noite");
+    }
+
+    static void Saudar(string nome, string saudacao = "Olá")
+    {
+        Console.WriteLine($"{saudacao}, {nome}!");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run classeopc.cs
+Olá, Ana!
+Boa noite, Bruno!</pre>
+
+<p>Existe outro jeito de ter "o mesmo método com menos argumentos": escrever duas versões dele, cada uma com uma lista de parâmetros. Isso é a <a href="sobrecarga.html">sobrecarga</a>, a aula seguinte à de <a href="params.html">params</a>.</p>
+
+<h3>Qual usar?</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>O parâmetro tem um valor que serve na maioria das chamadas</td><td>Opcional: <code>int quantidade = 1</code></td></tr>
+<tr><td>Quer mandar só um dos opcionais</td><td>Argumento nomeado: <code>descontoPorcento: 20</code></td></tr>
+<tr><td>A chamada tem <code>true</code>/<code>false</code> ou vários números do mesmo tipo</td><td>Argumentos nomeados, para a leitura</td></tr>
+<tr><td>O padrão depende de algo que só se sabe rodando (a hora, um arquivo)</td><td>Padrão <code>null</code> + <code>??</code> dentro do método</td></tr>
+<tr><td>As versões curta e longa fazem coisas bem diferentes</td><td><a href="sobrecarga.html">Sobrecarga</a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS1737: Os parâmetros opcionais devem aparecer após todos os parâmetros necessários</code></strong>
+<p><strong>O que significa:</strong> há um parâmetro com <code>=</code> antes de um sem <code>=</code>.</p>
+<p><strong>Como consertar:</strong> leve os opcionais para o fim da lista. Se as chamadas existentes quebrarem, use argumentos nomeados nelas.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1736: Valor do parâmetro padrão "quando" deve ser uma constante de tempo de compilação</code></strong>
+<p><strong>O que significa:</strong> o padrão é algo calculado com o programa rodando: <code>DateTime.Now</code>, <code>new List&lt;int&gt;()</code>, uma variável.</p>
+<p><strong>Como consertar:</strong> use <code>null</code> (ou <code>default</code>) como padrão e calcule o valor de verdade dentro do método, com <code>??</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1739: A melhor sobrecarga de "MostrarItem" não tem um parâmetro chamado "valor"</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run nomeerr.cs
+/home/ana/cs/nomeerr.cs(1,23): error CS1739: A melhor sobrecarga de "MostrarItem" não tem um parâmetro chamado "valor"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> a chamada foi <code>MostrarItem("Caneta", valor: 3m)</code>, mas o parâmetro se chama <code>preco</code>. O nome tem de ser exatamente o da declaração, com maiúsculas e minúsculas.</p>
+<p><strong>Como consertar:</strong> <code>preco: 3m</code>. Se você renomear um parâmetro, as chamadas com nome também precisam mudar.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8323: O argumento nomeado 'preco' é usado fora de posição, mas é seguido por um argumento sem nome</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run nomepos.cs
+/home/ana/cs/nomepos.cs(1,13): error CS8323: O argumento nomeado 'preco' é usado fora de posição, mas é seguido por um argumento sem nome
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> <code>MostrarItem(preco: 3m, "Caneta")</code>. O <code>preco</code> nomeado foi para a primeira posição (que é do <code>produto</code>), e depois veio um valor sem nome: o compilador não tem como saber para onde vai o <code>"Caneta"</code>.</p>
+<p><strong>Como consertar:</strong> depois que um argumento sai da posição dele, todos os seguintes precisam de nome: <code>MostrarItem(preco: 3m, produto: "Caneta")</code>. Ou volte à ordem normal.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1744: O argumento nomeado "produto" especifica um parâmetro para o qual já foi atribuído um argumento posicional</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run nomedup.cs
+/home/ana/cs/nomedup.cs(1,23): error CS1744: O argumento nomeado "produto" especifica um parâmetro para o qual já foi atribuído um argumento posicional
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> <code>MostrarItem("Caneta", produto: "Lápis")</code>. O <code>"Caneta"</code>, por posição, já foi para <code>produto</code>; o nome tentou mandar outro valor para o mesmo parâmetro. E o <code>preco</code> ficou sem nada.</p>
+<p><strong>Como consertar:</strong> cada parâmetro recebe um valor só. Aqui, o certo era <code>MostrarItem("Lápis", preco: 3m)</code>. Com o mesmo nome escrito duas vezes (<code>preco: 3m, preco: 4m</code>), o erro é o <code>CS1740</code>: <code>O argumento nomeado "preco" não pode ser especificado várias vezes</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0839: Argumento ausente</code></strong>
+<p><strong>O que significa:</strong> há uma vírgula seguida de outra, um "buraco" na chamada, tentando pular um opcional.</p>
+<p><strong>Como consertar:</strong> tire o buraco e passe o opcional seguinte pelo nome: <code>MostrarItem("Borracha", 1.75m, descontoPorcento: 10)</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>void M(string a, int b = 1)</code></td><td><code>b</code> é opcional; se a chamada não mandar, vale 1</td></tr>
+<tr><td><code>M("x")</code> / <code>M("x", 5)</code></td><td>Sem o opcional (padrão) / com ele</td></tr>
+<tr><td><code>M(b: 5, a: "x")</code></td><td>Argumentos nomeados, em qualquer ordem</td></tr>
+<tr><td><code>M("x", c: 2)</code></td><td>Pula o opcional <code>b</code> e manda só <code>c</code></td></tr>
+<tr><td><code>DateTime? quando = null</code> + <code>quando ?? DateTime.Now</code></td><td>Padrão calculado na hora de rodar</td></tr>
+<tr><td>Padrões aceitos</td><td>Números, textos, <code>true</code>/<code>false</code>, <code>null</code>, <code>default</code>, constantes</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Valor padrão</h3>
+<p>Complete a declaração para que <code>moeda</code> valha <code>"R$"</code> quando a chamada não mandar nada:</p>
+<div class="ex-code">void MostrarPreco(decimal valor, string moeda <input data-answer="= &quot;R$&quot;|=&quot;R$&quot;" aria-label="padrão">)</div>
+</div>
+
+<div class="exercise">
+<h3>2. Argumento nomeado</h3>
+<p>O método é <code>void Agendar(string cliente, bool urgente = false)</code>. Complete a chamada que agenda a Bruna com urgência, usando o nome do parâmetro:</p>
+<div class="ex-code">Agendar("Bruna", <input data-answer="urgente: true|urgente:true" aria-label="argumento">);</div>
+</div>
+
+<div class="exercise">
+<h3>3. Quanto vale?</h3>
+<p>Com <code>int Somar(int a, int b = 10, int c = 100) =&gt; a + b + c;</code>, quanto vale <code>Somar(1, c: 5)</code>?</p>
+<div class="ex-code"><input data-answer="16" aria-label="valor"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Qual declaração compila?</p>
+<label><input type="radio" name="q4"> <code>void M(int a = 1, int b)</code></label>
+<label><input type="radio" name="q4"> <code>void M(int a, int b = 1, int c = 2)</code></label>
+<label><input type="radio" name="q4"> <code>void M(DateTime d = DateTime.Now)</code></label>
+<label><input type="radio" name="q4"> <code>void M(int a = 1, int b, int c = 2)</code></label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Com <code>void M(string produto, decimal preco)</code>, qual chamada <strong>não</strong> compila?</p>
+<label><input type="radio" name="q5"> <code>M(preco: 2m, produto: "a")</code></label>
+<label><input type="radio" name="q5"> <code>M("a", preco: 2m)</code></label>
+<label><input type="radio" name="q5"> <code>M(preco: 2m, "a")</code></label>
+<label><input type="radio" name="q5"> <code>M("a", 2m)</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que escrever <code>Enviar(texto, urgente: true)</code> em vez de <code>Enviar(texto, true)</code>?</p>
+<label><input type="radio" name="q6"> Porque quem lê entende o que o <code>true</code> quer dizer sem abrir o método</label>
+<label><input type="radio" name="q6"> Porque sem o nome não compila</label>
+<label><input type="radio" name="q6"> Porque o programa fica mais rápido</label>
+<label><input type="radio" name="q6"> Porque <code>bool</code> só aceita argumento nomeado</label>
+</div>
+
+<h3>Missão final: o formulário de pedido</h3>
+
+<div class="trycs" data-goal="outre:^1 x Caderno \| embrulho: não \| entrega: não\n3 x Caneta \| embrulho: não \| entrega: não\n1 x Mochila \| embrulho: sim \| entrega: não\n2 x Agenda \| embrulho: não \| entrega: sim\n$,src:int\s+\w+\s*=\s*1,src:bool\s+embrulhar\s*=\s*false,src:bool\s+entregar\s*=\s*false">
+<p class="try-task"><strong>Missão:</strong> as quatro chamadas já estão prontas. Escreva o método <code>FazerPedido</code> com quatro parâmetros, nesta ordem: <code>produto</code> (<code>string</code>, obrigatório), <code>quantidade</code> (<code>int</code>, padrão 1), <code>embrulhar</code> e <code>entregar</code> (os dois <code>bool</code>, padrão <code>false</code>). Ele mostra uma linha no formato abaixo, com <code>sim</code> ou <code>não</code> (dica: <code>embrulhar ? "sim" : "não"</code>, de <a href="ternario.html">Operador Ternário</a>). A saída deve ser:</p>
+<pre class="out">1 x Caderno | embrulho: não | entrega: não
+3 x Caneta | embrulho: não | entrega: não
+1 x Mochila | embrulho: sim | entrega: não
+2 x Agenda | embrulho: não | entrega: sim</pre>
+<pre class="script">FazerPedido("Caderno");
+FazerPedido("Caneta", 3);
+FazerPedido("Mochila", embrulhar: true);
+FazerPedido("Agenda", 2, entregar: true);
+
+// escreva o método FazerPedido aqui
+</pre>
+<pre class="solucao">FazerPedido("Caderno");
+FazerPedido("Caneta", 3);
+FazerPedido("Mochila", embrulhar: true);
+FazerPedido("Agenda", 2, entregar: true);
+
+void FazerPedido(string produto, int quantidade = 1, bool embrulhar = false, bool entregar = false)
+{
+    string embrulho = embrulhar ? "sim" : "não";
+    string entrega = entregar ? "sim" : "não";
+    Console.WriteLine($"{quantidade} x {produto} | embrulho: {embrulho} | entrega: {entrega}");
+}
+</pre>
+</div>
+
+<p>Se apareceu <code>CS1739</code>, o nome de um parâmetro não bate com o da chamada (<code>embrulhar</code> e <code>entregar</code>, sem acento). Se apareceu <code>CS7036</code>, falta um valor padrão.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um parâmetro com <code>= valor</code> é <strong>opcional</strong>: se a chamada não mandar nada, ele recebe o padrão.</li>
+  <li>Opcionais vêm depois de todos os obrigatórios (<code>CS1737</code>), e o padrão tem de ser uma constante (<code>CS1736</code>). Para "agora" ou valores calculados, use <code>null</code> e <code>??</code>.</li>
+  <li>Um <strong>argumento nomeado</strong> (<code>preco: 3m</code>) escolhe o parâmetro pelo nome: a ordem deixa de importar, e dá para pular opcionais do meio.</li>
+  <li>Depois de um nomeado fora da posição, os seguintes também precisam de nome (<code>CS8323</code>). Nome errado dá <code>CS1739</code>; parâmetro preenchido duas vezes, <code>CS1744</code> ou <code>CS1740</code>.</li>
+  <li>Use nomes quando a chamada tiver <code>true</code>/<code>false</code> ou números que não se explicam sozinhos.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
