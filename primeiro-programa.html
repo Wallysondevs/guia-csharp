@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Olá, Mundo — o primeiro programa linha por linha | Guia C#</title>
+<meta name="description" content="O primeiro programa em C# para quem nunca programou: o Olá, mundo de uma linha explicado palavra por palavra (Console, o ponto, WriteLine, parênteses, aspas, ponto e vírgula), criar o arquivo ola.cs no nano, rodar com dotnet run ola.cs, mostrar várias linhas, o código de saída, a forma antiga com class Program e static void Main e os primeiros erros (CS1002, CS0103, CS0117, CS1010), com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Olá, Mundo</span></h1>
+
+<p class="intro">Chegou a hora de escrever o seu primeiro programa em C#. Ele é pequeno: só mostra a frase <code>Olá, mundo!</code> na tela. Mas, para chegar até ela, você vai fazer o caminho que todo programa faz: <strong>escrever</strong> o código num arquivo e pedir ao <code>dotnet</code> para <strong>compilar e rodar</strong>. No C# moderno, o programa inteiro cabe numa linha, e nesta aula você entende cada pedacinho dela, sem pular nenhum símbolo.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Criar a pasta e o arquivo <code>ola.cs</code> no editor <code>nano</code>.</li>
+  <li>O que faz cada parte de <code>Console.WriteLine("Olá, mundo!");</code>: o <code>Console</code>, o ponto, o <code>WriteLine</code>, os parênteses, as aspas e o <code>;</code>.</li>
+  <li>Rodar o programa com <code>dotnet run ola.cs</code>.</li>
+  <li>Mostrar várias linhas, uma instrução depois da outra.</li>
+  <li>Por que <code>Console</code> e <code>console</code> não são a mesma coisa.</li>
+  <li>Ver o código de saída com <code>echo $?</code>.</li>
+  <li>A forma antiga, com <code>class Program</code> e <code>static void Main</code>, que você vai ver em muitos tutoriais.</li>
+  <li>Os primeiros erros que todo mundo comete, com a mensagem real.</li>
+</ul>
+</div>
+
+<p>Todos os comandos desta aula foram executados na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), com o <strong>.NET SDK 10.0.112</strong> do Ubuntu 26.04, numa pasta chamada <code>~/cs</code>. As saídas foram copiadas da tela, sem mudar nada. Se você ainda não instalou o .NET, volte para <a href="instalar-linux.html">Instalar no Linux</a> (ou <a href="instalar-windows-mac.html">Windows e macOS</a>). Se ainda não quer instalar, você pode fazer quase tudo no editor do guia, que compila e roda C# de verdade no navegador (<a href="simulador.html">O Editor do Guia</a>).</p>
+
+<hr>
+
+<h2>A ideia: a receita e o bolo</h2>
+<p>Pense numa receita de bolo escrita num papel. O papel não é o bolo: alguém precisa ler a receita e <strong>fazer</strong> o bolo. Em C# é igual:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na cozinha</th><th>Em C#</th><th>Nesta aula</th></tr>
+<tr><td>A receita no papel</td><td>O <strong>código-fonte</strong>: um arquivo de texto que você escreve</td><td><code>ola.cs</code></td></tr>
+<tr><td>Ler a receita e conferir se está tudo certo</td><td><strong>Compilar</strong>: o compilador confere e traduz o código</td><td rowspan="2"><code>dotnet run ola.cs</code> faz os dois</td></tr>
+<tr><td>Fazer o bolo</td><td><strong>Rodar</strong> o programa</td></tr>
+<tr><td>O bolo na mesa</td><td>O que aparece na tela</td><td><code>Olá, mundo!</code></td></tr>
+</table>
+</div>
+
+<p>O comando <code>dotnet run</code> faz as duas etapas de uma vez: primeiro compila (se houver um erro, para aí e mostra a mensagem), depois roda. A aula <a href="dotnet.html">.NET: SDK, Runtime e CLR</a> mostra o que acontece por dentro, e a próxima aula, <a href="dotnet-run.html">Rodar com dotnet run</a>, mostra tudo o que esse comando sabe fazer. Aqui você só precisa de dois passos: <strong>escrever e rodar</strong>.</p>
+
+<hr>
+
+<h2>1. Criar a pasta e o arquivo</h2>
+<p>Comece criando uma pasta só para os seus programas, para eles não se misturarem com fotos e documentos. No terminal:</p>
+
+<pre class="term">$ mkdir cs               « cria a pasta "cs" dentro da sua pasta pessoal
+$ cd cs                  « entra nela</pre>
+
+<p>Os dois comandos não mostram nada quando dão certo: o terminal só volta a mostrar o prompt, agora com <code>~/cs</code> no fim. (<code>mkdir</code> e <code>cd</code> são comandos do terminal, não do C#. Eles são explicados no Guia Bash.)</p>
+
+<p>Agora crie o arquivo. Qualquer editor de texto serve (o VS Code, o editor de textos do sistema… veja <a href="editores.html">Editores e IDEs</a>). Aqui vamos usar o <strong>nano</strong>, que roda dentro do próprio terminal e já vem no Ubuntu:</p>
+
+<pre class="term" data-cwd="~/cs">$ nano ola.cs            « abre o nano com um arquivo novo chamado ola.cs</pre>
+
+<p>O terminal vira um editor. No alto aparece <code>GNU nano 8.7.1</code> e o nome <code>ola.cs</code>; embaixo, <code>[ Novo arquivo ]</code> e uma lista de atalhos, como <code>^O Gravar</code> e <code>^X Sair</code>. O <code>^</code> quer dizer a tecla <kbd>Ctrl</kbd>. Digite o programa, que tem uma linha só:</p>
+
+<pre class="file" data-file="ola.cs">Console.WriteLine("Olá, mundo!");
+</pre>
+
+<ol class="passo">
+  <li>Digite a linha exatamente como está, com as letras maiúsculas no mesmo lugar (<code>C</code>, <code>W</code> e <code>L</code>).</li>
+  <li>Aperte <kbd>Ctrl</kbd> + <kbd>O</kbd> (<code>^O Gravar</code>). Embaixo aparece <code>Escrever para o arquivo: ola.cs</code>.</li>
+  <li>Aperte <kbd>Enter</kbd> para confirmar o nome. O nano responde <code>[ Escrita 1 linha ]</code>.</li>
+  <li>Aperte <kbd>Ctrl</kbd> + <kbd>X</kbd> (<code>^X Sair</code>) para voltar ao terminal.</li>
+</ol>
+
+<p>Três cuidados ao salvar:</p>
+<ul>
+  <li><strong>A extensão é <code>.cs</code></strong>, de <em>C sharp</em>. Ela diz ao <code>dotnet</code> e ao editor que o arquivo é código C#.</li>
+  <li><strong>Sem espaços e sem acentos no nome</strong>: <code>ola.cs</code>, e não <code>olá mundo.cs</code>. Funciona com espaços, mas você teria de usar aspas em todo comando.</li>
+  <li><strong>Digite, não copie e cole</strong>, pelo menos desta vez. Digitar faz você reparar em cada símbolo, e em C# os símbolos importam.</li>
+</ul>
+
+<p>Para conferir que o arquivo está na pasta certa e com o conteúdo certo, use <code>ls</code> (lista os arquivos) e <code>cat</code> (mostra o conteúdo):</p>
+
+<pre class="term" data-cwd="~/cs">$ ls
+ola.cs
+$ cat ola.cs
+Console.WriteLine("Olá, mundo!");</pre>
+
+<hr>
+
+<h2>2. O programa, palavra por palavra</h2>
+<p>Uma linha só, mas cada símbolo tem uma função. Leia com calma; não precisa decorar nada agora, porque você vai escrever essa linha tantas vezes que ela vai grudar sozinha.</p>
+
+<pre class="file" data-file="ola.cs">Console.WriteLine("Olá, mundo!");
+</pre>
+
+<dl class="anatomy">
+  <dt>Console</dt><dd>O "console" é a tela de texto onde o programa conversa com você: o terminal. Em C#, <code>Console</code> é uma <strong>classe</strong> pronta, que vem com o .NET e reúne tudo o que se pode fazer com essa tela: escrever, ler o que a pessoa digita, limpar, mudar a cor. Ela começa com <strong>C maiúsculo</strong>, e isso importa.</dd>
+  <dt>.</dt><dd>O ponto quer dizer "de dentro de": <code>Console.WriteLine</code> é "o <code>WriteLine</code> que mora dentro do <code>Console</code>". Você vai ver esse ponto o tempo todo em C#: <code>Math.Sqrt</code>, <code>nome.Length</code>, <code>File.ReadAllText</code>.</dd>
+  <dt>WriteLine</dt><dd>"Escrever linha" (<em>write</em> = escrever, <em>line</em> = linha): escreve o texto e, no fim, <strong>pula para a linha de baixo</strong>. É um <strong>método</strong>, uma ação que se pode pedir a uma classe. Também com maiúsculas: <code>W</code> e <code>L</code>.</dd>
+  <dt>( )</dt><dd>Os parênteses depois do nome <strong>chamam</strong> o método: "<code>WriteLine</code>, faça o seu trabalho com isto aqui dentro". O que vai entre eles se chama <strong>argumento</strong>.</dd>
+  <dt>"Olá, mundo!"</dt><dd>O texto, entre <strong>aspas duplas</strong>. As aspas dizem ao compilador "isto é texto para mostrar, não é código", e não aparecem na tela. Um texto entre aspas se chama <strong>string</strong> (aula <a href="strings.html">Strings</a>). Dentro das aspas vale tudo: acentos, espaços, a vírgula, a exclamação.</dd>
+  <dt>;</dt><dd>O <strong>ponto e vírgula</strong> termina a instrução, como o ponto final de uma frase. Esquecê-lo é o erro número um de quem começa, e você vai vê-lo no fim desta aula.</dd>
+</dl>
+
+<h3>E onde está o resto do programa?</h3>
+<p>Se você já viu um programa em C# num livro ou num vídeo, deve estar estranhando: cadê o <code>using System;</code>, o <code>class Program</code> e o <code>static void Main</code>? Desde o <span class="versao">C# 9</span>, eles não são mais obrigatórios. Duas regras deixam o programa curto:</p>
+
+<ul>
+  <li><strong>Instruções de nível superior</strong> (<em>top-level statements</em>): você escreve as instruções direto no arquivo, e o compilador cria sozinho, por baixo, a "moldura" que o programa precisa. O programa começa na primeira linha e vai até a última.</li>
+  <li><strong><code>using</code> automáticos</strong> <span class="versao">C# 10</span>: o <code>Console</code> mora num "endereço" chamado <code>System</code>. Antes, era preciso escrever <code>using System;</code> no topo; hoje, o .NET já faz isso por você.</li>
+</ul>
+
+<p>A forma antiga continua funcionando e aparece na seção 6. A aula <a href="top-level.html">Program.cs e o Main</a> mostra que as duas formas são o mesmo programa.</p>
+
+<hr>
+
+<h2>3. Rodar o programa</h2>
+<p>Com o arquivo salvo, peça ao <code>dotnet</code> para compilar e rodar:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ola.cs
+Olá, mundo!</pre>
+
+<p>Pronto: esse é o seu primeiro programa em C# funcionando. As aspas não apareceram, e o prompt voltou na linha de baixo, porque o <code>WriteLine</code> pula a linha no fim.</p>
+
+<dl class="anatomy">
+  <dt>dotnet</dt><dd>O comando do .NET, que você instalou.</dd>
+  <dt>run</dt><dd>"Rodar": compila e roda.</dd>
+  <dt>ola.cs</dt><dd>O arquivo a rodar.</dd>
+</dl>
+
+<p>Duas coisas que você pode estranhar:</p>
+<ul>
+  <li><strong>A primeira vez demora uns segundos.</strong> O <code>dotnet</code> precisa preparar tudo e compilar. Da segunda vez em diante, se o arquivo não mudou, ele reaproveita o que já compilou e responde quase na hora. Na primeiríssima vez depois de instalar o .NET, aparece também uma mensagem de boas-vindas (aula <a href="instalar-linux.html">Instalar no Linux</a>).</li>
+  <li><strong>Nenhum arquivo novo apareceu na pasta.</strong> O <code>dotnet run</code> guarda o programa compilado numa pasta escondida, longe da sua (a aula <a href="dotnet-run.html">Rodar com dotnet run</a> mostra onde). Na sua pasta, continua só o <code>ola.cs</code>.</li>
+</ul>
+
+<p>Agora é a sua vez. O editor abaixo compila e roda C# de verdade no navegador (a primeira vez demora alguns segundos, porque ele baixa o compilador e o .NET). Ele faz o mesmo que o <code>dotnet run</code> quando você clica em <strong>Rodar</strong>.</p>
+
+<div class="trycs" data-goal="out:Olá\, Ana!">
+<p class="try-task"><strong>Missão:</strong> rode o programa como está. Depois troque <code>mundo</code> pelo nome <code>Ana</code>, de modo que a saída seja <code>Olá, Ana!</code>, e rode de novo. Mexa só no que está entre as aspas.</p>
+<pre class="script" data-file="ola.cs">Console.WriteLine("Olá, mundo!");
+</pre>
+<pre class="solucao">Console.WriteLine("Olá, Ana!");
+</pre>
+</div>
+
+<hr>
+
+<h2>4. Mostrar mais de uma linha</h2>
+<p>Um programa pode ter quantas instruções você quiser. Elas rodam <strong>uma depois da outra, de cima para baixo</strong>, cada uma terminada com <code>;</code>:</p>
+
+<pre class="file" data-file="tres.cs">Console.WriteLine("Olá! Eu sou a Ana.");
+Console.WriteLine("Estou aprendendo C#.");
+Console.WriteLine("Este é o meu primeiro programa.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tres.cs
+Olá! Eu sou a Ana.
+Estou aprendendo C#.
+Este é o meu primeiro programa.</pre>
+
+<p>Cada <code>WriteLine</code> escreve uma linha e pula para a próxima. A ordem na tela é a ordem no arquivo: o computador não pula nem troca nenhuma instrução de lugar. (Mais tarde, com <a href="if-else.html">if</a> e <a href="while.html">while</a>, você vai aprender a decidir e a repetir.)</p>
+
+<div class="trycs" data-goal="outre:^Olá! Eu sou a Ana\.\nEstou aprendendo C#\.\nEste é o meu primeiro programa\.\nAté a próxima!\n$">
+<p class="try-task"><strong>Missão:</strong> acrescente uma quarta linha, no fim, que mostre <code>Até a próxima!</code>. Copie o jeito das linhas de cima.</p>
+<pre class="script" data-file="tres.cs">Console.WriteLine("Olá! Eu sou a Ana.");
+Console.WriteLine("Estou aprendendo C#.");
+Console.WriteLine("Este é o meu primeiro programa.");
+</pre>
+<pre class="solucao">Console.WriteLine("Olá! Eu sou a Ana.");
+Console.WriteLine("Estou aprendendo C#.");
+Console.WriteLine("Este é o meu primeiro programa.");
+Console.WriteLine("Até a próxima!");
+</pre>
+</div>
+
+<h3><code>Write</code> e <code>WriteLine</code></h3>
+<p>O <code>Console</code> tem um irmão do <code>WriteLine</code>: o <strong><code>Write</code></strong>, que escreve <strong>sem</strong> pular a linha. E um <code>WriteLine()</code> com os parênteses vazios só pula uma linha:</p>
+
+<pre class="file" data-file="write.cs">Console.Write("Olá, ");
+Console.Write("mundo!");
+Console.WriteLine();
+System.Console.WriteLine("Com o nome completo: System.Console");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run write.cs
+Olá, mundo!                                     « os dois Write ficaram na mesma linha
+Com o nome completo: System.Console</pre>
+
+<p>A última linha mostra outra coisa: <code>System.Console</code> é o <strong>nome completo</strong> do <code>Console</code>, com o "endereço" <code>System</code> na frente. Funciona igual, só é mais comprido; por isso ninguém escreve assim. A aula <a href="saida.html">Saída (Console.WriteLine)</a> mostra tudo o que o <code>Write</code> e o <code>WriteLine</code> sabem fazer, e a aula <a href="namespaces.html">Namespaces e using</a> explica o <code>System</code>.</p>
+
+<hr>
+
+<h2>5. Maiúsculas e minúsculas</h2>
+<p>O C# diferencia letras maiúsculas de minúsculas: <code>Console</code>, <code>console</code> e <code>CONSOLE</code> são três nomes diferentes, e só o primeiro existe. O mesmo vale para <code>WriteLine</code>: <code>Writeline</code>, com o <code>l</code> minúsculo, não existe. É o tipo de erro que mais confunde no começo, porque, para nós, "é a mesma palavra". Os dois erros estão em <a href="#errado">Quando dá errado</a>, com as mensagens reais.</p>
+
+<p>O costume do C# é escrever os nomes de classes e métodos com a primeira letra de cada palavra em maiúscula: <code>Console</code>, <code>WriteLine</code>, <code>ReadLine</code>. Isso se chama <strong>PascalCase</strong> (aula <a href="identificadores.html">Nomes e Convenções</a>). Sabendo a regra, fica fácil adivinhar como se escreve.</p>
+
+<hr>
+
+<h2>6. O código de saída</h2>
+<p>Todo programa, quando termina, entrega um número ao sistema: o <strong>código de saída</strong>. <code>0</code> quer dizer "terminei sem problemas"; qualquer outro número quer dizer "algo deu errado". No terminal, o código de saída do último programa fica guardado em <code>$?</code>, e o <code>echo</code> o mostra:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ola.cs
+Olá, mundo!
+$ echo $?
+0                        « 0: deu tudo certo</pre>
+
+<p>O programa termina sozinho com <code>0</code> quando chega ao fim do arquivo. Para escolher outro número, termine com <code>return</code> e o número:</p>
+
+<pre class="file" data-file="ate.cs">Console.WriteLine("Até logo!");
+return 7;
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ate.cs
+Até logo!
+$ echo $?
+7                        « o 7 do return chegou ao terminal</pre>
+
+<p>Para que serve isso? Scripts e outros programas usam o código de saída para saber se o seu programa deu certo. O próprio <code>dotnet run</code> faz isso: quando a compilação falha, ele sai com o código <code>1</code> (você vai ver em "Quando dá errado"). O editor do guia mostra o código de saída embaixo da saída do programa. A aula <a href="top-level.html">Program.cs e o Main</a> conta mais sobre o <code>return</code>.</p>
+
+<div class="trycs" data-goal="exit:7,out:Até logo!">
+<p class="try-task"><strong>Missão:</strong> faça o programa mostrar <code>Até logo!</code> e terminar com o código de saída <code>7</code>. Troque o texto e acrescente a linha <code>return 7;</code> no fim. Confira o número que o editor mostra.</p>
+<pre class="script" data-file="ate.cs">Console.WriteLine("Olá, mundo!");
+</pre>
+<pre class="solucao">Console.WriteLine("Até logo!");
+return 7;
+</pre>
+</div>
+
+<hr>
+
+<h2>7. A forma antiga: <code>class Program</code> e <code>static void Main</code></h2>
+<p>Até o C# 8, todo programa precisava de uma moldura de nove linhas. Você vai encontrá-la em muitos livros, cursos e respostas na internet, e no projeto que o Visual Studio cria se você marcar a opção "não usar instruções de nível superior". Este é o mesmo Olá, mundo, na forma antiga:</p>
+
+<pre class="file" data-file="antigo.cs">using System;
+
+class Program
+{
+    static void Main()
+    {
+        Console.WriteLine("Olá, mundo!");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run antigo.cs
+Olá, mundo!                                     « o mesmo resultado</pre>
+
+<p>A linha que <strong>faz</strong> alguma coisa é a mesma de antes, o <code>Console.WriteLine</code>. O resto é a moldura: <code>using System;</code> traz o endereço do <code>Console</code>; <code>class Program</code> cria uma classe chamada <code>Program</code>; <code>static void Main()</code> é o <strong>método principal</strong>, por onde o programa começa; as chaves <code>{ }</code> marcam onde cada parte começa e termina. Hoje, o compilador escreve essa moldura por você, escondida. Cada pedaço tem aula própria: <a href="top-level.html">Program.cs e o Main</a>, <a href="classes-objetos.html">Classes e Objetos</a>, <a href="static.html">static</a> e <a href="metodos.html">Métodos</a>.</p>
+
+<h3>Formas de escrever o Olá, mundo</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Onde aparece</th></tr>
+<tr><td><code>Console.WriteLine("Olá, mundo!");</code></td><td>A forma deste guia e do <code>dotnet new console</code> desde o .NET 6. <span class="versao">C# 9</span></td></tr>
+<tr><td><code>System.Console.WriteLine("Olá, mundo!");</code></td><td>Com o nome completo. Funciona em qualquer versão, mas é comprida.</td></tr>
+<tr><td><code>class Program { static void Main() { … } }</code></td><td>A forma antiga, de livros, cursos e projetos de antes de 2021. Funciona no C# 14.</td></tr>
+<tr><td><code>Console.Write("Olá, mundo!");</code></td><td>Escreve sem pular a linha no fim: o prompt do terminal gruda no texto.</td></tr>
+</table>
+</div>
+
+<p><strong>Qual usar?</strong> A primeira. Ela é a mais clara, e é a que o próprio .NET usa nos modelos novos. Quando encontrar a forma antiga, lembre: o miolo é o mesmo.</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+<p>Errar faz parte. Um erro de compilação <strong>não estraga nada</strong>: o compilador só se recusa a rodar o programa até você consertar. Repare que todas as mensagens têm o mesmo formato: o arquivo, a <strong>(linha,coluna)</strong>, a palavra <code>error</code>, um <strong>código</strong> <code>CSxxxx</code> e a explicação. O código é igual em qualquer língua: procurando "CS1002" na internet, você acha a explicação.</p>
+
+<div class="cenario">
+<strong><code>error CS1002: ; esperado</code></strong>
+<pre class="file" data-file="semponto.cs · erro de propósito">Console.WriteLine("Olá, mundo!")
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run semponto.cs
+/home/ana/cs/semponto.cs(1,33): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.
+$ echo $?
+1                        « o dotnet avisa que falhou: código 1</pre>
+<p><strong>O que significa:</strong> faltou o ponto e vírgula. O compilador chegou à coluna 33, logo depois do <code>)</code>, e esperava um <code>;</code>. A última linha, "ocorreu uma falha no build", quer dizer que a compilação (o <em>build</em>) falhou e o programa não rodou. Em inglês, o erro diz <code>; expected</code>.</p>
+<p><strong>Como consertar:</strong> coloque o <code>;</code> no fim da linha e rode de novo.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0103: O nome "console" não existe no contexto atual</code></strong>
+<pre class="file" data-file="minuscula.cs · erro de propósito">console.WriteLine("Olá, mundo!");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run minuscula.cs
+/home/ana/cs/minuscula.cs(1,1): error CS0103: O nome "console" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o compilador procurou alguma coisa chamada <code>console</code>, com <code>c</code> minúsculo, e não achou ("não existe no contexto atual" = "não conheço esse nome aqui"). Para ele, <code>console</code> e <code>Console</code> são nomes diferentes. Em inglês: <code>The name 'console' does not exist in the current context</code>.</p>
+<p><strong>Como consertar:</strong> <code>Console</code>, com <code>C</code> maiúsculo.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0117: "Console" não contém uma definição para "Writeline"</code></strong>
+<pre class="file" data-file="writeline.cs · erro de propósito">Console.Writeline("Olá, mundo!");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run writeline.cs
+/home/ana/cs/writeline.cs(1,9): error CS0117: "Console" não contém uma definição para "Writeline"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> agora o <code>Console</code> está certo, mas dentro dele não existe nada chamado <code>Writeline</code>, com <code>l</code> minúsculo. A coluna 9 é onde começa o <code>Writeline</code>, logo depois do ponto.</p>
+<p><strong>Como consertar:</strong> <code>WriteLine</code>, com <code>L</code> maiúsculo. Num editor de código, digite <code>Console.</code> e escolha o nome na lista: assim ele nunca sai errado.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1010: Newline em constante</code></strong>
+<pre class="file" data-file="aspas.cs · erro de propósito">Console.WriteLine("Olá, mundo!);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run aspas.cs
+/home/ana/cs/aspas.cs(1,19): error CS1010: Newline em constante
+/home/ana/cs/aspas.cs(1,33): error CS1026: ) esperado
+/home/ana/cs/aspas.cs(1,33): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> faltou fechar as aspas. O texto começou na coluna 19 e chegou ao fim da linha (<em>newline</em>, a "quebra de linha") ainda aberto, como se o <code>);</code> fosse parte da frase. Por isso vieram mais dois erros: o compilador não achou nem o <code>)</code> nem o <code>;</code>, porque eles ficaram "dentro" do texto.</p>
+<p><strong>Como consertar:</strong> feche as aspas depois do <code>!</code>: <code>"Olá, mundo!"</code>. Com vários erros, conserte sempre o <strong>primeiro</strong>: muitas vezes, os outros somem junto.</p>
+</div>
+
+<div class="cenario">
+<strong><code>Não foi possível localizar um projeto para executar.</code></strong>
+<pre class="term" data-cwd="~/vazio">$ dotnet run ola.cs
+Não foi possível localizar um projeto para executar. Verifique se existe um projeto em /home/ana/vazio ou passe o caminho para o projeto usando --project.</pre>
+<p><strong>O que significa:</strong> não existe nenhum <code>ola.cs</code> na pasta atual (aqui, a Ana estava na pasta <code>~/vazio</code>). Ou você está em outra pasta, ou o nome está diferente (<code>Ola.cs</code>, <code>ola.cs.txt</code>). Como não achou o arquivo, o <code>dotnet</code> procurou um <strong>projeto</strong> (aula <a href="projetos-console.html">Projetos</a>) e também não achou. A mensagem fala de projeto, mas o problema é o arquivo.</p>
+<p><strong>Como consertar:</strong> rode <code>ls</code> para ver o que há na pasta. Se o <code>ola.cs</code> não aparece, entre na pasta certa com <code>cd ~/cs</code>. A tecla <kbd>Tab</kbd> completa nomes de arquivo no terminal e evita esse erro.</p>
+</div>
+
+<div class="cenario">
+<strong>Mudei o texto e continua aparecendo o antigo</strong>
+<p><strong>O que significa:</strong> o arquivo não foi salvo. O <code>dotnet run</code> lê o arquivo que está no disco, não o que está na tela do editor.</p>
+<p><strong>Como consertar:</strong> salve (no nano, <kbd>Ctrl</kbd>+<kbd>O</kbd> e <kbd>Enter</kbd>; nos outros editores, <kbd>Ctrl</kbd>+<kbd>S</kbd>) e rode de novo.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>Console.WriteLine("texto");</code></td><td>Mostra o texto e pula para a linha de baixo</td></tr>
+<tr><td><code>Console.Write("texto");</code></td><td>Mostra o texto sem pular a linha</td></tr>
+<tr><td><code>Console.WriteLine();</code></td><td>Só pula uma linha</td></tr>
+<tr><td><code>"…"</code></td><td>Um texto (string)</td></tr>
+<tr><td><code>;</code></td><td>Termina uma instrução</td></tr>
+<tr><td><code>return 7;</code></td><td>Termina o programa com o código de saída 7</td></tr>
+<tr><td><code>nano ola.cs</code></td><td>Abre (ou cria) o arquivo no editor nano; <kbd>Ctrl</kbd>+<kbd>O</kbd> grava, <kbd>Ctrl</kbd>+<kbd>X</kbd> sai</td></tr>
+<tr><td><code>dotnet run ola.cs</code></td><td>Compila e roda o arquivo <code>ola.cs</code></td></tr>
+<tr><td><code>echo $?</code></td><td>Mostra o código de saída do último programa</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Escrever uma linha</h3>
+<p>Complete a instrução que mostra <code>Oi!</code> e pula a linha:</p>
+<div class="ex-code">Console.<input data-answer="WriteLine" aria-label="método">("Oi!");</div>
+</div>
+
+<div class="exercise">
+<h3>2. O fim da instrução</h3>
+<p>Que símbolo termina toda instrução em C#?</p>
+<div class="ex-code">Console.WriteLine("Oi!")<input data-answer=";" aria-label="símbolo"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Rodar</h3>
+<p>O arquivo <code>jogo.cs</code> está na pasta atual. Que comando o compila e roda?</p>
+<div class="ex-code">$ <input data-answer="dotnet run jogo.cs" aria-label="comando"></div>
+</div>
+
+<div class="exercise">
+<h3>4. O código de saída</h3>
+<p>Que comando mostra o código de saída do último programa que rodou?</p>
+<div class="ex-code">$ <input data-answer="echo $?" aria-label="comando"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. O compilador respondeu <code>O nome "console" não existe no contexto atual</code>. O que está errado?</p>
+<label><input type="radio" name="q5"> Faltou o <code>;</code>.</label>
+<label><input type="radio" name="q5"> O <code>Console</code> foi escrito com <code>c</code> minúsculo.</label>
+<label><input type="radio" name="q5"> O .NET não está instalado.</label>
+<label><input type="radio" name="q5"> Faltou fechar as aspas.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">6. Qual é a diferença entre <code>Console.Write</code> e <code>Console.WriteLine</code>?</p>
+<label><input type="radio" name="q6"> Nenhuma.</label>
+<label><input type="radio" name="q6"> O <code>Write</code> escreve mais rápido.</label>
+<label><input type="radio" name="q6"> O <code>WriteLine</code> pula para a linha de baixo depois do texto; o <code>Write</code>, não.</label>
+<label><input type="radio" name="q6"> O <code>Write</code> só aceita números.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">7. Um tutorial mostra o Olá, mundo com <code>class Program</code> e <code>static void Main</code>. Ele está errado?</p>
+<label><input type="radio" name="q7"> Não: é a forma antiga, que continua funcionando. A forma curta, de uma linha, é o mesmo programa.</label>
+<label><input type="radio" name="q7"> Sim: no C# 14 essa forma dá erro.</label>
+<label><input type="radio" name="q7"> Sim: <code>Main</code> não existe em C#.</label>
+<label><input type="radio" name="q7"> Não, e a forma curta só funciona no editor do guia.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">8. Com três erros na tela, qual você conserta primeiro?</p>
+<label><input type="radio" name="q8"> O último.</label>
+<label><input type="radio" name="q8"> O que tiver o maior número de linha.</label>
+<label><input type="radio" name="q8"> Nenhum: apaga o arquivo e começa de novo.</label>
+<label><input type="radio" name="q8"> O primeiro: os outros muitas vezes são consequência dele.</label>
+</div>
+
+<h3>Missão final: o cartão de visita</h3>
+
+<div class="trycs" data-goal="outre:^Ana Souza\nProgramadora C#\nRecife - PE\n$,semaviso">
+<p class="try-task"><strong>Missão:</strong> escreva um programa completo que mostre o cartão de visita da Ana em três linhas:</p>
+<pre class="out">Ana Souza
+Programadora C#
+Recife - PE</pre>
+<p class="try-task">Use um <code>Console.WriteLine</code> para cada linha, com as maiúsculas no lugar e o <code>;</code> no fim. Se o compilador reclamar, leia a linha e a coluna da mensagem.</p>
+<pre class="script" data-file="cartao.cs">// escreva o programa aqui (esta linha é um comentário: o compilador ignora)
+
+</pre>
+<pre class="solucao">Console.WriteLine("Ana Souza");
+Console.WriteLine("Programadora C#");
+Console.WriteLine("Recife - PE");
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um programa em C# pode ter uma linha só: <code>Console.WriteLine("Olá, mundo!");</code>. O arquivo termina em <code>.cs</code>.</li>
+  <li><code>Console</code> é a tela de texto; o ponto quer dizer "de dentro de"; <code>WriteLine</code> escreve e pula a linha; o texto vai entre aspas; o <code>;</code> termina a instrução.</li>
+  <li><code>dotnet run ola.cs</code> compila e roda. A primeira vez demora uns segundos; depois, é quase na hora.</li>
+  <li>As instruções rodam de cima para baixo. <code>Write</code> escreve sem pular a linha.</li>
+  <li>O C# diferencia maiúsculas: <code>console</code> dá <code>CS0103</code>, <code>Writeline</code> dá <code>CS0117</code>. Sem <code>;</code>, <code>CS1002</code>; sem fechar aspas, <code>CS1010</code>.</li>
+  <li><code>echo $?</code> mostra o código de saída: 0 se deu certo, 1 se a compilação falhou, ou o número do <code>return</code>.</li>
+  <li>A forma antiga, com <code>class Program</code> e <code>static void Main</code>, é o mesmo programa com a moldura à mostra.</li>
+  <li>Próximo passo: <a href="dotnet-run.html">Rodar com dotnet run</a>, tudo o que esse comando sabe fazer.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
