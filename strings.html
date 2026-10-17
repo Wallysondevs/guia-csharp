@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Strings — textos, Length, imutabilidade e comparação | Guia C#</title>
+<meta name="description" content="Strings em C# para quem nunca programou: criar textos, Length, as posições (nome[0]), juntar com + e +=, por que a string é imutável, == compara o conteúdo, string.Equals com StringComparison, string.Compare, ToUpper em pt-BR, vazio × null e os erros reais CS0200, CS1012, CS1061 e IndexOutOfRangeException do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Strings</span></h1>
+
+<p class="intro">Quase todo programa mexe com texto: o nome do cliente, a mensagem na tela, a senha, a lista de compras. Em C#, um texto é uma <strong><code>string</code></strong> (em inglês, "corrente", "fileira": uma fileira de letras). Você já usou strings desde o "Olá, mundo". Nesta aula você vai ver o que uma string é por dentro, como medir e pegar letras dela, como juntar textos, por que uma string <strong>nunca muda</strong> e como comparar textos do jeito certo, inclusive ignorando maiúsculas.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Criar strings, medir o tamanho com <code>Length</code> e pegar uma letra com <code>nome[0]</code>.</li>
+  <li>Juntar textos com <code>+</code> e <code>+=</code>.</li>
+  <li>Por que a string é <strong>imutável</strong> e o que isso muda no seu código (<code>nome = nome.ToUpper()</code>).</li>
+  <li>Comparar: <code>==</code> compara o conteúdo; <code>string.Equals</code> com <code>StringComparison</code> ignora maiúsculas; <code>string.Compare</code> diz a ordem alfabética.</li>
+  <li>Maiúsculas e minúsculas em português (<code>"ação".ToUpper()</code>), string vazia × <code>null</code> e os erros mais comuns.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>, sistema em português do Brasil), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: um colar de letras</h2>
+<p>Imagine um colar de contas, cada conta com uma letra pintada. O colar <code>"Ana"</code> tem três contas: <code>A</code>, <code>n</code> e <code>a</code>. Dá para contar as contas, olhar a terceira, ou fazer um colar novo juntando dois colares. O que <strong>não</strong> dá é repintar uma conta: o colar vem lacrado de fábrica. Para mudar uma letra, você faz um colar novo.</p>
+<p>Uma <code>string</code> é exatamente isso: uma sequência de caracteres (<code>char</code>, aula <a href="char-bool.html">char e bool</a>), numerados a partir do zero, que não pode ser alterada depois de criada.</p>
+
+<figure>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Posição</th><td><code>0</code></td><td><code>1</code></td><td><code>2</code></td><td><code>3</code></td><td><code>4</code></td><td><code>5</code></td><td><code>6</code></td><td><code>7</code></td><td><code>8</code></td></tr>
+<tr><th>Letra</th><td><code>A</code></td><td><code>n</code></td><td><code>a</code></td><td>(espaço)</td><td><code>S</code></td><td><code>o</code></td><td><code>u</code></td><td><code>z</code></td><td><code>a</code></td></tr>
+</table>
+</div>
+<figcaption>A string <code>"Ana Souza"</code>: 9 caracteres, nas posições 0 a 8. O espaço também é um caractere.</figcaption>
+</figure>
+
+<hr>
+
+<h2>1. Criar uma string e medir o tamanho</h2>
+
+<pre class="file" data-file="criar.cs">string nome = "Ana";
+string cidade = "São Paulo";
+string vazio = "";
+Console.WriteLine(nome);
+Console.WriteLine(nome.Length);
+Console.WriteLine(cidade.Length);
+Console.WriteLine(vazio.Length);
+Console.WriteLine(" ".Length);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run criar.cs
+Ana
+3       « A, n, a
+9       « S, ã, o, espaço, P, a, u, l, o: o ã conta como um, e o espaço também
+0       « a string vazia não tem nenhum caractere
+1       « um espaço é um caractere</pre>
+
+<dl class="anatomy">
+  <dt>string nome = "Ana";</dt><dd>Cria uma variável do tipo <code>string</code> com o texto <code>Ana</code>. O texto vai entre <strong>aspas duplas</strong>; as aspas não fazem parte dele. (Aspas simples, <code>'A'</code>, são para um <code>char</code>, uma letra só.)</dd>
+  <dt>""</dt><dd>A <strong>string vazia</strong>: um texto sem nenhum caractere. Existe, só não tem nada dentro, como um colar sem contas.</dd>
+  <dt>nome.Length</dt><dd>"Comprimento": quantos caracteres a string tem. É uma <strong>propriedade</strong>, então vem <strong>sem parênteses</strong> (<code>Length</code>, não <code>Length()</code>) e com <code>L</code> maiúsculo.</dd>
+</dl>
+
+<p><code>string</code> com letra minúscula é o apelido que o C# dá ao tipo <code>System.String</code> do .NET. <code>String nome = "Ana";</code> também funciona e é exatamente o mesmo tipo; o costume é escrever <code>string</code>, minúsculo, como <code>int</code> e <code>bool</code>.</p>
+
+<hr>
+
+<h2>2. Cada letra tem uma posição</h2>
+<p>Para pegar um caractere, escreva a posição entre colchetes depois da variável. A contagem começa em <strong>zero</strong>:</p>
+
+<pre class="file" data-file="indice.cs">string nome = "Ana Souza";
+Console.WriteLine(nome[0]);
+Console.WriteLine(nome[4]);
+Console.WriteLine(nome[nome.Length - 1]);
+Console.WriteLine(nome[^1]);
+char primeira = nome[0];
+Console.WriteLine(primeira);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run indice.cs
+A       « a posição 0 é a primeira letra
+S       « posição 4 (contando o espaço na posição 3)
+a       « a última: posição Length - 1 = 8
+a       « ^1 = "a primeira a partir do fim"
+A</pre>
+
+<dl class="anatomy">
+  <dt>nome[0]</dt><dd>O caractere na posição 0, o primeiro. O resultado é um <code>char</code>, não uma <code>string</code>: por isso dá para guardar em <code>char primeira</code>.</dd>
+  <dt>nome[nome.Length - 1]</dt><dd>A última posição é sempre <strong>o tamanho menos 1</strong>: "Ana Souza" tem 9 caracteres, nas posições 0 a 8. Pedir <code>nome[9]</code> derruba o programa (veja <a href="#erros">Quando dá errado</a>).</dd>
+  <dt>nome[^1] <span class="versao">C# 8</span></dt><dd>O <code>^</code> conta de trás para a frente: <code>^1</code> é o último, <code>^2</code> o penúltimo. É o mesmo que <code>nome[nome.Length - 1]</code>, mais curto (aula <a href="indices-intervalos.html">Índices e Intervalos</a>).</dd>
+</dl>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> troque o nome pelo seu e veja o tamanho e as letras mudarem. Tente acentos (<code>"José"</code>), espaços no fim (<code>"Ana "</code>) e a string vazia <code>""</code>. O que acontece com <code>nome[0]</code> quando o nome é vazio?</p>
+<pre class="script" data-file="letras.cs">string nome = "Beatriz";
+Console.WriteLine("Nome: " + nome);
+Console.WriteLine("Tamanho: " + nome.Length);
+Console.WriteLine("Primeira letra: " + nome[0]);
+Console.WriteLine("Última letra: " + nome[^1]);
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Juntar textos: <code>+</code> e <code>+=</code></h2>
+<p>Juntar strings se chama <strong>concatenar</strong> ("encadear"). O <code>+</code> entre dois textos cola um no fim do outro:</p>
+
+<pre class="file" data-file="juntar.cs">string nome = "Ana";
+string sobrenome = "Souza";
+string completo = nome + " " + sobrenome;
+Console.WriteLine(completo);
+int idade = 29;
+Console.WriteLine(nome + " tem " + idade + " anos");
+string lista = "arroz";
+lista += ", feijão";
+lista += ", café";
+Console.WriteLine(lista);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run juntar.cs
+Ana Souza
+Ana tem 29 anos
+arroz, feijão, café</pre>
+
+<dl class="anatomy">
+  <dt>nome + " " + sobrenome</dt><dd>Três pedaços colados: <code>"Ana"</code>, um espaço e <code>"Souza"</code>. O <code>+</code> não põe espaço sozinho; se você esquecer o <code>" "</code>, sai <code>AnaSouza</code>.</dd>
+  <dt>" tem " + idade</dt><dd>Quando um lado é texto e o outro é número, o número vira texto e é colado. Cuidado com a ordem: <code>"Total: " + 2 + 3</code> dá <code>Total: 23</code> (aula <a href="precedencia.html">Precedência</a>).</dd>
+  <dt>lista += ", feijão";</dt><dd>"Cole isto no fim de <code>lista</code>": é o mesmo que <code>lista = lista + ", feijão";</code> (aula <a href="operadores-atribuicao.html">Operadores de Atribuição</a>).</dd>
+</dl>
+
+<p>Com muitos pedaços, o <code>+</code> fica difícil de ler. A <strong>interpolação</strong>, <code>$"{nome} tem {idade} anos"</code>, é o jeito moderno, e tem uma aula só para ela: <a href="interpolacao.html">Interpolação</a>.</p>
+
+<hr>
+
+<h2>4. Strings são imutáveis</h2>
+<p>Lembra do colar lacrado? Uma string, depois de criada, <strong>nunca muda</strong>. Os métodos que "mudam" um texto, como <code>ToUpper()</code> ("para maiúsculas"), na verdade <strong>criam uma string nova</strong> e devolvem essa nova. A original fica igual:</p>
+
+<pre class="file" data-file="imutavel.cs">string nome = "ana";
+nome.ToUpper();
+Console.WriteLine(nome);
+string maiusculo = nome.ToUpper();
+Console.WriteLine(maiusculo);
+Console.WriteLine(nome);
+nome = nome.ToUpper();
+Console.WriteLine(nome);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run imutavel.cs
+ana      « a linha 2 criou "ANA" e jogou fora: ninguém guardou
+ANA      « agora a string nova foi guardada em maiusculo
+ana      « a original continua igual
+ANA      « nome passou a apontar para a string nova</pre>
+
+<ol class="passo">
+  <li><strong>Linha 2:</strong> <code>nome.ToUpper()</code> criou a string <code>"ANA"</code>, mas o resultado não foi guardado em lugar nenhum. O compilador não avisa, e a linha não serve para nada.</li>
+  <li><strong>Linha 4:</strong> o resultado foi guardado numa variável nova. <code>nome</code> continua <code>"ana"</code>.</li>
+  <li><strong>Linha 7:</strong> <code>nome = nome.ToUpper();</code> guarda a string nova <strong>na própria variável</strong>. A string antiga, <code>"ana"</code>, não foi alterada: a variável é que passou a guardar outra string. É assim que se "muda" um texto em C#.</li>
+</ol>
+
+<p>Isso também explica por que mudar uma variável não afeta a outra:</p>
+
+<pre class="file" data-file="copia.cs">string a = "Oi";
+string b = a;
+a += ", tudo bem?";
+Console.WriteLine(a);
+Console.WriteLine(b);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run copia.cs
+Oi, tudo bem?
+Oi       « b continua com a string antiga</pre>
+
+<p>O <code>a += …</code> criou uma string nova e guardou em <code>a</code>. A string <code>"Oi"</code>, que <code>b</code> guarda, nunca foi tocada. E tentar trocar uma letra diretamente, com <code>nome[0] = 'A'</code>, é recusado pelo compilador (erro <code>CS0200</code>).</p>
+
+<div class="note">
+<strong>Por que imutável?</strong>
+<p>Porque é seguro: uma string que você passou para outra parte do programa nunca vai mudar "por baixo" de você. O preço é que cada <code>+=</code> cria uma string nova. Para juntar milhares de pedaços num laço, existe o <code>StringBuilder</code>, que é mutável (aula <a href="stringbuilder.html">StringBuilder</a>).</p>
+</div>
+
+<div class="trycs" data-goal="out:Crachá: ANA SOUZA,src:&quot;ana souza&quot;">
+<p class="try-task"><strong>Missão:</strong> o crachá do evento deve mostrar o nome em maiúsculas, mas sai <code>Crachá: ana souza</code>. A linha do <code>ToUpper</code> está lá, só que o resultado se perde. Conserte para aparecer <code>Crachá: ANA SOUZA</code>, sem mudar o texto <code>"ana souza"</code>.</p>
+<pre class="out">Crachá: ANA SOUZA</pre>
+<pre class="script" data-file="cracha.cs">string nome = "ana souza";
+nome.ToUpper();
+Console.WriteLine("Crachá: " + nome);
+</pre>
+<pre class="solucao" data-file="cracha.cs">string nome = "ana souza";
+nome = nome.ToUpper();
+Console.WriteLine("Crachá: " + nome);
+</pre>
+</div>
+
+<hr>
+
+<h2>5. Comparar textos</h2>
+
+<h3><code>==</code> compara o conteúdo</h3>
+<p>Em C#, <code>==</code> com strings compara <strong>o texto, letra por letra</strong>. Não importa como cada string foi criada:</p>
+
+<pre class="file" data-file="igual.cs">string senha = "gato123";
+string digitada = "gato" + "123";
+Console.WriteLine(senha == digitada);
+Console.WriteLine(senha == "Gato123");
+Console.WriteLine(senha.Equals(digitada));
+Console.WriteLine(string.Equals(senha, "GATO123", StringComparison.OrdinalIgnoreCase));
+Console.WriteLine(string.Equals(senha, "GATO123", StringComparison.CurrentCultureIgnoreCase));
+Console.WriteLine("Recife".Equals("RECIFE", StringComparison.OrdinalIgnoreCase));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run igual.cs
+True     « mesmo texto, mesmo que montado com +
+False    « G maiúsculo é outra letra
+True     « Equals sem opções faz o mesmo que ==
+True     « ignorando maiúsculas e minúsculas
+True
+True</pre>
+
+<dl class="anatomy">
+  <dt>senha == digitada</dt><dd>Compara o conteúdo. Quem vem do Java estranha: lá, <code>==</code> com texto é uma armadilha. Em C#, é o jeito normal.</dd>
+  <dt>senha == "Gato123"</dt><dd>Maiúsculas e minúsculas contam: <code>g</code> e <code>G</code> são caracteres diferentes.</dd>
+  <dt>string.Equals(a, b, StringComparison.OrdinalIgnoreCase)</dt><dd>Compara <code>a</code> e <code>b</code> <strong>ignorando maiúsculas</strong>. O terceiro valor, do tipo <code>StringComparison</code> ("comparação de strings"), diz <strong>como</strong> comparar. Também pode ser escrito como <code>a.Equals(b, StringComparison.OrdinalIgnoreCase)</code>.</dd>
+</dl>
+
+<h3>As opções de <code>StringComparison</code></h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Opção</th><th>Como compara</th><th>Use para</th></tr>
+<tr><td><code>Ordinal</code></td><td>Código por código (é o que o <code>==</code> faz)</td><td>senhas, códigos, nomes de arquivo, comandos</td></tr>
+<tr><td><code>OrdinalIgnoreCase</code></td><td>Código por código, ignorando maiúsculas</td><td>respostas do usuário ("sim", "SIM"), e-mails, comandos</td></tr>
+<tr><td><code>CurrentCulture</code></td><td>Pelas regras do idioma do computador (aqui, pt-BR)</td><td>ordenar e comparar textos que <strong>pessoas</strong> vão ler</td></tr>
+<tr><td><code>CurrentCultureIgnoreCase</code></td><td>Idem, ignorando maiúsculas</td><td>busca por nome numa lista mostrada ao usuário</td></tr>
+<tr><td><code>InvariantCulture</code>, <code>InvariantCultureIgnoreCase</code></td><td>Regras fixas, iguais em qualquer computador</td><td>dados gravados em arquivo que precisam dar o mesmo resultado em qualquer lugar</td></tr>
+</table>
+</div>
+<p><strong>Qual usar?</strong> Na dúvida, <code>Ordinal</code> ou <code>OrdinalIgnoreCase</code>: são rápidos e dão sempre o mesmo resultado, em qualquer computador. Use as opções de cultura quando a regra do idioma importa, como na ordem alfabética de uma lista de nomes. A aula <a href="cultura.html">Cultura</a> mostra as diferenças em detalhe.</p>
+
+<h3>Ordem alfabética: <code>string.Compare</code></h3>
+<p>Como você viu em <a href="operadores-comparacao.html">Operadores de Comparação</a>, <code>&lt;</code> e <code>&gt;</code> não funcionam com strings. Para saber quem vem antes, use <code>string.Compare(a, b)</code>. Ele devolve um número: <strong>negativo</strong> se <code>a</code> vem antes, <strong>zero</strong> se são iguais, <strong>positivo</strong> se <code>a</code> vem depois.</p>
+
+<pre class="file" data-file="ordem.cs">Console.WriteLine(string.Compare("ana", "Bia"));
+Console.WriteLine(string.Compare("Bia", "ana"));
+Console.WriteLine(string.Compare("ana", "ana"));
+Console.WriteLine(string.Compare("ana", "Bia", StringComparison.Ordinal));
+Console.WriteLine(string.Compare("é", "f"));
+Console.WriteLine(string.Compare("é", "f", StringComparison.Ordinal));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ordem.cs
+-1      « "ana" vem antes de "Bia" no dicionário
+1       « "Bia" vem depois de "ana"
+0       « iguais
+31      « Ordinal: 'a' (97) vem DEPOIS de 'B' (66) na tabela de códigos
+-1      « no dicionário, "é" vem antes de "f"
+131     « Ordinal: 'é' (233) vem muito depois de 'f' (102)</pre>
+
+<p>Sem a opção, <code>string.Compare</code> usa as regras do português: maiúsculas e acentos ficam no lugar que você espera num dicionário. Com <code>Ordinal</code>, vale o número de cada caractere, e aí todas as maiúsculas vêm antes das minúsculas e as letras acentuadas vão para o fim. Para ordenar nomes que a pessoa vai ver, <strong>não</strong> use <code>Ordinal</code>. Não conte com o valor exato (31, 131): só o sinal (negativo, zero, positivo) importa.</p>
+
+<hr>
+
+<h2>6. Maiúsculas e minúsculas em português</h2>
+<p><code>ToUpper()</code> ("para cima") e <code>ToLower()</code> ("para baixo") conhecem os acentos:</p>
+
+<pre class="file" data-file="upper.cs">string palavra = "ação";
+Console.WriteLine(palavra.ToUpper());
+Console.WriteLine("SÃO JOÃO".ToLower());
+Console.WriteLine("istanbul".ToUpper());
+Console.WriteLine("istanbul".ToUpper(new System.Globalization.CultureInfo("tr-TR")));
+Console.WriteLine("istanbul".ToUpperInvariant());
+Console.WriteLine(System.Globalization.CultureInfo.CurrentCulture.Name);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run upper.cs
+AÇÃO        « ç vira Ç, ã vira Ã
+são joão
+ISTANBUL    « pelas regras do português
+İSTANBUL    « pelas regras do turco: o i minúsculo vira İ, com ponto!
+ISTANBUL    « Invariant: regras fixas, iguais em qualquer computador
+pt-BR       « a cultura da máquina da Ana</pre>
+
+<dl class="anatomy">
+  <dt>ToUpper() e ToLower()</dt><dd>Sem nada entre os parênteses, usam a <strong>cultura atual</strong> do computador (aqui, <code>pt-BR</code>). Para textos em português, o resultado é o que você espera.</dd>
+  <dt>O caso do turco</dt><dd>Em turco, existem dois "i": com ponto (i, İ) e sem ponto (ı, I). Num computador em turco, <code>"istanbul".ToUpper()</code> dá <code>İSTANBUL</code>, e uma comparação como <code>comando.ToUpper() == "ISTANBUL"</code> falha. Por isso, para comparar códigos e comandos, prefira <code>string.Equals(…, StringComparison.OrdinalIgnoreCase)</code> em vez de converter para maiúsculas.</dd>
+  <dt>ToUpperInvariant()</dt><dd>Usa regras fixas, que não dependem do idioma do computador. Bom para códigos (<code>"br".ToUpperInvariant()</code> → <code>BR</code>).</dd>
+</dl>
+
+<hr>
+
+<h2>7. String vazia × <code>null</code></h2>
+<p>Uma string vazia (<code>""</code>) é um colar sem contas: ele existe. <code>null</code> é <strong>não ter colar nenhum</strong>: a variável não aponta para string alguma (aula <a href="null.html">null</a>). Para guardar <code>null</code>, o tipo leva um <code>?</code>: <code>string?</code> ("string ou nada", aula <a href="referencias-anulaveis.html">Referências Anuláveis</a>).</p>
+
+<pre class="file" data-file="nulo.cs">string? apelido = null;
+string vazio = "";
+Console.WriteLine(string.IsNullOrEmpty(apelido));
+Console.WriteLine(string.IsNullOrEmpty(vazio));
+Console.WriteLine(string.IsNullOrWhiteSpace("   "));
+Console.WriteLine(apelido == null);
+Console.WriteLine(vazio == string.Empty);
+Console.WriteLine(apelido.Length);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run nulo.cs
+/home/ana/cs/nulo.cs(8,19): warning CS8602: Desreferência de uma referência possivelmente nula.
+True
+True
+True     « só espaços: "em branco"
+True
+True     « string.Empty é o mesmo que ""
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/nulo.cs:line 8</pre>
+
+<dl class="anatomy">
+  <dt>string.IsNullOrEmpty(texto)</dt><dd>"É nulo ou vazio?" Responde <code>true</code> para <code>null</code> e para <code>""</code>. É o teste mais usado antes de mexer num texto que veio de fora.</dd>
+  <dt>string.IsNullOrWhiteSpace(texto)</dt><dd>"É nulo, vazio ou só espaços?" Ideal para conferir se o usuário digitou alguma coisa (aula <a href="readline.html">Ler do Teclado</a>).</dd>
+  <dt>apelido.Length</dt><dd>Pedir o tamanho de "colar nenhum" não faz sentido: o programa termina com <code>NullReferenceException</code> ("referência de objeto não definida para uma instância de um objeto"), código de saída 134. O compilador avisou antes, com o <code>CS8602</code>: "desreferência de uma referência possivelmente nula", isto é, "você está usando algo que pode ser <code>null</code>".</dd>
+</dl>
+
+<hr>
+
+<h2>Formas diferentes de fazer a mesma coisa</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Formas</th><th>Qual usar</th></tr>
+<tr><td><code>string</code> × <code>String</code></td><td><code>string</code>. São o mesmo tipo; o minúsculo é o costume.</td></tr>
+<tr><td><code>""</code> × <code>string.Empty</code></td><td>Tanto faz: são iguais. Muitos times preferem <code>string.Empty</code> porque deixa claro que o vazio é de propósito.</td></tr>
+<tr><td><code>a == b</code> × <code>a.Equals(b)</code></td><td><code>==</code>. E <code>a.Equals(b)</code> quebra se <code>a</code> for <code>null</code>; <code>==</code> não.</td></tr>
+<tr><td><code>a.ToUpper() == b.ToUpper()</code> × <code>string.Equals(a, b, StringComparison.OrdinalIgnoreCase)</code></td><td>O <code>string.Equals</code>: não cria strings novas, não depende do idioma e aceita <code>null</code>.</td></tr>
+<tr><td><code>nome[nome.Length - 1]</code> × <code>nome[^1]</code></td><td><code>nome[^1]</code> <span class="versao">C# 8</span>, mais curto. Em código antigo você vai ver a outra.</td></tr>
+<tr><td><code>a + " " + b</code> × <code>$"{a} {b}"</code></td><td>A interpolação, quando há mais de dois pedaços (aula <a href="interpolacao.html">Interpolação</a>).</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="erros">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0200: A propriedade ou o indexador "string.this[int]" não pode ser atribuído, pois é somente leitura</code></strong>
+<pre class="file" data-file="es1.cs">string nome = "ana";
+nome[0] = 'A';
+Console.WriteLine(nome);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run es1.cs
+/home/ana/cs/es1.cs(2,1): error CS0200: A propriedade ou o indexador "string.this[int]" não pode ser atribuído, pois é somente leitura
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> as posições de uma string são "somente leitura": dá para olhar <code>nome[0]</code>, mas não trocar. É a imutabilidade.</p>
+<p><strong>Como consertar:</strong> crie uma string nova: <code>nome = char.ToUpper(nome[0]) + nome[1..];</code> (o <code>[1..]</code>, "da posição 1 até o fim", aparece em <a href="metodos-string.html">Métodos de String</a>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.</code></strong>
+<pre class="file" data-file="es2.cs">string nome = "Ana";
+Console.WriteLine(nome[3]);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run es2.cs
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at System.String.get_Chars(Int32 index)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/es2.cs:line 2</pre>
+<p><strong>O que significa:</strong> "o índice estava fora dos limites". <code>"Ana"</code> tem as posições 0, 1 e 2; a 3 não existe. A linha <code>at System.String.get_Chars</code> mostra onde o .NET percebeu (dentro da string); a de baixo mostra a <strong>sua</strong> linha, a 2. O código de saída é 134.</p>
+<p><strong>Como consertar:</strong> a última posição é <code>nome.Length - 1</code> (ou <code>nome[^1]</code>). Se o texto pode ser vazio, confira antes: <code>nome.Length &gt; 0</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1012: Número excessivo de caracteres no literal de caractere</code></strong>
+<pre class="file" data-file="es3.cs">char letra = 'Ana';
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run es3.cs
+/home/ana/cs/es3.cs(1,14): error CS1012: Número excessivo de caracteres no literal de caractere
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> aspas simples são para <strong>um</strong> caractere só (<code>char</code>). Para um texto, aspas duplas.</p>
+<p><strong>Como consertar:</strong> <code>string nome = "Ana";</code> (ou <code>char letra = 'A';</code>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0019: O operador "==" não pode ser aplicado a operandos dos tipos "string" e "char"</code></strong>
+<pre class="file" data-file="es4.cs">string inicial = "A";
+Console.WriteLine(inicial == 'A');
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run es4.cs
+/home/ana/cs/es4.cs(2,19): error CS0019: O operador "==" não pode ser aplicado a operandos dos tipos "string" e "char"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> <code>"A"</code> (uma string de um caractere) e <code>'A'</code> (um <code>char</code>) são tipos diferentes.</p>
+<p><strong>Como consertar:</strong> compare string com string (<code>inicial == "A"</code>) ou char com char (<code>inicial[0] == 'A'</code>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1061: ‘string’ não contém uma definição para "length"…</code></strong>
+<pre class="file" data-file="es5.cs">string nome = "Ana";
+Console.WriteLine(nome.length);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run es5.cs
+/home/ana/cs/es5.cs(2,24): error CS1061: ‘string’ não contém uma definição para "length" e não foi possível encontrar nenhum método de extensão "length" que aceite um primeiro argumento do tipo ‘string’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o C# diferencia maiúsculas de minúsculas também nos nomes: <code>length</code> não existe, <code>Length</code> existe. A mensagem longa só quer dizer "não achei nada com esse nome".</p>
+<p><strong>Como consertar:</strong> <code>nome.Length</code>. Os nomes do .NET começam com maiúscula: <code>Length</code>, <code>ToUpper</code>, <code>WriteLine</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>NullReferenceException</code> ao usar um texto</strong>
+<p><strong>O que significa:</strong> a variável era <code>null</code> e você pediu <code>.Length</code>, <code>.ToUpper()</code> ou outro membro. O aviso <code>CS8602</code> costuma aparecer antes, ao compilar.</p>
+<p><strong>Como consertar:</strong> confira antes com <code>string.IsNullOrEmpty(texto)</code>, ou dê um valor padrão (<code>texto ?? ""</code>, aula <a href="operadores-null.html">Operadores ??, ?. e ??=</a>).</p>
+</div>
+
+<div class="cenario">
+<strong>O texto não mudou depois do <code>ToUpper()</code> (ou <code>Trim()</code>, <code>Replace()</code>…)</strong>
+<p><strong>O que significa:</strong> você chamou o método e não guardou o resultado. Strings são imutáveis: o método devolve uma string nova.</p>
+<p><strong>Como consertar:</strong> <code>nome = nome.ToUpper();</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th><th>Exemplo → resultado</th></tr>
+<tr><td><code>"texto"</code></td><td>cria uma string</td><td><code>string s = "Ana";</code></td></tr>
+<tr><td><code>""</code> ou <code>string.Empty</code></td><td>string vazia</td><td><code>"".Length</code> → <code>0</code></td></tr>
+<tr><td><code>s.Length</code></td><td>quantidade de caracteres</td><td><code>"Ana".Length</code> → <code>3</code></td></tr>
+<tr><td><code>s[i]</code></td><td>caractere na posição <code>i</code> (um <code>char</code>)</td><td><code>"Ana"[0]</code> → <code>'A'</code></td></tr>
+<tr><td><code>s[^1]</code></td><td>último caractere</td><td><code>"Ana"[^1]</code> → <code>'a'</code></td></tr>
+<tr><td><code>a + b</code>, <code>s += x</code></td><td>junta textos (cria uma string nova)</td><td><code>"Oi" + "!"</code> → <code>"Oi!"</code></td></tr>
+<tr><td><code>a == b</code>, <code>a != b</code></td><td>compara o conteúdo</td><td><code>"Ana" == "ana"</code> → <code>false</code></td></tr>
+<tr><td><code>string.Equals(a, b, StringComparison.OrdinalIgnoreCase)</code></td><td>compara ignorando maiúsculas</td><td><code>"Ana"</code> e <code>"ANA"</code> → <code>true</code></td></tr>
+<tr><td><code>string.Compare(a, b)</code></td><td>ordem alfabética: &lt; 0, 0 ou &gt; 0</td><td><code>("ana", "Bia")</code> → negativo</td></tr>
+<tr><td><code>s.ToUpper()</code>, <code>s.ToLower()</code></td><td>nova string em maiúsculas / minúsculas (cultura atual)</td><td><code>"ação".ToUpper()</code> → <code>"AÇÃO"</code></td></tr>
+<tr><td><code>s.ToUpperInvariant()</code></td><td>maiúsculas com regras fixas</td><td><code>"br"</code> → <code>"BR"</code></td></tr>
+<tr><td><code>string.IsNullOrEmpty(s)</code></td><td><code>null</code> ou <code>""</code>?</td><td><code>("")</code> → <code>true</code></td></tr>
+<tr><td><code>string.IsNullOrWhiteSpace(s)</code></td><td><code>null</code>, <code>""</code> ou só espaços?</td><td><code>("  ")</code> → <code>true</code></td></tr>
+</table>
+</div>
+<p>Muitos outros métodos (<code>Trim</code>, <code>Contains</code>, <code>Replace</code>, <code>Split</code>, <code>Substring</code>…) estão na próxima aula, <a href="metodos-string.html">Métodos de String</a>.</p>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Tamanho</h3>
+<p>Complete para mostrar quantos caracteres tem <code>cidade</code>:</p>
+<div class="ex-code">Console.WriteLine(cidade.<input data-answer="Length" aria-label="propriedade">);</div>
+</div>
+
+<div class="exercise">
+<h3>2. A primeira letra</h3>
+<p>Complete para pegar o primeiro caractere de <code>nome</code>:</p>
+<div class="ex-code">char inicial = nome[<input data-answer="0" aria-label="posição">];</div>
+</div>
+
+<div class="exercise">
+<h3>3. Guardar o resultado</h3>
+<p>Complete para que <code>nome</code> fique em minúsculas:</p>
+<div class="ex-code">nome <input data-answer="=" aria-label="operador"> nome.ToLower();</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Quanto vale <code>"Rio de Janeiro".Length</code>?</p>
+<label><input type="radio" name="q4"> 12</label>
+<label><input type="radio" name="q4"> 13</label>
+<label><input type="radio" name="q4"> 14</label>
+<label><input type="radio" name="q4"> 3</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Depois de <code>string s = "oi"; s.ToUpper(); Console.WriteLine(s);</code>, o que aparece?</p>
+<label><input type="radio" name="q5"> <code>OI</code></label>
+<label><input type="radio" name="q5"> <code>oi</code>, porque o resultado do <code>ToUpper()</code> não foi guardado.</label>
+<label><input type="radio" name="q5"> Um erro de compilação.</label>
+<label><input type="radio" name="q5"> <code>Oi</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Qual comparação dá <code>true</code> para <code>"sim"</code> e <code>"SIM"</code>?</p>
+<label><input type="radio" name="q6"> <code>string.Equals("sim", "SIM", StringComparison.OrdinalIgnoreCase)</code></label>
+<label><input type="radio" name="q6"> <code>"sim" == "SIM"</code></label>
+<label><input type="radio" name="q6"> <code>"sim".Equals("SIM")</code></label>
+<label><input type="radio" name="q6"> <code>string.Compare("sim", "SIM") &lt; 0</code></label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">7. <code>string.Compare("Bia", "ana")</code> dá um número positivo. O que isso quer dizer?</p>
+<label><input type="radio" name="q7"> Que as duas strings são iguais.</label>
+<label><input type="radio" name="q7"> Que "Bia" tem mais letras.</label>
+<label><input type="radio" name="q7"> Que deu erro.</label>
+<label><input type="radio" name="q7"> Que "Bia" vem depois de "ana" na ordem alfabética.</label>
+</div>
+
+<h3>Missão final: o jogo de perguntas</h3>
+
+<div class="trycs" data-goal="out:Acertou? True,out:A palavra tem 6 letras,src:IgnoreCase,src:\.Length">
+<p class="try-task"><strong>Missão:</strong> num jogo de perguntas, a cidade certa é <code>Recife</code> e a jogadora respondeu <code>RECIFE</code>. Conserte a comparação para <strong>ignorar maiúsculas</strong> (use <code>string.Equals</code> com <code>StringComparison</code>), e troque o <code>0</code> da última linha pelo tamanho da palavra, calculado com <code>Length</code> (não escreva o 6 à mão).</p>
+<pre class="out">Acertou? True
+A palavra tem 6 letras</pre>
+<pre class="script" data-file="quiz.cs">string cidade = "Recife";
+string resposta = "RECIFE";
+bool acertou = resposta == cidade;
+Console.WriteLine("Acertou? " + acertou);
+Console.WriteLine("A palavra tem " + 0 + " letras");
+</pre>
+<pre class="solucao" data-file="quiz.cs">string cidade = "Recife";
+string resposta = "RECIFE";
+bool acertou = string.Equals(resposta, cidade, StringComparison.OrdinalIgnoreCase);
+Console.WriteLine("Acertou? " + acertou);
+Console.WriteLine("A palavra tem " + cidade.Length + " letras");
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma <code>string</code> é uma sequência de <code>char</code>, entre aspas duplas. <code>Length</code> (sem parênteses) dá o tamanho.</li>
+  <li>As posições começam em 0: <code>s[0]</code> é o primeiro, <code>s[s.Length - 1]</code> ou <code>s[^1]</code> o último. Fora disso, <code>IndexOutOfRangeException</code>.</li>
+  <li><code>+</code> e <code>+=</code> juntam textos, criando strings novas.</li>
+  <li>Strings são <strong>imutáveis</strong>: métodos devolvem uma string nova. Guarde o resultado: <code>nome = nome.ToUpper();</code>. <code>s[0] = 'A'</code> dá <code>CS0200</code>.</li>
+  <li><code>==</code> compara o conteúdo. Para ignorar maiúsculas: <code>string.Equals(a, b, StringComparison.OrdinalIgnoreCase)</code>.</li>
+  <li><code>string.Compare(a, b)</code> diz a ordem: negativo, zero ou positivo. Sem opção, segue o português; com <code>Ordinal</code>, os códigos.</li>
+  <li><code>ToUpper()</code> segue a cultura (<code>"ação"</code> → <code>"AÇÃO"</code>); para códigos, <code>ToUpperInvariant()</code>.</li>
+  <li><code>""</code> é vazio; <code>null</code> é nada. Teste com <code>string.IsNullOrEmpty</code> ou <code>IsNullOrWhiteSpace</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
