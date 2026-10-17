@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Construtores — padrão, com parâmetros, : this(…) e construtor primário | Guia C#</title>
+<meta name="description" content="Construtores em C# para quem nunca programou: o construtor padrão, construtores com parâmetros, propriedades { get; } preenchidas no construtor, validação, vários construtores com : this(…), o construtor primário do C# 12 e os erros reais CS7036, CS1503, CS1729, CS0542, CS0516, CS8862 e CS9058, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Construtores</span></h1>
+
+<p class="intro">Até aqui, criar um produto levava três linhas: <code>new Produto()</code>, depois o nome, depois o preço. E nada impedia de esquecer uma delas. O <strong>construtor</strong> resolve isso: é um bloco especial da classe que roda <strong>no momento em que o objeto nasce</strong>, e pode exigir os dados necessários logo no <code>new</code>: <code>new Produto("maçã", 7.90m)</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é um construtor e como ele difere de um método.</li>
+  <li>O <strong>construtor padrão</strong> que o C# cria sozinho, e quando ele deixa de existir.</li>
+  <li>Construtores com parâmetros, para cada objeto nascer pronto, e por que <code>Nome = nome;</code> funciona em C#.</li>
+  <li>Propriedades <code>{ get; }</code>, que só o construtor preenche, e a validação dos dados na entrada.</li>
+  <li>Vários construtores na mesma classe e o <code>: this(…)</code>, que encadeia um no outro.</li>
+  <li>O <strong>construtor primário</strong> <span class="versao">C# 12</span>: <code>class Produto(string nome, decimal preco)</code>.</li>
+  <li>Os erros reais: <code>CS7036</code>, <code>CS1503</code>, <code>CS1729</code>, <code>CS0542</code>, <code>CS0516</code>, <code>CS8862</code> e <code>CS9058</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com <code>dotnet run arquivo.cs</code> na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), com o .NET 10 SDK (C# 14), na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código: a maternidade</h2>
+<p>Quando um bebê nasce, ele não sai da maternidade "em branco": já sai com nome, data de nascimento e uma pulseira de identificação. Esse procedimento acontece <strong>uma vez</strong>, no nascimento, e é obrigatório.</p>
+<p>O construtor é o procedimento de nascimento de um objeto. Ele roda automaticamente a cada <code>new</code>, uma única vez por objeto, e serve para deixar o objeto pronto para uso.</p>
+
+<hr>
+
+<h2>O construtor padrão</h2>
+<p>Você já usou construtores sem saber. Em <code>new Produto()</code>, os parênteses depois de <code>Produto</code> são uma <strong>chamada de construtor</strong>. Se a classe não escreve nenhum, o C# cria sozinho um construtor vazio, sem parâmetros, chamado <strong>construtor padrão</strong>. Ele só deixa os campos e propriedades com os valores iniciais e <a href="campos.html">padrão</a>.</p>
+
+<p>Você pode escrever esse construtor sem parâmetros por conta própria, para ver quando ele roda:</p>
+
+<pre class="file" data-file="k1.cs">Produto a = new Produto();
+Produto b = new Produto();
+Console.WriteLine($"[{a.Nome}] {a.Preco}");
+
+class Produto
+{
+    public string Nome { get; set; } = "";
+    public decimal Preco { get; set; }
+
+    public Produto()
+    {
+        Console.WriteLine("Um produto novo nasceu!");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run k1.cs
+Um produto novo nasceu!     « o new da linha 1
+Um produto novo nasceu!     « o new da linha 2
+[] 0                        « as propriedades continuam com os valores iniciais</pre>
+
+<dl class="anatomy">
+  <dt>public</dt><dd>Quem pode criar objetos com este construtor. <code>public</code> = qualquer parte do programa. (Um construtor <code>private</code> impediria o <code>new</code> de fora da classe.)</dd>
+  <dt>Produto</dt><dd>O nome do construtor é <strong>exatamente o nome da classe</strong>, com a mesma maiúscula.</dd>
+  <dt>(sem tipo de retorno)</dt><dd>Repare: não há <code>void</code>, nem <code>int</code>, nem nada antes do nome. Um construtor <strong>não devolve valor</strong>; quem "devolve" o objeto pronto é o <code>new</code>. É isso que o diferencia de um método.</dd>
+  <dt>()</dt><dd>A lista de parâmetros. Vazia aqui.</dd>
+  <dt>{ … }</dt><dd>O corpo, executado a cada <code>new Produto()</code>.</dd>
+</dl>
+
+<hr>
+
+<h2>Construtor com parâmetros</h2>
+<p>O uso mais importante do construtor é receber os dados do objeto e guardá-los nas propriedades. A Ana reescreveu a classe:</p>
+
+<pre class="file" data-file="k2.cs">Produto maca = new Produto("maçã", 7.90m);
+Produto banana = new Produto("banana", 3.50m);
+maca.Mostrar();
+banana.Mostrar();
+
+class Produto
+{
+    public string Nome { get; set; }
+    public decimal Preco { get; set; }
+
+    public Produto(string nome, decimal preco)
+    {
+        Nome = nome;
+        Preco = preco;
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{Nome}: {Preco:C}");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run k2.cs
+maçã: R$ 7,90
+banana: R$ 3,50</pre>
+
+<dl class="anatomy">
+  <dt>public Produto(string nome, decimal preco)</dt><dd>Um construtor com dois <a href="parametros.html">parâmetros</a>. Agora, para criar um produto, é <strong>obrigatório</strong> informar nome e preço.</dd>
+  <dt>Nome = nome;</dt><dd>Copia o valor recebido (o parâmetro <code>nome</code>, minúsculo) para a propriedade <code>Nome</code> (maiúscula) do objeto que está nascendo.</dd>
+  <dt>public string Nome { get; set; }</dt><dd>Repare: sumiu o <code>= ""</code>, e não há aviso <code>CS8618</code>. O compilador vê que o construtor <strong>sempre</strong> preenche <code>Nome</code>, então nenhum produto nasce com nome <code>null</code>.</dd>
+  <dt>new Produto("maçã", 7.90m)</dt><dd>Cria o objeto e chama o construtor com os argumentos, na mesma ordem e tipos dos parâmetros. Uma linha, objeto pronto.</dd>
+</dl>
+
+<div class="tip">
+<strong>Por que <code>Nome = nome;</code> não confunde o C#?</strong>
+<p>Porque, para o C#, maiúsculas e minúsculas fazem nomes diferentes: <code>Nome</code> é a propriedade, <code>nome</code> é o parâmetro. As convenções do C# (PascalCase para propriedades, camelCase para parâmetros) evitam a confusão de propósito. O problema aparece quando o campo e o parâmetro têm <strong>exatamente</strong> o mesmo nome, e é aí que entra o <code>this</code>, assunto da <a href="this.html">próxima aula</a>.</p>
+</div>
+
+<p>Compare com o jeito antigo:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Sem construtor</th><th>Com construtor</th></tr>
+<tr><td><code>Produto maca = new Produto();</code><br><code>maca.Nome = "maçã";</code><br><code>maca.Preco = 7.90m;</code></td><td><code>Produto maca = new Produto("maçã", 7.90m);</code></td></tr>
+<tr><td>Dá para esquecer uma linha, e o produto fica sem nome</td><td>O compilador não deixa criar um produto sem nome e preço</td></tr>
+</table>
+</div>
+
+<div class="trycs" data-goal="out:Ana: R$ 500\,00,out:Bruno: R$ 80\,00,src:Conta\s*\(\s*string\s+\w+\s*\,\s*decimal\s+\w+\s*\),src:new\s+Conta\s*\(\s*&quot;Ana&quot;">
+<p class="try-task"><strong>Missão:</strong> escreva um construtor para a classe <code>Conta</code> que receba o titular (<code>string</code>) e o saldo inicial (<code>decimal</code>). Depois troque, nas instruções do topo, as linhas de atribuição por <code>new Conta("Ana", 500m)</code> e <code>new Conta("Bruno", 80m)</code>.</p>
+<pre class="script" data-file="conta.cs">Conta a = new Conta();
+a.Titular = "Ana";
+a.Saldo = 500m;
+Conta b = new Conta();
+b.Titular = "Bruno";
+b.Saldo = 80m;
+a.Mostrar();
+b.Mostrar();
+
+class Conta
+{
+    public string Titular { get; set; } = "";
+    public decimal Saldo { get; set; }
+
+    // escreva o construtor aqui
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{Titular}: {Saldo:C}");
+    }
+}
+</pre>
+<pre class="solucao" data-file="conta.cs">Conta a = new Conta("Ana", 500m);
+Conta b = new Conta("Bruno", 80m);
+a.Mostrar();
+b.Mostrar();
+
+class Conta
+{
+    public string Titular { get; set; } = "";
+    public decimal Saldo { get; set; }
+
+    public Conta(string titular, decimal saldo)
+    {
+        Titular = titular;
+        Saldo = saldo;
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{Titular}: {Saldo:C}");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="some">Quando você escreve um construtor, o padrão some</h2>
+<p>Este é o ponto que mais pega quem está começando. O C# só cria o construtor padrão (vazio) se a classe <strong>não tiver nenhum</strong>. A partir do momento em que você escreve <code>Produto(string, decimal)</code>, o <code>Produto()</code> automático deixa de existir:</p>
+
+<pre class="file" data-file="k3.cs — com erro de propósito">Produto maca = new Produto();
+
+class Produto
+{
+    public string Nome { get; set; }
+    public decimal Preco { get; set; }
+
+    public Produto(string nome, decimal preco)
+    {
+        Nome = nome;
+        Preco = preco;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run k3.cs
+/home/ana/cs/k3.cs(1,20): error CS7036: Não há nenhum argumento fornecido que corresponda ao parâmetro necessário 'nome' de 'Produto.Produto(string, decimal)'
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Leia a mensagem com calma: "não há nenhum argumento que corresponda ao parâmetro obrigatório <code>nome</code> de <code>Produto.Produto(string, decimal)</code>". O <code>Produto.Produto</code> é "o construtor <code>Produto</code> da classe <code>Produto</code>". O único construtor que existe pede um texto e um número, e a chamada não mandou nada; o compilador reclama do primeiro que faltou. É a mesma mensagem dos <a href="parametros.html">métodos com argumentos faltando</a>.</p>
+<p>Há duas saídas: passar os argumentos (<code>new Produto("maçã", 7.90m)</code>) ou, se fizer sentido criar produtos "em branco", escrever também um construtor sem parâmetros. Isso leva à seção sobre vários construtores.</p>
+
+<hr>
+
+<h2 id="get">Propriedades que só o construtor preenche</h2>
+<p>Com o construtor, um objeto pode nascer com dados que <strong>nunca mais mudam</strong>. Basta tirar o <code>set</code> da propriedade: <code>{ get; }</code>. Ela continua podendo ser gravada <strong>dentro do construtor</strong>, e em nenhum outro lugar.</p>
+<p>E, já que todo produto passa pelo construtor, ele é o lugar perfeito para <strong>conferir</strong> os dados:</p>
+
+<pre class="file" data-file="pc7.cs — com erro de propósito">Produto p = new Produto("kiwi", -3m);
+
+class Produto
+{
+    public string Nome { get; }
+    public decimal Preco { get; }
+
+    public Produto(string nome, decimal preco)
+    {
+        if (preco &lt; 0)
+            throw new ArgumentException("O preço não pode ser negativo.");
+        Nome = nome;
+        Preco = preco;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run pc7.cs; echo "código: $?"
+Unhandled exception. System.ArgumentException: O preço não pode ser negativo.
+   at Produto..ctor(String nome, Decimal preco) in /home/ana/cs/pc7.cs:line 11
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/pc7.cs:line 1
+código: 134</pre>
+
+<dl class="anatomy">
+  <dt>public decimal Preco { get; }</dt><dd>Só leitura para o mundo. Quem tentar <code>p.Preco = 5m;</code> recebe o erro <code>CS0200</code> ("não pode ser atribuído, pois é somente leitura"), o mesmo das <a href="propriedades.html#erros">propriedades calculadas</a>.</dd>
+  <dt>throw new ArgumentException(…)</dt><dd>Com um preço negativo, o construtor <strong>se recusa</strong> a terminar: lança uma exceção e o objeto nunca chega a existir. Não há como criar um produto inválido. Detalhes em <a href="throw.html">throw</a>.</dd>
+  <dt>Produto..ctor</dt><dd>Na pilha da exceção, o construtor aparece com o nome interno <code>.ctor</code> (de <em>constructor</em>). Os dois pontos seguidos são isso: <code>Produto</code> + <code>.</code> + <code>.ctor</code>.</dd>
+</dl>
+
+<p>Um objeto que não muda depois de criado é chamado de <strong>imutável</strong>. Ele é mais fácil de entender (o kiwi de 3 reais será sempre o kiwi de 3 reais) e é muito usado em C# moderno. Os <a href="records.html">records</a> levam essa ideia mais longe.</p>
+
+<hr>
+
+<h2>Vários construtores</h2>
+<p>Uma classe pode ter <strong>vários</strong> construtores, desde que as listas de parâmetros sejam diferentes. É a mesma regra da <a href="sobrecarga.html">sobrecarga</a> de métodos. Assim, quem cria o objeto escolhe quanta informação passar. Mas, se cada construtor preencher tudo sozinho, as mesmas linhas se repetem em todos. A solução é encadear.</p>
+
+<h3 id="this-encadeado"><code>: this(…)</code>: um construtor chama o outro</h3>
+<p>Escrito <strong>depois dos parênteses</strong> de um construtor, <code>: this(…)</code> quer dizer "antes de mim, rode <strong>outro construtor desta mesma classe</strong>, com estes argumentos". Os construtores curtos passam a delegar para o completo, que é o único a fazer o trabalho:</p>
+
+<pre class="file" data-file="k6.cs">new Produto();
+new Produto("kiwi");
+new Produto("maçã", 7.90m);
+new Produto("uva", 12.00m, 30);
+
+class Produto
+{
+    public string Nome { get; }
+    public decimal Preco { get; }
+    public int Estoque { get; }
+
+    public Produto() : this("sem nome", 0m, 0)
+    {
+    }
+
+    public Produto(string nome) : this(nome, 0m, 0)
+    {
+    }
+
+    public Produto(string nome, decimal preco) : this(nome, preco, 10)
+    {
+    }
+
+    public Produto(string nome, decimal preco, int estoque)
+    {
+        Nome = nome;
+        Preco = preco;
+        Estoque = estoque;
+        Console.WriteLine($"Criado: {Nome}, {Preco:C}, estoque {Estoque}");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run k6.cs
+Criado: sem nome, R$ 0,00, estoque 0
+Criado: kiwi, R$ 0,00, estoque 0
+Criado: maçã, R$ 7,90, estoque 10
+Criado: uva, R$ 12,00, estoque 30</pre>
+
+<dl class="anatomy">
+  <dt>public Produto() : this("sem nome", 0m, 0)</dt><dd>O construtor sem parâmetros chama o de três, com valores "padrão". O C# escolhe qual construtor pelos tipos dos argumentos, como na sobrecarga. O corpo <code>{ }</code> fica vazio: não há mais nada a fazer.</dd>
+  <dt>: this(nome, preco, 10)</dt><dd>Repassa o que recebeu e completa o que falta (estoque 10).</dd>
+  <dt>o construtor de três parâmetros</dt><dd>O único que realmente preenche as propriedades. Todo produto, criado por qualquer construtor, passa por ele. Por isso o <code>Console.WriteLine</code> aparece nas quatro criações.</dd>
+  <dt>new Produto();</dt><dd>Um <code>new</code> sem guardar o objeto numa variável é permitido; aqui só queremos ver o construtor rodar.</dd>
+</dl>
+
+<p>Regras do <code>: this(…)</code>:</p>
+<ul>
+  <li>Fica <strong>entre</strong> os parênteses do construtor e a chave <code>{</code>, e roda <strong>antes</strong> do corpo.</li>
+  <li>Cada construtor pode chamar no máximo um outro.</li>
+  <li>Um construtor não pode chamar a si mesmo: é o erro <code>CS0516</code> (veja abaixo).</li>
+</ul>
+
+<div class="note">
+<strong>Parâmetros opcionais: outra forma</strong>
+<p>Os mesmos quatro jeitos de criar um produto cabem num construtor só, com <a href="parametros-opcionais.html">parâmetros opcionais</a>: <code>public Produto(string nome = "sem nome", decimal preco = 0m, int estoque = 10)</code>. Funciona bem quando os valores padrão não dependem uns dos outros. Repare que, no exemplo acima, o estoque padrão é 0 sem preço e 10 com preço; isso só os vários construtores conseguem expressar.</p>
+</div>
+
+<hr>
+
+<h2 id="primario">O construtor primário <span class="versao">C# 12</span></h2>
+<p>Muitas classes têm um construtor que só copia os parâmetros para as propriedades. O C# 12 criou um atalho: escrever os parâmetros <strong>direto na linha da classe</strong>. É o <strong>construtor primário</strong>:</p>
+
+<pre class="file" data-file="pc1.cs">Produto maca = new Produto("maçã", 7.90m);
+maca.Mostrar();
+Console.WriteLine(maca.Nome);
+
+class Produto(string nome, decimal preco)
+{
+    public string Nome { get; } = nome;
+    public decimal Preco { get; } = preco;
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{Nome}: {Preco:C}");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run pc1.cs
+maçã: R$ 7,90
+maçã</pre>
+
+<dl class="anatomy">
+  <dt>class Produto(string nome, decimal preco)</dt><dd>Os parênteses depois do nome da classe <strong>são</strong> o construtor. Criar um produto continua igual: <code>new Produto("maçã", 7.90m)</code>.</dd>
+  <dt>public string Nome { get; } = nome;</dt><dd>O valor inicial da propriedade é o parâmetro <code>nome</code>. Faz o mesmo que <code>Nome = nome;</code> dentro de um construtor comum.</dd>
+  <dt>(nenhum <code>public Produto(…) { … }</code>)</dt><dd>As quatro linhas do construtor comum sumiram.</dd>
+</dl>
+
+<p>Os parâmetros de um construtor primário valem na <strong>classe inteira</strong>, inclusive dentro dos métodos. Isso permite guardar algo sem nem declarar uma propriedade:</p>
+
+<pre class="file" data-file="pc2.cs">Conta c = new Conta("Ana");
+c.Depositar(50m);
+c.Mostrar();
+
+class Conta(string titular)
+{
+    private decimal _saldo;
+
+    public void Depositar(decimal valor)
+    {
+        _saldo += valor;
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{titular}: {_saldo:C}");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run pc2.cs
+Ana: R$ 50,00</pre>
+
+<p>O método <code>Mostrar</code> usou <code>titular</code>, o parâmetro do construtor primário, como se fosse um campo privado. Mas atenção: ele <strong>não</strong> é uma propriedade. De fora da classe, <code>c.titular</code> não existe (é o erro <code>CS1061</code>). Para expor o dado, declare uma propriedade, como o <code>Nome</code> do exemplo anterior.</p>
+
+<h3>Outros construtores, junto com o primário</h3>
+<p>Uma classe com construtor primário pode ter outros construtores, mas todos precisam passar por ele com <code>: this(…)</code>:</p>
+
+<pre class="file" data-file="pc5.cs">Produto kiwi = new Produto("kiwi");
+Console.WriteLine($"{kiwi.Nome}: {kiwi.Preco:C}");
+
+class Produto(string nome, decimal preco)
+{
+    public string Nome { get; } = nome;
+    public decimal Preco { get; } = preco;
+
+    public Produto(string nome) : this(nome, 0m)
+    {
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run pc5.cs
+kiwi: R$ 0,00</pre>
+
+<p>Sem o <code>: this(nome, 0m)</code>, o compilador recusa com o <code>CS8862</code> (veja abaixo). E, em versões antigas da linguagem, o construtor primário em classes não existe: com <code>#:property LangVersion=11</code> no topo do arquivo, o erro é o <code>CS9058</code>.</p>
+
+<pre class="term">$ dotnet run pc6.cs
+/home/ana/cs/pc6.cs(3,14): error CS9058: O recurso 'construtores primários' não está disponível no C# 11.0. Use a versão do idioma 12.0 ou superior.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<div class="trycs">
+<p class="try-task"><strong>Brinque com o código:</strong> acrescente à classe uma propriedade <code>public int Estoque { get; set; } = 10;</code> e mostre-a no <code>Mostrar()</code>. Depois tente <code>Console.WriteLine(maca.nome);</code> no topo e leia o erro: o parâmetro não é visível de fora.</p>
+<pre class="script" data-file="primario.cs">Produto maca = new Produto("maçã", 7.90m);
+maca.Mostrar();
+
+class Produto(string nome, decimal preco)
+{
+    public string Nome { get; } = nome;
+    public decimal Preco { get; } = preco;
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{Nome}: {Preco:C}");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Formas diferentes de criar objetos prontos</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Exemplo</th><th>Quando usar</th></tr>
+<tr><td>Construtor padrão + atribuições</td><td><code>new Produto(); p.Nome = …;</code></td><td>Só em exemplos; fácil esquecer um dado</td></tr>
+<tr><td>Um construtor com todos os dados</td><td><code>new Produto("maçã", 7.90m)</code></td><td>O caso mais comum: todo objeto precisa desses dados</td></tr>
+<tr><td>Construtor que confere os dados</td><td><code>if (preco &lt; 0) throw …</code> no construtor</td><td>Quando existe valor inválido; o objeto nunca nasce errado</td></tr>
+<tr><td>Vários construtores + <code>: this(…)</code></td><td><code>new Produto("kiwi")</code> e <code>new Produto("uva", 12m, 30)</code></td><td>Alguns dados são opcionais e têm um valor padrão razoável</td></tr>
+<tr><td>Construtor primário <span class="versao">C# 12</span></td><td><code>class Produto(string nome, decimal preco)</code></td><td>O construtor só copiaria os parâmetros</td></tr>
+<tr><td>Valor inicial na propriedade</td><td><code>public int Estoque { get; set; } = 10;</code></td><td>O valor é o mesmo para todos e não depende de parâmetro</td></tr>
+<tr><td>Inicializador de objeto</td><td><code>new Produto { Nome = "maçã" }</code></td><td>Preencher propriedades na criação, sem construtor; veja <a href="inicializadores.html">Inicializadores e required</a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS7036: faltou argumento</strong>
+<pre class="term">$ dotnet run k3.cs
+/home/ana/cs/k3.cs(1,20): error CS7036: Não há nenhum argumento fornecido que corresponda ao parâmetro necessário 'nome' de 'Produto.Produto(string, decimal)'
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> nenhum construtor da classe aceita o <code>new Produto()</code> sem argumentos. O caso clássico: a classe ganhou um construtor com parâmetros, o padrão sumiu, e algum lugar ainda faz <code>new Produto()</code>.</p>
+<p><strong>Como resolver:</strong> passe os argumentos que o construtor pede (a mensagem mostra a lista: <code>(string, decimal)</code>) ou acrescente um construtor sem parâmetros, de preferência com <code>: this(…)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1503: argumentos na ordem errada</strong>
+<pre class="term">$ dotnet run k4.cs
+/home/ana/cs/k4.cs(1,28): error CS1503: Argumento 1: não é possível converter de "decimal" para "string"
+/home/ana/cs/k4.cs(1,35): error CS1503: Argumento 2: não é possível converter de "string" para "decimal"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> o construtor é <code>Produto(string nome, decimal preco)</code> e a chamada foi <code>new Produto(7.90m, "maçã")</code>: o número veio primeiro.</p>
+<p><strong>Como resolver:</strong> <code>new Produto("maçã", 7.90m)</code>, na ordem da declaração. Ou use <a href="parametros-opcionais.html">argumentos nomeados</a>: <code>new Produto(preco: 7.90m, nome: "maçã")</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1729: nenhum construtor com essa quantidade de argumentos</strong>
+<pre class="term">$ dotnet run k8.cs
+/home/ana/cs/k8.cs(1,17): error CS1729: "Produto" não contém um construtor que aceita 4 argumentos
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> <code>new Produto("maçã", 7.90m, 3, 4)</code>, mas a classe só tem construtores de 2 argumentos.</p>
+<p><strong>Como resolver:</strong> confira quais construtores existem e quantos parâmetros cada um tem. No VS Code, ao digitar o <code>(</code> depois de <code>new Produto</code>, a lista aparece.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0542: construtor com <code>void</code> (virou método!)</strong>
+<pre class="file" data-file="k5.cs — com erro de propósito">Produto maca = new Produto("maçã", 7.90m);
+
+class Produto
+{
+    public string Nome { get; set; } = "";
+    public decimal Preco { get; set; }
+
+    public void Produto(string nome, decimal preco)
+    {
+        Nome = nome;
+        Preco = preco;
+    }
+}
+</pre>
+<pre class="term">$ dotnet run k5.cs
+/home/ana/cs/k5.cs(8,17): error CS0542: "Produto": nomes de membro não podem ser os mesmos do seu tipo delimitador
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> com <code>void</code> na frente, <code>Produto(…)</code> deixou de ser construtor: virou um <strong>método</strong> comum, que por acaso tem o nome da classe. E o C# proíbe isso: um membro não pode ter o mesmo nome do "tipo delimitador" (a classe que o contém).</p>
+<p><strong>Como resolver:</strong> apague o <code>void</code>. Construtores nunca têm tipo de retorno.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0516: o construtor chama a si mesmo</strong>
+<pre class="term">$ dotnet run k7.cs
+/home/ana/cs/k7.cs(5,35): error CS0516: Construtor "Produto.Produto(string)" não pode chamar a si mesmo
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> <code>public Produto(string nome) : this(nome)</code>. O <code>this(nome)</code> chamaria o próprio <code>Produto(string)</code>, numa <a href="recursao.html">recursão</a> sem fim, e o compilador a detecta antes de rodar.</p>
+<p><strong>Como resolver:</strong> o <code>: this(…)</code> deve chamar um construtor <strong>diferente</strong>, normalmente o mais completo: <code>: this(nome, 0m)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS8862: construtor extra sem passar pelo primário</strong>
+<pre class="term">$ dotnet run pc4.cs
+/home/ana/cs/pc4.cs(9,12): error CS8862: Um construtor declarado em um tipo com uma lista de parâmetros deve ter o inicializador de construtor 'this'.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> a classe tem um construtor primário (<code>class Produto(string nome, decimal preco)</code>) e um construtor <code>public Produto(string nome) { }</code> sem <code>: this(…)</code>. Os parâmetros do primário ficariam sem valor.</p>
+<p><strong>Como resolver:</strong> <code>public Produto(string nome) : this(nome, 0m) { }</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>O construtor rodou, mas uma propriedade ficou vazia (<code>CS8618</code>)</strong>
+<pre class="term">$ dotnet run pc9.cs
+/home/ana/cs/pc9.cs(8,12): warning CS8618: O propriedade não anulável 'Nome' precisa conter um valor não nulo ao sair do construtor. Considere adicionar o modificador "obrigatório" ou declarar o propriedade como anulável.
+</pre>
+<p><strong>O que aconteceu:</strong> o construtor recebeu <code>nome</code>, mas esqueceu a linha <code>Nome = nome;</code>. O aviso aponta para o construtor (linha 8): ao terminar, ele deixou <code>Nome</code> com <code>null</code>. O programa rodou e mostrou uma linha vazia.</p>
+<p><strong>Como resolver:</strong> preencha todas as propriedades não anuláveis no construtor. O <code>CS8618</code> é o compilador conferindo isso por você.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>public NomeDaClasse(params) { … }</code></td><td>Construtor: nome igual ao da classe, sem tipo de retorno</td></tr>
+<tr><td><code>new NomeDaClasse(args)</code></td><td>Cria o objeto e chama o construtor que combina com os argumentos</td></tr>
+<tr><td>Construtor padrão</td><td>Criado pelo C# só se a classe não tiver nenhum construtor; sem parâmetros, vazio</td></tr>
+<tr><td>Vários construtores</td><td>Permitido, com listas de parâmetros diferentes (sobrecarga)</td></tr>
+<tr><td><code>public C(…) : this(args) { }</code></td><td>Chama outro construtor da mesma classe antes do corpo</td></tr>
+<tr><td><code>public T Prop { get; }</code></td><td>Só pode ser gravada no construtor (ou no valor inicial)</td></tr>
+<tr><td><code>class C(tipo a, tipo b) { … }</code> <span class="versao">C# 12</span></td><td>Construtor primário: os parâmetros valem na classe inteira</td></tr>
+<tr><td><code>.ctor</code></td><td>Nome interno do construtor, nas mensagens de exceção</td></tr>
+<tr><td><code>void NomeDaClasse(…)</code></td><td>Não é construtor: erro <code>CS0542</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missão final: dois jeitos de matricular</h2>
+<div class="trycs" data-goal="out:Carla - turma 1A,out:Davi - turma 2B,src:this\s*\(\s*\w+\s*\,\s*&quot;1A&quot;\s*\)">
+<p class="try-task"><strong>Missão:</strong> a classe <code>Aluno</code> já tem o construtor <code>Aluno(string nome, string turma)</code>. O programa não compila, porque a Carla é criada só com o nome. Escreva um segundo construtor, <code>Aluno(string nome)</code>, que use <code>: this(…)</code> para matricular o aluno na turma <code>"1A"</code>.</p>
+<pre class="script" data-file="matricula.cs">Aluno carla = new Aluno("Carla");
+Aluno davi = new Aluno("Davi", "2B");
+carla.Mostrar();
+davi.Mostrar();
+
+class Aluno
+{
+    public string Nome { get; }
+    public string Turma { get; }
+
+    public Aluno(string nome, string turma)
+    {
+        Nome = nome;
+        Turma = turma;
+    }
+
+    // escreva o construtor com um parâmetro aqui
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{Nome} - turma {Turma}");
+    }
+}
+</pre>
+<pre class="solucao" data-file="matricula.cs">Aluno carla = new Aluno("Carla");
+Aluno davi = new Aluno("Davi", "2B");
+carla.Mostrar();
+davi.Mostrar();
+
+class Aluno
+{
+    public string Nome { get; }
+    public string Turma { get; }
+
+    public Aluno(string nome, string turma)
+    {
+        Nome = nome;
+        Turma = turma;
+    }
+
+    public Aluno(string nome) : this(nome, "1A")
+    {
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{Nome} - turma {Turma}");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O nome do construtor</h3>
+<p>Complete a declaração do construtor da classe <code>Livro</code> que recebe o título:</p>
+<div class="ex-code">public <input data-answer="Livro" aria-label="nome">(string titulo)</div>
+</div>
+
+<div class="exercise">
+<h3>2. Criar com argumentos</h3>
+<p>O construtor é <code>Conta(string titular, decimal saldo)</code>. Complete para criar a conta da Ana com 300:</p>
+<div class="ex-code">Conta c = <input data-answer="new Conta(&quot;Ana&quot;, 300m);|new Conta(&quot;Ana&quot;, 300);|new Conta(&quot;Ana&quot;,300m);|new(&quot;Ana&quot;, 300m);" aria-label="criação"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Encadear</h3>
+<p>Complete o construtor sem parâmetros para chamar o construtor <code>Produto(string)</code> com <code>"sem nome"</code>:</p>
+<div class="ex-code">public Produto() <input data-answer=": this(&quot;sem nome&quot;)" aria-label="chamada"> { }</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. A classe <code>Produto</code> só tem o construtor <code>Produto(string nome)</code>. O que acontece com <code>new Produto()</code>?</p>
+<label><input type="radio" name="q4"> Funciona: o C# sempre cria o construtor padrão.</label>
+<label><input type="radio" name="q4"> Cria um produto com nome <code>null</code>.</label>
+<label><input type="radio" name="q4"> Erro <code>CS7036</code>: falta o argumento para o parâmetro <code>nome</code>.</label>
+<label><input type="radio" name="q4"> <code>NullReferenceException</code>.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. Qual é a diferença de declaração entre um construtor e um método?</p>
+<label><input type="radio" name="q5"> O construtor tem o nome da classe e nenhum tipo de retorno (nem <code>void</code>).</label>
+<label><input type="radio" name="q5"> O construtor sempre tem <code>static</code>.</label>
+<label><input type="radio" name="q5"> O construtor sempre devolve <code>bool</code>.</label>
+<label><input type="radio" name="q5"> Não há diferença.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">6. Em <code>class Conta(string titular) { … }</code>, o que é <code>titular</code>?</p>
+<label><input type="radio" name="q6"> Uma propriedade pública, que se lê com <code>c.titular</code>.</label>
+<label><input type="radio" name="q6"> Um parâmetro do construtor primário, que vale dentro da classe inteira, mas não é visível de fora.</label>
+<label><input type="radio" name="q6"> Um método.</label>
+<label><input type="radio" name="q6"> Um erro: classes não têm parênteses.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>O <strong>construtor</strong> roda uma vez, no <code>new</code>, para deixar o objeto pronto. Tem o nome da classe e <strong>nenhum tipo de retorno</strong>.</li>
+  <li>Sem construtor escrito, o C# cria o <strong>padrão</strong> (vazio, sem parâmetros). Escreveu algum? O padrão some (<code>CS7036</code>).</li>
+  <li>Construtores com parâmetros obrigam quem cria o objeto a informar os dados: <code>new Produto("maçã", 7.90m)</code>. <code>Nome = nome;</code> funciona porque <code>Nome</code> e <code>nome</code> são nomes diferentes.</li>
+  <li>Propriedades <code>{ get; }</code> só se gravam no construtor; e o construtor é o lugar de recusar dados inválidos.</li>
+  <li>Vários construtores = sobrecarga. Use <code>: this(…)</code> para os curtos chamarem o completo.</li>
+  <li><span class="versao">C# 12</span> Construtor primário: <code>class Produto(string nome, decimal preco)</code>; os outros construtores precisam de <code>: this(…)</code> (<code>CS8862</code>).</li>
+  <li>Próxima aula: <a href="this.html">this</a>, para quando o parâmetro e o campo têm o mesmo nome.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
