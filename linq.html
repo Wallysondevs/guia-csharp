@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# O que é LINQ — consultas com Where, OrderBy e Select | Guia C#</title>
+<meta name="description" content="LINQ em C# para quem nunca programou: o que é uma consulta, laço × LINQ, a sintaxe de método (produtos.Where(…).OrderBy(…).Select(…)) e a sintaxe de consulta (from … where … select), IEnumerable, a execução adiada demonstrada passo a passo, ToList para fotografar o resultado e os erros reais CS0742, CS1936 e InvalidOperationException, com a lojinha da Ana no dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">O que é LINQ</span></h1>
+
+<p class="intro"><strong>LINQ</strong> (pronuncia-se "link") quer dizer <em>Language Integrated Query</em>, "consulta integrada à linguagem". É o jeito do C# de <strong>fazer perguntas</strong> a uma coleção: "quais produtos custam menos de R$ 20?", "em ordem de preço", "só os nomes". Em vez de escrever o laço que procura, separa e ordena, você <strong>descreve o que quer</strong>, e o LINQ faz o trabalho. Esta aula mostra a ideia, as duas formas de escrever e o detalhe mais importante de todos: a consulta só roda quando você pede o resultado.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma consulta LINQ, comparada com um laço.</li>
+  <li>A <strong>sintaxe de método</strong>: <code>produtos.Where(…).OrderBy(…).Select(…)</code>.</li>
+  <li>A <strong>sintaxe de consulta</strong>: <code>from p in produtos where … orderby … select …</code>.</li>
+  <li>O que é o <code>IEnumerable&lt;T&gt;</code> que o LINQ devolve.</li>
+  <li>A <strong>execução adiada</strong>: nada roda até você percorrer o resultado (com demonstração).</li>
+  <li>Quando usar <code>ToList()</code> para "fotografar" o resultado.</li>
+  <li>Os erros reais: <code>CS0742</code>, <code>CS1936</code> e a <code>InvalidOperationException</code> de mudar a lista no meio do caminho.</li>
+</ul>
+</div>
+
+<p>Todos os programas rodaram com o <strong>.NET 10</strong> (C# 14) na máquina da Ana, na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. O LINQ mora no namespace <code>System.Linq</code>, que já vem importado nos programas do .NET 6 em diante (em código antigo, você vai ver <code>using System.Linq;</code> no topo). Para entender esta aula, você precisa de <a href="lambdas.html">Lambdas</a>, de <a href="func-action.html">Func</a> e, de preferência, de <a href="extensoes.html">Métodos de Extensão</a>.</p>
+
+<hr>
+
+<h2>A ideia: pedir em vez de procurar</h2>
+<p>O estoque da lojinha da Ana está numa lista de produtos. Para saber "quais itens de papelaria custam menos de R$ 20, do mais barato ao mais caro", ela tem dois caminhos:</p>
+<ul>
+  <li><strong>Procurar ela mesma</strong>: passar prateleira por prateleira, anotar num papel os que servem, depois reescrever o papel em ordem de preço.</li>
+  <li><strong>Pedir ao Bruno, o estoquista</strong>: "me traga os de papelaria abaixo de R$ 20, em ordem de preço, só os nomes". Ela diz <strong>o quê</strong>; ele sabe <strong>como</strong>.</li>
+</ul>
+<p>O laço é a Ana procurando. O LINQ é o pedido ao Bruno. Todos os exemplos desta aula usam a mesma lista:</p>
+
+<pre class="file" data-file="produtos (trecho de todos os exemplos)">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+// … o programa de cada exemplo …
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+
+<p>Cada produto tem nome, categoria, preço (em <code>decimal</code>, como todo dinheiro) e quantas unidades há no estoque. O <code>record</code> da última linha cria o tipo <code>Produto</code> (veja <a href="records.html">Records</a>).</p>
+
+<hr>
+
+<h2>1. Laço × LINQ</h2>
+
+<pre class="file" data-file="laco-linq.cs">// (a lista de produtos de cima)
+
+// 1. com laço
+List&lt;Produto&gt; achados = [];
+foreach (Produto p in produtos)
+{
+    if (p.Categoria == "Papelaria" &amp;&amp; p.Preco &lt; 20m)
+    {
+        achados.Add(p);
+    }
+}
+achados.Sort((a, b) =&gt; a.Preco.CompareTo(b.Preco));
+foreach (Produto p in achados)
+{
+    Console.WriteLine(p.Nome);
+}
+
+Console.WriteLine("---");
+
+// 2. com LINQ
+var nomes = produtos
+    .Where(p =&gt; p.Categoria == "Papelaria" &amp;&amp; p.Preco &lt; 20m)
+    .OrderBy(p =&gt; p.Preco)
+    .Select(p =&gt; p.Nome);
+
+foreach (string nome in nomes)
+{
+    Console.WriteLine(nome);
+}
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run laco-linq.cs
+Borracha
+Lápis
+Caderno
+---
+Borracha
+Lápis
+Caderno</pre>
+
+<p>O mesmo resultado. No laço, você lê <strong>como</strong> o trabalho é feito (cria uma lista, testa, adiciona, ordena) e precisa deduzir <strong>o que</strong> ele faz. No LINQ, cada linha diz o que faz:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>Em português</th><th>Aula</th></tr>
+<tr><td><code>produtos</code></td><td>"Dos produtos…" (a <strong>fonte</strong>)</td><td></td></tr>
+<tr><td><code>.Where(p =&gt; p.Categoria == "Papelaria" &amp;&amp; p.Preco &lt; 20m)</code></td><td>"…pegue os de papelaria com preço abaixo de 20…" (<em>where</em> = "onde")</td><td><a href="linq-filtrar.html">Where e Select</a></td></tr>
+<tr><td><code>.OrderBy(p =&gt; p.Preco)</code></td><td>"…em ordem de preço…" (<em>order by</em> = "ordenar por")</td><td><a href="linq-ordenar.html">OrderBy</a></td></tr>
+<tr><td><code>.Select(p =&gt; p.Nome)</code></td><td>"…e me dê só os nomes." (<em>select</em> = "selecionar")</td><td><a href="linq-filtrar.html">Where e Select</a></td></tr>
+</table>
+</div>
+
+<p>Cada método recebe uma <a href="lambdas.html">lambda</a> que diz o critério: o <code>Where</code> recebe "dado um produto, ele serve?" (um <code>Func&lt;Produto, bool&gt;</code>); o <code>OrderBy</code> recebe "dado um produto, ordene por quê?"; o <code>Select</code> recebe "dado um produto, o que entra no resultado?". E cada um devolve uma sequência nova, que vai para o método seguinte, como numa <strong>linha de montagem</strong>:</p>
+
+<pre class="syntax">produtos ──► Where(papelaria e &lt; 20) ──► OrderBy(preço) ──► Select(nome) ──► "Borracha", "Lápis", "Caderno"
+ 7 produtos      sobram 3                  os mesmos 3,        3 textos
+                                           em outra ordem</pre>
+
+<p>A lista <code>produtos</code> <strong>não muda</strong>: o LINQ só lê a fonte e produz um resultado novo.</p>
+
+<div class="trycs" data-goal="out:Garrafa,out:Caneca,src:\.Where\(,src:\.Select\(">
+<p class="try-task"><strong>Missão:</strong> troque o laço com <code>if</code> por uma consulta LINQ com <code>.Where</code> (categoria <code>"Cozinha"</code>) e <code>.Select</code> (só o nome), e mostre o resultado com um <code>foreach</code>. A saída continua <code>Garrafa</code> e <code>Caneca</code>.</p>
+<pre class="script">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+foreach (Produto p in produtos)
+{
+    if (p.Categoria == "Cozinha")
+    {
+        Console.WriteLine(p.Nome);
+    }
+}
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+<pre class="solucao">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+var cozinha = produtos
+    .Where(p =&gt; p.Categoria == "Cozinha")
+    .Select(p =&gt; p.Nome);
+
+foreach (string nome in cozinha)
+{
+    Console.WriteLine(nome);
+}
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Duas formas de escrever: método e consulta</h2>
+<p>O C# aceita a mesma consulta escrita de dois jeitos. A <strong>sintaxe de método</strong> é a que você acabou de ver. A <strong>sintaxe de consulta</strong> (<em>query syntax</em>) parece a linguagem SQL dos bancos de dados:</p>
+
+<pre class="file" data-file="consulta.cs">// (a lista de produtos)
+
+var metodo = produtos
+    .Where(p =&gt; p.Preco &lt; 30m)
+    .OrderBy(p =&gt; p.Nome)
+    .Select(p =&gt; $"{p.Nome}: {p.Preco:C}");
+
+var consulta =
+    from p in produtos
+    where p.Preco &lt; 30m
+    orderby p.Nome
+    select $"{p.Nome}: {p.Preco:C}";
+
+Console.WriteLine(string.Join(" | ", metodo));
+Console.WriteLine(string.Join(" | ", consulta));
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run consulta.cs
+Borracha: R$ 1,75 | Caderno: R$ 18,90 | Caneca: R$ 22,50 | Estojo: R$ 24,90 | Lápis: R$ 2,50
+Borracha: R$ 1,75 | Caderno: R$ 18,90 | Caneca: R$ 22,50 | Estojo: R$ 24,90 | Lápis: R$ 2,50</pre>
+
+<p>As duas dão exatamente o mesmo resultado, porque <strong>são</strong> a mesma coisa: o compilador traduz a sintaxe de consulta para as chamadas de método. Peça por peça:</p>
+
+<dl class="anatomy">
+  <dt>from p in produtos</dt><dd>"Para cada <code>p</code> em <code>produtos</code>": a fonte, e o nome de cada elemento (é o <code>p</code> das lambdas). Toda consulta começa com <code>from</code>.</dd>
+  <dt>where p.Preco &lt; 30m</dt><dd>O filtro. Vira <code>.Where(p =&gt; p.Preco &lt; 30m)</code>.</dd>
+  <dt>orderby p.Nome</dt><dd>A ordem. Vira <code>.OrderBy(p =&gt; p.Nome)</code>.</dd>
+  <dt>select …</dt><dd>O que entra no resultado. Vira <code>.Select(p =&gt; …)</code>. Toda consulta termina com <code>select</code> ou <code>group</code> (sem isso, <code>CS0742</code>).</dd>
+</dl>
+
+<p>A lista acima saiu em ordem <strong>alfabética</strong> (<code>orderby p.Nome</code>): Borracha, Caderno, Caneca, Estojo, Lápis. A Mochila e a Garrafa ficaram de fora pelo preço.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Sintaxe de consulta</th><th>Sintaxe de método</th></tr>
+<tr><td><code>from p in produtos</code></td><td><code>produtos</code></td></tr>
+<tr><td><code>where condição</code></td><td><code>.Where(p =&gt; condição)</code></td></tr>
+<tr><td><code>orderby p.Preco</code></td><td><code>.OrderBy(p =&gt; p.Preco)</code></td></tr>
+<tr><td><code>orderby p.Preco descending</code></td><td><code>.OrderByDescending(p =&gt; p.Preco)</code></td></tr>
+<tr><td><code>orderby p.Categoria, p.Nome</code></td><td><code>.OrderBy(p =&gt; p.Categoria).ThenBy(p =&gt; p.Nome)</code></td></tr>
+<tr><td><code>select p.Nome</code></td><td><code>.Select(p =&gt; p.Nome)</code></td></tr>
+<tr><td><code>group p by p.Categoria</code></td><td><code>.GroupBy(p =&gt; p.Categoria)</code></td></tr>
+<tr><td>(não existe)</td><td><code>.Count()</code>, <code>.Sum(…)</code>, <code>.First()</code>, <code>.ToList()</code>, <code>.Take(3)</code>…</td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>Qual usar</strong>
+<p>A <strong>sintaxe de método</strong> é a mais usada no dia a dia e é a que este guia usa daqui em diante: ela tem <strong>todos</strong> os métodos (a de consulta não tem <code>Count</code>, <code>Sum</code>, <code>Take</code>…) e combina com as lambdas que você já conhece. A <strong>sintaxe de consulta</strong> fica mais legível em consultas com vários <code>from</code> ou com <a href="linq-juntar.html">junções</a>. Você pode até misturar: <code>(from p in produtos where p.Preco &lt; 30m select p).Count()</code>.</p>
+</div>
+
+<hr>
+
+<h2>3. O que o LINQ devolve: <code>IEnumerable&lt;T&gt;</code></h2>
+<p>Até agora usamos <code>var</code>. Com os tipos escritos, fica claro o que cada passo produz:</p>
+
+<pre class="file" data-file="tipos.cs">// (a lista de produtos)
+
+IEnumerable&lt;Produto&gt; comEstoque = produtos.Where(p =&gt; p.Estoque &gt; 0);
+IEnumerable&lt;string&gt; nomes = comEstoque.Select(p =&gt; p.Nome);
+List&lt;string&gt; lista = nomes.ToList();
+int quantos = nomes.Count();
+
+Console.WriteLine($"{quantos} produtos com estoque: {string.Join(", ", lista)}");
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run tipos.cs
+6 produtos com estoque: Caderno, Lápis, Mochila, Borracha, Garrafa, Caneca</pre>
+
+<ul>
+  <li><code>Where</code> e <code>Select</code> devolvem um <a href="ienumerable.html"><code>IEnumerable&lt;T&gt;</code></a> ("enumerável de T"): uma <strong>sequência</strong> que dá para percorrer com <code>foreach</code>. O <code>Where</code> devolve produtos; o <code>Select(p =&gt; p.Nome)</code> transforma em textos, por isso <code>IEnumerable&lt;string&gt;</code>.</li>
+  <li><code>ToList()</code> percorre a sequência e guarda tudo numa <code>List&lt;T&gt;</code> de verdade.</li>
+  <li><code>Count()</code> percorre e devolve um número.</li>
+</ul>
+
+<p>Um <code>IEnumerable&lt;T&gt;</code> que saiu do LINQ não é uma lista pronta: é uma <strong>receita</strong> de como produzir os elementos. Essa diferença é o assunto da próxima seção, e é a coisa mais importante desta aula.</p>
+
+<hr>
+
+<h2 id="adiada">4. A execução adiada: a consulta só roda quando você pede</h2>
+<p>Quando você escreve <code>var baratos = produtos.Where(p =&gt; p.Preco &lt; 20m);</code>, <strong>nenhum produto é testado</strong>. O LINQ só guarda a receita: "da lista <code>produtos</code>, os que custam menos de 20". Os produtos só são testados quando alguém <strong>percorre</strong> o resultado: um <code>foreach</code>, um <code>ToList()</code>, um <code>Count()</code>, um <code>string.Join</code>. Isso se chama <strong>execução adiada</strong> (<em>deferred execution</em>).</p>
+
+<p>É como o pedido ao Bruno escrito num papel: enquanto ninguém entrega o papel, ninguém vai à prateleira. E quando ele for, vai olhar a prateleira <strong>como ela estiver naquela hora</strong>.</p>
+
+<h3>Demonstração 1: a consulta vê o que mudou depois</h3>
+
+<pre class="file" data-file="adiada.cs">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+];
+
+var baratos = produtos.Where(p =&gt; p.Preco &lt; 20m);
+List&lt;Produto&gt; fotografia = produtos.Where(p =&gt; p.Preco &lt; 20m).ToList();
+
+produtos.Add(new("Borracha", "Papelaria", 1.75m, 25));
+
+Console.WriteLine($"Consulta: {string.Join(", ", baratos.Select(p =&gt; p.Nome))}");
+Console.WriteLine($"ToList:   {string.Join(", ", fotografia.Select(p =&gt; p.Nome))}");
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+
+<pre class="term">$ dotnet run adiada.cs
+Consulta: Caderno, Lápis, Borracha   « a Borracha foi cadastrada DEPOIS da consulta, e apareceu
+ToList:   Caderno, Lápis             « o ToList rodou na hora: é uma fotografia</pre>
+
+<ul>
+  <li><code>baratos</code> é só a receita. Ela rodou na linha do <code>string.Join</code>, quando a Borracha já estava na lista.</li>
+  <li><code>fotografia</code> rodou <strong>na hora</strong>, por causa do <code>ToList()</code>, quando a lista tinha só dois produtos. Ela é uma <code>List</code> nova, que não acompanha mais a original.</li>
+</ul>
+
+<h3>Demonstração 2: quem roda e quando</h3>
+<p>Para ver o LINQ trabalhando, as lambdas abaixo escrevem uma linha cada vez que rodam:</p>
+
+<pre class="file" data-file="passo.cs">// (a lista de produtos)
+
+Console.WriteLine("1) montando a consulta");
+var consulta = produtos
+    .Where(p =&gt;
+    {
+        Console.WriteLine($"   Where testa {p.Nome}");
+        return p.Preco &lt; 20m;
+    })
+    .Select(p =&gt;
+    {
+        Console.WriteLine($"   Select pega {p.Nome}");
+        return p.Nome.ToUpper();
+    });
+Console.WriteLine("2) consulta montada, nada rodou ainda");
+
+Console.WriteLine("3) foreach:");
+foreach (string nome in consulta)
+{
+    Console.WriteLine($"   recebi {nome}");
+}
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run passo.cs
+1) montando a consulta
+2) consulta montada, nada rodou ainda
+3) foreach:
+   Where testa Caderno
+   Select pega Caderno
+   recebi CADERNO
+   Where testa Lápis
+   Select pega Lápis
+   recebi LÁPIS
+   Where testa Mochila         « não passou no Where: o Select nem vê a Mochila
+   Where testa Borracha
+   Select pega Borracha
+   recebi BORRACHA
+   Where testa Estojo
+   Where testa Garrafa
+   Where testa Caneca</pre>
+
+<p>Duas lições:</p>
+<ol>
+  <li>Entre o "1)" e o "2)", <strong>nada</strong> rodou: montar a consulta não testa produto nenhum.</li>
+  <li>Os produtos passam pela linha de montagem <strong>um de cada vez</strong>: o Caderno vai do <code>Where</code> ao <code>Select</code> e chega ao <code>foreach</code> antes de o Lápis ser testado. O LINQ não cria uma lista intermediária com "os que passaram no <code>Where</code>".</li>
+</ol>
+
+<h3>Demonstração 3: percorrer duas vezes = rodar duas vezes</h3>
+
+<pre class="file" data-file="duasvezes.cs">// (a lista de produtos)
+
+int testes = 0;
+var baratos = produtos.Where(p =&gt; { testes++; return p.Preco &lt; 20m; });
+
+Console.WriteLine(baratos.Count());
+Console.WriteLine(baratos.Count());
+Console.WriteLine($"O Where rodou {testes} vezes");
+
+// (o record Produto)
+</pre>
+
+<pre class="term">$ dotnet run duasvezes.cs
+3
+3
+O Where rodou 14 vezes      « 7 produtos × 2 contagens</pre>
+
+<p>Cada <code>Count()</code> refez a consulta inteira. Com 7 produtos não faz diferença, mas com uma consulta pesada (milhares de itens, ou dados lidos de um arquivo ou de um banco) é trabalho repetido. Se você vai usar o resultado várias vezes, guarde-o com <code>ToList()</code>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Adiados (só montam a receita)</th><th>Imediatos (rodam na hora)</th></tr>
+<tr><td><code>Where</code>, <code>Select</code>, <code>OrderBy</code>, <code>ThenBy</code>, <code>GroupBy</code>, <code>Take</code>, <code>Skip</code>, <code>Distinct</code>…<br>Devolvem um <code>IEnumerable&lt;T&gt;</code>.</td><td><code>ToList</code>, <code>ToArray</code>, <code>ToDictionary</code>, <code>Count</code>, <code>Sum</code>, <code>Average</code>, <code>Min</code>, <code>Max</code>, <code>First</code>, <code>Any</code>…<br>Devolvem uma coleção pronta ou um valor.</td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>Quando usar <code>ToList()</code></strong>
+<ul>
+  <li>Quando você vai percorrer o resultado <strong>mais de uma vez</strong>.</li>
+  <li>Quando quer o resultado <strong>daquele momento</strong>, mesmo que a lista original mude depois.</li>
+  <li>Quando vai <strong>mudar a lista original</strong> enquanto percorre o resultado (veja o erro abaixo).</li>
+</ul>
+<p>Fora desses casos, deixe a consulta adiada: ela não gasta memória com listas intermediárias.</p>
+</div>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>InvalidOperationException: mudar a lista enquanto a consulta a percorre</strong>
+<p><em>Este código tem um erro de propósito.</em> A Ana quer tirar da lista os produtos sem estoque:</p>
+<pre class="file" data-file="modificada.cs">// (a lista de produtos, linhas 1 a 10)
+
+var semEstoque = produtos.Where(p =&gt; p.Estoque == 0);
+foreach (Produto p in semEstoque)
+{
+    produtos.Remove(p);
+}
+Console.WriteLine(produtos.Count);
+
+// (o record Produto)
+</pre>
+<pre class="term">$ dotnet run modificada.cs
+Unhandled exception. System.InvalidOperationException: Collection was modified; enumeration operation may not execute.
+   at System.Collections.Generic.List`1.Enumerator.MoveNext()
+   at System.Linq.Enumerable.SizeOptIListWhereIterator`1.MoveNext()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/modificada.cs:line 13</pre>
+<p><strong>O que quer dizer:</strong> "a coleção foi modificada; a enumeração não pode continuar". Por causa da execução adiada, o <code>foreach</code> está percorrendo a própria lista <code>produtos</code> (através do <code>Where</code>). Quando o <code>Remove</code> tira o Estojo, a lista muda no meio do caminho, e o próximo passo do <code>foreach</code> (o <code>MoveNext</code>, "mover para o próximo") falha.</p>
+<p><strong>Como consertar:</strong> fotografe antes de mexer, <code>produtos.Where(p =&gt; p.Estoque == 0).ToList()</code>: o <code>foreach</code> passa a percorrer a lista nova, e a original pode mudar à vontade. Ou, mais simples: <code>produtos.RemoveAll(p =&gt; p.Estoque == 0);</code> (veja <a href="lambdas.html">Lambdas</a>).</p>
+</div>
+
+<div class="cenario">
+<strong>CS0742: consulta sem <code>select</code></strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="semselect.cs">// (a lista de produtos, linhas 1 a 10)
+
+var consulta =
+    from p in produtos
+    where p.Preco &lt; 20m;
+
+// (o record Produto)
+</pre>
+<pre class="term">$ dotnet run semselect.cs
+/home/ana/cs/semselect.cs(14,24): error CS0742: O corpo de uma consulta deve terminar com uma cláusula select ou group
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> na sintaxe de consulta, o fim é obrigatório: <code>select</code> (o que entra no resultado) ou <code>group</code>. Na sintaxe de método, o <code>.Select</code> é opcional.</p>
+<p><strong>Como consertar:</strong> <code>where p.Preco &lt; 20m select p;</code> (para ficar com os produtos inteiros) ou <code>select p.Nome;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1936: a fonte não é uma coleção</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="naolista.cs">int estoque = 12;
+var r = from x in estoque select x;
+</pre>
+<pre class="term">$ dotnet run naolista.cs
+/home/ana/cs/naolista.cs(2,19): error CS1936: Não foi possível encontrar uma implementação do padrão de consulta para o tipo de origem "int". "Select" não encontrado.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> o LINQ precisa de uma <strong>sequência</strong> (lista, array, <code>IEnumerable&lt;T&gt;</code>…). Um <code>int</code> é um número só, e não tem <code>Select</code>.</p>
+<p><strong>Como consertar:</strong> use uma coleção como fonte: <code>from p in produtos …</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th><th>Tipo</th></tr>
+<tr><td><code>fonte.Where(x =&gt; condição)</code></td><td>Filtra.</td><td>adiado</td></tr>
+<tr><td><code>fonte.Select(x =&gt; valor)</code></td><td>Transforma cada elemento.</td><td>adiado</td></tr>
+<tr><td><code>fonte.OrderBy(x =&gt; chave)</code></td><td>Ordena.</td><td>adiado</td></tr>
+<tr><td><code>fonte.GroupBy(x =&gt; chave)</code></td><td>Agrupa.</td><td>adiado</td></tr>
+<tr><td><code>fonte.Count()</code>, <code>.Sum(…)</code>, <code>.Average(…)</code></td><td>Conta, soma, tira a média.</td><td>imediato</td></tr>
+<tr><td><code>fonte.ToList()</code> / <code>.ToArray()</code></td><td>Roda a consulta e guarda o resultado.</td><td>imediato</td></tr>
+<tr><td><code>from x in fonte where … orderby … select …</code></td><td>A mesma consulta, na sintaxe de consulta.</td><td>adiado</td></tr>
+</table>
+</div>
+<p>A tabela completa está em <a href="ref-linq.html">Referência: LINQ</a>.</p>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A fonte da consulta</h3>
+<p>Complete a primeira linha da consulta, sobre a lista <code>produtos</code>, chamando cada elemento de <code>p</code>:</p>
+<div class="ex-code"><input data-answer="from p in produtos" aria-label="from"> where p.Preco &lt; 10m select p.Nome;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Traduzir para método</h3>
+<p>Escreva em sintaxe de método: <code>from p in produtos where p.Estoque &gt; 0 select p.Nome</code></p>
+<div class="ex-code">produtos<input data-answer=".Where(p =&gt; p.Estoque &gt; 0).Select(p =&gt; p.Nome)|.Where(p=&gt;p.Estoque&gt;0).Select(p=&gt;p.Nome)" aria-label="métodos"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Fotografar</h3>
+<p>Qual método faz a consulta rodar na hora e guarda o resultado numa <code>List</code>? (escreva com os parênteses)</p>
+<div class="ex-code"><input data-answer="ToList()|.ToList()" aria-label="método"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. <code>var caros = produtos.Where(p =&gt; p.Preco &gt; 100m);</code> Quando os produtos são testados?</p>
+<label><input type="radio" name="q4"> Nesta linha.</label>
+<label><input type="radio" name="q4"> Só quando alguém percorrer <code>caros</code> (um <code>foreach</code>, um <code>ToList()</code>, um <code>Count()</code>…).</label>
+<label><input type="radio" name="q4"> Nunca, porque falta o <code>Select</code>.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. A consulta foi criada com 7 produtos na lista. Depois, a Ana acrescentou um oitavo, e só então fez o <code>foreach</code>. Quantos produtos a consulta testa?</p>
+<label><input type="radio" name="q5"> 7, os que existiam quando a consulta foi criada.</label>
+<label><input type="radio" name="q5"> Nenhum: a lista mudou e a consulta é descartada.</label>
+<label><input type="radio" name="q5"> 8: ela roda no <code>foreach</code>, com a lista como estiver naquela hora.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Qual linha <strong>não</strong> é adiada?</p>
+<label><input type="radio" name="q6"> <code>int n = produtos.Count(p =&gt; p.Estoque == 0);</code></label>
+<label><input type="radio" name="q6"> <code>var v = produtos.Select(p =&gt; p.Nome);</code></label>
+<label><input type="radio" name="q6"> <code>var o = produtos.OrderBy(p =&gt; p.Preco);</code></label>
+</div>
+
+<div class="trycs" data-goal="outre:Antes:\s+Caderno\, Lápis\, Borracha\n,outre:Depois:\s+Caderno\, Lápis\, Borracha\, Caneta,src:ToList\(\)">
+<p class="try-task"><strong>Missão final:</strong> a Ana quer comparar os produtos baratos <strong>antes</strong> e <strong>depois</strong> de cadastrar a Caneta. Mas, por causa da execução adiada, as duas linhas saem iguais (rode e veja). Faça a consulta <code>antes</code> rodar na hora, com <code>ToList()</code>. A saída deve ser <code>Antes:  Caderno, Lápis, Borracha</code> e <code>Depois: Caderno, Lápis, Borracha, Caneta</code>.</p>
+<pre class="script">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+var antes = produtos.Where(p =&gt; p.Preco &lt; 20m);
+
+produtos.Add(new("Caneta", "Papelaria", 3.00m, 30));
+var depois = produtos.Where(p =&gt; p.Preco &lt; 20m);
+
+Console.WriteLine($"Antes:  {string.Join(", ", antes.Select(p =&gt; p.Nome))}");
+Console.WriteLine($"Depois: {string.Join(", ", depois.Select(p =&gt; p.Nome))}");
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+<pre class="solucao">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", "Papelaria", 18.90m, 12),
+    new("Lápis", "Papelaria", 2.50m, 40),
+    new("Mochila", "Bolsas", 129.90m, 3),
+    new("Borracha", "Papelaria", 1.75m, 25),
+    new("Estojo", "Bolsas", 24.90m, 0),
+    new("Garrafa", "Cozinha", 35.00m, 8),
+    new("Caneca", "Cozinha", 22.50m, 5),
+];
+
+var antes = produtos.Where(p =&gt; p.Preco &lt; 20m).ToList();
+
+produtos.Add(new("Caneta", "Papelaria", 3.00m, 30));
+var depois = produtos.Where(p =&gt; p.Preco &lt; 20m);
+
+Console.WriteLine($"Antes:  {string.Join(", ", antes.Select(p =&gt; p.Nome))}");
+Console.WriteLine($"Depois: {string.Join(", ", depois.Select(p =&gt; p.Nome))}");
+
+record Produto(string Nome, string Categoria, decimal Preco, int Estoque);
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>LINQ é o jeito de <strong>perguntar</strong> a uma coleção: você diz o que quer (<code>Where</code>, <code>OrderBy</code>, <code>Select</code>…), cada um com uma lambda, e ele faz o laço.</li>
+  <li>Duas sintaxes, mesmo resultado: <strong>método</strong> (<code>produtos.Where(p =&gt; …).Select(p =&gt; …)</code>, a mais usada) e <strong>consulta</strong> (<code>from p in produtos where … select …</code>, que termina com <code>select</code> ou <code>group</code>).</li>
+  <li>O LINQ não muda a fonte; ele produz um <code>IEnumerable&lt;T&gt;</code> novo.</li>
+  <li><strong>Execução adiada:</strong> <code>Where</code>, <code>Select</code>, <code>OrderBy</code> só montam a receita. A consulta roda quando é percorrida, com a fonte como estiver naquela hora, e roda de novo a cada vez.</li>
+  <li><code>ToList()</code>, <code>Count()</code>, <code>Sum()</code> e companhia rodam na hora. Use <code>ToList()</code> para usar o resultado várias vezes, para fotografar um momento ou antes de mudar a lista original (senão, <code>InvalidOperationException</code>).</li>
+</ul>
+
+<p>Próxima aula: <a href="linq-filtrar.html">Filtrar e Projetar (Where, Select)</a>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
