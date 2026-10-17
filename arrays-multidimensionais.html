@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Arrays Multidimensionais e Jagged — linhas e colunas | Guia C#</title>
+<meta name="description" content="Arrays de duas dimensões em C# para quem nunca programou: o array retangular int[,] com m[linha, coluna], GetLength(0) e GetLength(1), Length e Rank, percorrer com dois for, o boletim com média por aluno, o jogo da velha, o array de arrays (jagged) int[][] com linhas de tamanhos diferentes, qual escolher, três dimensões, e os erros reais CS0022, CS0847, CS9174, IndexOutOfRangeException e NullReferenceException, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Arrays Multidimensionais e Jagged</span></h1>
+
+<p class="intro">Na aula <a href="arrays.html">Arrays</a>, a Ana guardou as notas de uma turma numa fileira: uma nota por aluno. Mas cada aluno faz <strong>quatro provas</strong>. Agora os dados formam uma <strong>tabela</strong>, com uma linha por aluno e uma coluna por prova, como numa planilha. O C# tem dois jeitos de guardar tabelas: o array <strong>retangular</strong> (<code>int[,]</code>), em que todas as linhas têm o mesmo tamanho, e o <strong>array de arrays</strong> (<code>int[][]</code>), que em inglês se chama <em>jagged array</em>, "array dentado", porque as linhas podem ter tamanhos diferentes, como os dentes de um serrote.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como criar uma tabela com <code>int[,]</code> e acessar uma casa com <code>notas[linha, coluna]</code>.</li>
+  <li>O que <code>GetLength(0)</code>, <code>GetLength(1)</code>, <code>Length</code> e <code>Rank</code> dizem.</li>
+  <li>Como percorrer a tabela com dois <code>for</code> aninhados e com <code>foreach</code>.</li>
+  <li>Como criar um array de arrays (<code>int[][]</code>) com linhas de tamanhos diferentes.</li>
+  <li>Qual dos dois escolher, e como seria uma terceira dimensão.</li>
+  <li>Os erros mais comuns: <code>CS0022</code> (vírgula × colchetes), <code>CS0847</code>, <code>CS9174</code>, o <code>Length</code> no lugar do <code>GetLength</code> e a linha que ficou <code>null</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas foram rodados com o <strong>.NET 10</strong> (<code>dotnet --version</code> = <code>10.0.112</code>, C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Antes desta aula, veja <a href="arrays.html">Arrays</a> e <a href="lacos-aninhados.html">Laços Aninhados</a>: uma tabela quase sempre é percorrida com dois laços, um dentro do outro.</p>
+
+<hr>
+
+<h2>A ideia: as poltronas do cinema</h2>
+<p>Num cinema, ninguém diz "poltrona 37". Diz "fila C, poltrona 5": <strong>dois números</strong> para achar um lugar. Um array comum é uma fileira só, com um número por portinha. Um array de duas dimensões é a sala inteira:</p>
+<ul>
+  <li>a <strong>primeira</strong> coordenada é a <strong>linha</strong> (a fila);</li>
+  <li>a <strong>segunda</strong> é a <strong>coluna</strong> (a poltrona dentro da fila);</li>
+  <li>as duas começam em <strong>0</strong>, como nos arrays comuns.</li>
+</ul>
+<p>Num cinema comum, toda fila tem o mesmo número de poltronas: é o array <strong>retangular</strong>. Num teatro antigo, as filas da frente são mais curtas que as do fundo: é o <strong>array de arrays</strong>, em que cada fila é uma fileira separada, do tamanho que precisar.</p>
+
+<hr>
+
+<h2>1. O array retangular: <code>int[,]</code></h2>
+
+<pre class="file" data-file="grade.cs">int[,] notas =
+{
+    { 7, 8, 6, 9 },
+    { 5, 6, 7, 8 },
+    { 10, 9, 9, 10 },
+};
+Console.WriteLine($"Aluno 2, prova 3: {notas[1, 2]}");
+Console.WriteLine($"Linhas: {notas.GetLength(0)}");
+Console.WriteLine($"Colunas: {notas.GetLength(1)}");
+Console.WriteLine($"Total de elementos: {notas.Length}");
+Console.WriteLine($"Dimensões: {notas.Rank}");
+</pre>
+
+<dl class="anatomy">
+  <dt>int[,]</dt><dd>"Array de <code>int</code> com <strong>duas</strong> dimensões". A vírgula dentro dos colchetes separa as dimensões: <code>[,]</code> são duas, <code>[,,]</code> seriam três.</dd>
+  <dt>{ { 7, 8, 6, 9 }, … }</dt><dd>Os valores, uma linha por par de chaves. São 3 linhas de 4 números: o compilador conta e cria uma tabela 3 × 4. A vírgula depois da última linha é opcional e facilita acrescentar outra.</dd>
+  <dt>notas[1, 2]</dt><dd>Linha 1 (o segundo aluno), coluna 2 (a terceira prova): <strong>7</strong>. Os dois índices vão dentro dos <strong>mesmos</strong> colchetes, separados por vírgula.</dd>
+  <dt>GetLength(0)</dt><dd>"Pegar o comprimento" da dimensão 0, a das linhas: 3.</dd>
+  <dt>GetLength(1)</dt><dd>O comprimento da dimensão 1, a das colunas: 4.</dd>
+  <dt>Length</dt><dd>O total de casas: 3 × 4 = 12. Cuidado: <strong>não</strong> é o número de linhas.</dd>
+  <dt>Rank</dt><dd>"Posto", quantas dimensões: 2.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run grade.cs
+Aluno 2, prova 3: 7
+Linhas: 3
+Colunas: 4
+Total de elementos: 12
+Dimensões: 2</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>coluna 0<br>(prova 1)</th><th>coluna 1<br>(prova 2)</th><th>coluna 2<br>(prova 3)</th><th>coluna 3<br>(prova 4)</th></tr>
+<tr><th>linha 0 (aluno 1)</th><td><code>[0, 0]</code> = 7</td><td><code>[0, 1]</code> = 8</td><td><code>[0, 2]</code> = 6</td><td><code>[0, 3]</code> = 9</td></tr>
+<tr><th>linha 1 (aluno 2)</th><td><code>[1, 0]</code> = 5</td><td><code>[1, 1]</code> = 6</td><td><code>[1, 2]</code> = <strong>7</strong></td><td><code>[1, 3]</code> = 8</td></tr>
+<tr><th>linha 2 (aluno 3)</th><td><code>[2, 0]</code> = 10</td><td><code>[2, 1]</code> = 9</td><td><code>[2, 2]</code> = 9</td><td><code>[2, 3]</code> = 10</td></tr>
+</table>
+</div>
+
+<div class="note">
+<strong>Aqui as chaves continuam</strong>
+<p>Para arrays comuns, o guia usa a expressão de coleção com colchetes, <code>[7, 8, 6]</code> <span class="versao">C# 12</span>. Ela <strong>não</strong> funciona com arrays retangulares: <code>int[,] m = [[1, 2], [3, 4]];</code> dá <code>error CS9174</code> (veja "Quando dá errado"). Para <code>int[,]</code>, use as chaves.</p>
+</div>
+
+<div class="trycs" data-goal="out:Aluno 3\, prova 1: 10,src:notas\[\s*2\s*\,\s*0\s*\]">
+<p class="try-task"><strong>Missão:</strong> mostre a nota do <strong>aluno 3</strong> na <strong>prova 1</strong>. Lembre: as duas contagens começam no 0. A saída tem de ser <code>Aluno 3, prova 1: 10</code>.</p>
+<pre class="out">Aluno 3, prova 1: 10</pre>
+<pre class="script">int[,] notas =
+{
+    { 7, 8, 6, 9 },
+    { 5, 6, 7, 8 },
+    { 10, 9, 9, 10 },
+};
+Console.WriteLine($"Aluno 3, prova 1: {notas[0, 0]}");   // troque os índices
+</pre>
+<pre class="solucao">int[,] notas =
+{
+    { 7, 8, 6, 9 },
+    { 5, 6, 7, 8 },
+    { 10, 9, 9, 10 },
+};
+Console.WriteLine($"Aluno 3, prova 1: {notas[2, 0]}");
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Percorrer a tabela</h2>
+<p>Com dois <code>for</code> aninhados: o de fora anda pelas linhas, o de dentro pelas colunas de cada linha. A Ana monta o boletim, com a média de cada aluno:</p>
+
+<pre class="file" data-file="boletim.cs">int[,] notas =
+{
+    { 7, 8, 6, 9 },
+    { 5, 6, 7, 8 },
+    { 10, 9, 9, 10 },
+};
+for (int aluno = 0; aluno &lt; notas.GetLength(0); aluno++)
+{
+    int soma = 0;
+    Console.Write($"Aluno {aluno + 1}:");
+    for (int prova = 0; prova &lt; notas.GetLength(1); prova++)
+    {
+        Console.Write($"{notas[aluno, prova],4}");
+        soma += notas[aluno, prova];
+    }
+    Console.WriteLine($"  | média {soma / (double)notas.GetLength(1):F2}");
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>aluno &lt; notas.GetLength(0)</dt><dd>O de fora passa pelas 3 linhas.</dd>
+  <dt>int soma = 0;</dt><dd>Dentro do de fora: zera para cada aluno. Se ficasse lá em cima, as notas de todos se misturariam.</dd>
+  <dt>prova &lt; notas.GetLength(1)</dt><dd>O de dentro passa pelas 4 colunas da linha atual.</dd>
+  <dt>notas[aluno, prova]</dt><dd>A casa da linha <code>aluno</code>, coluna <code>prova</code>.</dd>
+  <dt>{…,4}</dt><dd>Cada nota ocupa 4 espaços, alinhada à direita (o mesmo truque da tabuada em <a href="lacos-aninhados.html">Laços Aninhados</a>).</dd>
+  <dt>:F2</dt><dd>A média com duas casas decimais (aula <a href="formatacao.html">Formatar Números</a>).</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run boletim.cs
+Aluno 1:   7   8   6   9  | média 7,50
+Aluno 2:   5   6   7   8  | média 6,50
+Aluno 3:  10   9   9  10  | média 9,50</pre>
+
+<h3>Com <code>foreach</code></h3>
+<p>O <code>foreach</code> também funciona com <code>int[,]</code>: ele passa por <strong>todas</strong> as casas, linha por linha, como quem lê um livro. Mas ele não diz em que linha ou coluna está, então serve só para coisas como somar tudo ou contar.</p>
+
+<pre class="file" data-file="foreach2.cs">int[,] m = { { 1, 2, 3 }, { 4, 5, 6 } };
+foreach (int x in m)
+{
+    Console.Write($"{x} ");
+}
+Console.WriteLine();
+Console.WriteLine(string.Join(", ", m));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run foreach2.cs
+1 2 3 4 5 6
+System.Int32[,]          « o string.Join não abre um int[,]</pre>
+
+<p>Repare na última linha: o <code>string.Join</code>, que mostrava um array comum, aqui só mostra o nome do tipo, <code>System.Int32[,]</code>. Para mostrar uma tabela, use os dois <code>for</code>.</p>
+
+<h3>Criar com <code>new</code> e encher depois</h3>
+<p>Como nos arrays comuns, <code>new char[3, 3]</code> cria a tabela com o valor padrão do tipo em todas as casas. A Ana desenha um jogo da velha:</p>
+
+<pre class="file" data-file="velha.cs">char[,] velha = new char[3, 3];
+for (int l = 0; l &lt; 3; l++)
+{
+    for (int c = 0; c &lt; 3; c++)
+    {
+        velha[l, c] = '.';
+    }
+}
+velha[1, 1] = 'X';
+velha[0, 2] = 'O';
+for (int l = 0; l &lt; 3; l++)
+{
+    for (int c = 0; c &lt; 3; c++)
+    {
+        Console.Write(velha[l, c]);
+        Console.Write(' ');
+    }
+    Console.WriteLine();
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run velha.cs
+. . O
+. X .
+. . .</pre>
+
+<dl class="anatomy">
+  <dt>new char[3, 3]</dt><dd>3 linhas e 3 colunas. As casas começam com o caractere de código 0, que não aparece na tela; por isso o primeiro laço põe um <code>'.'</code> em cada uma.</dd>
+  <dt>velha[1, 1] = 'X';</dt><dd>O X no centro (linha 1, coluna 1). O <code>'O'</code> fica na linha 0, coluna 2: o canto de cima, à direita.</dd>
+</dl>
+
+<hr>
+
+<h2>3. O array de arrays: <code>int[][]</code></h2>
+<p>A lojinha da Ana anota as vendas de cada dia. Num dia vendeu duas vezes, no outro quatro, num terceiro nenhuma. Uma tabela retangular desperdiçaria espaço e precisaria de um "valor vazio". O array de arrays guarda cada dia como uma <strong>fileira separada</strong>, do tamanho certo:</p>
+
+<pre class="file" data-file="jagged.cs">int[][] vendas =
+[
+    [120, 80],
+    [200, 150, 90, 60],
+    [],
+    [75],
+];
+for (int dia = 0; dia &lt; vendas.Length; dia++)
+{
+    int total = 0;
+    foreach (int venda in vendas[dia])
+    {
+        total += venda;
+    }
+    Console.WriteLine($"Dia {dia + 1}: {vendas[dia].Length} vendas, total {total}");
+}
+Console.WriteLine($"Segunda venda do dia 2: {vendas[1][1]}");
+</pre>
+
+<dl class="anatomy">
+  <dt>int[][]</dt><dd>"Array de arrays de <code>int</code>". Leia de dentro para fora: <code>int[]</code> é uma fileira de números; <code>int[][]</code> é uma fileira de <strong>fileiras</strong>.</dd>
+  <dt>[ [120, 80], [200, 150, 90, 60], [], [75] ]</dt><dd>Aqui a expressão de coleção <span class="versao">C# 12</span> funciona: cada linha é um array comum, com o seu próprio tamanho. A terceira está vazia.</dd>
+  <dt>vendas.Length</dt><dd>Quantas <strong>linhas</strong> (dias): 4. Diferente do <code>int[,]</code>, aqui o <code>Length</code> é o número de linhas.</dd>
+  <dt>vendas[dia]</dt><dd>Uma linha inteira: um <code>int[]</code> comum, com tudo o que você já sabe fazer com arrays (<code>Length</code>, <code>foreach</code>).</dd>
+  <dt>vendas[dia].Length</dt><dd>O tamanho daquela linha: 2, 4, 0 e 1.</dd>
+  <dt>vendas[1][1]</dt><dd>Dois pares de colchetes: o primeiro escolhe a linha (dia 2), o segundo escolhe o elemento dentro dela (a segunda venda): 150.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run jagged.cs
+Dia 1: 2 vendas, total 200
+Dia 2: 4 vendas, total 500
+Dia 3: 0 vendas, total 0
+Dia 4: 1 vendas, total 75
+Segunda venda do dia 2: 150</pre>
+
+<div class="trycs" data-goal="out:Total da semana: 775,src:(for|foreach)[\s\S]*(for|foreach)">
+<p class="try-task"><strong>Missão:</strong> some <strong>todas</strong> as vendas de todos os dias e mostre <code>Total da semana: 775</code>. Use um laço para os dias e outro, dentro dele, para as vendas de cada dia.</p>
+<pre class="out">Total da semana: 775</pre>
+<pre class="script">int[][] vendas =
+[
+    [120, 80],
+    [200, 150, 90, 60],
+    [],
+    [75],
+];
+int totalSemana = 0;
+
+// some aqui todas as vendas
+
+Console.WriteLine($"Total da semana: {totalSemana}");
+</pre>
+<pre class="solucao">int[][] vendas =
+[
+    [120, 80],
+    [200, 150, 90, 60],
+    [],
+    [75],
+];
+int totalSemana = 0;
+
+foreach (int[] dia in vendas)
+{
+    foreach (int venda in dia)
+    {
+        totalSemana += venda;
+    }
+}
+
+Console.WriteLine($"Total da semana: {totalSemana}");
+</pre>
+</div>
+
+<h3>Criar com <code>new</code>: as linhas começam <code>null</code></h3>
+<p>No <code>new int[3][]</code>, só o número de linhas vai no <code>new</code>: o segundo par de colchetes fica vazio, porque cada linha terá o seu tamanho. E as linhas <strong>ainda não existem</strong>: cada uma começa com <code>null</code> e precisa ser criada uma por uma.</p>
+
+<pre class="file" data-file="jagged-new.cs">int[][] linhas = new int[3][];
+linhas[0] = [1];
+linhas[1] = new int[2];
+Console.WriteLine(linhas[0].Length);
+Console.WriteLine(linhas[1].Length);
+Console.WriteLine(linhas[2] is null);
+Console.WriteLine(linhas[2].Length);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run jagged-new.cs
+1
+2
+True                     « a linha 2 nunca foi criada
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/jagged-new.cs:line 7</pre>
+
+<p>A linha 2 nunca recebeu um array, e o <code>linhas[2].Length</code> quebrou com <code>NullReferenceException</code> (código de saída 134). É a mesma pegadinha do <code>new string[3]</code> da aula <a href="arrays.html">Arrays</a>: o compilador não avisa.</p>
+
+<hr>
+
+<h2>4. Qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Retangular <code>int[,]</code></th><th>Array de arrays <code>int[][]</code></th></tr>
+<tr><td>Forma</td><td>Todas as linhas com o mesmo tamanho</td><td>Cada linha com o seu tamanho</td></tr>
+<tr><td>Criar com valores</td><td><code>{ { 1, 2 }, { 3, 4 } }</code></td><td><code>[[1, 2], [3, 4, 5]]</code></td></tr>
+<tr><td>Criar vazio</td><td><code>new int[3, 4]</code>: as 12 casas já existem, com 0</td><td><code>new int[3][]</code>: 3 linhas <code>null</code>, a criar uma por uma</td></tr>
+<tr><td>Acessar</td><td><code>m[1, 2]</code></td><td><code>j[1][2]</code></td></tr>
+<tr><td>Número de linhas</td><td><code>m.GetLength(0)</code></td><td><code>j.Length</code></td></tr>
+<tr><td>Tamanho de uma linha</td><td><code>m.GetLength(1)</code> (igual para todas)</td><td><code>j[i].Length</code></td></tr>
+<tr><td><code>Length</code></td><td>Total de casas (linhas × colunas)</td><td>Número de linhas</td></tr>
+<tr><td>Bom para</td><td>Tabuleiros, mapas de jogo, planilhas, imagens: tudo que é retangular</td><td>Listas de tamanhos diferentes: vendas por dia, alunos por turma, linhas de um texto</td></tr>
+</table>
+</div>
+
+<p>Na dúvida, se os dados são uma grade de verdade (toda linha tem as mesmas colunas), use <code>int[,]</code>: o tamanho fica garantido e não há linha <code>null</code>. Se as linhas variam, use <code>int[][]</code>. E se o número de linhas ou de elementos muda enquanto o programa roda, o caminho é uma lista de listas (<code>List&lt;List&lt;int&gt;&gt;</code>, aula <a href="list.html">List&lt;T&gt;</a>).</p>
+
+<h3>Mais dimensões</h3>
+<p>Dá para ter três vírgulas, quatro… O jeito é o mesmo: <code>int[,,]</code> tem três dimensões, e cada casa precisa de três índices. Um prédio com andares, corredores e salas, por exemplo:</p>
+
+<pre class="file" data-file="tres.cs">int[,,] cubo = new int[2, 3, 4];
+cubo[1, 2, 3] = 99;
+Console.WriteLine($"{cubo.Rank} dimensões, {cubo.Length} elementos");
+Console.WriteLine(cubo[1, 2, 3]);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tres.cs
+3 dimensões, 24 elementos
+99</pre>
+
+<p>Na prática, mais de duas dimensões é raro, e fica difícil de imaginar. Quando os dados ficam complicados assim, geralmente é melhor criar uma <a href="classes-objetos.html">classe</a> que diga o que cada coisa é.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0022: Número incorreto de índices dentro de []; esperado 2</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat errado1.cs
+int[,] m = { { 1, 2 }, { 3, 4 } };
+Console.WriteLine(m[1][0]);
+$ dotnet run errado1.cs
+/home/ana/cs/errado1.cs(2,19): error CS0022: Número incorreto de índices dentro de []; esperado 2
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>m</code> é retangular (<code>int[,]</code>) e quer os <strong>dois</strong> índices nos mesmos colchetes. O <code>m[1]</code> sozinho tem um índice só. Em inglês: <em>Wrong number of indices inside []; expected 2</em>.</p>
+<p><strong>Como consertar:</strong> <code>m[1, 0]</code>. O contrário também acontece: num <code>int[][]</code>, <code>j[1, 0]</code> dá o mesmo <code>CS0022</code>, com <code>esperado 1</code>, e o certo é <code>j[1][0]</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0847: Inicializador de matriz de comprimento "3" é esperado</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat errado3.cs
+int[,] m =
+{
+    { 1, 2, 3 },
+    { 4, 5 },
+};
+$ dotnet run errado3.cs
+/home/ana/cs/errado3.cs(4,5): error CS0847: Inicializador de matriz de comprimento "3" é esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> num array retangular, toda linha tem de ter o mesmo número de valores. A primeira tem 3, então a da linha 4 do arquivo também precisava de 3.</p>
+<p><strong>Como consertar:</strong> complete a linha. Se as linhas têm mesmo tamanhos diferentes, troque por um array de arrays: <code>int[][] m = [[1, 2, 3], [4, 5]];</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS9174: Não é possível inicializar o tipo 'int[*,*]' com uma expressão de coleção porque o tipo não é construível.</code></strong>
+<p><strong>O que significa:</strong> você escreveu <code>int[,] m = [[1, 2], [3, 4]];</code>. A expressão de coleção com colchetes não sabe criar arrays retangulares. (O <code>int[*,*]</code> é o jeito interno de escrever "array de duas dimensões".)</p>
+<p><strong>Como consertar:</strong> use as chaves, <code>int[,] m = { { 1, 2 }, { 3, 4 } };</code>, ou mude o tipo para <code>int[][]</code>, se as linhas podem variar.</p>
+</div>
+
+<div class="cenario">
+<strong><code>IndexOutOfRangeException</code> num laço com <code>m.Length</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat errado4.cs
+int[,] m = { { 1, 2, 3 }, { 4, 5, 6 } };
+for (int l = 0; l &lt; m.Length; l++)
+{
+    Console.WriteLine(m[l, 0]);
+}
+$ dotnet run errado4.cs
+1
+4
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/errado4.cs:line 4</pre>
+<p><strong>O que significa:</strong> num <code>int[,]</code>, o <code>Length</code> é o <strong>total</strong> de casas (2 × 3 = 6), e não o número de linhas (2). Quando <code>l</code> chegou a 2, não havia mais linha. O programa terminou com o código 134.</p>
+<p><strong>Como consertar:</strong> use <code>m.GetLength(0)</code> para as linhas e <code>m.GetLength(1)</code> para as colunas.</p>
+</div>
+
+<div class="cenario">
+<strong><code>NullReferenceException</code> num array de arrays</strong>
+<p><strong>O que significa:</strong> o array foi criado com <code>new int[3][]</code> e uma das linhas nunca recebeu o seu array: ela ainda é <code>null</code>.</p>
+<p><strong>Como consertar:</strong> crie todas as linhas antes de usar (<code>linhas[i] = new int[tamanho];</code>, num laço), ou crie tudo de uma vez com os valores: <code>int[][] linhas = [[1], [2, 3], []];</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>int[,] m = { { 1, 2, 3 }, { 4, 5, 6 } };</code></td><td>Tabela 2 × 3 com valores</td></tr>
+<tr><td><code>int[,] m = new int[2, 3];</code></td><td>Tabela 2 × 3, tudo 0</td></tr>
+<tr><td><code>m[1, 2]</code></td><td>Linha 1, coluna 2</td></tr>
+<tr><td><code>m.GetLength(0)</code> / <code>m.GetLength(1)</code></td><td>Número de linhas / de colunas</td></tr>
+<tr><td><code>m.Length</code> / <code>m.Rank</code></td><td>Total de casas / número de dimensões</td></tr>
+<tr><td><code>int[][] j = [[1, 2], [3, 4, 5]];</code></td><td>Array de arrays com linhas de tamanhos diferentes</td></tr>
+<tr><td><code>int[][] j = new int[3][];</code></td><td>3 linhas, todas <code>null</code> até você criar</td></tr>
+<tr><td><code>j[1][2]</code></td><td>Linha 1, elemento 2</td></tr>
+<tr><td><code>j.Length</code> / <code>j[i].Length</code></td><td>Número de linhas / tamanho da linha <code>i</code></td></tr>
+<tr><td><code>int[,,] c = new int[2, 3, 4];</code></td><td>Três dimensões; <code>c[1, 2, 3]</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A casa certa</h3>
+<p>Num <code>int[,] mapa</code>, complete para pegar a casa da linha 4, coluna 7 (contando do 0):</p>
+<div class="ex-code">int x = mapa[<input data-answer="4, 7|4,7" aria-label="índices">];</div>
+</div>
+
+<div class="exercise">
+<h3>2. Número de colunas</h3>
+<p>Complete para saber quantas colunas tem o <code>int[,] tabela</code>:</p>
+<div class="ex-code">int colunas = tabela.<input data-answer="GetLength(1)" aria-label="método">;</div>
+</div>
+
+<div class="exercise">
+<h3>3. Total de casas</h3>
+<p>Quanto vale <code>new int[5, 6].Length</code>?</p>
+<div class="ex-code"><input data-answer="30" aria-label="total"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. A Ana guarda os alunos de cada turma; uma turma tem 30, outra 25, outra 32. Qual tipo serve melhor?</p>
+<label><input type="radio" name="q4"> <code>string[,]</code></label>
+<label><input type="radio" name="q4"> <code>string[][]</code></label>
+<label><input type="radio" name="q4"> <code>string[]</code></label>
+<label><input type="radio" name="q4"> <code>string[,,]</code></label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Com <code>int[][] j = [[1, 2], [3, 4, 5]];</code>, quanto vale <code>j[1][2]</code>?</p>
+<label><input type="radio" name="q5"> 2</label>
+<label><input type="radio" name="q5"> 4</label>
+<label><input type="radio" name="q5"> 5</label>
+<label><input type="radio" name="q5"> Dá <code>IndexOutOfRangeException</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Num <code>int[,] m</code> de 3 linhas e 4 colunas, quanto vale <code>m.Length</code>?</p>
+<label><input type="radio" name="q6"> 12</label>
+<label><input type="radio" name="q6"> 3</label>
+<label><input type="radio" name="q6"> 4</label>
+<label><input type="radio" name="q6"> 2</label>
+</div>
+
+<h3>Missão final: as poltronas livres</h3>
+
+<div class="trycs" data-goal="out:Livres: 5 de 12,src:GetLength">
+<p class="try-task"><strong>Missão:</strong> o mapa da sala de cinema tem <code>'L'</code> nas poltronas livres e <code>'O'</code> nas ocupadas. Percorra a tabela com dois laços (usando <code>GetLength</code>) e conte as livres. A saída tem de ser <code>Livres: 5 de 12</code>.</p>
+<pre class="out">Livres: 5 de 12</pre>
+<pre class="script">char[,] sala =
+{
+    { 'L', 'O', 'O', 'L' },
+    { 'O', 'O', 'L', 'L' },
+    { 'L', 'O', 'O', 'O' },
+};
+int livres = 0;
+
+// conte aqui as poltronas 'L'
+
+Console.WriteLine($"Livres: {livres} de {sala.Length}");
+</pre>
+<pre class="solucao">char[,] sala =
+{
+    { 'L', 'O', 'O', 'L' },
+    { 'O', 'O', 'L', 'L' },
+    { 'L', 'O', 'O', 'O' },
+};
+int livres = 0;
+
+for (int fila = 0; fila &lt; sala.GetLength(0); fila++)
+{
+    for (int poltrona = 0; poltrona &lt; sala.GetLength(1); poltrona++)
+    {
+        if (sala[fila, poltrona] == 'L')
+        {
+            livres++;
+        }
+    }
+}
+
+Console.WriteLine($"Livres: {livres} de {sala.Length}");
+</pre>
+</div>
+
+<p>Aqui o <code>sala.Length</code> é usado do jeito certo: ele é o total de poltronas, 3 × 4 = 12. Um <code>foreach (char p in sala)</code> também contaria as livres, mas a missão pede os dois laços, porque no próximo passo (mostrar "fila 2, poltrona 3 está livre") você vai precisar saber onde cada poltrona fica.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um array de <strong>duas dimensões</strong> guarda uma tabela: cada casa tem uma linha e uma coluna, as duas contadas a partir do 0.</li>
+  <li>O <strong>retangular</strong> <code>int[,]</code> tem todas as linhas do mesmo tamanho. Crie com chaves (<code>{ { 1, 2 }, { 3, 4 } }</code>) ou <code>new int[3, 4]</code>, acesse com <code>m[l, c]</code>, e meça com <code>GetLength(0)</code> e <code>GetLength(1)</code>. O <code>Length</code> é o total de casas.</li>
+  <li>O <strong>array de arrays</strong> <code>int[][]</code> é uma fileira de fileiras, cada uma do seu tamanho. Crie com <code>[[1, 2], [3, 4, 5]]</code>, acesse com <code>j[l][c]</code>, e meça com <code>j.Length</code> e <code>j[l].Length</code>. Com <code>new int[3][]</code>, as linhas começam <code>null</code>.</li>
+  <li>Percorra com dois <code>for</code> aninhados: o de fora nas linhas, o de dentro nas colunas.</li>
+  <li>Vírgula para o <code>[,]</code>, dois pares de colchetes para o <code>[][]</code>: misturar dá <code>CS0022</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
