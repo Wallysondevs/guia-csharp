@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# lock — sincronizar threads com lock e o tipo Lock | Guia C#</title>
+<meta name="description" content="Sincronização em C# para quem está começando: a condição de corrida do contador++, a instrução lock, o tipo System.Threading.Lock do .NET 9 (C# 13), EnterScope e TryEnter, Interlocked, o impasse (deadlock) e os erros CS0185, CS1996, CS4007 e o aviso CS9216, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">lock</span></h1>
+
+<p class="intro">Nas aulas de <a href="tasks.html">Task</a> e <a href="threads.html">Threads</a>, você pôs o computador para fazer várias coisas <strong>ao mesmo tempo</strong>. Isso é ótimo enquanto cada tarefa mexe só nas suas coisas. O problema começa quando duas tarefas mexem na <strong>mesma variável</strong> no mesmo instante: o resultado sai errado, e cada vez errado de um jeito diferente. Nesta aula você vai ver esse erro acontecer de verdade e consertá-lo com a instrução <code>lock</code> ("trancar") e com o tipo <code>Lock</code>, novo no .NET 9.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma <strong>condição de corrida</strong> e por que <code>contador++</code> não é seguro com várias threads.</li>
+  <li>A instrução <code>lock (trava) { … }</code> e o que ela garante.</li>
+  <li>O tipo <code>System.Threading.Lock</code> <span class="versao">C# 13</span>, que é o jeito recomendado no .NET 9 e no .NET 10.</li>
+  <li>Proteger uma classe inteira (a conta do banco e o estoque da lojinha) com um campo <code>private readonly Lock _trava = new();</code>.</li>
+  <li><code>EnterScope</code>, <code>TryEnter</code> e <code>Interlocked</code>, para casos especiais.</li>
+  <li>O <strong>impasse</strong> (<em>deadlock</em>) e os erros <code>CS0185</code>, <code>CS1996</code>, <code>CS4007</code> e o aviso <code>CS9216</code>.</li>
+</ul>
+</div>
+
+<p>Todas as saídas desta aula são reais: foram feitas com o <strong>.NET 10</strong> (<code>dotnet --version</code> = <code>10.0.112</code>) na máquina fictícia da Ana, um notebook com 8 núcleos, na pasta <code>~/cs/lock</code>, com <code>dotnet run arquivo.cs</code> (veja <a href="dotnet-run.html">Rodar com dotnet run</a>).</p>
+
+<hr>
+
+<h2>A ideia: a chave do banheiro do posto</h2>
+<p>Num posto de estrada, o banheiro tem <strong>uma chave só</strong>, pendurada no balcão. Quem quer entrar pega a chave; quem chega depois espera no balcão até a chave voltar. Ninguém entra enquanto outra pessoa está lá dentro.</p>
+
+<p>O <code>lock</code> é essa chave. Um pedaço do código vira o "banheiro": só <strong>uma thread por vez</strong> pode estar dentro dele. As outras ficam esperando, em fila, até a primeira sair. Esse pedaço protegido tem um nome técnico: <strong>seção crítica</strong>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>No posto</th><th>No C#</th></tr>
+<tr><td>O banheiro</td><td>O bloco <code>{ … }</code> do <code>lock</code> (a seção crítica)</td></tr>
+<tr><td>A chave pendurada no balcão</td><td>O objeto da trava: <code>Lock _trava = new();</code></td></tr>
+<tr><td>Pegar a chave</td><td>Entrar no <code>lock (_trava)</code></td></tr>
+<tr><td>Esperar no balcão</td><td>A thread fica parada até a trava ficar livre</td></tr>
+<tr><td>Devolver a chave</td><td>Sair do bloco (sempre, mesmo se der erro lá dentro)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. O problema: quatro tarefas, um contador</h2>
+<p>A Ana quer contar até 4 milhões, dividindo o trabalho entre 4 tarefas: cada uma soma 1 ao contador um milhão de vezes. A conta é fácil: 4 × 1.000.000 = 4.000.000.</p>
+
+<pre class="file" data-file="contador.cs">int contador = 0;
+var tarefas = new Task[4];
+
+for (int i = 0; i &lt; tarefas.Length; i++)
+{
+    tarefas[i] = Task.Run(() =&gt;
+    {
+        for (int j = 0; j &lt; 1_000_000; j++)
+        {
+            contador++;
+        }
+    });
+}
+
+await Task.WhenAll(tarefas);
+Console.WriteLine($"Esperado: {4 * 1_000_000}");
+Console.WriteLine($"Total:    {contador}");
+</pre>
+
+<dl class="anatomy">
+  <dt>int contador = 0;</dt><dd>A variável que as quatro tarefas vão dividir. Como a lambda <code>() =&gt; { … }</code> usa <code>contador</code>, todas as tarefas mexem na <strong>mesma</strong> variável, não numa cópia (veja <a href="lambdas.html">Lambdas</a>).</dd>
+  <dt>Task.Run(() =&gt; { … })</dt><dd>"Rode isto numa tarefa": o .NET pega uma thread livre e executa a lambda nela, ao mesmo tempo que as outras (veja <a href="tasks.html">Task</a>).</dd>
+  <dt>contador++;</dt><dd>Soma 1. Parece uma coisa só, mas não é (veja logo abaixo).</dd>
+  <dt>await Task.WhenAll(tarefas);</dt><dd>Espera as quatro tarefas terminarem antes de mostrar o total.</dd>
+</dl>
+
+<p>A Ana rodou três vezes, sem mudar nada:</p>
+
+<pre class="term" data-cwd="~/cs/lock">$ dotnet run contador.cs
+Esperado: 4000000
+Total:    2843643
+$ dotnet run contador.cs
+Esperado: 4000000
+Total:    3213877
+$ dotnet run contador.cs
+Esperado: 4000000
+Total:    2927090</pre>
+
+<p>O total está errado, e <strong>cada vez de um jeito</strong>. Sumiram mais de um milhão de somas. Não apareceu nenhum erro nem nenhum aviso: o compilador não tem como saber que quatro threads vão mexer na mesma variável. Esse tipo de erro se chama <strong>condição de corrida</strong> (em inglês, <em>race condition</em>): o resultado depende de quem "chega primeiro", e isso muda a cada execução.</p>
+
+<h3>Por que <code>contador++</code> perde somas</h3>
+<p>Para o processador, <code>contador++</code> são <strong>três passos</strong>: ler o valor da memória, somar 1, gravar o valor de volta. Veja o que acontece quando duas threads fazem isso no mesmo instante, com o contador valendo 10:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Momento</th><th>Thread A</th><th>Thread B</th><th>contador na memória</th></tr>
+<tr><td>1</td><td>lê: 10</td><td></td><td>10</td></tr>
+<tr><td>2</td><td></td><td>lê: 10</td><td>10</td></tr>
+<tr><td>3</td><td>soma: 11</td><td>soma: 11</td><td>10</td></tr>
+<tr><td>4</td><td>grava 11</td><td></td><td>11</td></tr>
+<tr><td>5</td><td></td><td>grava 11</td><td><strong>11</strong> (devia ser 12)</td></tr>
+</table>
+</div>
+
+<p>As duas somaram 1, mas o contador só andou 1: a soma da thread A foi <strong>apagada</strong> pela gravação da thread B. Com 8 núcleos trabalhando, isso acontece milhões de vezes.</p>
+
+<div class="note">
+<strong>E se der certo?</strong> Com poucas repetições (100 mil em vez de 1 milhão), a Ana viu o total <strong>certo</strong> duas vezes seguidas e o errado só na terceira: a primeira tarefa às vezes termina antes de a segunda começar. É isso que torna a condição de corrida perigosa: o programa passa nos seus testes e falha no computador do cliente. "Rodou certo uma vez" não prova nada.
+</div>
+
+<hr>
+
+<h2>2. A instrução <code>lock</code></h2>
+<p>O conserto é deixar o <code>contador++</code> dentro de um <code>lock</code>. Assim, só uma tarefa por vez faz os três passos:</p>
+
+<pre class="file" data-file="contador2.cs">int contador = 0;
+object trava = new();
+var tarefas = new Task[4];
+
+for (int i = 0; i &lt; tarefas.Length; i++)
+{
+    tarefas[i] = Task.Run(() =&gt;
+    {
+        for (int j = 0; j &lt; 1_000_000; j++)
+        {
+            lock (trava)
+            {
+                contador++;
+            }
+        }
+    });
+}
+
+await Task.WhenAll(tarefas);
+Console.WriteLine($"Esperado: {4 * 1_000_000}");
+Console.WriteLine($"Total:    {contador}");
+</pre>
+
+<pre class="term" data-cwd="~/cs/lock">$ dotnet run contador2.cs
+Esperado: 4000000
+Total:    4000000
+$ dotnet run contador2.cs
+Esperado: 4000000
+Total:    4000000</pre>
+
+<dl class="anatomy">
+  <dt>object trava = new();</dt><dd>A "chave do banheiro": um objeto qualquer, criado só para servir de trava. Ele não guarda nada; o que importa é que <strong>todas as tarefas usem o mesmo objeto</strong>. É a forma antiga, que funciona em qualquer versão do .NET (a forma nova está na seção 3).</dd>
+  <dt>lock (trava)</dt><dd>"Tranque com esta trava". Se a trava está livre, a thread a pega e entra no bloco. Se outra thread está com ela, esta <strong>espera</strong> ali, parada, até a trava ser devolvida.</dd>
+  <dt>{ contador++; }</dt><dd>A seção crítica: o que só uma thread por vez pode fazer. Ponha aqui <strong>tudo</strong> o que lê e muda os dados divididos, e nada além disso.</dd>
+  <dt>a chave do bloco <code>}</code></dt><dd>Ao sair do bloco, a trava é devolvida e a próxima thread da fila entra. Isso acontece <strong>sempre</strong>: no fim normal, num <code>return</code> ou numa exceção.</dd>
+</dl>
+
+<p>A trava só funciona se for <strong>a mesma</strong> para todos. Se cada tarefa criasse a sua (<code>lock (new object())</code>), seria como um banheiro com uma chave para cada pessoa: todo mundo entra junto, e o total volta a sair errado.</p>
+
+<h3>O <code>lock</code> devolve a trava mesmo quando dá erro</h3>
+<p>Uma exceção lá dentro não deixa a trava presa. A propriedade <code>IsHeldByCurrentThread</code> ("está segura pela thread atual?") mostra isso:</p>
+
+<pre class="file" data-file="excecao.cs">Lock trava = new();
+
+try
+{
+    lock (trava)
+    {
+        Console.WriteLine($"Dentro do lock: {trava.IsHeldByCurrentThread}");
+        throw new InvalidOperationException("deu ruim");
+    }
+}
+catch (InvalidOperationException e)
+{
+    Console.WriteLine($"Pegou: {e.Message}");
+}
+
+Console.WriteLine($"Depois do erro: {trava.IsHeldByCurrentThread}");
+</pre>
+
+<pre class="term" data-cwd="~/cs/lock">$ dotnet run excecao.cs
+Dentro do lock: True
+Pegou: deu ruim
+Depois do erro: False</pre>
+
+<p>Por baixo, o compilador escreve o <code>lock</code> como um <code>try</code>/<code>finally</code> (veja <a href="finally.html">finally</a>): pega a trava, roda o bloco no <code>try</code> e devolve a trava no <code>finally</code>.</p>
+
+<div class="trycs" data-goal="src:lock\s*\(\s*trava\s*\),outre:Total: +400000">
+<p class="try-task"><strong>Missão:</strong> o contador abaixo divide o trabalho entre 4 tarefas, mas o <code>contador++</code> está desprotegido. Ponha o <code>contador++</code> dentro de um <code>lock (trava) { … }</code>, usando a trava que já está criada, e rode. O total tem de ser <code>400000</code>. (Quantas somas se perdem sem o <code>lock</code> depende de quantos núcleos trabalham ao mesmo tempo; por isso, a missão confere também o seu código.)</p>
+<pre class="script">int contador = 0;
+Lock trava = new();
+var tarefas = new Task[4];
+
+for (int i = 0; i &lt; tarefas.Length; i++)
+{
+    tarefas[i] = Task.Run(() =&gt;
+    {
+        for (int j = 0; j &lt; 100_000; j++)
+        {
+            contador++;
+        }
+    });
+}
+
+await Task.WhenAll(tarefas);
+Console.WriteLine($"Total: {contador}");
+</pre>
+<pre class="solucao">int contador = 0;
+Lock trava = new();
+var tarefas = new Task[4];
+
+for (int i = 0; i &lt; tarefas.Length; i++)
+{
+    tarefas[i] = Task.Run(() =&gt;
+    {
+        for (int j = 0; j &lt; 100_000; j++)
+        {
+            lock (trava)
+            {
+                contador++;
+            }
+        }
+    });
+}
+
+await Task.WhenAll(tarefas);
+Console.WriteLine($"Total: {contador}");
+</pre>
+</div>
+
+<hr>
+
+<h2>3. O tipo <code>Lock</code> <span class="versao">C# 13</span></h2>
+<p>Até o .NET 8, a trava era sempre um <code>object</code> qualquer. O .NET 9 trouxe um tipo feito só para isso: <strong><code>System.Threading.Lock</code></strong>. Ele é mais rápido e deixa claro, só de ler, para que o campo serve. No .NET 10, é o jeito recomendado. Não precisa de <code>using</code>: o <code>System.Threading</code> já vem importado nos programas de console.</p>
+
+<p>Basta trocar o tipo da trava; o <code>lock</code> continua igual:</p>
+
+<pre class="file" data-file="contador2.cs">int contador = 0;
+Lock trava = new();
+«… o resto, igual …»</pre>
+
+<pre class="term" data-cwd="~/cs/lock">$ dotnet run contador2.cs
+Esperado: 4000000
+Total:    4000000</pre>
+
+<p>O compilador do C# 13 em diante reconhece o tipo <code>Lock</code> no <code>lock (…)</code> e usa os métodos próprios dele. Com um <code>object</code>, ele usa o mecanismo antigo, o <code>Monitor</code> (veja a tabela "formas diferentes", abaixo).</p>
+
+<h3>Uma classe que se protege sozinha</h3>
+<p>Na vida real, a trava não fica solta no programa: ela fica <strong>dentro da classe</strong> que guarda os dados divididos, como um campo <code>private readonly</code>. Assim, quem usa a classe nem precisa saber que existe uma trava.</p>
+
+<p>O caso: a conta conjunta da Ana e do Beto tem R$ 100,00. Os dois, cada um num caixa eletrônico, tentam sacar R$ 80,00 no mesmo instante. Primeiro, a versão sem trava (o <code>Thread.Sleep(10)</code> faz o caixa "pensar" 10 milissegundos entre conferir o saldo e descontar, como acontece num sistema de verdade, que consulta o banco de dados):</p>
+
+<pre class="file" data-file="conta.cs">var conta = new Conta(100m);
+
+var ana = new Thread(() =&gt; conta.Sacar(80m, "Ana"));
+var beto = new Thread(() =&gt; conta.Sacar(80m, "Beto"));
+ana.Start();
+beto.Start();
+ana.Join();
+beto.Join();
+
+Console.WriteLine($"Saldo final: {conta.Saldo:C}");
+
+class Conta(decimal saldoInicial)
+{
+    public decimal Saldo { get; private set; } = saldoInicial;
+
+    public void Sacar(decimal valor, string quem)
+    {
+        if (Saldo &gt;= valor)
+        {
+            Thread.Sleep(10); // o caixa eletrônico "pensa" um pouco
+            Saldo -= valor;
+            Console.WriteLine($"{quem} sacou {valor:C}");
+        }
+        else
+        {
+            Console.WriteLine($"{quem}: saldo insuficiente");
+        }
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/lock">$ dotnet run conta.cs
+Beto sacou R$ 80,00
+Ana sacou R$ 80,00
+Saldo final: -R$ 60,00
+$ dotnet run conta.cs
+Ana sacou R$ 80,00
+Beto sacou R$ 80,00
+Saldo final: -R$ 60,00</pre>
+
+<p>Os dois conferiram o saldo (R$ 100,00, dá para sacar), os dois sacaram, e a conta ficou negativa. É o padrão "confere e depois faz" (em inglês, <em>check-then-act</em>): entre a conferência e a ação, outra thread mudou o mundo. Na primeira tentativa da Ana, o saldo final saiu até <code>R$ 20,00</code>, porque as duas threads leram R$ 100,00 e gravaram R$ 20,00 por cima uma da outra, o mesmo problema do contador. Cada execução pode errar de um jeito.</p>
+
+<p>Agora com a trava. A conferência e o desconto ficam <strong>no mesmo</strong> <code>lock</code>:</p>
+
+<pre class="file" data-file="conta2.cs">class Conta(decimal saldoInicial)
+{
+    private readonly Lock _trava = new();
+    public decimal Saldo { get; private set; } = saldoInicial;
+
+    public void Sacar(decimal valor, string quem)
+    {
+        lock (_trava)
+        {
+            if (Saldo &gt;= valor)
+            {
+                Thread.Sleep(10); // o caixa eletrônico "pensa" um pouco
+                Saldo -= valor;
+                Console.WriteLine($"{quem} sacou {valor:C}");
+            }
+            else
+            {
+                Console.WriteLine($"{quem}: saldo insuficiente");
+            }
+        }
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/lock">$ dotnet run conta2.cs
+Ana sacou R$ 80,00
+Beto: saldo insuficiente
+Saldo final: R$ 20,00</pre>
+
+<dl class="anatomy">
+  <dt>private</dt><dd>Só a própria classe enxerga a trava. Ninguém de fora consegue trancá-la por engano (nem esquecer de trancar).</dd>
+  <dt>readonly</dt><dd>"Só leitura": a trava nunca é trocada por outra. Se alguém fizesse <code>_trava = new();</code> no meio do programa, threads diferentes passariam a usar chaves diferentes.</dd>
+  <dt>Lock _trava = new();</dt><dd>Uma trava para cada conta. Contas diferentes não esperam umas pelas outras: o Beto sacando da conta dele não atrapalha a Ana sacando da dela.</dd>
+  <dt>lock (_trava) { if … Saldo -= valor; }</dt><dd>A conferência e o desconto viraram uma coisa só, que ninguém interrompe. Quem chega depois espera e encontra o saldo já atualizado.</dd>
+</dl>
+
+<p>Quem sacou primeiro (Ana ou Beto) pode mudar de uma execução para outra: isso é normal com threads. O que o <code>lock</code> garante é que <strong>só um</strong> dos dois consegue, e que o saldo final é sempre R$ 20,00.</p>
+
+<div class="tip">
+<strong>Leitura também precisa de trava?</strong> Se uma thread pode estar mudando o valor enquanto outra lê, sim: ponha a leitura no mesmo <code>lock</code> (por exemplo, no <code>get</code> da propriedade). Para um <code>int</code> sozinho a leitura é segura, mas para um <code>decimal</code> (16 bytes) a outra thread pode ler um valor "pela metade". A regra mais simples: <strong>todo acesso</strong> aos dados divididos passa pela trava.
+</div>
+
+<hr>
+
+<h2>4. <code>EnterScope</code> e <code>TryEnter</code></h2>
+<p>O <code>lock (…)</code> resolve quase tudo. Para os casos especiais, o tipo <code>Lock</code> tem métodos próprios:</p>
+
+<pre class="file" data-file="escopo.cs">Lock trava = new();
+
+using (trava.EnterScope())
+{
+    Console.WriteLine($"Dentro: {trava.IsHeldByCurrentThread}");
+}
+Console.WriteLine($"Fora: {trava.IsHeldByCurrentThread}");
+
+if (trava.TryEnter())
+{
+    try
+    {
+        Console.WriteLine("Consegui a trava com TryEnter");
+    }
+    finally
+    {
+        trava.Exit();
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/lock">$ dotnet run escopo.cs
+Dentro: True
+Fora: False
+Consegui a trava com TryEnter</pre>
+
+<dl class="anatomy">
+  <dt>trava.EnterScope()</dt><dd>"Entre num escopo": pega a trava e devolve um objeto que, no fim do <code>using</code>, a solta (veja <a href="using-dispose.html">using</a>). É exatamente o que o <code>lock (trava)</code> faz por baixo quando a trava é um <code>Lock</code>.</dd>
+  <dt>trava.TryEnter()</dt><dd>"Tente entrar": se a trava está livre, pega e devolve <code>true</code>; se está ocupada, devolve <code>false</code> <strong>na hora</strong>, sem esperar. Serve para "se o banheiro estiver ocupado, vou fazer outra coisa". Existe também <code>TryEnter(TimeSpan.FromSeconds(1))</code>, que espera no máximo esse tempo.</dd>
+  <dt>try { … } finally { trava.Exit(); }</dt><dd>Com <code>TryEnter</code>, devolver a trava é com você: <code>Exit()</code> ("sair") no <code>finally</code>, para devolver mesmo se der erro.</dd>
+</dl>
+
+<hr>
+
+<h2>5. Para uma soma só: <code>Interlocked</code></h2>
+<p>Quando o que você precisa proteger é <strong>uma única</strong> operação num número (somar 1, subtrair, trocar o valor), existe um atalho mais leve que o <code>lock</code>: a classe <code>Interlocked</code> ("travado entre si"). Ela pede ao processador que faça os três passos (ler, somar, gravar) como um só, que ninguém interrompe. Uma operação assim se chama <strong>atômica</strong> (do grego <em>átomo</em>, "que não se divide").</p>
+
+<pre class="file" data-file="inter.cs">int contador = 0;
+var tarefas = new Task[4];
+
+for (int i = 0; i &lt; tarefas.Length; i++)
+{
+    tarefas[i] = Task.Run(() =&gt;
+    {
+        for (int j = 0; j &lt; 1_000_000; j++)
+        {
+            Interlocked.Increment(ref contador);
+        }
+    });
+}
+
+await Task.WhenAll(tarefas);
+Console.WriteLine($"Total: {contador}");
+</pre>
+
+<pre class="term" data-cwd="~/cs/lock">$ dotnet run inter.cs
+Total: 4000000</pre>
+
+<dl class="anatomy">
+  <dt>Interlocked.Increment(ref contador)</dt><dd>Soma 1 de forma atômica. O <code>ref</code> entrega a <strong>própria variável</strong>, não uma cópia do valor (veja <a href="ref-out-in.html">ref, out e in</a>).</dd>
+  <dt>Outros métodos</dt><dd><code>Interlocked.Decrement(ref x)</code> (subtrai 1), <code>Interlocked.Add(ref x, 5)</code> (soma 5), <code>Interlocked.Exchange(ref x, 0)</code> (troca o valor e devolve o antigo).</dd>
+</dl>
+
+<p>O <code>Interlocked</code> só serve para <strong>uma</strong> variável e <strong>uma</strong> operação. O saque da conta (conferir o saldo <em>e</em> descontar) são duas coisas que precisam acontecer juntas: aí, só o <code>lock</code> resolve.</p>
+
+<div class="trycs" data-goal="src:Interlocked\.Increment\(\s*ref\s+visitas\s*\),outre:Visitas: 300\n">
+<p class="try-task"><strong>Missão:</strong> o site da lojinha conta as visitas com 3 tarefas. Troque o <code>visitas++</code> por <code>Interlocked.Increment(ref visitas);</code> e rode. A saída deve ser <code>Visitas: 300</code>.</p>
+<pre class="script">int visitas = 0;
+var tarefas = new Task[3];
+
+for (int i = 0; i &lt; tarefas.Length; i++)
+{
+    tarefas[i] = Task.Run(() =&gt;
+    {
+        for (int j = 0; j &lt; 100; j++)
+        {
+            visitas++;
+        }
+    });
+}
+
+await Task.WhenAll(tarefas);
+Console.WriteLine($"Visitas: {visitas}");
+</pre>
+<pre class="solucao">int visitas = 0;
+var tarefas = new Task[3];
+
+for (int i = 0; i &lt; tarefas.Length; i++)
+{
+    tarefas[i] = Task.Run(() =&gt;
+    {
+        for (int j = 0; j &lt; 100; j++)
+        {
+            Interlocked.Increment(ref visitas);
+        }
+    });
+}
+
+await Task.WhenAll(tarefas);
+Console.WriteLine($"Visitas: {visitas}");
+</pre>
+</div>
+
+<hr>
+
+<h2>Formas diferentes: qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Quando usar</th></tr>
+<tr><td><code>private readonly Lock _trava = new();</code> + <code>lock (_trava)</code></td><td><strong>O padrão</strong> no .NET 9 e no .NET 10. Use sempre que puder.</td></tr>
+<tr><td><code>private readonly object _trava = new();</code> + <code>lock (_trava)</code></td><td>Código que precisa compilar no .NET 8 ou anterior. Você vai ver essa forma em quase todo código antigo e nos cursos; ela funciona igual, só um pouco mais devagar.</td></tr>
+<tr><td><code>Monitor.Enter(obj)</code> / <code>Monitor.Exit(obj)</code></td><td>É o que o <code>lock (objeto)</code> vira por baixo. Raramente você escreve isso à mão.</td></tr>
+<tr><td><code>Interlocked.Increment(ref x)</code></td><td>Uma única operação num número: contadores, estatísticas.</td></tr>
+<tr><td><code>ConcurrentDictionary</code>, <code>ConcurrentQueue</code>…</td><td>Coleções que já se protegem sozinhas (pasta <code>System.Collections.Concurrent</code>). Melhor que pôr <code>lock</code> em volta de cada uso de um <code>Dictionary</code>.</td></tr>
+<tr><td><code>SemaphoreSlim</code> + <code>await WaitAsync()</code></td><td>Quando a seção crítica precisa de <code>await</code>, que o <code>lock</code> não permite (veja "Quando dá errado").</td></tr>
+</table>
+</div>
+
+<div class="warning">
+<strong>Não tranque o que é de todo mundo.</strong> Você vai encontrar código antigo com <code>lock (this)</code>, <code>lock (typeof(Conta))</code> ou <code>lock ("conta")</code>. Compila, mas é perigoso: esses objetos são visíveis para outras partes do programa (o mesmo texto <code>"conta"</code> é o mesmo objeto no programa inteiro), e qualquer uma delas pode trancar a mesma trava sem você saber, causando esperas e impasses. Use sempre um campo <code>private readonly</code> criado só para isso.
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>O impasse (<em>deadlock</em>): o programa para e não sai mais</strong>
+<p>A Ana e o Beto precisam da caneta <em>e</em> do caderno para escrever. A Ana pega a caneta primeiro; o Beto, o caderno primeiro:</p>
+<pre class="file" data-file="impasse.cs">Lock caneta = new();
+Lock caderno = new();
+
+var ana = new Thread(() =&gt;
+{
+    lock (caneta)
+    {
+        Console.WriteLine("Ana pegou a caneta");
+        Thread.Sleep(100);
+        Console.WriteLine("Ana espera o caderno...");
+        lock (caderno)
+        {
+            Console.WriteLine("Ana escreveu");
+        }
+    }
+});
+var beto = new Thread(() =&gt;
+{
+    lock (caderno)
+    {
+        Console.WriteLine("Beto pegou o caderno");
+        Thread.Sleep(100);
+        Console.WriteLine("Beto espera a caneta...");
+        lock (caneta)
+        {
+            Console.WriteLine("Beto escreveu");
+        }
+    }
+});
+ana.Start();
+beto.Start();
+ana.Join();
+beto.Join();
+Console.WriteLine("Fim");
+</pre>
+<pre class="term" data-cwd="~/cs/lock">$ timeout 10 dotnet run impasse.cs; echo "código de saída: $?"
+Ana pegou a caneta
+Beto pegou o caderno
+Ana espera o caderno...
+Beto espera a caneta...
+código de saída: 124</pre>
+<p><strong>O que aconteceu:</strong> a Ana segura a caneta e espera o caderno; o Beto segura o caderno e espera a caneta. Nenhum dos dois solta o que tem, e os dois esperam para sempre. O programa não dá erro nem termina: ele simplesmente para. Aqui, o <code>timeout 10</code> matou o programa depois de 10 segundos (o código 124 é do <code>timeout</code>); sem ele, a Ana teria de apertar <kbd>Ctrl</kbd>+<kbd>C</kbd>.</p>
+<p><strong>Como resolver:</strong> quando precisar de duas travas, pegue-as <strong>sempre na mesma ordem</strong> em todo o programa (primeiro a caneta, depois o caderno, para todo mundo). Melhor ainda: evite segurar uma trava enquanto pega outra, e deixe a seção crítica o mais curta possível.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0185: "int" não é um tipo de referência como necessário pela instrução lock</code></strong>
+<pre class="file" data-file="erro1.cs">int trava = 0;
+lock (trava)
+{
+    Console.WriteLine("dentro");
+}
+</pre>
+<pre class="term" data-cwd="~/cs/lock">$ dotnet run erro1.cs
+/home/ana/cs/lock/erro1.cs(2,7): error CS0185: "int" não é um tipo de referência como necessário pela instrução lock
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> o <code>lock</code> precisa de um objeto de um <strong>tipo de referência</strong> (uma classe), porque a trava mora no próprio objeto. Um <code>int</code> é um tipo de valor: cada uso seria uma cópia, e cada thread teria a "sua" trava (veja <a href="valor-referencia.html">Valor × Referência</a>). Em inglês: <code>'int' is not a reference type as required by the lock statement</code>.</p>
+<p><strong>Como resolver:</strong> crie uma trava própria, <code>Lock trava = new();</code>, e tranque com ela. Não tranque a variável que você quer proteger.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1996: Não é possível aguardar no corpo de uma instrução lock</code></strong>
+<pre class="file" data-file="erro2.cs">object trava = new();
+lock (trava)
+{
+    await Task.Delay(100);
+}
+</pre>
+<pre class="term" data-cwd="~/cs/lock">$ dotnet run erro2.cs
+/home/ana/cs/lock/erro2.cs(4,5): error CS1996: Não é possível aguardar no corpo de uma instrução lock
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> não pode haver <code>await</code> dentro de um <code>lock</code> (em inglês, <code>Cannot await in the body of a lock statement</code>). Depois de um <code>await</code>, o resto do código pode continuar em <strong>outra thread</strong>, e a trava só pode ser devolvida pela thread que a pegou.</p>
+<p><strong>Como resolver:</strong> faça o <code>await</code> fora do <code>lock</code> (calcule o que precisa, tranque só para mexer nos dados). Se a parte protegida precisa mesmo esperar algo, use um <code>SemaphoreSlim</code>: <code>await semaforo.WaitAsync(); try { … await … } finally { semaforo.Release(); }</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS4007</code>: <code>EnterScope</code> com <code>await</code></strong>
+<pre class="term" data-cwd="~/cs/lock">$ dotnet run escopo2.cs
+/home/ana/cs/lock/escopo2.cs(2,8): error CS4007: A instância do tipo "System.Threading.Lock.Scope" não pode ser preservada entre o limite "await" ou "yield".
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> é o mesmo problema do CS1996, escrito com <code>using (trava.EnterScope()) { await Task.Delay(100); }</code>. O compilador protege você também nessa forma.</p>
+<p><strong>Como resolver:</strong> o mesmo: tire o <code>await</code> de dentro, ou use <code>SemaphoreSlim</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS9216</code>: um <code>Lock</code> guardado como <code>object</code></strong>
+<pre class="file" data-file="aviso.cs">object trava = new Lock();
+lock (trava)
+{
+    Console.WriteLine("dentro");
+}
+</pre>
+<pre class="term" data-cwd="~/cs/lock">$ dotnet run aviso.cs
+/home/ana/cs/lock/aviso.cs(1,16): warning CS9216: Um valor do tipo "System.Threading.Lock" convertido em um tipo diferente usará o bloqueio baseado em monitor provavelmente não intencional na instrução "lock".
+dentro</pre>
+<p><strong>O que aconteceu:</strong> o programa rodou, mas o compilador avisa: como a variável é do tipo <code>object</code>, o <code>lock</code> usa o mecanismo antigo (o <code>Monitor</code>) em vez dos métodos do <code>Lock</code>. Se uma parte do programa trancar pelo <code>Lock</code> e outra pelo <code>object</code>, elas <strong>não se excluem</strong>: são duas travas diferentes no mesmo objeto.</p>
+<p><strong>Como resolver:</strong> declare a variável (ou o campo) com o tipo certo: <code>Lock trava = new();</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>SynchronizationLockException: The calling thread does not hold the lock.</code></strong>
+<pre class="file" data-file="sair.cs">Lock trava = new();
+trava.Exit();
+</pre>
+<pre class="term" data-cwd="~/cs/lock">$ dotnet run sair.cs; echo "código de saída: $?"
+Unhandled exception. System.Threading.SynchronizationLockException: The calling thread does not hold the lock.
+   at System.Threading.Lock.Exit()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/lock/sair.cs:line 2
+código de saída: 134</pre>
+<p><strong>O que aconteceu:</strong> o programa devolveu uma trava que não tinha pegado ("a thread que chamou não segura a trava"). Acontece com <code>TryEnter</code>/<code>Exit</code> escritos à mão: um <code>Exit()</code> sobrando, ou um <code>Exit()</code> chamado mesmo quando o <code>TryEnter</code> devolveu <code>false</code>.</p>
+<p><strong>Como resolver:</strong> prefira o <code>lock (…)</code>, que nunca erra isso. Com <code>TryEnter</code>, chame <code>Exit()</code> só dentro do <code>if</code> em que ele deu <code>true</code>, num <code>finally</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>O total continua errado, mesmo com <code>lock</code></strong>
+<p><strong>O que aconteceu:</strong> não aparece mensagem nenhuma; o resultado só sai errado. As causas mais comuns:</p>
+<ul>
+  <li>cada thread usa uma trava diferente (<code>lock (new object())</code>, ou a trava criada <em>dentro</em> da lambda);</li>
+  <li>um lugar do código mexe na variável <strong>fora</strong> do <code>lock</code> (por exemplo, um <code>contador = 0;</code> esquecido em outro método);</li>
+  <li>a conferência e a ação estão em dois <code>lock</code> separados (um para o <code>if</code>, outro para o <code>Saldo -= valor</code>): entre eles, outra thread entra.</li>
+</ul>
+<p><strong>Como resolver:</strong> uma trava só, criada uma vez fora das tarefas (um campo <code>private readonly</code>), e <strong>todo</strong> acesso aos dados divididos dentro de um mesmo <code>lock</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>private readonly Lock _trava = new();</code></td><td>Cria a trava (C# 13 / .NET 9 em diante).</td></tr>
+<tr><td><code>private readonly object _trava = new();</code></td><td>A trava na forma antiga (qualquer versão).</td></tr>
+<tr><td><code>lock (_trava) { … }</code></td><td>Só uma thread por vez roda o bloco; a trava é devolvida sempre, mesmo com exceção.</td></tr>
+<tr><td><code>using (_trava.EnterScope()) { … }</code></td><td>O mesmo que o <code>lock</code>, escrito à mão.</td></tr>
+<tr><td><code>_trava.TryEnter()</code></td><td>Tenta pegar a trava sem esperar: <code>true</code> ou <code>false</code>.</td></tr>
+<tr><td><code>_trava.TryEnter(TimeSpan.FromSeconds(1))</code></td><td>Espera no máximo 1 segundo.</td></tr>
+<tr><td><code>_trava.Exit()</code></td><td>Devolve a trava (só depois de um <code>TryEnter</code> que deu <code>true</code>).</td></tr>
+<tr><td><code>_trava.IsHeldByCurrentThread</code></td><td><code>true</code> se esta thread está com a trava.</td></tr>
+<tr><td><code>Interlocked.Increment(ref x)</code></td><td>Soma 1 de forma atômica (também <code>Decrement</code>, <code>Add</code>, <code>Exchange</code>).</td></tr>
+</table>
+</div>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Mensagem</th><th>Causa</th></tr>
+<tr><td><code>CS0185</code></td><td><code>lock</code> num tipo de valor (<code>int</code>, <code>decimal</code>, <code>struct</code>).</td></tr>
+<tr><td><code>CS1996</code></td><td><code>await</code> dentro de um <code>lock</code>.</td></tr>
+<tr><td><code>CS4007</code></td><td><code>await</code> dentro de um <code>using (trava.EnterScope())</code>.</td></tr>
+<tr><td><code>CS9216</code> (aviso)</td><td>Um <code>Lock</code> guardado numa variável <code>object</code>.</td></tr>
+<tr><td><code>SynchronizationLockException</code></td><td><code>Exit()</code> sem ter a trava.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Criar a trava</h3>
+<p>Complete o campo da trava de uma classe, no jeito recomendado do .NET 10:</p>
+<div class="ex-code">private readonly <input data-answer="Lock" aria-label="tipo"> _trava = new();</div>
+</div>
+
+<div class="exercise">
+<h3>2. Trancar</h3>
+<p>Complete a instrução que deixa só uma thread por vez somar ao total:</p>
+<div class="ex-code"><input data-answer="lock" aria-label="instrução"> (_trava)<br>{<br>&nbsp;&nbsp;&nbsp;&nbsp;_total += valor;<br>}</div>
+</div>
+
+<div class="exercise">
+<h3>3. Somar 1 sem lock</h3>
+<p>Complete a linha que soma 1 a <code>visitas</code> de forma atômica:</p>
+<div class="ex-code">Interlocked.<input data-answer="Increment" aria-label="método">(ref visitas);</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Um programa com 4 tarefas fazendo <code>contador++</code>, sem <code>lock</code>, deu o total certo na primeira vez que você rodou. O que isso prova?</p>
+<label><input type="radio" name="q4"> Que o programa está correto e não precisa de <code>lock</code>.</label>
+<label><input type="radio" name="q4"> Nada: a condição de corrida pode não aparecer numa execução e aparecer na próxima.</label>
+<label><input type="radio" name="q4"> Que o compilador colocou um <code>lock</code> sozinho.</label>
+<label><input type="radio" name="q4"> Que o computador só tem um núcleo.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Duas threads: uma faz <code>lock (a) { lock (b) { … } }</code>, a outra faz <code>lock (b) { lock (a) { … } }</code>. O programa às vezes trava e não termina. Qual é o conserto?</p>
+<label><input type="radio" name="q5"> Trocar <code>Lock</code> por <code>object</code>.</label>
+<label><input type="radio" name="q5"> Pôr um <code>await</code> entre os dois <code>lock</code>.</label>
+<label><input type="radio" name="q5"> Fazer as duas threads pegarem as travas na mesma ordem: primeiro <code>a</code>, depois <code>b</code>.</label>
+<label><input type="radio" name="q5"> Usar <code>lock (this)</code>.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. O método de saque confere o saldo e depois desconta. Onde vai o <code>lock</code>?</p>
+<label><input type="radio" name="q6"> Um só <code>lock</code> em volta da conferência <em>e</em> do desconto.</label>
+<label><input type="radio" name="q6"> Um <code>lock</code> para a conferência e outro para o desconto.</label>
+<label><input type="radio" name="q6"> Só em volta do <code>Console.WriteLine</code>.</label>
+<label><input type="radio" name="q6"> Não precisa: <code>decimal</code> já é seguro entre threads.</label>
+</div>
+
+<h3>Missão final: o estoque da lojinha</h3>
+<div class="trycs" data-goal="src:readonly\s+Lock\s+_trava\s*=\s*new\(\)\s*;,src:lock\s*\(\s*_trava\s*\),out:Vendidos: 10,out:Sobrou: 0">
+<p class="try-task"><strong>Missão:</strong> a lojinha tem 10 cadernos e 20 clientes tentando comprar um cada, ao mesmo tempo. O método <code>Vender</code> confere e depois desconta, sem proteção. Na classe <code>Estoque</code>, crie o campo <code>private readonly Lock _trava = new();</code> e ponha <strong>todo</strong> o corpo do <code>Vender</code> (o <code>if</code> inteiro) dentro de <code>lock (_trava) { … }</code>. A saída tem de ser <code>Vendidos: 10</code> e <code>Sobrou: 0</code>.</p>
+<pre class="script">var estoque = new Estoque(10);
+var tarefas = new Task[20];
+
+for (int i = 0; i &lt; tarefas.Length; i++)
+{
+    tarefas[i] = Task.Run(() =&gt; estoque.Vender());
+}
+
+await Task.WhenAll(tarefas);
+Console.WriteLine($"Vendidos: {estoque.Vendidos}");
+Console.WriteLine($"Sobrou: {estoque.Quantidade}");
+
+class Estoque(int quantidade)
+{
+    public int Quantidade { get; private set; } = quantidade;
+    public int Vendidos { get; private set; }
+
+    public void Vender()
+    {
+        if (Quantidade &gt; 0)
+        {
+            Quantidade--;
+            Vendidos++;
+        }
+    }
+}
+</pre>
+<pre class="solucao">var estoque = new Estoque(10);
+var tarefas = new Task[20];
+
+for (int i = 0; i &lt; tarefas.Length; i++)
+{
+    tarefas[i] = Task.Run(() =&gt; estoque.Vender());
+}
+
+await Task.WhenAll(tarefas);
+Console.WriteLine($"Vendidos: {estoque.Vendidos}");
+Console.WriteLine($"Sobrou: {estoque.Quantidade}");
+
+class Estoque(int quantidade)
+{
+    private readonly Lock _trava = new();
+    public int Quantidade { get; private set; } = quantidade;
+    public int Vendidos { get; private set; }
+
+    public void Vender()
+    {
+        lock (_trava)
+        {
+            if (Quantidade &gt; 0)
+            {
+                Quantidade--;
+                Vendidos++;
+            }
+        }
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Quando várias threads mexem na mesma variável, o resultado pode sair errado e diferente a cada execução: é a <strong>condição de corrida</strong>. Nem o compilador nem o programa avisam.</li>
+  <li><code>contador++</code> são três passos (ler, somar, gravar); duas threads no meio deles perdem somas.</li>
+  <li><code>lock (trava) { … }</code> deixa só uma thread por vez dentro do bloco e devolve a trava sempre, mesmo com exceção.</li>
+  <li>No .NET 9 e no .NET 10, a trava recomendada é <code>private readonly Lock _trava = new();</code> <span class="versao">C# 13</span>. A forma antiga usa <code>object</code>.</li>
+  <li>"Confere e depois faz" (o saque, a venda) vai inteiro <strong>dentro do mesmo</strong> <code>lock</code>.</li>
+  <li>Para uma operação só num número, <code>Interlocked.Increment(ref x)</code> é mais leve.</li>
+  <li>Sem <code>await</code> dentro do <code>lock</code> (CS1996); duas travas, sempre na mesma ordem, para evitar o impasse.</li>
+</ul>
+
+<div class="pager"></div>
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
