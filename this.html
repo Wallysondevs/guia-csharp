@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# this — o objeto atual | Guia C#</title>
+<meta name="description" content="A palavra this em C# para quem nunca programou: o objeto que está executando o método, this.nome = nome quando o parâmetro tem o nome do campo, passar o próprio objeto para outro (this como argumento), devolver this para encadear chamadas, : this(…) nos construtores e os erros reais CS1717, CS0023 e CS0026, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">this</span></h1>
+
+<p class="intro">Dentro de um método de uma classe, você escreveu <code>Estoque = Estoque - 1;</code> e o C# sabia que era o estoque <strong>da maçã</strong> quando a chamada era <code>maca.Vender()</code>. Mas como o método fala do "objeto que me chamou" quando precisa dele inteiro, ou quando um parâmetro tem o mesmo nome de um campo? Para isso existe a palavra <code>this</code> ("este", em inglês): dentro da classe, <code>this</code> é <strong>o objeto que está executando o método agora</strong>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que <code>this</code> é, e por que ele já estava "escondido" em <code>Estoque = Estoque - 1;</code>.</li>
+  <li>O problema da <strong>sombra</strong>: <code>nome = nome;</code> não faz o que parece (aviso <code>CS1717</code>), e o conserto <code>this.nome = nome;</code>.</li>
+  <li>Por que o costume do C# (<code>_nome</code> e <code>Nome</code>) quase sempre dispensa o <code>this</code>.</li>
+  <li>Como passar o próprio objeto para outro método: <code>turma.Matricular(this)</code>.</li>
+  <li>Como devolver <code>this</code> para encadear chamadas: <code>pedido.Adicionar("pão").Adicionar("leite")</code>.</li>
+  <li>Os outros usos da palavra (<code>: this(…)</code>, indexadores, extensões) e os erros <code>CS0023</code> e <code>CS0026</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com <code>dotnet run arquivo.cs</code> na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), com o .NET 10 SDK, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código: "eu"</h2>
+<p>Quando a Bia preenche um formulário que diz "escreva <strong>seu</strong> nome", ela escreve "Bia". Quando o Caio preenche o mesmo formulário, escreve "Caio". O formulário é um só (a classe), mas a palavra "seu" muda de dono conforme quem está preenchendo.</p>
+<p>O <code>this</code> é o "eu" do objeto. O código do método é o mesmo para todos os produtos; quando a maçã executa o método, <code>this</code> é a maçã; quando o kiwi executa, <code>this</code> é o kiwi.</p>
+
+<hr>
+
+<h2>O <code>this</code> que já estava lá</h2>
+<p>Lembra do método <code>Vender()</code> da aula <a href="campos.html#metodos">Campos</a>? Estas duas versões são exatamente iguais para o compilador:</p>
+
+<pre class="file" data-file="trecho">public void Vender()
+{
+    Estoque = Estoque - 1;
+}
+
+public void Vender()
+{
+    this.Estoque = this.Estoque - 1;
+}
+</pre>
+
+<p>Quando você escreve só <code>Estoque</code> dentro da classe, o C# entende <code>this.Estoque</code>: "o estoque deste objeto". O <code>this</code> fica subentendido. Em <code>maca.Vender()</code>, o objeto antes do ponto (<code>maca</code>) vira o <code>this</code> lá dentro.</p>
+
+<p>Dá para provar que <code>this</code> e a variável de fora são o mesmo objeto. Este método devolve o próprio <code>this</code>, e o <code>ReferenceEquals</code> ("referências iguais?") responde se duas variáveis apontam para o mesmo objeto (veja <a href="classes-objetos.html#referencia">referências</a>):</p>
+
+<pre class="file" data-file="t7.cs">Produto maca = new Produto();
+Console.WriteLine(ReferenceEquals(maca, maca.EuMesmo()));
+
+class Produto
+{
+    public Produto EuMesmo()
+    {
+        return this;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run t7.cs
+True               « o this dentro do método é a própria maçã</pre>
+
+<hr>
+
+<h2 id="sombra">O problema da sombra: <code>nome = nome;</code></h2>
+<p>Algumas equipes chamam os campos privados de <code>nome</code>, sem sublinhado. Aí, no construtor, o parâmetro e o campo ficam com <strong>o mesmo nome</strong>. Veja o que acontece:</p>
+
+<pre class="file" data-file="t1.cs — com erro de propósito">Produto p = new Produto("maçã", 7.90m);
+p.Mostrar();
+
+class Produto
+{
+    private string nome = "";
+    private decimal preco;
+
+    public Produto(string nome, decimal preco)
+    {
+        nome = nome;
+        preco = preco;
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"[{nome}]: {preco:C}");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run t1.cs
+/home/ana/cs/t1.cs(11,9): warning CS1717: Atribuição feita à mesma variável. Você pretendia atribuir outro elemento?
+/home/ana/cs/t1.cs(12,9): warning CS1717: Atribuição feita à mesma variável. Você pretendia atribuir outro elemento?
+/home/ana/cs/t1.cs(7,21): warning CS0649: Campo "Produto.preco" nunca é atribuído e sempre terá seu valor padrão 0
+[]: R$ 0,00</pre>
+
+<p>A maçã nasceu sem nome e de graça. Dentro do construtor, o nome <code>nome</code> se refere ao <strong>parâmetro</strong>, não ao campo: o parâmetro, que está mais perto, faz <strong>sombra</strong> no campo (veja <a href="escopo.html">Escopo</a>). Então <code>nome = nome;</code> copia o parâmetro para ele mesmo, e o campo nunca é tocado.</p>
+
+<dl class="anatomy">
+  <dt>warning CS1717</dt><dd>"Atribuição feita à mesma variável. Você pretendia atribuir outro elemento?" O compilador percebeu que <code>nome = nome;</code> não faz nada. Em inglês: <code>Assignment made to same variable; did you mean to assign something else?</code>.</dd>
+  <dt>warning CS0649</dt><dd>Confirma: o campo <code>preco</code> nunca recebeu valor. (O <code>nome</code> não aparece aqui só porque tem o valor inicial <code>""</code>.)</dd>
+  <dt>[]: R$ 0,00</dt><dd>Os campos ficaram com os valores iniciais.</dd>
+</dl>
+
+<h3>O conserto: <code>this.nome = nome;</code></h3>
+
+<pre class="file" data-file="t2.cs">Produto p = new Produto("maçã", 7.90m);
+p.Mostrar();
+
+class Produto
+{
+    private string nome = "";
+    private decimal preco;
+
+    public Produto(string nome, decimal preco)
+    {
+        this.nome = nome;
+        this.preco = preco;
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"[{nome}]: {preco:C}");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run t2.cs
+[maçã]: R$ 7,90</pre>
+
+<dl class="anatomy">
+  <dt>this.nome</dt><dd>"O campo <code>nome</code> <strong>deste objeto</strong>". O <code>this.</code> pula a sombra e vai direto ao campo.</dd>
+  <dt>= nome;</dt><dd>Sem <code>this</code>, é o parâmetro: o valor que chegou no <code>new Produto("maçã", …)</code>.</dd>
+  <dt>{nome} no Mostrar()</dt><dd>Aqui não há parâmetro com esse nome, então não há sombra: <code>nome</code> já é o campo, e o <code>this.</code> é opcional.</dd>
+</dl>
+
+<div class="tip">
+<strong>Por que o C# quase nunca precisa disso</strong>
+<p>As convenções do C# foram pensadas para que os nomes não colidam: campos privados com <code>_</code> (<code>_nome = nome;</code>) e propriedades em PascalCase (<code>Nome = nome;</code>). Foi o que você fez em <a href="construtores.html">Construtores</a>. O <code>this.nome = nome;</code> aparece em equipes que preferem campos sem sublinhado, e em código traduzido de Java, onde ele é o padrão. Os dois estilos estão certos; o importante é ser consistente no projeto.</p>
+</div>
+
+<div class="warning">
+<strong>A mesma armadilha com propriedades</strong>
+<p>Se o <strong>parâmetro</strong> tiver o nome da propriedade, com a mesma maiúscula (<code>public Produto(string Nome) { Nome = Nome; }</code>), a sombra volta: o compilador dá o <code>CS1717</code> e também o <code>CS8618</code>, porque a propriedade <code>Nome</code> nunca foi preenchida. Parâmetros se escrevem em camelCase (<code>nome</code>) justamente para evitar isso.</p>
+</div>
+
+<div class="trycs" data-goal="out:Bia - turma 2A,semaviso,src:this\.nome">
+<p class="try-task"><strong>Missão:</strong> rode e leia os avisos <code>CS1717</code>: o construtor não guarda nada, e a saída sai em branco. Conserte o construtor com <code>this.</code> (sem mudar os nomes dos campos nem dos parâmetros), para que a saída seja <code>Bia - turma 2A</code>, sem nenhum aviso.</p>
+<pre class="script" data-file="aluno.cs">Aluno a = new Aluno("Bia", "2A");
+a.Mostrar();
+
+class Aluno
+{
+    private string nome = "";
+    private string turma = "";
+
+    public Aluno(string nome, string turma)
+    {
+        nome = nome;
+        turma = turma;
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{nome} - turma {turma}");
+    }
+}
+</pre>
+<pre class="solucao" data-file="aluno.cs">Aluno a = new Aluno("Bia", "2A");
+a.Mostrar();
+
+class Aluno
+{
+    private string nome = "";
+    private string turma = "";
+
+    public Aluno(string nome, string turma)
+    {
+        this.nome = nome;
+        this.turma = turma;
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{nome} - turma {turma}");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2 id="argumento">Passar o próprio objeto: <code>this</code> como argumento</h2>
+<p>Às vezes, um objeto precisa se apresentar a outro: "estou aqui, sou eu". O aluno entra na turma; a turma precisa guardar <strong>aquele</strong> aluno. Dentro do método do aluno, o jeito de dizer "eu" é <code>this</code>:</p>
+
+<pre class="file" data-file="t4.cs">Turma turma = new Turma();
+Aluno bia = new Aluno("Bia");
+Aluno caio = new Aluno("Caio");
+bia.EntrarNa(turma);
+caio.EntrarNa(turma);
+turma.Chamada();
+
+class Aluno
+{
+    public string Nome { get; }
+
+    public Aluno(string nome)
+    {
+        Nome = nome;
+    }
+
+    public void EntrarNa(Turma turma)
+    {
+        turma.Matricular(this);
+    }
+}
+
+class Turma
+{
+    private Aluno[] _alunos = new Aluno[30];
+    private int _total;
+
+    public void Matricular(Aluno aluno)
+    {
+        _alunos[_total] = aluno;
+        _total++;
+        Console.WriteLine($"{aluno.Nome} entrou na turma.");
+    }
+
+    public void Chamada()
+    {
+        for (int i = 0; i &lt; _total; i++)
+            Console.WriteLine($"{i + 1}. {_alunos[i].Nome}");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run t4.cs
+Bia entrou na turma.
+Caio entrou na turma.
+1. Bia
+2. Caio</pre>
+
+<dl class="anatomy">
+  <dt>bia.EntrarNa(turma);</dt><dd>A Bia recebe o pedido "entre nesta turma". Dentro de <code>EntrarNa</code>, <code>this</code> é a Bia.</dd>
+  <dt>turma.Matricular(this);</dt><dd>A Bia pede à turma: "matricule <strong>a mim</strong>". O <code>this</code> vai como argumento, e do outro lado chega no parâmetro <code>aluno</code>. Na chamada do Caio, o mesmo código manda o Caio.</dd>
+  <dt>_alunos[_total] = aluno;</dt><dd>A turma guarda a <strong>referência</strong> do aluno no array. Não é uma cópia: é a própria Bia. As duas classes conversam pelos objetos.</dd>
+  <dt>duas classes no fim do arquivo</dt><dd>A ordem entre elas não importa: <code>Aluno</code> usa <code>Turma</code>, que vem depois, sem problema. Só as instruções de nível superior precisam vir antes de todas (veja <a href="poo.html#ordem">CS8803</a>).</dd>
+</dl>
+
+<hr>
+
+<h2 id="encadear">Devolver <code>this</code>: chamadas encadeadas</h2>
+<p>Se um método devolve <code>this</code>, quem chamou recebe o mesmo objeto de volta, e pode chamar outro método dele logo em seguida, na mesma linha. É o estilo "encadeado" (ou <em>fluente</em>), muito usado em C#: o <a href="stringbuilder.html"><code>StringBuilder</code></a> funciona assim, e o <a href="linq.html">LINQ</a> usa o mesmo jeito de encadear.</p>
+
+<pre class="file" data-file="t3.cs">Pedido pedido = new Pedido();
+pedido.Adicionar("pão").Adicionar("leite").Adicionar("café");
+pedido.Mostrar();
+
+class Pedido
+{
+    private string _itens = "";
+    private int _quantidade;
+
+    public Pedido Adicionar(string item)
+    {
+        _itens += (_quantidade &gt; 0 ? ", " : "") + item;
+        _quantidade++;
+        return this;
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{_quantidade} itens: {_itens}");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run t3.cs
+3 itens: pão, leite, café</pre>
+
+<dl class="anatomy">
+  <dt>public Pedido Adicionar(string item)</dt><dd>O tipo de retorno é a própria classe, <code>Pedido</code>.</dd>
+  <dt>(_quantidade &gt; 0 ? ", " : "")</dt><dd>O <a href="ternario.html">ternário</a> põe uma vírgula antes de todo item, menos o primeiro.</dd>
+  <dt>return this;</dt><dd>Devolve o próprio pedido.</dd>
+  <dt>pedido.Adicionar("pão").Adicionar("leite")</dt><dd>Lê-se da esquerda para a direita: <code>pedido.Adicionar("pão")</code> devolve o <code>pedido</code>; no resultado, chama-se <code>.Adicionar("leite")</code>; e assim por diante. É o mesmo que três linhas <code>pedido.Adicionar(…);</code> separadas.</dd>
+</dl>
+
+<hr>
+
+<h2>Outros lugares onde aparece a palavra <code>this</code></h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th><th>Aula</th></tr>
+<tr><td><code>this.campo</code>, <code>this.Metodo()</code></td><td>Um membro deste objeto</td><td>esta</td></tr>
+<tr><td><code>Metodo(this)</code>, <code>return this;</code></td><td>O objeto inteiro, como valor</td><td>esta</td></tr>
+<tr><td><code>public C(…) : this(…)</code></td><td>Um construtor chamando outro da mesma classe</td><td><a href="construtores.html#this-encadeado">Construtores</a></td></tr>
+<tr><td><code>public T this[int i] { get; set; }</code></td><td>Um indexador: o objeto se usa com <code>[ ]</code>, como um array</td><td><a href="indexadores.html">Indexadores</a></td></tr>
+<tr><td><code>static … Metodo(this string texto)</code></td><td>Um método de extensão: "acrescenta" um método a um tipo que já existe</td><td><a href="extensoes.html">Métodos de Extensão</a></td></tr>
+</table>
+</div>
+<p>São usos diferentes da mesma palavra. Nesta aula, o importante são os dois primeiros: <code>this</code> como "o objeto atual".</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS1717: "Atribuição feita à mesma variável"</strong>
+<pre class="term">$ dotnet run t1.cs
+/home/ana/cs/t1.cs(11,9): warning CS1717: Atribuição feita à mesma variável. Você pretendia atribuir outro elemento?
+/home/ana/cs/t1.cs(12,9): warning CS1717: Atribuição feita à mesma variável. Você pretendia atribuir outro elemento?
+/home/ana/cs/t1.cs(7,21): warning CS0649: Campo "Produto.preco" nunca é atribuído e sempre terá seu valor padrão 0
+[]: R$ 0,00</pre>
+<p><strong>O que aconteceu:</strong> <code>nome = nome;</code> com um parâmetro que tem o nome do campo. O parâmetro faz sombra, e a linha copia o parâmetro para ele mesmo. Compila, roda e está errado.</p>
+<p><strong>Como resolver:</strong> <code>this.nome = nome;</code>. Ou adote o costume do C#: campo <code>_nome</code>, e então <code>_nome = nome;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0023: encadear num método <code>void</code></strong>
+<pre class="term">$ dotnet run carrinho.cs
+/home/ana/cs/carrinho.cs(2,26): error CS0023: O operador "." não pode ser aplicado ao operando do tipo "void"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> <code>carrinho.Adicionar(6.50m).Adicionar(4.90m)</code>, com <code>Adicionar</code> devolvendo <code>void</code> ("nada"). O primeiro <code>Adicionar</code> não devolve objeto nenhum, então não há onde pôr o segundo ponto (a coluna 26 é esse ponto).</p>
+<p><strong>Como resolver:</strong> faça o método devolver o objeto (<code>public Carrinho Adicionar(…)</code> com <code>return this;</code>), ou chame um por linha.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0026: <code>this</code> onde não há objeto</strong>
+<pre class="file" data-file="t6.cs — com erro de propósito">Console.WriteLine(Calculadora.Dobro(4));
+
+class Calculadora
+{
+    public int Base = 2;
+
+    public static int Dobro(int x)
+    {
+        return x * this.Base;
+    }
+}
+</pre>
+<pre class="term">$ dotnet run t6.cs
+/home/ana/cs/t6.cs(9,20): error CS0026: A palavra-chave 'this' não é válida em uma propriedade, um método ou um inicializador de campo estático
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> um método <code>static</code> pertence à <strong>classe</strong>, não a um objeto. Ele é chamado como <code>Calculadora.Dobro(4)</code>, sem nenhum objeto antes do ponto, então não existe "este objeto" lá dentro. (O <code>static</code> tem aula própria: <a href="static.html">static</a>.)</p>
+<p><strong>Como resolver:</strong> tire o <code>static</code> do método e chame-o num objeto (<code>new Calculadora().Dobro(4)</code>), ou não use membros do objeto num método <code>static</code>.</p>
+<p>O mesmo erro aparece se você escrever <code>Console.WriteLine(this);</code> nas instruções de nível superior: elas rodam, por dentro, num método <code>static</code> (o <code>Program.&lt;Main&gt;$</code> que aparece nas exceções; veja <a href="top-level.html">Program.cs e o Main</a>).</p>
+<pre class="term">$ dotnet run t5.cs
+/home/ana/cs/t5.cs(1,19): error CS0026: A palavra-chave 'this' não é válida em uma propriedade, um método ou um inicializador de campo estático
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+</div>
+
+<div class="cenario">
+<strong>Parâmetro com o nome da propriedade</strong>
+<pre class="term">$ dotnet run t8.cs
+/home/ana/cs/t8.cs(8,12): warning CS8618: O propriedade não anulável 'Nome' precisa conter um valor não nulo ao sair do construtor. Considere adicionar o modificador "obrigatório" ou declarar o propriedade como anulável.
+/home/ana/cs/t8.cs(10,9): warning CS1717: Atribuição feita à mesma variável. Você pretendia atribuir outro elemento?
+[]</pre>
+<p><strong>O que aconteceu:</strong> o construtor era <code>public Produto(string Nome) { Nome = Nome; }</code>, com o parâmetro em PascalCase. A propriedade ficou com <code>null</code>.</p>
+<p><strong>Como resolver:</strong> parâmetro em camelCase: <code>public Produto(string nome) { Nome = nome; }</code>. Ou <code>this.Nome = Nome;</code>, mas o primeiro é o que todo programador C# espera ler.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>this</code></td><td>Dentro de um método, propriedade ou construtor: o objeto que está executando</td></tr>
+<tr><td><code>Estoque</code> (sem nada)</td><td>O mesmo que <code>this.Estoque</code>, se não houver sombra</td></tr>
+<tr><td><code>this.nome = nome;</code></td><td>Campo <code>nome</code> deste objeto recebe o parâmetro <code>nome</code></td></tr>
+<tr><td><code>outro.Metodo(this)</code></td><td>Passa este objeto como argumento</td></tr>
+<tr><td><code>return this;</code></td><td>Devolve este objeto, para encadear chamadas</td></tr>
+<tr><td><code>ReferenceEquals(a, b)</code></td><td><code>True</code> se <code>a</code> e <code>b</code> são o mesmo objeto</td></tr>
+<tr><td><code>this</code> em <code>static</code> ou nas instruções de nível superior</td><td>Erro <code>CS0026</code>: não há objeto</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missão final: o carrinho encadeado</h2>
+<div class="trycs" data-goal="out:3 itens\, total R$ 15\,40,src:return\s+this\s*;">
+<p class="try-task"><strong>Missão:</strong> a Ana quer adicionar os produtos ao carrinho numa linha só, encadeando as chamadas, mas o programa não compila: o <code>Adicionar</code> devolve <code>void</code> (rode e leia o erro). Mude o <code>Adicionar</code> para devolver o próprio carrinho (tipo de retorno <code>Carrinho</code> e <code>return this;</code>). A saída deve ser <code>3 itens, total R$ 15,40</code>.</p>
+<pre class="script" data-file="carrinho.cs">Carrinho carrinho = new Carrinho();
+carrinho.Adicionar(6.50m).Adicionar(4.90m).Adicionar(4.00m);
+carrinho.Mostrar();
+
+class Carrinho
+{
+    private decimal _total;
+    private int _itens;
+
+    public void Adicionar(decimal preco)
+    {
+        _total += preco;
+        _itens++;
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{_itens} itens, total {_total:C}");
+    }
+}
+</pre>
+<pre class="solucao" data-file="carrinho.cs">Carrinho carrinho = new Carrinho();
+carrinho.Adicionar(6.50m).Adicionar(4.90m).Adicionar(4.00m);
+carrinho.Mostrar();
+
+class Carrinho
+{
+    private decimal _total;
+    private int _itens;
+
+    public Carrinho Adicionar(decimal preco)
+    {
+        _total += preco;
+        _itens++;
+        return this;
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{_itens} itens, total {_total:C}");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Pular a sombra</h3>
+<p>No construtor <code>public Conta(string titular)</code>, com um campo privado também chamado <code>titular</code>, complete a linha que guarda o parâmetro no campo:</p>
+<div class="ex-code"><input data-answer="this.titular" aria-label="campo"> = titular;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Eu mesmo</h3>
+<p>Complete para que o método devolva o próprio objeto:</p>
+<div class="ex-code">return <input data-answer="this" aria-label="valor">;</div>
+</div>
+
+<div class="exercise">
+<h3>3. O aviso</h3>
+<p>Qual é o código do aviso "Atribuição feita à mesma variável"?</p>
+<div class="ex-code"><input data-answer="CS1717" aria-label="código"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Em <code>kiwi.Vender()</code>, quem é o <code>this</code> dentro de <code>Vender</code>?</p>
+<label><input type="radio" name="q4"> A classe <code>Produto</code>.</label>
+<label><input type="radio" name="q4"> O objeto <code>kiwi</code>.</label>
+<label><input type="radio" name="q4"> O último produto criado.</label>
+<label><input type="radio" name="q4"> <code>null</code>.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. O construtor tem <code>preco = preco;</code>, com um parâmetro e um campo chamados <code>preco</code>. O que acontece?</p>
+<label><input type="radio" name="q5"> O campo recebe o valor do parâmetro.</label>
+<label><input type="radio" name="q5"> Erro de compilação.</label>
+<label><input type="radio" name="q5"> Compila com o aviso <code>CS1717</code>, e o campo continua com o valor que tinha.</label>
+<label><input type="radio" name="q5"> <code>NullReferenceException</code>.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Por que <code>this</code> não pode ser usado num método <code>static</code>?</p>
+<label><input type="radio" name="q6"> Porque <code>this</code> só funciona em construtores.</label>
+<label><input type="radio" name="q6"> Porque métodos <code>static</code> não podem ter variáveis.</label>
+<label><input type="radio" name="q6"> Porque <code>static</code> deixa o programa mais rápido.</label>
+<label><input type="radio" name="q6"> Porque o método <code>static</code> pertence à classe e não é executado por nenhum objeto.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>this</code> é o objeto que está executando o método. <code>Estoque</code> sozinho, dentro da classe, já é <code>this.Estoque</code>.</li>
+  <li>Quando um parâmetro tem o nome de um campo, ele faz <strong>sombra</strong>: <code>nome = nome;</code> não faz nada (<code>CS1717</code>). Use <code>this.nome = nome;</code>, ou o costume do C# (<code>_nome</code>, <code>Nome</code>).</li>
+  <li><code>outro.Metodo(this)</code> passa o próprio objeto; <code>return this;</code> permite encadear chamadas.</li>
+  <li>A palavra também aparece em <code>: this(…)</code> (construtores), indexadores e métodos de extensão.</li>
+  <li>Não existe <code>this</code> em métodos <code>static</code> nem nas instruções de nível superior (<code>CS0026</code>).</li>
+  <li>Próxima aula: <a href="modificadores-acesso.html">public, private e internal</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
