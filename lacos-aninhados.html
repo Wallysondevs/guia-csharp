@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Laços Aninhados — um laço dentro do outro | Guia C#</title>
+<meta name="description" content="Laços aninhados em C# para quem nunca programou: um for dentro de outro for, a ordem das voltas, desenhar retângulos e triângulos com Console.Write, a tabuada em grade, combinações, quantas vezes o laço de dentro roda, por que o break só sai do laço de dentro (e como sair dos dois), continue, misturar for, foreach e while, e os erros reais CS0136 e CS0103, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Laços Aninhados</span></h1>
+
+<p class="intro">Com um laço, a Ana já sabe repetir uma linha: cinco asteriscos, a tabuada do 7, as notas de um aluno. Mas muita coisa no mundo vem em <strong>linhas e colunas</strong>: a tabuada inteira, um tabuleiro de xadrez, os assentos de um cinema, os dias de um calendário. Para isso, a ferramenta é colocar <strong>um laço dentro de outro</strong>. Isso se chama <strong>laço aninhado</strong> (em inglês, <em>nested loop</em>: "laço no ninho", um dentro do outro, como as bonecas russas). Não há nenhuma palavra nova nesta aula: só o <code>for</code>, o <code>while</code> e o <code>foreach</code> que você já conhece, combinados.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como um <code>for</code> dentro de outro <code>for</code> funciona, volta por volta.</li>
+  <li>A diferença entre <code>Console.Write</code> e <code>Console.WriteLine</code> na hora de desenhar linhas e colunas.</li>
+  <li>Como desenhar retângulos e triângulos, montar a tabuada em grade e listar combinações.</li>
+  <li>Quantas vezes o laço de dentro roda (e por que isso cresce tão rápido).</li>
+  <li>Por que o <code>break</code> só sai do laço de dentro, e três jeitos de sair dos dois.</li>
+  <li>Os erros mais comuns: o mesmo nome nos dois laços (<code>CS0136</code>), usar a variável de dentro fora dele (<code>CS0103</code>), a quebra de linha no lugar errado e o <code>++</code> na variável errada.</li>
+</ul>
+</div>
+
+<p>Todos os programas foram rodados com o <strong>.NET 10</strong> (<code>dotnet --version</code> = <code>10.0.112</code>, C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code> (aula <a href="dotnet-run.html">Rodar com dotnet run</a>). Antes desta aula, é bom ter visto o <a href="for.html">for</a> e o <a href="break-continue.html">break e continue</a>.</p>
+
+<hr>
+
+<h2>A ideia: o relógio de ponteiros</h2>
+<p>Olhe um relógio. O ponteiro dos <strong>minutos</strong> dá uma volta inteira, de 0 a 59, e só então o ponteiro das <strong>horas</strong> anda um passo. Aí os minutos começam tudo de novo, do zero. Para as horas andarem de 1 até 3, os minutos dão três voltas completas.</p>
+<ul>
+  <li>O ponteiro das horas é o <strong>laço de fora</strong>: anda devagar, um passo de cada vez.</li>
+  <li>O ponteiro dos minutos é o <strong>laço de dentro</strong>: a cada passo do de fora, ele dá uma volta <strong>inteira</strong>, do começo ao fim.</li>
+</ul>
+<p>Essa é a regra de ouro desta aula: <strong>para cada volta do laço de fora, o laço de dentro roda do começo ao fim</strong>.</p>
+
+<hr>
+
+<h2>1. O primeiro laço aninhado</h2>
+<p>Para ver a ordem das voltas, o programa abaixo só mostra o valor das duas variáveis em cada passo:</p>
+
+<pre class="file" data-file="voltas.cs">for (int i = 1; i &lt;= 3; i++)
+{
+    for (int j = 1; j &lt;= 2; j++)
+    {
+        Console.WriteLine($"i = {i}, j = {j}");
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>for (int i = 1; i &lt;= 3; i++)</dt><dd>O laço <strong>de fora</strong>, o ponteiro das horas: <code>i</code> vale 1, 2 e 3.</dd>
+  <dt>{ … }</dt><dd>O corpo do laço de fora. Tudo o que está entre essas chaves se repete 3 vezes, <strong>incluindo o outro <code>for</code></strong>.</dd>
+  <dt>for (int j = 1; j &lt;= 2; j++)</dt><dd>O laço <strong>de dentro</strong>, o ponteiro dos minutos. Cada vez que o programa chega nesta linha, ele cria um <code>j</code> novinho, que começa em 1 e vai até 2.</dd>
+  <dt>Console.WriteLine($"i = {i}, j = {j}");</dt><dd>Mostra as duas variáveis (o <code>$"…{…}"</code> é a interpolação da aula <a href="interpolacao.html">Interpolação</a>). O de dentro enxerga o <code>i</code> do de fora sem problema nenhum.</dd>
+  <dt>i e j</dt><dd>São os nomes tradicionais: <code>i</code> para o laço de fora, <code>j</code> para o de dentro (e <code>k</code> para um terceiro). Quando os laços têm um sentido, prefira nomes que digam o que são: <code>linha</code> e <code>coluna</code>, como nos próximos exemplos.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run voltas.cs
+i = 1, j = 1
+i = 1, j = 2      « o de dentro deu uma volta inteira com i = 1
+i = 2, j = 1      « o de fora andou um passo; o j recomeçou do 1
+i = 2, j = 2
+i = 3, j = 1
+i = 3, j = 2</pre>
+
+<p>Repare: o <code>i</code> só muda depois que o <code>j</code> termina. E o <code>j</code> recomeça do 1 todas as vezes. O laço de fora deu 3 voltas, o de dentro deu 2 voltas <strong>a cada uma delas</strong>, e a linha do meio rodou 3 × 2 = <strong>6</strong> vezes.</p>
+
+<h3>Passo a passo</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Passo</th><th>O que acontece</th><th>Saída</th></tr>
+<tr><td>1</td><td><code>i = 1</code>. Chega no <code>for</code> de dentro: cria <code>j = 1</code>. <code>1 &lt;= 2</code>? Sim.</td><td><code>i = 1, j = 1</code></td></tr>
+<tr><td>2</td><td><code>j++</code> → 2. <code>2 &lt;= 2</code>? Sim.</td><td><code>i = 1, j = 2</code></td></tr>
+<tr><td>3</td><td><code>j++</code> → 3. <code>3 &lt;= 2</code>? Não: o de dentro <strong>termina</strong>. Volta para o de fora.</td><td>—</td></tr>
+<tr><td>4</td><td><code>i++</code> → 2. <code>2 &lt;= 3</code>? Sim. Chega no <code>for</code> de dentro de novo: um <code>j</code> novo, valendo 1.</td><td><code>i = 2, j = 1</code></td></tr>
+<tr><td>…</td><td>O mesmo para <code>i = 2</code> e <code>i = 3</code>.</td><td>…</td></tr>
+<tr><td>fim</td><td><code>i++</code> → 4. <code>4 &lt;= 3</code>? Não: o de fora termina, e o programa acaba.</td><td>—</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>2. Linhas e colunas: <code>Write</code> e <code>WriteLine</code></h2>
+<p>Para desenhar, a gente precisa de duas formas de escrever (aula <a href="saida.html">Saída</a>):</p>
+<ul>
+  <li><code>Console.Write("*")</code> ("escrever") põe o asterisco e <strong>fica na mesma linha</strong>: o próximo texto sai colado nele.</li>
+  <li><code>Console.WriteLine()</code> ("escrever linha"), sem nada dentro dos parênteses, só <strong>pula para a linha de baixo</strong>.</li>
+</ul>
+<p>Com isso, a receita de qualquer desenho é: o laço de fora cuida das <strong>linhas</strong>; o de dentro, das <strong>colunas</strong> de cada linha; e, quando o de dentro termina, uma quebra de linha.</p>
+
+<pre class="file" data-file="retangulo.cs">for (int linha = 1; linha &lt;= 3; linha++)
+{
+    for (int coluna = 1; coluna &lt;= 5; coluna++)
+    {
+        Console.Write("*");
+    }
+    Console.WriteLine();
+}
+</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha do código</th><th>O que faz</th></tr>
+<tr><td><code>for (int linha = 1; linha &lt;= 3; linha++)</code></td><td>Repete 3 vezes: uma por linha do desenho.</td></tr>
+<tr><td><code>for (int coluna = 1; coluna &lt;= 5; coluna++)</code></td><td>Em cada linha, repete 5 vezes: uma por coluna.</td></tr>
+<tr><td><code>Console.Write("*");</code></td><td>Desenha um asterisco e continua na mesma linha. Roda 3 × 5 = 15 vezes.</td></tr>
+<tr><td><code>Console.WriteLine();</code></td><td>Fica <strong>fora</strong> do laço de dentro e <strong>dentro</strong> do de fora: roda uma vez por linha, depois dos 5 asteriscos, e pula para baixo.</td></tr>
+</table>
+</div>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run retangulo.cs
+*****
+*****
+*****</pre>
+
+<div class="tip">
+<strong>O lugar da linha é o que manda</strong>
+<p>Num laço aninhado, a mesma linha de código faz coisas bem diferentes conforme a chave em que ela está. Antes de escrever, pergunte: "isto acontece <strong>uma vez por coluna</strong> (dentro do de dentro), <strong>uma vez por linha</strong> (depois do de dentro, ainda no de fora) ou <strong>uma vez só</strong> (fora de tudo)?". A seção "Quando dá errado" mostra o que sai com o <code>WriteLine</code> no lugar errado.</p>
+</div>
+
+<div class="trycs" data-goal="outre:^(\*{6}\n){4}$,src:for[\s\S]*for">
+<p class="try-task"><strong>Missão:</strong> o programa desenha <strong>uma</strong> linha de 6 asteriscos. Coloque tudo dentro de outro <code>for</code> para desenhar <strong>4 linhas</strong> de 6 asteriscos, um retângulo.</p>
+<pre class="out">******
+******
+******
+******</pre>
+<pre class="script">for (int coluna = 1; coluna &lt;= 6; coluna++)
+{
+    Console.Write("*");
+}
+Console.WriteLine();
+</pre>
+<pre class="solucao">for (int linha = 1; linha &lt;= 4; linha++)
+{
+    for (int coluna = 1; coluna &lt;= 6; coluna++)
+    {
+        Console.Write("*");
+    }
+    Console.WriteLine();
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>3. O laço de dentro pode depender do de fora</h2>
+<p>No retângulo, toda linha tinha 5 colunas. Mas a condição do laço de dentro pode usar a variável do de fora. Troque o <code>coluna &lt;= 5</code> por <code>coluna &lt;= linha</code>: a linha 1 ganha 1 asterisco, a linha 2 ganha 2, e assim por diante.</p>
+
+<pre class="file" data-file="triangulo.cs">for (int linha = 1; linha &lt;= 5; linha++)
+{
+    for (int coluna = 1; coluna &lt;= linha; coluna++)
+    {
+        Console.Write("*");
+    }
+    Console.WriteLine();
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run triangulo.cs
+*
+**
+***
+****
+*****</pre>
+
+<dl class="anatomy">
+  <dt>coluna &lt;= linha</dt><dd>O "tamanho" do laço de dentro muda a cada volta do de fora. Com <code>linha = 1</code>, o de dentro dá 1 volta; com <code>linha = 5</code>, dá 5. No total, 1 + 2 + 3 + 4 + 5 = 15 asteriscos.</dd>
+</dl>
+
+<div class="trycs" data-goal="outre:^\*{5}\n\*{4}\n\*{3}\n\*\*\n\*\n$,src:for[\s\S]*for">
+<p class="try-task"><strong>Missão:</strong> vire o triângulo de cabeça para baixo: a primeira linha com 5 asteriscos e a última com 1. Dica: mude só a condição do laço de dentro. Quantos asteriscos a linha 1 tem de ter? E a linha 5?</p>
+<pre class="out">*****
+****
+***
+**
+*</pre>
+<pre class="script">for (int linha = 1; linha &lt;= 5; linha++)
+{
+    for (int coluna = 1; coluna &lt;= linha; coluna++)
+    {
+        Console.Write("*");
+    }
+    Console.WriteLine();
+}
+</pre>
+<pre class="solucao">for (int linha = 1; linha &lt;= 5; linha++)
+{
+    for (int coluna = 1; coluna &lt;= 6 - linha; coluna++)
+    {
+        Console.Write("*");
+    }
+    Console.WriteLine();
+}
+</pre>
+</div>
+
+<p>Outra solução que funciona: deixar o de dentro como está e fazer o de fora andar para trás, <code>for (int linha = 5; linha &gt;= 1; linha--)</code>.</p>
+
+<hr>
+
+<h2>4. A tabuada em grade</h2>
+<p>Na aula <a href="for.html">for</a>, a Ana mostrou a tabuada de <strong>um</strong> número. Com dois laços, ela monta a grade inteira: o de fora escolhe a linha, o de dentro a coluna, e cada casa é <code>linha * coluna</code>.</p>
+
+<pre class="file" data-file="tabuada.cs">for (int linha = 1; linha &lt;= 5; linha++)
+{
+    for (int coluna = 1; coluna &lt;= 5; coluna++)
+    {
+        Console.Write($"{linha * coluna,4}");
+    }
+    Console.WriteLine();
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>linha * coluna</dt><dd>A conta de cada casa: na linha 3, coluna 4, sai 12.</dd>
+  <dt>{…,4}</dt><dd>O <code>,4</code> dentro das chaves da interpolação é o <strong>alinhamento</strong>: o número ocupa <strong>4 espaços</strong>, encostado à direita. Sem ele, o <code>5</code> e o <code>25</code> teriam larguras diferentes e as colunas ficariam tortas (mais em <a href="formatacao.html">Formatar Números</a>).</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tabuada.cs
+   1   2   3   4   5
+   2   4   6   8  10
+   3   6   9  12  15
+   4   8  12  16  20
+   5  10  15  20  25</pre>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> aumente a tabuada para 10 × 10 (troque os dois <code>5</code> por <code>10</code>). Depois tente <code>{linha * coluna,3}</code> e <code>{linha * coluna,6}</code> e veja as colunas mudarem de largura. O que acontece com <code>{linha * coluna}</code>, sem o <code>,4</code>?</p>
+<pre class="script">for (int linha = 1; linha &lt;= 5; linha++)
+{
+    for (int coluna = 1; coluna &lt;= 5; coluna++)
+    {
+        Console.Write($"{linha * coluna,4}");
+    }
+    Console.WriteLine();
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>5. Combinações: tudo com tudo</h2>
+<p>Laços aninhados também servem para listar <strong>todas as combinações</strong> de duas coisas. A Ana quer saber quantas senhas de 2 letras dá para fazer só com <code>A</code>, <code>B</code> e <code>C</code>. Um <code>char</code> também pode ser a variável de um <code>for</code>, porque cada letra é um número por baixo e o <code>++</code> passa para a próxima (aula <a href="char-bool.html">char e bool</a>):</p>
+
+<pre class="file" data-file="senhas.cs">int total = 0;
+for (char primeira = 'A'; primeira &lt;= 'C'; primeira++)
+{
+    for (char segunda = 'A'; segunda &lt;= 'C'; segunda++)
+    {
+        Console.Write($"{primeira}{segunda} ");
+        total++;
+    }
+    Console.WriteLine();
+}
+Console.WriteLine($"Total: {total} senhas");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run senhas.cs
+AA AB AC
+BA BB BC
+CA CB CC
+Total: 9 senhas</pre>
+
+<dl class="anatomy">
+  <dt>int total = 0;</dt><dd>Fica <strong>fora</strong> dos dois laços: é criado uma vez só e vai somando. Se ficasse dentro do de fora, voltaria a zero a cada linha.</dd>
+  <dt>char primeira = 'A'; primeira &lt;= 'C'; primeira++</dt><dd>A primeira letra: A, B e C.</dd>
+  <dt>$"{primeira}{segunda} "</dt><dd>As duas letras coladas, e um espaço para separar da próxima senha.</dd>
+  <dt>total++;</dt><dd>Conta uma senha por volta do laço de dentro: 3 × 3 = 9.</dd>
+</dl>
+
+<hr>
+
+<h2>6. Quantas vezes o de dentro roda?</h2>
+<p>A conta é sempre a mesma: <strong>voltas do de fora × voltas do de dentro</strong>. Com laços pequenos, isso nem se nota. Com laços grandes, cresce muito rápido:</p>
+
+<pre class="file" data-file="contar.cs">int voltasDeFora = 0;
+int voltasDeDentro = 0;
+for (int i = 0; i &lt; 1000; i++)
+{
+    voltasDeFora++;
+    for (int j = 0; j &lt; 1000; j++)
+    {
+        voltasDeDentro++;
+    }
+}
+Console.WriteLine($"O laço de fora rodou {voltasDeFora} vezes.");
+Console.WriteLine($"O de dentro rodou {voltasDeDentro} vezes.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run contar.cs
+O laço de fora rodou 1000 vezes.
+O de dentro rodou 1000000 vezes.     « mil vezes mil: um milhão</pre>
+
+<p>Um milhão de voltas ainda é rápido para o computador (uma fração de segundo). Mas três laços de 1000, um dentro do outro, já dariam um <strong>bilhão</strong>. Quando um programa com laços aninhados fica lento, a primeira coisa a fazer é multiplicar as voltas e ver se dá para fazer menos.</p>
+
+<hr>
+
+<h2>7. <code>break</code> só sai do laço de dentro</h2>
+<p>A Ana quer descobrir dois números de 1 a 9 cuja <strong>soma</strong> é 10 e cujo <strong>produto</strong> é 24. Ela testa todas as duplas e usa o <code>break</code> (aula <a href="break-continue.html">break e continue</a>) para parar quando achar:</p>
+
+<pre class="file" data-file="busca.cs">// Dois números de 1 a 9 com soma 10 e produto 24
+for (int a = 1; a &lt;= 9; a++)
+{
+    for (int b = 1; b &lt;= 9; b++)
+    {
+        if (a + b == 10 &amp;&amp; a * b == 24)
+        {
+            Console.WriteLine($"Achei: {a} e {b}");
+            break;
+        }
+    }
+}
+Console.WriteLine("Fim da busca");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run busca.cs
+Achei: 4 e 6
+Achei: 6 e 4      « ué: o break não parou tudo?
+Fim da busca</pre>
+
+<p>O <code>break</code> sai <strong>só do laço em que ele está</strong>, o mais de dentro. Quando achou <code>4 e 6</code>, ele parou o laço do <code>b</code>, mas o laço do <code>a</code> continuou: 5, 6 (e achou <code>6 e 4</code>), 7, 8, 9. O C# não tem um "break dos dois laços". Há três jeitos de resolver.</p>
+
+<h3>Jeito 1: uma variável <code>bool</code> de aviso</h3>
+
+<pre class="file" data-file="busca2.cs">bool achou = false;
+for (int a = 1; a &lt;= 9 &amp;&amp; !achou; a++)
+{
+    for (int b = 1; b &lt;= 9; b++)
+    {
+        if (a + b == 10 &amp;&amp; a * b == 24)
+        {
+            Console.WriteLine($"Achei: {a} e {b}");
+            achou = true;
+            break;
+        }
+    }
+}
+Console.WriteLine("Fim da busca");
+</pre>
+
+<dl class="anatomy">
+  <dt>bool achou = false;</dt><dd>Uma "bandeira" (em inglês, <em>flag</em>), criada fora dos dois laços: "ainda não achei".</dd>
+  <dt>a &lt;= 9 &amp;&amp; !achou</dt><dd>O de fora só continua se ainda houver números <strong>e</strong> se ainda não achou (<code>!</code> é o "não", aula <a href="operadores-logicos.html">Operadores Lógicos</a>).</dd>
+  <dt>achou = true; break;</dt><dd>Levanta a bandeira e sai do de dentro. O de fora confere a condição, vê <code>!achou</code> falso e termina também.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run busca2.cs
+Achei: 4 e 6
+Fim da busca</pre>
+
+<h3>Jeito 2: <code>goto</code></h3>
+<p>O C# tem o <code>goto</code> ("vá para"), que pula direto para um <strong>rótulo</strong>: um nome seguido de dois-pontos, como <code>fim:</code>. Sair de laços aninhados é um dos poucos usos aceitos dele:</p>
+
+<pre class="file" data-file="busca3.cs">for (int a = 1; a &lt;= 9; a++)
+{
+    for (int b = 1; b &lt;= 9; b++)
+    {
+        if (a + b == 10 &amp;&amp; a * b == 24)
+        {
+            Console.WriteLine($"Achei: {a} e {b}");
+            goto fim;
+        }
+    }
+}
+fim:
+Console.WriteLine("Fim da busca");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run busca3.cs
+Achei: 4 e 6
+Fim da busca</pre>
+
+<p>Funciona, mas o <code>goto</code> deixa o caminho do programa difícil de seguir quando é usado à vontade, e muita gente o evita. Use só para isto, e com um rótulo de nome claro.</p>
+
+<h3>Jeito 3: um método com <code>return</code></h3>
+<p>O jeito mais limpo é colocar a busca num <strong>método</strong> (uma função) e usar <code>return</code>, que sai do método inteiro, com todos os laços de uma vez. Você vai ver isso em <a href="metodos.html">Métodos</a> e <a href="retorno.html">Valor de Retorno</a>.</p>
+
+<div class="trycs" data-goal="outre:^Achei: 4 e 6\nFim da busca\n$">
+<p class="try-task"><strong>Missão:</strong> este é o <code>busca.cs</code>, que acha a resposta duas vezes. Faça ele parar na <strong>primeira</strong>: a saída tem de ser só <code>Achei: 4 e 6</code> e <code>Fim da busca</code>. Use a bandeira <code>bool</code> ou o <code>goto</code>.</p>
+<pre class="out">Achei: 4 e 6
+Fim da busca</pre>
+<pre class="script">for (int a = 1; a &lt;= 9; a++)
+{
+    for (int b = 1; b &lt;= 9; b++)
+    {
+        if (a + b == 10 &amp;&amp; a * b == 24)
+        {
+            Console.WriteLine($"Achei: {a} e {b}");
+            break;
+        }
+    }
+}
+Console.WriteLine("Fim da busca");
+</pre>
+<pre class="solucao">bool achou = false;
+for (int a = 1; a &lt;= 9 &amp;&amp; !achou; a++)
+{
+    for (int b = 1; b &lt;= 9; b++)
+    {
+        if (a + b == 10 &amp;&amp; a * b == 24)
+        {
+            Console.WriteLine($"Achei: {a} e {b}");
+            achou = true;
+            break;
+        }
+    }
+}
+Console.WriteLine("Fim da busca");
+</pre>
+</div>
+
+<h3>E o <code>continue</code>?</h3>
+<p>Com o <code>continue</code> vale a mesma regra: ele pula para a próxima volta <strong>do laço em que está</strong>. Aqui, ele pula as casas em que a linha e a coluna são iguais (a "diagonal"):</p>
+
+<pre class="file" data-file="continue.cs">for (int linha = 1; linha &lt;= 3; linha++)
+{
+    for (int coluna = 1; coluna &lt;= 3; coluna++)
+    {
+        if (linha == coluna)
+        {
+            continue;
+        }
+        Console.Write($"({linha},{coluna}) ");
+    }
+    Console.WriteLine();
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run continue.cs
+(1,2) (1,3)
+(2,1) (2,3)
+(3,1) (3,2)     « (1,1), (2,2) e (3,3) foram puladas</pre>
+
+<p>O <code>continue</code> pulou só o resto daquela volta do laço de dentro. O <code>Console.WriteLine()</code> do de fora rodou normalmente nas três linhas.</p>
+
+<hr>
+
+<h2>8. Misturando laços diferentes</h2>
+<p>Qualquer laço pode ficar dentro de qualquer outro: <code>for</code> dentro de <code>foreach</code>, <code>while</code> dentro de <code>for</code>, <code>do while</code> dentro de <code>while</code>. Aqui, um <a href="foreach.html">foreach</a> passa pelas letras de um texto e um <a href="while.html">while</a> repete cada letra 3 vezes:</p>
+
+<pre class="file" data-file="letras.cs">foreach (char letra in "ANA")
+{
+    int vezes = 0;
+    while (vezes &lt; 3)
+    {
+        Console.Write(letra);
+        vezes++;
+    }
+    Console.Write(' ');
+}
+Console.WriteLine();
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run letras.cs
+AAA NNN AAA</pre>
+
+<dl class="anatomy">
+  <dt>foreach (char letra in "ANA")</dt><dd>O de fora: <code>letra</code> vale <code>'A'</code>, <code>'N'</code> e <code>'A'</code>.</dd>
+  <dt>int vezes = 0;</dt><dd>Fica <strong>dentro</strong> do de fora, antes do <code>while</code>: volta a zero para cada letra. No <code>for</code> isso acontece sozinho (o <code>int j = 0</code> faz parte dele); no <code>while</code>, quem zera é você. Se esta linha ficasse lá em cima, fora de tudo, só a primeira letra seria repetida.</dd>
+  <dt>Console.Write(' ');</dt><dd>Um espaço depois de cada grupo, uma vez por letra.</dd>
+</dl>
+
+<h3>Quantos níveis?</h3>
+<p>Dá para pôr um terceiro laço dentro do segundo, e um quarto dentro do terceiro. Mas, a partir de três, o código fica difícil de ler, e a quantidade de voltas explode (seção 6). Se você precisar de muitos níveis, é sinal de que um pedaço deveria virar um <a href="metodos.html">método</a> separado. Para guardar dados em linhas e colunas, existe o array de duas dimensões, que você vai ver em <a href="arrays-multidimensionais.html">Arrays Multidimensionais</a>, quase sempre percorrido com dois <code>for</code> aninhados, exatamente como nesta aula.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0136</code>: o mesmo nome nos dois laços</strong>
+<pre class="file" data-file="mesmo-nome.cs">for (int i = 1; i &lt;= 3; i++)
+{
+    for (int i = 1; i &lt;= 2; i++)
+    {
+        Console.WriteLine(i);
+    }
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run mesmo-nome.cs
+/home/ana/cs/mesmo-nome.cs(3,14): error CS0136: Um local ou um parâmetro denominado "i" não pode ser declarado neste escopo porque esse nome é usado em um escopo delimitador de local para definir um local ou parâmetro
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> "uma variável local chamada <code>i</code> não pode ser criada aqui, porque esse nome já é usado num escopo de fora". O laço de dentro está <strong>dentro</strong> do corpo do de fora, onde o <code>i</code> já existe. Se o C# deixasse, você não teria como falar do <code>i</code> de fora. Em inglês: <em>A local or parameter named 'i' cannot be declared in this scope because that name is used in an enclosing local scope</em>. A posição <code>(3,14)</code> é linha 3, coluna 14: o segundo <code>int i</code>.</p>
+<p><strong>Como consertar:</strong> dê um nome diferente à variável de dentro: <code>j</code>, ou melhor, um nome com sentido (<code>linha</code> e <code>coluna</code>). Dois laços <strong>um depois do outro</strong> (não um dentro do outro) podem usar o mesmo <code>i</code> à vontade: cada um tem o seu (aula <a href="escopo.html">Escopo</a>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0103</code>: usar a variável do laço de dentro fora dele</strong>
+<pre class="file" data-file="fora.cs">for (int linha = 1; linha &lt;= 2; linha++)
+{
+    for (int coluna = 1; coluna &lt;= 3; coluna++)
+    {
+        Console.Write("*");
+    }
+    Console.WriteLine($" ({coluna} colunas)");
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run fora.cs
+/home/ana/cs/fora.cs(7,28): error CS0103: O nome "coluna" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> "o nome <code>coluna</code> não existe aqui" (<em>The name 'coluna' does not exist in the current context</em>). A variável criada no <code>for</code> só vive <strong>dentro</strong> dele. Na linha 7, o laço de dentro já terminou e o <code>coluna</code> sumiu. O contrário funciona: o de dentro enxerga o <code>linha</code> do de fora.</p>
+<p><strong>Como consertar:</strong> se você precisa do valor depois do laço, guarde-o numa variável criada <strong>antes</strong> dele (por exemplo, <code>int colunas = 3;</code> lá em cima, usada no <code>for</code> e no <code>WriteLine</code>).</p>
+</div>
+
+<div class="cenario">
+<strong>Tudo numa linha só: faltou o <code>Console.WriteLine()</code></strong>
+<pre class="file" data-file="sem-quebra.cs">for (int linha = 1; linha &lt;= 3; linha++)
+{
+    for (int coluna = 1; coluna &lt;= 5; coluna++)
+    {
+        Console.Write("*");
+    }
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run sem-quebra.cs
+***************$          « 15 asteriscos colados, e até o prompt grudou neles</pre>
+<p><strong>O que significa:</strong> o programa desenhou as 3 linhas, mas nada mandou pular de linha. O computador não sabe que você "queria" um retângulo.</p>
+<p><strong>Como consertar:</strong> coloque <code>Console.WriteLine();</code> depois da chave que fecha o laço de dentro, ainda dentro do de fora.</p>
+</div>
+
+<div class="cenario">
+<strong>Um asterisco por linha: o <code>Console.WriteLine()</code> dentro do laço errado</strong>
+<pre class="file" data-file="quebra-dentro.cs">for (int linha = 1; linha &lt;= 2; linha++)
+{
+    for (int coluna = 1; coluna &lt;= 3; coluna++)
+    {
+        Console.Write("*");
+        Console.WriteLine();
+    }
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run quebra-dentro.cs
+*
+*
+*
+*
+*
+*</pre>
+<p><strong>O que significa:</strong> o <code>WriteLine</code> ficou dentro do laço de dentro e rodou a cada coluna, 2 × 3 = 6 vezes.</p>
+<p><strong>Como consertar:</strong> passe-o para baixo da chave <code>}</code> do laço de dentro. Uma boa indentação (os 4 espaços de cada nível) ajuda a ver onde cada linha está.</p>
+</div>
+
+<div class="cenario">
+<strong>Asteriscos sem fim: o <code>++</code> na variável errada</strong>
+<pre class="file" data-file="i-errado.cs">for (int linha = 1; linha &lt;= 3; linha++)
+{
+    for (int coluna = 1; coluna &lt;= 5; linha++)
+    {
+        Console.Write("*");
+    }
+    Console.WriteLine();
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run i-errado.cs
+*********************************************************************************
+*********************************************************************************
+*********************************************************************************   « a tela se enche sem parar
+^C                « a Ana aperta Ctrl+C
+$ echo $?
+130</pre>
+<p><strong>O que significa:</strong> o laço de dentro faz <code>linha++</code> em vez de <code>coluna++</code>. O <code>coluna</code> fica em 1 para sempre, <code>1 &lt;= 5</code> é sempre verdade, e o laço nunca termina: um <strong>laço infinito</strong>. O compilador não avisa nada, porque o código é válido. O <strong>Ctrl+C</strong> interrompe o programa, e o código de saída 130 quer dizer "interrompido pelo Ctrl+C".</p>
+<p><strong>Como consertar:</strong> confira as três partes de cada <code>for</code>: a variável que é criada, a que é testada e a que anda têm de ser <strong>a mesma</strong>. Copiar e colar um <code>for</code> para fazer o de dentro é a origem mais comum deste erro. No editor do guia, um laço infinito também trava a caixa: use o botão de parar.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Como fica</th></tr>
+<tr><td>Laço dentro de laço</td><td><code>for (…) { for (…) { … } }</code>: para cada volta do de fora, o de dentro roda inteiro</td></tr>
+<tr><td>Quantas vezes o de dentro roda</td><td>voltas do de fora × voltas do de dentro (3 × 5 = 15)</td></tr>
+<tr><td>Desenhar linhas e colunas</td><td>de fora = linhas; de dentro = colunas com <code>Console.Write</code>; <code>Console.WriteLine()</code> depois do de dentro</td></tr>
+<tr><td>Triângulo</td><td>a condição de dentro usa a variável de fora: <code>coluna &lt;= linha</code></td></tr>
+<tr><td>Colunas alinhadas</td><td><code>$"{valor,4}"</code>: ocupa 4 espaços, encostado à direita</td></tr>
+<tr><td>Nomes</td><td><code>i</code>, <code>j</code>, <code>k</code>, ou nomes com sentido (<code>linha</code>, <code>coluna</code>); nunca o mesmo nome nos dois (CS0136)</td></tr>
+<tr><td><code>break</code> / <code>continue</code></td><td>Valem só para o laço em que estão (o mais de dentro)</td></tr>
+<tr><td>Sair dos dois laços</td><td>bandeira <code>bool</code> na condição do de fora, <code>goto rotulo;</code>, ou <code>return</code> dentro de um método</td></tr>
+<tr><td>Contador que zera a cada linha</td><td>Crie-o dentro do de fora, antes do de dentro</td></tr>
+<tr><td>Contador do total</td><td>Crie-o fora dos dois laços</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Quantas vezes?</h3>
+<p>Quantas vezes o <code>Console.Write("*")</code> roda neste código?</p>
+<pre class="file" data-file="ex1.cs">for (int i = 0; i &lt; 4; i++)
+{
+    for (int j = 0; j &lt; 3; j++)
+    {
+        Console.Write("*");
+    }
+}
+</pre>
+<div class="ex-code">Roda <input data-answer="12" aria-label="quantidade"> vezes.</div>
+</div>
+
+<div class="exercise">
+<h3>2. O triângulo</h3>
+<p>Complete a condição do laço de dentro para cada linha ter tantos asteriscos quanto o seu número (linha 1: <code>*</code>; linha 2: <code>**</code>…):</p>
+<div class="ex-code">for (int coluna = 1; <input data-answer="coluna &lt;= linha|coluna&lt;=linha|coluna &lt; linha + 1|coluna&lt;linha+1" aria-label="condição">; coluna++)</div>
+</div>
+
+<div class="exercise">
+<h3>3. Pular de linha</h3>
+<p>Que comando, colocado logo depois do laço de dentro, faz o desenho pular para a próxima linha?</p>
+<div class="ex-code"><input data-answer="Console.WriteLine();|Console.WriteLine()" aria-label="comando"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Num laço aninhado, o <code>break</code> que está dentro do laço de dentro…</p>
+<label><input type="radio" name="q4"> termina os dois laços</label>
+<label><input type="radio" name="q4"> termina só o laço de dentro; o de fora continua</label>
+<label><input type="radio" name="q4"> termina o programa</label>
+<label><input type="radio" name="q4"> pula para a próxima volta do laço de fora sem terminar o de dentro</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. O que este código mostra?</p>
+<pre class="file" data-file="ex5.cs">for (int i = 1; i &lt;= 2; i++)
+    for (int j = 1; j &lt;= 2; j++)
+        Console.Write($"{i}{j} ");
+</pre>
+<label><input type="radio" name="q5"> <code>11 22</code></label>
+<label><input type="radio" name="q5"> <code>11 21 12 22</code></label>
+<label><input type="radio" name="q5"> <code>11 12 21 22</code></label>
+<label><input type="radio" name="q5"> Nada: sem chaves não compila</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. O compilador mostrou <code>error CS0136: Um local ou um parâmetro denominado "i" não pode ser declarado neste escopo</code>. O que aconteceu?</p>
+<label><input type="radio" name="q6"> O laço de dentro criou uma variável com o mesmo nome da do laço de fora</label>
+<label><input type="radio" name="q6"> A variável <code>i</code> foi usada fora do laço</label>
+<label><input type="radio" name="q6"> O laço é infinito</label>
+<label><input type="radio" name="q6"> Faltou o ponto e vírgula</label>
+</div>
+
+<h3>Missão final: o tabuleiro de xadrez</h3>
+
+<div class="trycs" data-goal="outre:^#\.#\.#\.#\.\n\.#\.#\.#\.#\n#\.#\.#\.#\.\n\.#\.#\.#\.#\n$,src:for[\s\S]*for">
+<p class="try-task"><strong>Missão:</strong> o programa desenha 4 linhas de 8 casas, todas <code>#</code>. Faça as casas <strong>alternarem</strong> entre <code>#</code> (escura) e <code>.</code> (clara), como num tabuleiro. Dica: some a linha e a coluna. Quando a soma é par (<code>(linha + coluna) % 2 == 0</code>), a casa é escura; quando é ímpar, é clara.</p>
+<pre class="out">#.#.#.#.
+.#.#.#.#
+#.#.#.#.
+.#.#.#.#</pre>
+<pre class="script">for (int linha = 0; linha &lt; 4; linha++)
+{
+    for (int coluna = 0; coluna &lt; 8; coluna++)
+    {
+        Console.Write('#');
+    }
+    Console.WriteLine();
+}
+</pre>
+<pre class="solucao">for (int linha = 0; linha &lt; 4; linha++)
+{
+    for (int coluna = 0; coluna &lt; 8; coluna++)
+    {
+        if ((linha + coluna) % 2 == 0)
+        {
+            Console.Write('#');
+        }
+        else
+        {
+            Console.Write('.');
+        }
+    }
+    Console.WriteLine();
+}
+</pre>
+</div>
+
+<p>Por que a soma funciona? Andar uma casa para o lado <strong>ou</strong> para baixo muda a soma em 1, e ela passa de par para ímpar (ou o contrário): é exatamente o que faz a cor trocar. A casa <code>(0, 0)</code> tem soma 0, par, e começa escura. Com o operador ternário (aula <a href="ternario.html">Operador Ternário</a>), o <code>if</code> inteiro cabe numa linha: <code>Console.Write((linha + coluna) % 2 == 0 ? '#' : '.');</code>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um <strong>laço aninhado</strong> é um laço dentro do corpo de outro. Para cada volta do de fora, o de dentro roda do começo ao fim, como os ponteiros de um relógio.</li>
+  <li>O corpo do de dentro roda <strong>voltas de fora × voltas de dentro</strong> vezes. Isso cresce rápido: 1000 × 1000 = um milhão.</li>
+  <li>Para desenhar, o de fora cuida das linhas, o de dentro das colunas (<code>Console.Write</code>), e um <code>Console.WriteLine()</code> fecha cada linha, depois do de dentro.</li>
+  <li>A condição do de dentro pode usar a variável do de fora (<code>coluna &lt;= linha</code>): é assim que se faz um triângulo.</li>
+  <li>Cada laço precisa de uma variável com nome próprio (<code>CS0136</code>), e a variável do de dentro não existe fora dele (<code>CS0103</code>).</li>
+  <li><code>break</code> e <code>continue</code> valem só para o laço mais de dentro. Para sair dos dois, use uma bandeira <code>bool</code>, um <code>goto</code> ou um <code>return</code> num método.</li>
+  <li>Qualquer laço pode ficar dentro de qualquer outro (<code>foreach</code>, <code>while</code>, <code>for</code>). No <code>while</code>, lembre de zerar o contador do de dentro a cada volta do de fora.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
