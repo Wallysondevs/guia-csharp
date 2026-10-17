@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Inicializadores e required — criar objetos com as propriedades à vista | Guia C#</title>
+<meta name="description" content="Inicializadores de objeto em C# para iniciantes: new Produto { Nome = …, Preco = … }, junto com construtor, new() sem repetir o tipo, objetos e listas aninhados, e o modificador required do C# 11 que obriga a dar valor, com os erros reais CS0117, CS0200, CS9035 e CS9032 e o atributo SetsRequiredMembers.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Inicializadores e required</span></h1>
+
+<p class="intro">Criar um objeto e depois preencher as propriedades uma por uma funciona, mas espalha a criação por várias linhas. O C# tem um jeito mais direto: o <strong>inicializador de objeto</strong>, que cria e preenche tudo de uma vez, com o nome de cada propriedade à vista. E, quando uma propriedade não pode ficar de fora de jeito nenhum, a palavra <code>required</code> ("obrigatório") faz o compilador cobrar.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O inicializador de objeto: <code>new Produto { Nome = "Caderno", Preco = 12.50m }</code>.</li>
+  <li>Como ele se combina com um construtor e com o <code>new()</code> sem o nome da classe.</li>
+  <li>Inicializadores dentro de inicializadores (objetos e listas aninhados).</li>
+  <li>O que o inicializador <strong>não</strong> pode fazer (<code>CS0117</code>, <code>CS0200</code>).</li>
+  <li>O modificador <code>required</code> <span class="versao">C# 11</span>, o erro <code>CS9035</code> e o atributo <code>[SetsRequiredMembers]</code>.</li>
+</ul>
+</div>
+
+<p>Esta aula continua <a href="readonly.html">readonly e init</a>, onde o inicializador apareceu pela primeira vez.</p>
+
+<hr>
+
+<h2>A ideia: a ficha com os campos escritos</h2>
+<p>Imagine duas formas de cadastrar um produto na lojinha da Ana. Na primeira, alguém dita: "Caderno, doze e cinquenta, trinta". Quem anota precisa lembrar que o primeiro é o nome, o segundo é o preço e o terceiro é o estoque. Na segunda, a pessoa preenche uma <strong>ficha</strong> que diz "Nome: ___", "Preço: ___", "Estoque: ___". Não há como confundir, e dá para deixar um campo em branco.</p>
+<p>O construtor com parâmetros é o ditado: <code>new Produto("Caderno", 12.50m, 30)</code>. O inicializador de objeto é a ficha: <code>new Produto { Nome = "Caderno", Preco = 12.50m, Estoque = 30 }</code>.</p>
+
+<hr>
+
+<h2>Do jeito longo: linha por linha</h2>
+
+<pre class="file" data-file="linha-a-linha.cs">var caderno = new Produto();
+caderno.Nome = "Caderno";
+caderno.Preco = 12.50m;
+caderno.Estoque = 30;
+Console.WriteLine($"{caderno.Nome}: {caderno.Preco:C} ({caderno.Estoque} no estoque)");
+
+class Produto
+{
+    public string Nome { get; set; } = "";
+    public decimal Preco { get; set; }
+    public int Estoque { get; set; }
+}
+</pre>
+
+<pre class="term">$ dotnet run linha-a-linha.cs
+Caderno: R$ 12,50 (30 no estoque)</pre>
+
+<p>Funciona, mas o nome <code>caderno</code> se repete em todas as linhas, e entre o <code>new</code> e a última linha existe um caderno "pela metade", sem preço nem estoque.</p>
+
+<hr>
+
+<h2>O inicializador de objeto</h2>
+
+<pre class="file" data-file="inicializador.cs">var caderno = new Produto
+{
+    Nome = "Caderno",
+    Preco = 12.50m,
+    Estoque = 30,
+};
+var lapis = new Produto { Nome = "Lápis", Preco = 1.75m };
+
+Console.WriteLine($"{caderno.Nome}: {caderno.Preco:C} ({caderno.Estoque} no estoque)");
+Console.WriteLine($"{lapis.Nome}: {lapis.Preco:C} ({lapis.Estoque} no estoque)");
+
+class Produto
+{
+    public string Nome { get; set; } = "";
+    public decimal Preco { get; set; }
+    public int Estoque { get; set; }
+}
+</pre>
+
+<pre class="term">$ dotnet run inicializador.cs
+Caderno: R$ 12,50 (30 no estoque)
+Lápis: R$ 1,75 (0 no estoque)          « o estoque ficou de fora: vale 0</pre>
+
+<dl class="anatomy">
+  <dt>new Produto</dt><dd>Cria o objeto, como sempre. Sem parênteses: com chaves logo depois, o <code>()</code> é opcional (<code>new Produto() { … }</code> também vale).</dd>
+  <dt>{ Nome = "Caderno", … }</dt><dd>As chaves do inicializador. Cada item é <code>Propriedade = valor</code>, separado por vírgula. A ordem não importa.</dd>
+  <dt>Estoque = 30,</dt><dd>A vírgula depois do último item é permitida. Muita gente usa, porque fica fácil acrescentar uma linha depois.</dd>
+  <dt>};</dt><dd>O ponto e vírgula vem <strong>depois</strong> da chave: a criação inteira é uma instrução só.</dd>
+  <dt>new Produto { Nome = "Lápis", Preco = 1.75m }</dt><dd>Para poucos itens, numa linha. O <code>Estoque</code> ficou de fora e ficou com o valor padrão, <code>0</code>.</dd>
+</dl>
+
+<p>O inicializador não é mágica: o compilador transforma o código em "crie com <code>new Produto()</code> e depois atribua cada propriedade", igual ao jeito longo. A diferença é que ninguém vê o objeto pela metade, e as propriedades <code>init</code> (da <a href="readonly.html">aula anterior</a>) também aceitam valor aqui.</p>
+
+<div class="trycs" data-goal="out:Mochila: R$ 89\,90 (5 no estoque),src:new\s+Produto\s*\{[^}]*Nome\s*=[^}]*Preco\s*=[^}]*Estoque\s*=">
+<p class="try-task"><strong>Missão:</strong> reescreva a criação da <code>mochila</code> com um inicializador de objeto, na ordem <code>Nome</code>, <code>Preco</code>, <code>Estoque</code>. As três linhas <code>mochila.… = …;</code> devem sumir. A saída continua a mesma.</p>
+<pre class="script">var mochila = new Produto();
+mochila.Nome = "Mochila";
+mochila.Preco = 89.90m;
+mochila.Estoque = 5;
+Console.WriteLine($"{mochila.Nome}: {mochila.Preco:C} ({mochila.Estoque} no estoque)");
+
+class Produto
+{
+    public string Nome { get; set; } = "";
+    public decimal Preco { get; set; }
+    public int Estoque { get; set; }
+}
+</pre>
+<pre class="solucao">var mochila = new Produto
+{
+    Nome = "Mochila",
+    Preco = 89.90m,
+    Estoque = 5,
+};
+Console.WriteLine($"{mochila.Nome}: {mochila.Preco:C} ({mochila.Estoque} no estoque)");
+
+class Produto
+{
+    public string Nome { get; set; } = "";
+    public decimal Preco { get; set; }
+    public int Estoque { get; set; }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Construtor e inicializador juntos</h2>
+<p>Os dois se combinam: o construtor roda primeiro, e o inicializador preenche o resto. E, quando o tipo já está escrito à esquerda, o <code>new()</code> pode ficar sem o nome da classe <span class="versao">C# 9</span>:</p>
+
+<pre class="file" data-file="ctor-init.cs">var borracha = new Produto("Borracha") { Preco = 2.50m };
+Produto regua = new() { Nome = "Régua", Preco = 4m };
+Console.WriteLine($"{borracha.Nome}: {borracha.Preco:C}");
+Console.WriteLine($"{regua.Nome}: {regua.Preco:C}");
+
+class Produto
+{
+    public Produto()
+    {
+    }
+
+    public Produto(string nome)
+    {
+        Nome = nome;
+    }
+
+    public string Nome { get; set; } = "";
+    public decimal Preco { get; set; }
+}
+</pre>
+
+<pre class="term">$ dotnet run ctor-init.cs
+Borracha: R$ 2,50
+Régua: R$ 4,00</pre>
+
+<dl class="anatomy">
+  <dt>new Produto("Borracha") { Preco = 2.50m }</dt><dd>Chama o construtor que recebe o nome e, em seguida, preenche o preço.</dd>
+  <dt>Produto regua = new() { … }</dt><dd>O tipo já aparece à esquerda, então <code>new()</code> sabe que é um <code>Produto</code>. É a mesma coisa que <code>var regua = new Produto { … }</code>; escolha um estilo e mantenha.</dd>
+  <dt>public Produto() { }</dt><dd>Como a classe tem um construtor com parâmetro, o construtor vazio precisa ser escrito, senão <code>new Produto { … }</code> deixa de compilar (veja <a href="construtores.html">Construtores</a>).</dd>
+</dl>
+
+<hr>
+
+<h2>Inicializadores aninhados</h2>
+<p>Um valor dentro das chaves pode ser outro objeto criado com inicializador. E uma lista que já existe pode receber itens com chaves, sem <code>new</code>:</p>
+
+<pre class="file" data-file="aninhado.cs">var ana = new Cliente
+{
+    Nome = "Ana",
+    Endereco = new Endereco { Rua = "Rua das Flores", Numero = 42 },
+    Compras = { "caderno", "lápis" },
+};
+Console.WriteLine($"{ana.Nome} mora na {ana.Endereco.Rua}, {ana.Endereco.Numero}");
+Console.WriteLine($"Comprou: {string.Join(", ", ana.Compras)}");
+
+class Cliente
+{
+    public string Nome { get; set; } = "";
+    public Endereco Endereco { get; set; } = new Endereco();
+    public List&lt;string&gt; Compras { get; } = new List&lt;string&gt;();
+}
+
+class Endereco
+{
+    public string Rua { get; set; } = "";
+    public int Numero { get; set; }
+}
+</pre>
+
+<pre class="term">$ dotnet run aninhado.cs
+Ana mora na Rua das Flores, 42
+Comprou: caderno, lápis</pre>
+
+<dl class="anatomy">
+  <dt>Endereco = new Endereco { … },</dt><dd>Um inicializador dentro do outro: cria o endereço e guarda na propriedade <code>Endereco</code>.</dd>
+  <dt>Compras = { "caderno", "lápis" },</dt><dd>Sem <code>new</code>: isso <strong>não</strong> troca a lista; chama <code>Compras.Add("caderno")</code> e <code>Compras.Add("lápis")</code> na lista que o cliente já tem. Por isso funciona até com <code>Compras</code> só com <code>get</code>.</dd>
+</dl>
+
+<p>Repare como a forma do código lembra a forma dos dados: o endereço fica "dentro" do cliente. Para criar listas soltas (<code>new List&lt;string&gt; { … }</code> ou <code>["a", "b"]</code>), veja <a href="list.html">List&lt;T&gt;</a>.</p>
+
+<hr>
+
+<h2>O que o inicializador não pode fazer</h2>
+<p>As chaves só conseguem fazer o que você conseguiria fazer por fora, numa atribuição normal. Um nome que não existe é barrado:</p>
+
+<pre class="file" data-file="nome-errado.cs — com erro de propósito">var caderno = new Produto { Nome = "Caderno", Precco = 12.50m };
+
+class Produto
+{
+    public string Nome { get; set; } = "";
+    public decimal Preco { get; set; }
+}
+</pre>
+
+<pre class="term">$ dotnet run nome-errado.cs
+/home/ana/cs/nome-errado.cs(1,47): error CS0117: "Produto" não contém uma definição para "Precco"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>E uma propriedade sem <code>set</code> nem <code>init</code> também (com <code>public decimal Preco { get; }</code>):</p>
+
+<pre class="term">$ dotnet run sem-set.cs
+/home/ana/cs/sem-set.cs(1,47): error CS0200: A propriedade ou o indexador "Produto.Preco" não pode ser atribuído, pois é somente leitura
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Com <code>private set</code>, o erro é o <code>CS0272</code>, de <a href="encapsulamento.html">Encapsulamento</a>. O inicializador respeita o encapsulamento: ele não abre nenhuma porta que a classe deixou fechada.</p>
+
+<hr>
+
+<h2>O problema: esquecer uma propriedade</h2>
+<p>Liberdade para deixar campos em branco é boa para o <code>Estoque</code>, mas péssima para o <code>Nome</code>. Nada impede alguém de cadastrar um produto sem nome:</p>
+
+<pre class="file" data-file="esqueceu.cs">var caderno = new Produto { Preco = 12.50m };
+Console.WriteLine($"[{caderno.Nome}]: {caderno.Preco:C}");
+
+class Produto
+{
+    public string Nome { get; init; } = "";
+    public decimal Preco { get; init; }
+}
+</pre>
+
+<pre class="term">$ dotnet run esqueceu.cs
+[]: R$ 12,50          « um produto sem nome na prateleira</pre>
+
+<p>O <code>= ""</code> evitou o aviso <code>CS8618</code> da aula anterior, mas só escondeu o problema: o nome vazio é tão errado quanto <code>null</code>. O que a Ana quer é que o <strong>compilador</strong> recuse a criação de um produto sem nome.</p>
+
+<hr>
+
+<h2>required: o campo obrigatório da ficha <span class="versao">C# 11</span></h2>
+
+<pre class="file" data-file="required.cs">var caderno = new Produto { Nome = "Caderno", Preco = 12.50m };
+var brinde = new Produto { Nome = "Adesivo" };
+Console.WriteLine($"{caderno.Nome}: {caderno.Preco:C}");
+Console.WriteLine($"{brinde.Nome}: {brinde.Preco:C}");
+
+class Produto
+{
+    public required string Nome { get; init; }
+    public decimal Preco { get; init; }
+}
+</pre>
+
+<pre class="term">$ dotnet run required.cs
+Caderno: R$ 12,50
+Adesivo: R$ 0,00</pre>
+
+<dl class="anatomy">
+  <dt>public required string Nome { get; init; }</dt><dd><code>required</code> vem antes do tipo. Quem cria um <code>Produto</code> é <strong>obrigado</strong> a dar valor ao <code>Nome</code> nas chaves. Como agora é impossível ele ficar sem valor, o <code>= ""</code> não é mais necessário, e o aviso <code>CS8618</code> desaparece.</dd>
+  <dt>public decimal Preco { get; init; }</dt><dd>Sem <code>required</code>: continua opcional. O brinde ficou com <code>R$ 0,00</code>.</dd>
+</dl>
+
+<p>Agora, o produto sem nome:</p>
+
+<pre class="file" data-file="required-erro.cs — com erro de propósito">var caderno = new Produto { Preco = 12.50m };
+Console.WriteLine(caderno.Nome);
+
+class Produto
+{
+    public required string Nome { get; init; }
+    public decimal Preco { get; init; }
+}
+</pre>
+
+<pre class="term">$ dotnet run required-erro.cs
+/home/ana/cs/required-erro.cs(1,19): error CS9035: O membro requerido 'Produto.Nome' deve ser definido no inicializador de objeto ou construtor do atributo.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O erro aponta o <code>new Produto</code> (linha 1, coluna 19) e diz qual membro faltou. Em inglês: <code>Required member 'Produto.Nome' must be set in the object initializer or attribute constructor</code>. O erro aparece <strong>antes</strong> de o programa rodar: o produto sem nome nunca chega à prateleira.</p>
+
+<p><code>required</code> também funciona com <code>{ get; set; }</code>: aí o valor é obrigatório na criação, mas pode mudar depois. Com <code>init</code>, ele é obrigatório na criação e fixo para sempre, a combinação mais comum.</p>
+
+<h3>required e construtores</h3>
+<p>Um detalhe que surpreende: mesmo que um construtor preencha o <code>Nome</code>, o compilador continua cobrando nas chaves, porque ele não lê o corpo do construtor para conferir:</p>
+
+<pre class="file" data-file="required-ctor.cs — com erro de propósito">var caderno = new Produto("Caderno");
+Console.WriteLine(caderno.Nome);
+
+class Produto
+{
+    public Produto(string nome)
+    {
+        Nome = nome;
+    }
+
+    public required string Nome { get; init; }
+}
+</pre>
+
+<pre class="term">$ dotnet run required-ctor.cs
+/home/ana/cs/required-ctor.cs(1,19): error CS9035: O membro requerido 'Produto.Nome' deve ser definido no inicializador de objeto ou construtor do atributo.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Para dizer "este construtor cuida dos obrigatórios", marque-o com o <strong>atributo</strong> <code>[SetsRequiredMembers]</code> ("preenche os membros obrigatórios"). Atributos são etiquetas entre colchetes, assunto de <a href="atributos.html">Atributos</a>:</p>
+
+<pre class="file" data-file="required-sets.cs">using System.Diagnostics.CodeAnalysis;
+
+var caderno = new Produto("Caderno");
+var lapis = new Produto { Nome = "Lápis" };
+Console.WriteLine(caderno.Nome);
+Console.WriteLine(lapis.Nome);
+
+class Produto
+{
+    public Produto()
+    {
+    }
+
+    [SetsRequiredMembers]
+    public Produto(string nome)
+    {
+        Nome = nome;
+    }
+
+    public required string Nome { get; init; }
+}
+</pre>
+
+<pre class="term">$ dotnet run required-sets.cs
+Caderno
+Lápis</pre>
+
+<div class="warning"><strong>O atributo é uma promessa sua.</strong> Com <code>[SetsRequiredMembers]</code>, o compilador para de cobrar e confia em você. Se o construtor esquecer de preencher o <code>Nome</code>, ninguém avisa. Na dúvida, escolha um estilo só: ou construtor com parâmetros, ou <code>required</code> com inicializador.</div>
+
+<hr>
+
+<h2>Qual usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Como fica</th><th>Quando usar</th></tr>
+<tr><td>Construtor com parâmetros</td><td><code>new Produto("Caderno", 12.50m)</code></td><td>Poucos dados, todos obrigatórios, ou quando a criação precisa de validação</td></tr>
+<tr><td>Inicializador de objeto</td><td><code>new Produto { Nome = "…", Preco = … }</code></td><td>Vários dados, alguns opcionais; fica claro o que é cada valor</td></tr>
+<tr><td>Inicializador + <code>required</code></td><td><code>required string Nome { get; init; }</code></td><td>Como o anterior, mas com campos que não podem faltar</td></tr>
+<tr><td>Construtor + inicializador</td><td><code>new Produto("Borracha") { Preco = 2.50m }</code></td><td>O essencial no construtor, os extras nas chaves</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>error CS0117: "…" não contém uma definição para "…"</strong>
+<p><strong>O que aconteceu:</strong> um nome nas chaves não é propriedade (nem campo) da classe. Quase sempre é erro de digitação (<code>Precco</code>) ou de maiúscula (<code>preco</code>).</p>
+<p><strong>Como resolver:</strong> escreva o nome exatamente como está na classe.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS0200 / CS0272 numa linha com chaves</strong>
+<p><strong>O que aconteceu:</strong> a propriedade não tem <code>set</code> nem <code>init</code> (<code>CS0200</code>) ou tem <code>private set</code> (<code>CS0272</code>).</p>
+<p><strong>Como resolver:</strong> se a propriedade deve ser preenchida na criação, use <code>{ get; init; }</code>. Se não, passe o valor pelo construtor.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS9035: O membro requerido '…' deve ser definido no inicializador de objeto…</strong>
+<p><strong>O que aconteceu:</strong> faltou uma propriedade <code>required</code> nas chaves. Também acontece com um construtor que preenche a propriedade, mas não tem <code>[SetsRequiredMembers]</code>.</p>
+<p><strong>Como resolver:</strong> acrescente a propriedade nas chaves (<code>Nome = "…"</code>) ou marque o construtor com <code>[SetsRequiredMembers]</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS9032: O membro requerido '…' pode ser menos visível ou ter um setter menos visível…</strong>
+<pre class="term">$ dotnet run required-private.cs          « com public required string Nome { get; private set; }
+/home/ana/cs/required-private.cs(4,28): error CS9032: O membro requerido 'Produto.Nome' pode ser menos visível ou ter um setter menos visível do que o tipo que o contém'Produto'.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> o compilador obrigaria quem cria o objeto a preencher uma propriedade que ele não tem permissão para preencher.</p>
+<p><strong>Como resolver:</strong> use <code>init</code> ou <code>set</code> públicos com <code>required</code>, ou tire o <code>required</code> e preencha pelo construtor.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>new Produto { Nome = "…", Preco = 1m }</code></td><td>Cria e preenche as propriedades pelo nome</td></tr>
+<tr><td><code>new Produto("…") { Preco = 1m }</code></td><td>Construtor primeiro, depois as chaves</td></tr>
+<tr><td><code>Produto p = new() { … };</code> <span class="versao">C# 9</span></td><td><code>new</code> sem repetir o tipo</td></tr>
+<tr><td><code>Endereco = new Endereco { … }</code></td><td>Inicializador dentro de inicializador</td></tr>
+<tr><td><code>Compras = { "a", "b" }</code></td><td>Acrescenta itens numa lista que já existe</td></tr>
+<tr><td><code>public required string Nome { get; init; }</code> <span class="versao">C# 11</span></td><td>Obrigatório nas chaves do <code>new</code> (<code>CS9035</code>)</td></tr>
+<tr><td><code>[SetsRequiredMembers]</code></td><td>Este construtor preenche os <code>required</code> (precisa de <code>using System.Diagnostics.CodeAnalysis;</code>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missão final: o aluno sem nome</h2>
+<div class="trycs" data-goal="out:Bruno\, 6º B,src:public\s+required\s+string\s+Nome\s*\{\s*get;\s*init;\s*\}">
+<p class="try-task"><strong>Missão:</strong> o segundo aluno foi matriculado sem nome, e a saída mostra <code>, 6º B</code>. Torne o <code>Nome</code> obrigatório: escreva <code>required</code> e apague o <code>= ""</code> dele. Rode e veja o <code>CS9035</code>. Depois, dê ao segundo aluno o nome <code>Bruno</code>.</p>
+<pre class="script">var ana = new Aluno { Nome = "Ana", Turma = "6º A" };
+var novo = new Aluno { Turma = "6º B" };
+Console.WriteLine($"{ana.Nome}, {ana.Turma}");
+Console.WriteLine($"{novo.Nome}, {novo.Turma}");
+
+class Aluno
+{
+    public string Nome { get; init; } = "";
+    public string Turma { get; init; } = "";
+}
+</pre>
+<pre class="solucao">var ana = new Aluno { Nome = "Ana", Turma = "6º A" };
+var novo = new Aluno { Nome = "Bruno", Turma = "6º B" };
+Console.WriteLine($"{ana.Nome}, {ana.Turma}");
+Console.WriteLine($"{novo.Nome}, {novo.Turma}");
+
+class Aluno
+{
+    public required string Nome { get; init; }
+    public string Turma { get; init; } = "";
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Obrigatório</h3>
+<p>Qual palavra obriga quem cria o objeto a dar valor a uma propriedade nas chaves?</p>
+<div class="ex-code"><input data-answer="required" aria-label="palavra"></div>
+</div>
+
+<div class="exercise">
+<h3>2. A ficha preenchida</h3>
+<p>Complete para criar um <code>Produto</code> com <code>Nome</code> igual a <code>"Cola"</code>: <code>var p = new Produto ___;</code> (só a parte das chaves)</p>
+<div class="ex-code"><input data-answer="{ Nome = &quot;Cola&quot; }|{Nome = &quot;Cola&quot;}|{ Nome=&quot;Cola&quot; }|{Nome=&quot;Cola&quot;}" aria-label="inicializador"></div>
+</div>
+
+<div class="exercise">
+<h3>3. O erro do obrigatório</h3>
+<p>Qual é o código do erro quando falta uma propriedade <code>required</code> nas chaves?</p>
+<div class="ex-code"><input data-answer="CS9035|cs9035" aria-label="código do erro"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Em <code>new Produto { Nome = "Lápis" }</code>, a propriedade <code>int Estoque</code> não foi citada e não é <code>required</code>. Quanto ela vale?</p>
+<label><input type="radio" name="q4"> Não compila.</label>
+<label><input type="radio" name="q4"> <code>null</code></label>
+<label><input type="radio" name="q4"> <code>0</code></label>
+<label><input type="radio" name="q4"> <code>1</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. O que <code>Compras = { "caderno", "lápis" }</code> faz dentro de um inicializador?</p>
+<label><input type="radio" name="q5"> Cria uma lista nova e troca a antiga.</label>
+<label><input type="radio" name="q5"> Chama <code>Add</code> para cada item na lista que já existe.</label>
+<label><input type="radio" name="q5"> Dá erro: falta o <code>new</code>.</label>
+<label><input type="radio" name="q5"> Cria um array.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Um construtor preenche a propriedade <code>required</code> <code>Nome</code>, mas <code>new Produto("Caderno")</code> dá <code>CS9035</code>. Como resolver?</p>
+<label><input type="radio" name="q6"> Marcar o construtor com <code>[SetsRequiredMembers]</code>.</label>
+<label><input type="radio" name="q6"> Trocar <code>init</code> por <code>set</code>.</label>
+<label><input type="radio" name="q6"> Deixar a propriedade <code>private</code>.</label>
+<label><input type="radio" name="q6"> Não tem jeito: <code>required</code> não funciona com construtores.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>O inicializador de objeto cria e preenche numa instrução só: <code>new Produto { Nome = "…", Preco = … }</code>. O que ficar de fora recebe o valor padrão.</li>
+  <li>Ele se combina com construtor (<code>new Produto("…") { … }</code>), com <code>new()</code> e com outros inicializadores dentro dele.</li>
+  <li>As chaves respeitam o encapsulamento: nome errado é <code>CS0117</code>; sem <code>set</code>/<code>init</code> é <code>CS0200</code>.</li>
+  <li><code>required</code> <span class="versao">C# 11</span> torna a propriedade obrigatória na criação (<code>CS9035</code>) e dispensa o <code>= ""</code>. Com <code>init</code>, fica obrigatória e fixa.</li>
+  <li>Construtor que preenche os obrigatórios precisa de <code>[SetsRequiredMembers]</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
