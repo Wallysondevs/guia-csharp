@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# readonly e init — valores que não mudam depois de criados | Guia C#</title>
+<meta name="description" content="readonly e init em C# para iniciantes: campos readonly preenchidos no construtor, readonly × const × static readonly, a lista readonly que ainda muda, propriedades só com get e o acessador init do C# 9, com os erros reais CS0191, CS0133, CS0200, CS8852 e o aviso CS8618 do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">readonly e init</span></h1>
+
+<p class="intro">Alguns dados nunca deveriam mudar depois que o objeto nasce: o CPF de uma pessoa, o número de uma nota fiscal, o código de barras de um produto. Em <a href="encapsulamento.html">Encapsulamento</a> você viu que a classe pode simplesmente não oferecer um <code>set</code>. Nesta aula você ganha duas palavras que pedem ao <strong>compilador</strong> para garantir isso: <code>readonly</code> ("somente leitura"), para campos, e <code>init</code> ("inicialização"), para propriedades.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é um campo <code>readonly</code> e onde ele pode receber valor (<code>CS0191</code>).</li>
+  <li>A diferença entre <code>const</code>, <code>readonly</code> e <code>static readonly</code> (<code>CS0133</code>).</li>
+  <li>A pegadinha: uma <strong>lista</strong> <code>readonly</code> ainda aceita itens novos.</li>
+  <li>Propriedades só com <code>get</code>, preenchidas no construtor (<code>CS0200</code>).</li>
+  <li>O acessador <code>init</code> <span class="versao">C# 9</span>: valor dado na criação e nunca mais (<code>CS8852</code>).</li>
+  <li>O aviso <code>CS8618</code>, que prepara a próxima aula.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>A ideia: a certidão de nascimento</h2>
+<p>A certidão de nascimento da Ana foi escrita <strong>uma vez</strong>, no cartório, no dia em que ela foi registrada. Depois disso, ninguém pega uma caneta e muda a data ou o nome dos pais. Se alguma coisa precisar mudar de verdade, o cartório emite uma <strong>certidão nova</strong>.</p>
+<p>Um dado <code>readonly</code> é assim: ele é escrito no "cartório" (o construtor) e, daí em diante, só pode ser lido. A diferença para "não ter <code>set</code>" é que, agora, nem a própria classe consegue mudar o valor por engano. O compilador vigia.</p>
+
+<hr>
+
+<h2>Campos readonly</h2>
+
+<pre class="file" data-file="documento.cs">var cpf = new Documento("123.456.789-09");
+Console.WriteLine(cpf.Numero());
+
+class Documento
+{
+    private readonly string _numero;
+
+    public Documento(string numero)
+    {
+        _numero = numero;
+    }
+
+    public string Numero()
+    {
+        return _numero;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run documento.cs
+123.456.789-09</pre>
+
+<dl class="anatomy">
+  <dt>private readonly string _numero;</dt><dd><code>readonly</code> vem depois do modificador de acesso. O campo só pode receber valor em <strong>dois lugares</strong>: aqui mesmo, na declaração (<code>= "…"</code>), ou dentro de um construtor da classe.</dd>
+  <dt>_numero = numero; no construtor</dt><dd>O "cartório". É permitido, e pode até ser feito mais de uma vez dentro do construtor.</dd>
+  <dt>public string Numero()</dt><dd>Ler um campo <code>readonly</code> é sempre permitido.</dd>
+</dl>
+
+<h3>Tentando mudar depois</h3>
+<p>Agora alguém da própria classe tenta trocar o número num método:</p>
+
+<pre class="file" data-file="documento-erro.cs — com erro de propósito">var cpf = new Documento("123.456.789-09");
+Console.WriteLine(cpf.Numero());
+
+class Documento
+{
+    private readonly string _numero;
+
+    public Documento(string numero)
+    {
+        _numero = numero;
+    }
+
+    public string Numero()
+    {
+        return _numero;
+    }
+
+    public void Trocar(string novo)
+    {
+        _numero = novo;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run documento-erro.cs
+/home/ana/cs/documento-erro.cs(20,9): error CS0191: Não é possível atribuir um campo somente leitura (exceto em um construtor ou em um setter somente de inicialização do tipo no qual o campo esteja definido ou em um inicializador de variável)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A mensagem lista os lugares em que um campo <code>readonly</code> <strong>pode</strong> receber valor: o construtor, um <code>init</code> (você vai ver logo abaixo) e o inicializador da declaração. A linha 20 está num método comum, então é barrada. Repare que o erro vem até de dentro da própria classe: o <code>private</code> protege contra quem está de fora, e o <code>readonly</code> protege também contra quem está dentro.</p>
+
+<div class="trycs" data-goal="erro:CS0191,src:private\s+readonly\s+decimal\s+_preco">
+<p class="try-task"><strong>Missão:</strong> este programa compila, mas o método <code>Remarcar</code> muda um preço que deveria ser fixo. Deixe o campo <code>_preco</code> <code>readonly</code> e rode: o compilador tem de apontar o erro <code>CS0191</code> na linha do <code>Remarcar</code>. (Aqui, a missão é <strong>ver o erro</strong>.)</p>
+<pre class="script">var etiqueta = new Etiqueta(19.90m);
+etiqueta.Remarcar(5m);
+Console.WriteLine(etiqueta.Preco());
+
+class Etiqueta
+{
+    private decimal _preco;
+
+    public Etiqueta(decimal preco)
+    {
+        _preco = preco;
+    }
+
+    public decimal Preco()
+    {
+        return _preco;
+    }
+
+    public void Remarcar(decimal novo)
+    {
+        _preco = novo;
+    }
+}
+</pre>
+<pre class="solucao">var etiqueta = new Etiqueta(19.90m);
+etiqueta.Remarcar(5m);
+Console.WriteLine(etiqueta.Preco());
+
+class Etiqueta
+{
+    private readonly decimal _preco;
+
+    public Etiqueta(decimal preco)
+    {
+        _preco = preco;
+    }
+
+    public decimal Preco()
+    {
+        return _preco;
+    }
+
+    public void Remarcar(decimal novo)
+    {
+        _preco = novo;
+    }
+}
+</pre>
+</div>
+
+<p>Para consertar de verdade, apague o método <code>Remarcar</code>. Se o preço precisa mesmo mudar, crie uma etiqueta <strong>nova</strong> (<code>new Etiqueta(5m)</code>), como o cartório faz com a certidão.</p>
+
+<hr>
+
+<h2>const, readonly ou static readonly?</h2>
+<p>As três formas guardam valores que não mudam, mas em momentos diferentes:</p>
+
+<pre class="file" data-file="loja.cs">var loja = new Loja(0.05m);
+Console.WriteLine($"{Loja.Nome}: taxa de {loja.Taxa:P0}");
+Console.WriteLine(Loja.Pasta);
+
+class Loja
+{
+    public const string Nome = "Lojinha da Ana";
+    public static readonly string Pasta = Path.Combine("dados", "vendas");
+    private readonly decimal _taxa;
+
+    public Loja(decimal taxa)
+    {
+        _taxa = taxa;
+    }
+
+    public decimal Taxa =&gt; _taxa;
+}
+</pre>
+
+<pre class="term">$ dotnet run loja.cs
+Lojinha da Ana: taxa de 5%
+dados/vendas</pre>
+
+<dl class="anatomy">
+  <dt>public const string Nome = "Lojinha da Ana";</dt><dd>Uma <a href="constantes.html">constante</a>: o valor é conhecido <strong>quando o programa é compilado</strong> e vai "colado" no código. Só aceita números, <code>char</code>, <code>bool</code>, <code>string</code> e enums escritos ali mesmo. É da classe (como <code>static</code>): <code>Loja.Nome</code>.</dd>
+  <dt>public static readonly string Pasta = Path.Combine(…);</dt><dd>Calculado <strong>quando o programa roda</strong>, uma vez só, e é da classe. <code>Path.Combine</code> monta um caminho com a barra certa do sistema (no Linux, <code>/</code>).</dd>
+  <dt>private readonly decimal _taxa;</dt><dd>Sem <code>static</code>: cada loja tem a sua taxa, dada no construtor, e ela nunca muda depois.</dd>
+</dl>
+
+<p>Se você tenta usar <code>const</code> com algo que só se sabe quando o programa roda:</p>
+
+<pre class="file" data-file="const-erro.cs — com erro de propósito">Console.WriteLine(Loja.Pasta);
+
+class Loja
+{
+    public const string Pasta = Path.Combine("dados", "vendas");
+}
+</pre>
+
+<pre class="term">$ dotnet run const-erro.cs
+/home/ana/cs/const-erro.cs(5,33): error CS0133: A expressão que está sendo atribuída a "Loja.Pasta" deve ser constante
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O compilador não roda <code>Path.Combine</code> para descobrir o resultado; ele precisa de um valor pronto. Conserto: <code>public static readonly string Pasta = …;</code>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th><code>const</code></th><th><code>static readonly</code></th><th><code>readonly</code></th></tr>
+<tr><td>Quando o valor é decidido</td><td>Na compilação</td><td>Quando o programa roda (uma vez)</td><td>Quando cada objeto é criado</td></tr>
+<tr><td>Um para…</td><td>A classe</td><td>A classe</td><td>Cada objeto</td></tr>
+<tr><td>Onde recebe valor</td><td>Só na declaração</td><td>Na declaração ou no construtor <code>static</code></td><td>Na declaração ou no construtor</td></tr>
+<tr><td>Tipos aceitos</td><td>Números, <code>char</code>, <code>bool</code>, <code>string</code>, enum</td><td>Qualquer um</td><td>Qualquer um</td></tr>
+<tr><td>Exemplo</td><td><code>const int DiasDaSemana = 7;</code></td><td><code>static readonly string Pasta = …;</code></td><td><code>readonly string _cpf;</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>A pegadinha: readonly protege a variável, não o objeto</h2>
+<p>A Ana deixou a lista de compras <code>readonly</code> e ficou surpresa: os itens continuam entrando.</p>
+
+<pre class="file" data-file="lista.cs">var lista = new ListaDeCompras();
+lista.Adicionar("arroz");
+lista.Adicionar("feijão");
+lista.Mostrar();
+
+class ListaDeCompras
+{
+    private readonly List&lt;string&gt; _itens = new List&lt;string&gt;();
+
+    public void Adicionar(string item)
+    {
+        _itens.Add(item);
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine(string.Join(", ", _itens));
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run lista.cs
+arroz, feijão</pre>
+
+<p>Não é um bug. Uma <a href="list.html">lista</a> é um tipo de <strong>referência</strong> (veja <a href="valor-referencia.html">Valor × Referência</a>): o campo <code>_itens</code> guarda o "endereço" de uma lista, e <code>readonly</code> só impede trocar esse endereço. A lista em si continua aceitando <code>Add</code>. Tente trocar a lista inteira:</p>
+
+<pre class="term">$ dotnet run lista-erro.cs          « com um método que faz _itens = new List&lt;string&gt;();
+/home/ana/cs/lista-erro.cs(22,9): error CS0191: Não é possível atribuir um campo somente leitura (exceto em um construtor ou em um setter somente de inicialização do tipo no qual o campo esteja definido ou em um inicializador de variável)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Pense numa casa com endereço fixo: você não pode mudar a casa de rua, mas pode trocar os móveis lá dentro. Para que nem os móveis mudem, existem as coleções somente leitura, como <code>IReadOnlyList&lt;T&gt;</code>, vistas em <a href="colecoes.html">Coleções</a>.</p>
+
+<hr>
+
+<h2>Propriedades só com get</h2>
+<p>O mesmo efeito do <code>readonly</code> vale para propriedades: uma propriedade automática com <strong>só</strong> <code>get</code> pode receber valor no construtor, e nunca mais. É o jeito mais comum de escrever dados que não mudam:</p>
+
+<pre class="file" data-file="getonly.cs — com erro de propósito">var p = new Produto("Caderno", 12.50m);
+Console.WriteLine($"{p.Nome}: {p.Preco:C}");
+p.Preco = 1m;
+
+class Produto
+{
+    public Produto(string nome, decimal preco)
+    {
+        Nome = nome;
+        Preco = preco;
+    }
+
+    public string Nome { get; }
+    public decimal Preco { get; }
+}
+</pre>
+
+<pre class="term">$ dotnet run getonly.cs
+/home/ana/cs/getonly.cs(3,1): error CS0200: A propriedade ou o indexador "Produto.Preco" não pode ser atribuído, pois é somente leitura
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Por baixo dos panos, <code>{ get; }</code> cria um campo escondido <code>readonly</code>. É o mesmo cartório: o construtor escreve, e o resto só lê.</p>
+
+<hr>
+
+<h2>init: valor na criação, e nunca mais <span class="versao">C# 9</span></h2>
+<p>Escrever um construtor com um parâmetro para cada propriedade cansa, e na chamada <code>new Produto("Caderno", 12.50m)</code> nem fica claro qual número é o quê. O C# permite dar valores às propriedades <strong>no momento da criação</strong>, entre chaves, com os nomes à vista. Isso se chama <strong>inicializador de objeto</strong> e tem uma aula só para ele, <a href="inicializadores.html">Inicializadores e required</a>. Aqui interessa o acessador que combina com ele: <code>init</code>.</p>
+
+<pre class="file" data-file="init.cs">var caderno = new Produto { Nome = "Caderno", Preco = 12.50m };
+Console.WriteLine($"{caderno.Nome}: {caderno.Preco:C}");
+
+class Produto
+{
+    public string Nome { get; init; } = "";
+    public decimal Preco { get; init; }
+}
+</pre>
+
+<pre class="term">$ dotnet run init.cs
+Caderno: R$ 12,50</pre>
+
+<dl class="anatomy">
+  <dt>public decimal Preco { get; init; }</dt><dd>No lugar do <code>set</code>, um <code>init</code>: a propriedade pode receber valor <strong>só durante a criação</strong> do objeto (nas chaves do <code>new</code> ou no construtor).</dd>
+  <dt>= "";</dt><dd>Valor inicial do <code>Nome</code>, caso quem cria não diga nenhum. Sem ele, vem um aviso (veja abaixo).</dd>
+  <dt>new Produto { Nome = "Caderno", Preco = 12.50m }</dt><dd>O inicializador de objeto: cria o produto e já preenche as propriedades, pelo nome.</dd>
+</dl>
+
+<p>Depois que o objeto está pronto, <code>init</code> se comporta como "sem <code>set</code>":</p>
+
+<pre class="term">$ dotnet run init-erro.cs          « com a linha caderno.Preco = 1m; depois da criação
+/home/ana/cs/init-erro.cs(3,1): error CS8852: A propriedade somente de inicialização ou o indexador 'Produto.Preco' só pode ser atribuído em um inicializador de objeto, em 'this' ou 'base' em um construtor de instância ou em um acessador 'init'.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Em inglês: <code>Init-only property or indexer 'Produto.Preco' can only be assigned in an object initializer, or on 'this' or 'base' in an instance constructor or an 'init' accessor</code>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Acessador</th><th>No construtor</th><th>Nas chaves do <code>new</code></th><th>Depois de criado</th></tr>
+<tr><td><code>{ get; set; }</code></td><td>Sim</td><td>Sim</td><td>Sim</td></tr>
+<tr><td><code>{ get; init; }</code></td><td>Sim</td><td>Sim</td><td>Não (<code>CS8852</code>)</td></tr>
+<tr><td><code>{ get; }</code></td><td>Sim</td><td>Não</td><td>Não (<code>CS0200</code>)</td></tr>
+<tr><td><code>{ get; private set; }</code></td><td>Sim</td><td>Só de dentro da classe</td><td>Só de dentro da classe</td></tr>
+</table>
+</div>
+
+<h3>O aviso CS8618</h3>
+<p>Se a Ana tirar o <code>= ""</code> do <code>Nome</code>, o programa roda, mas com um aviso:</p>
+
+<pre class="term">$ dotnet run init-sem.cs
+/home/ana/cs/init-sem.cs(6,19): warning CS8618: O propriedade não anulável 'Nome' precisa conter um valor não nulo ao sair do construtor. Considere adicionar o modificador "obrigatório" ou declarar o propriedade como anulável.
+Caderno</pre>
+
+<p>O compilador lembra que nada obriga quem cria um <code>Produto</code> a dizer o nome: <code>new Produto { Preco = 5m }</code> deixaria <code>Nome</code> valendo <code>null</code> (veja <a href="referencias-anulaveis.html">Referências Anuláveis</a>). O "modificador obrigatório" que a mensagem sugere é o <code>required</code>, assunto da <a href="inicializadores.html">próxima aula</a>.</p>
+
+<hr>
+
+<h2>Qual usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>Valor fixo, conhecido ao escrever o código (7 dias, o nome da loja)</td><td><code>const</code></td></tr>
+<tr><td>Valor da classe, calculado quando o programa roda</td><td><code>static readonly</code></td></tr>
+<tr><td>Campo privado que cada objeto recebe no construtor e nunca muda</td><td><code>private readonly</code></td></tr>
+<tr><td>Dado público que nunca muda, preenchido pelo construtor</td><td><code>{ get; }</code></td></tr>
+<tr><td>Dado público que nunca muda, preenchido nas chaves do <code>new</code></td><td><code>{ get; init; }</code></td></tr>
+</table>
+</div>
+<p>Objetos que não mudam (os <strong>imutáveis</strong>) são mais fáceis de entender: o valor que você leu agora é o mesmo de amanhã. É por isso que a <code>string</code> do .NET é imutável, e que os <a href="records.html">records</a> usam <code>init</code> por padrão.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>error CS0191: Não é possível atribuir um campo somente leitura…</strong>
+<p><strong>O que aconteceu:</strong> um campo <code>readonly</code> recebeu valor fora do construtor, do <code>init</code> e da declaração.</p>
+<p><strong>Como resolver:</strong> se o valor deve mesmo mudar, tire o <code>readonly</code> e crie um método com validação. Se não deve, crie um objeto novo com o valor novo.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS0133: A expressão que está sendo atribuída a "…" deve ser constante</strong>
+<p><strong>O que aconteceu:</strong> um <code>const</code> recebeu algo que só se calcula com o programa rodando (uma chamada de método, um <code>new</code>).</p>
+<p><strong>Como resolver:</strong> troque <code>const</code> por <code>static readonly</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS8852: A propriedade somente de inicialização … só pode ser atribuído em um inicializador de objeto…</strong>
+<p><strong>O que aconteceu:</strong> uma propriedade <code>init</code> recebeu valor depois de o objeto estar pronto.</p>
+<p><strong>Como resolver:</strong> passe o valor nas chaves do <code>new</code>. Para "mudar", crie outro objeto.</p>
+</div>
+
+<div class="cenario">
+<strong>A lista readonly continua mudando</strong>
+<p><strong>O que aconteceu:</strong> <code>readonly</code> impede trocar a lista, não mexer nela.</p>
+<p><strong>Como resolver:</strong> não exponha a lista para fora da classe; ofereça métodos (<code>Adicionar</code>) ou uma coleção somente leitura.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>private readonly string _cpf;</code></td><td>Campo que recebe valor só na declaração ou no construtor</td></tr>
+<tr><td><code>public static readonly string Pasta = …;</code></td><td>Valor da classe, calculado uma vez quando o programa roda</td></tr>
+<tr><td><code>public const int Dias = 7;</code></td><td>Constante de compilação</td></tr>
+<tr><td><code>public string Nome { get; }</code></td><td>Propriedade preenchida só no construtor</td></tr>
+<tr><td><code>public string Nome { get; init; }</code> <span class="versao">C# 9</span></td><td>Propriedade preenchida no construtor ou nas chaves do <code>new</code></td></tr>
+<tr><td><code>new Produto { Nome = "…", Preco = 1m }</code></td><td>Inicializador de objeto</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missão final: o produto que não muda de preço</h2>
+<div class="trycs" data-goal="out:Caderno: R$ 12\,50,src:Nome\s*\{\s*get;\s*init;\s*\},src:Preco\s*\{\s*get;\s*init;\s*\}">
+<p class="try-task"><strong>Missão:</strong> hoje o preço do caderno é trocado depois de criado, e a saída mostra <code>R$ 1,00</code>. Troque <code>set</code> por <code>init</code> nas duas propriedades e rode: o compilador vai apontar <code>CS8852</code> na linha que muda o preço. Apague essa linha e rode de novo.</p>
+<pre class="script">var caderno = new Produto { Nome = "Caderno", Preco = 12.50m };
+caderno.Preco = 1m;
+Console.WriteLine($"{caderno.Nome}: {caderno.Preco:C}");
+
+class Produto
+{
+    public string Nome { get; set; } = "";
+    public decimal Preco { get; set; }
+}
+</pre>
+<pre class="solucao">var caderno = new Produto { Nome = "Caderno", Preco = 12.50m };
+Console.WriteLine($"{caderno.Nome}: {caderno.Preco:C}");
+
+class Produto
+{
+    public string Nome { get; init; } = "";
+    public decimal Preco { get; init; }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Somente leitura</h3>
+<p>Qual palavra faz um campo só poder receber valor na declaração ou no construtor?</p>
+<div class="ex-code"><input data-answer="readonly" aria-label="palavra"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Só na criação</h3>
+<p>Complete a propriedade para que ela só receba valor na criação do objeto: <code>public string Cor { get; ___ }</code></p>
+<div class="ex-code"><input data-answer="init;|init" aria-label="acessador"></div>
+</div>
+
+<div class="exercise">
+<h3>3. const com método</h3>
+<p>Qual é o código do erro ao escrever <code>const string Pasta = Path.Combine("a", "b");</code>?</p>
+<div class="ex-code"><input data-answer="CS0133|cs0133" aria-label="código do erro"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Um campo <code>private readonly List&lt;string&gt; _itens</code>. O que é permitido num método comum da classe?</p>
+<label><input type="radio" name="q4"> Nada: nem <code>_itens.Add("x")</code> compila.</label>
+<label><input type="radio" name="q4"> <code>_itens.Add("x")</code>, mas não <code>_itens = new List&lt;string&gt;()</code>.</label>
+<label><input type="radio" name="q4"> <code>_itens = new List&lt;string&gt;()</code>, mas não <code>_itens.Add("x")</code>.</label>
+<label><input type="radio" name="q4"> Tudo: <code>readonly</code> só vale para quem está de fora.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. Com <code>public decimal Preco { get; init; }</code>, onde <strong>não</strong> dá para dar valor ao <code>Preco</code>?</p>
+<label><input type="radio" name="q5"> No construtor da classe.</label>
+<label><input type="radio" name="q5"> Nas chaves do <code>new Produto { Preco = 5m }</code>.</label>
+<label><input type="radio" name="q5"> Na declaração, com <code>= 5m;</code>.</label>
+<label><input type="radio" name="q5"> Numa linha depois, como <code>p.Preco = 5m;</code>.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Cada loja tem uma taxa diferente, dada ao criar a loja, que nunca muda. O que usar?</p>
+<label><input type="radio" name="q6"> <code>private readonly decimal _taxa;</code></label>
+<label><input type="radio" name="q6"> <code>public const decimal Taxa = 0.05m;</code></label>
+<label><input type="radio" name="q6"> <code>public static decimal Taxa;</code></label>
+<label><input type="radio" name="q6"> <code>public decimal Taxa { get; set; }</code></label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>readonly</code>: o campo recebe valor só na declaração ou no construtor. Fora disso, <code>CS0191</code>, mesmo dentro da classe.</li>
+  <li><code>const</code> é decidido na compilação; <code>static readonly</code>, quando o programa roda (um para a classe); <code>readonly</code>, quando cada objeto nasce.</li>
+  <li><code>readonly</code> protege a variável, não o objeto: uma lista <code>readonly</code> ainda aceita <code>Add</code>.</li>
+  <li><code>{ get; }</code>: só o construtor dá valor (<code>CS0200</code> depois). <code>{ get; init; }</code> <span class="versao">C# 9</span>: o construtor ou as chaves do <code>new</code> (<code>CS8852</code> depois).</li>
+  <li>O aviso <code>CS8618</code> diz que uma propriedade pode ficar <code>null</code>. A solução moderna é o <code>required</code>, da próxima aula.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
