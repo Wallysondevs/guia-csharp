@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Atributos — [Obsolete], [Flags], CallerMemberName e atributos próprios | Guia C#</title>
+<meta name="description" content="Atributos em C# para iniciantes: o que são as etiquetas entre colchetes, [Obsolete] com o aviso CS0618 real, CS0612 e o erro CS0619, [Flags] em enums, CallerMemberName, CallerLineNumber e CallerArgumentExpression, como criar e ler um atributo próprio e os erros CS0246, CS0592 e CS0579, com missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Atributos</span></h1>
+
+<p class="intro">Um <strong>atributo</strong> é uma etiqueta que você cola <strong>em cima</strong> de um pedaço de código, entre colchetes: <code>[Obsolete]</code>, <code>[Flags]</code>, <code>[JsonIgnore]</code>. Ele não muda o que o código faz por si só. Ele <strong>informa</strong> alguma coisa a quem lê o código depois: o compilador, uma biblioteca, uma ferramenta de testes ou o seu próprio programa. Nesta aula você vai usar os atributos mais comuns, ver o aviso que o <code>[Obsolete]</code> provoca e criar uma etiqueta sua.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é um atributo, onde ele fica e como se escreve (argumentos, nomes, o sufixo <code>Attribute</code>).</li>
+  <li><code>[Obsolete]</code>: os avisos <code>CS0618</code> e <code>CS0612</code>, o erro <code>CS0619</code> e como silenciar um aviso de propósito.</li>
+  <li><code>[Flags]</code>: enums que se combinam, como <code>Ler, Escrever</code>.</li>
+  <li><code>[CallerMemberName]</code>, <code>[CallerLineNumber]</code> e <code>[CallerArgumentExpression]</code> <span class="versao">C# 10</span>: o compilador preenche argumentos por você.</li>
+  <li>Como criar um atributo próprio com <code>[AttributeUsage]</code> e lê-lo com reflexão.</li>
+  <li>Os erros <code>CS0246</code>, <code>CS0592</code> e <code>CS0579</code>.</li>
+</ul>
+</div>
+
+<p>Esta aula usa <a href="classes-objetos.html">classes</a>, <a href="heranca.html">herança</a>, <a href="enums.html">enums</a> e <a href="parametros-opcionais.html">parâmetros opcionais</a>. Os exemplos rodaram com <code>dotnet run</code> no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código</h2>
+<p>Na lojinha da Ana, algumas caixas chegam com etiquetas: <strong>"FRÁGIL"</strong>, <strong>"ESTE LADO PARA CIMA"</strong>, <strong>"NÃO VENDER APÓS 30/11"</strong>. A etiqueta não muda o que está dentro da caixa. Mas quem carrega a caixa lê a etiqueta e muda o <strong>jeito de tratar</strong> o que está ali.</p>
+<p>Os atributos são essas etiquetas, coladas em classes, métodos, propriedades, parâmetros e enums. Quem lê as etiquetas pode ser:</p>
+<ul>
+  <li><strong>o compilador</strong>, enquanto compila: o <code>[Obsolete]</code> faz ele avisar quem usa um método velho;</li>
+  <li><strong>o .NET</strong>, enquanto o programa roda: o <code>[Flags]</code> muda o jeito de mostrar um enum;</li>
+  <li><strong>uma biblioteca</strong>: o <code>System.Text.Json</code> lê <code>[JsonPropertyName]</code> para escolher o nome no arquivo JSON;</li>
+  <li><strong>o seu programa</strong>, com <a href="reflexao.html">reflexão</a> (seção 5).</li>
+</ul>
+
+<hr>
+
+<h2>1. O primeiro atributo: <code>[Obsolete]</code></h2>
+<p>A Ana escreveu, há tempos, um método <code>Somar</code> que só soma dois valores. Depois criou o <code>SomarTudo</code>, que soma quantos você quiser. Ela não quer apagar o <code>Somar</code> de uma vez, porque outras partes do programa ainda usam. Mas quer que <strong>todo mundo fique sabendo</strong> que ele vai sumir. Para isso existe o <code>[Obsolete]</code> ("obsoleto", fora de uso):</p>
+
+<pre class="file" data-file="obsoleto.cs">decimal total = Calculadora.Somar(10m, 5m);
+Console.WriteLine(total);
+Console.WriteLine(Calculadora.SomarTudo(10m, 5m, 2.5m));
+
+static class Calculadora
+{
+    [Obsolete("Use SomarTudo, que aceita quantos valores você quiser.")]
+    public static decimal Somar(decimal a, decimal b) =&gt; a + b;
+
+    public static decimal SomarTudo(params decimal[] valores) =&gt; valores.Sum();
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run obsoleto.cs
+/home/ana/cs/obsoleto.cs(1,17): warning CS0618: "Calculadora.Somar(decimal, decimal)" é obsoleto: "Use SomarTudo, que aceita quantos valores você quiser."
+15
+17,5</pre>
+
+<dl class="anatomy">
+  <dt>[</dt><dd>Abre a etiqueta. O atributo fica <strong>logo acima</strong> (ou logo antes) do que ele marca: aqui, o método <code>Somar</code>.</dd>
+  <dt>Obsolete</dt><dd>O nome do atributo. Por dentro, é uma classe chamada <code>ObsoleteAttribute</code>; o C# deixa você omitir o final <code>Attribute</code>.</dd>
+  <dt>("Use SomarTudo, …")</dt><dd>Um argumento, como numa chamada de construtor: a mensagem que o compilador vai mostrar.</dd>
+  <dt>]</dt><dd>Fecha a etiqueta.</dd>
+</dl>
+
+<p>Repare no que aconteceu:</p>
+<ul>
+  <li>O programa <strong>compilou e rodou</strong> (mostrou 15 e 17,5). Um aviso não impede nada.</li>
+  <li>O aviso <code>CS0618</code> apontou o <strong>lugar que usa</strong> o método velho (linha 1, coluna 17), não o lugar onde ele foi declarado. É ali que alguém precisa mexer.</li>
+  <li>A mensagem traz o texto que a Ana escreveu. Por isso vale a pena sempre dizer <strong>o que usar no lugar</strong>.</li>
+</ul>
+
+<h3>Sem mensagem, e como erro</h3>
+<p>Sem argumento nenhum, <code>[Obsolete]</code> dá um aviso de outro número, o <code>CS0612</code>, só dizendo que o método está obsoleto:</p>
+
+<pre class="file" data-file="sem-mensagem.cs">Console.WriteLine(Calculadora.Somar(10m, 5m));
+
+static class Calculadora
+{
+    [Obsolete]
+    public static decimal Somar(decimal a, decimal b) =&gt; a + b;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run sem-mensagem.cs
+/home/ana/cs/sem-mensagem.cs(1,19): warning CS0612: "Calculadora.Somar(decimal, decimal)" está obsoleto
+15</pre>
+
+<p>Quando chega a hora de proibir de vez, um segundo argumento, <code>error: true</code>, transforma o aviso em <strong>erro</strong>. O código que usa o método deixa de compilar:</p>
+
+<pre class="file" data-file="removido.cs">Console.WriteLine(Calculadora.Somar(10m, 5m));
+
+static class Calculadora
+{
+    [Obsolete("Somar foi removido; use SomarTudo.", error: true)]
+    public static decimal Somar(decimal a, decimal b) =&gt; a + b;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run removido.cs
+/home/ana/cs/removido.cs(1,19): error CS0619: "Calculadora.Somar(decimal, decimal)" é obsoleto: "Somar foi removido; use SomarTudo."
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Resultado onde o método é usado</th></tr>
+<tr><td><code>[Obsolete]</code></td><td>Aviso <code>CS0612</code>: "está obsoleto"</td></tr>
+<tr><td><code>[Obsolete("mensagem")]</code></td><td>Aviso <code>CS0618</code>, com a mensagem</td></tr>
+<tr><td><code>[Obsolete("mensagem", error: true)]</code></td><td>Erro <code>CS0619</code>, com a mensagem: não compila</td></tr>
+</table>
+</div>
+
+<p>Esse é o caminho que as bibliotecas do .NET seguem para aposentar um método: primeiro um aviso por algumas versões, para dar tempo de todo mundo trocar; depois, um erro; por fim, o método some.</p>
+
+<div class="tip">
+<strong>Silenciar um aviso de propósito</strong>
+<p>Às vezes você <strong>precisa</strong> usar o método velho por mais um tempo e não quer o aviso a cada compilação. Cerque só aquela linha com <code>#pragma warning disable CS0618</code> e <code>#pragma warning restore CS0618</code>. O aviso some ali, e continua valendo no resto do programa. Faça isso com moderação: o aviso existe para ser resolvido. A aula <a href="avisos.html">Avisos do Compilador</a> fala mais do <code>#pragma</code>.</p>
+</div>
+
+<div class="trycs" data-goal="aviso:CS0618,aviso:Use CalcularPreco,src:\[\s*Obsolete">
+<p class="try-task"><strong>Missão:</strong> o método <code>PrecoComDesconto</code> foi substituído por <code>CalcularPreco</code>. Marque-o com <code>[Obsolete]</code> e a mensagem <code>"Use CalcularPreco."</code>, e rode: o compilador deve dar o aviso <code>CS0618</code> na linha que ainda usa o método velho.</p>
+<pre class="script">Console.WriteLine(Loja.PrecoComDesconto(100m));
+Console.WriteLine(Loja.CalcularPreco(100m, 0.10m));
+
+static class Loja
+{
+    // Marque este método como obsoleto, com a mensagem "Use CalcularPreco."
+    public static decimal PrecoComDesconto(decimal preco) =&gt; preco * 0.9m;
+
+    public static decimal CalcularPreco(decimal preco, decimal desconto) =&gt; preco * (1 - desconto);
+}
+</pre>
+<pre class="solucao">Console.WriteLine(Loja.PrecoComDesconto(100m));
+Console.WriteLine(Loja.CalcularPreco(100m, 0.10m));
+
+static class Loja
+{
+    [Obsolete("Use CalcularPreco.")]
+    public static decimal PrecoComDesconto(decimal preco) =&gt; preco * 0.9m;
+
+    public static decimal CalcularPreco(decimal preco, decimal desconto) =&gt; preco * (1 - desconto);
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Como se escreve um atributo</h2>
+<p>Todo atributo segue o mesmo formato, que é o de <strong>criar um objeto</strong> de uma classe especial:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Exemplo</th><th>O que é</th></tr>
+<tr><td>Sem argumentos</td><td><code>[Flags]</code></td><td>Usa o construtor sem parâmetros. <code>[Flags()]</code> também vale.</td></tr>
+<tr><td>Argumentos na ordem</td><td><code>[Obsolete("Use X.")]</code></td><td>Vão para o construtor do atributo.</td></tr>
+<tr><td>Argumento com nome</td><td><code>[Obsolete("Use X.", error: true)]</code></td><td>Um parâmetro do construtor, escrito pelo nome (como em <a href="parametros-opcionais.html">parâmetros nomeados</a>).</td></tr>
+<tr><td>Propriedade</td><td><code>[Secao("Papelaria", Corredor = 3)]</code></td><td>Depois dos argumentos, <code>Nome = valor</code> preenche uma <strong>propriedade</strong> do atributo.</td></tr>
+<tr><td>Nome completo</td><td><code>[ObsoleteAttribute("…")]</code></td><td>O mesmo que <code>[Obsolete("…")]</code>.</td></tr>
+<tr><td>Vários</td><td><code>[Obsolete, Flags]</code> ou um por linha</td><td>Várias etiquetas na mesma coisa.</td></tr>
+<tr><td>Num parâmetro</td><td><code>void F([CallerMemberName] string m = "")</code></td><td>O atributo fica <strong>antes</strong> do parâmetro.</td></tr>
+</table>
+</div>
+
+<div class="warning">
+<strong>Só valores fixos</strong>
+<p>Os argumentos de um atributo são gravados no programa compilado, então precisam ser <strong>constantes</strong>: números, textos, <code>true</code>/<code>false</code>, valores de enum, <code>typeof(Tipo)</code> e arrays desses. Uma variável, um <code>new Produto()</code> ou um <code>DateTime.Now</code> não são aceitos.</p>
+</div>
+
+<hr>
+
+<h2>3. <code>[Flags]</code>: enums que se combinam</h2>
+<p>Um <a href="enums.html">enum</a> comum guarda <strong>uma</strong> opção: <code>Dia.Segunda</code>. Às vezes você quer guardar <strong>várias ao mesmo tempo</strong>: a Ana pode ler e escrever na planilha da loja, mas não apagar. O truque é dar a cada opção um valor que é uma potência de 2 (1, 2, 4, 8…) e juntá-las com <code>|</code> ("ou" de bits). O <code>[Flags]</code> ("bandeiras") avisa o .NET de que o enum funciona assim:</p>
+
+<pre class="file" data-file="flags.cs">Permissao ana = Permissao.Ler | Permissao.Escrever;
+Console.WriteLine(ana);
+Console.WriteLine(ana.HasFlag(Permissao.Escrever));
+Console.WriteLine(ana.HasFlag(Permissao.Apagar));
+Console.WriteLine(Permissao.Tudo);
+Console.WriteLine((Dia)3);
+
+[Flags]
+enum Permissao
+{
+    Nenhuma = 0,
+    Ler = 1,
+    Escrever = 2,
+    Apagar = 4,
+    Tudo = Ler | Escrever | Apagar,
+}
+
+enum Dia { Seg = 1, Ter = 2 }
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run flags.cs
+Ler, Escrever
+True
+False
+Tudo
+3</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que acontece</th></tr>
+<tr><td><code>Permissao.Ler | Permissao.Escrever</code></td><td>1 | 2 = 3: as duas "bandeiras" ficam levantadas no mesmo valor.</td></tr>
+<tr><td><code>Console.WriteLine(ana)</code></td><td>Por causa do <code>[Flags]</code>, o <code>ToString</code> mostra as partes: <code>Ler, Escrever</code>.</td></tr>
+<tr><td><code>ana.HasFlag(Permissao.Escrever)</code></td><td>"Tem a bandeira Escrever?" <code>True</code>.</td></tr>
+<tr><td><code>Permissao.Tudo</code></td><td>Uma combinação com nome próprio aparece pelo nome.</td></tr>
+<tr><td><code>(Dia)3</code></td><td>O <code>Dia</code> <strong>não</strong> tem <code>[Flags]</code>: o 3 não é nenhum dia e aparece só como número. Com <code>[Flags]</code>, sairia <code>Seg, Ter</code>.</td></tr>
+</table>
+</div>
+
+<p>Aqui quem lê a etiqueta é o próprio .NET, enquanto o programa roda: o <code>Enum.ToString()</code> confere se o tipo tem <code>[Flags]</code> e muda o jeito de escrever.</p>
+
+<hr>
+
+<h2>4. O compilador preenche para você: <code>Caller…</code></h2>
+<p>Três atributos da pasta <code>System.Runtime.CompilerServices</code> marcam <strong>parâmetros opcionais</strong> e pedem ao compilador para preenchê-los com informações de <strong>quem chamou</strong> o método:</p>
+
+<pre class="file" data-file="registro.cs">using System.Runtime.CompilerServices;
+
+Loja.Abrir();
+Loja.Vender("caderno");
+
+static class Loja
+{
+    public static void Abrir() =&gt; Registrar("Loja aberta");
+
+    public static void Vender(string produto)
+    {
+        Registrar($"Vendi um {produto}");
+    }
+
+    static void Registrar(string mensagem,
+        [CallerMemberName] string metodo = "",
+        [CallerLineNumber] int linha = 0)
+    {
+        Console.WriteLine($"[{metodo}, linha {linha}] {mensagem}");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run registro.cs
+[Abrir, linha 8] Loja aberta
+[Vender, linha 12] Vendi um caderno</pre>
+
+<dl class="anatomy">
+  <dt>using System.Runtime.CompilerServices;</dt><dd>A pasta (<a href="namespaces.html">namespace</a>) onde esses atributos moram.</dd>
+  <dt>[CallerMemberName] string metodo = ""</dt><dd>"Nome do membro que chamou." Quem chama não passa nada; o compilador escreve <code>"Abrir"</code> ou <code>"Vender"</code> no lugar do <code>""</code>.</dd>
+  <dt>[CallerLineNumber] int linha = 0</dt><dd>"Número da linha da chamada": 8 e 12, as linhas onde está o <code>Registrar(…)</code>.</dd>
+</dl>
+
+<p>Nada disso acontece enquanto o programa roda: na hora de compilar, o C# reescreve <code>Registrar("Loja aberta")</code> como <code>Registrar("Loja aberta", "Abrir", 8)</code>. É um registro de atividades (<em>log</em>) que se mantém certo sozinho, mesmo que você mude o nome do método ou mova a linha. Existe também o <code>[CallerFilePath]</code>, com o caminho do arquivo.</p>
+
+<h3><code>[CallerArgumentExpression]</code> <span class="versao">C# 10</span></h3>
+<p>O mais esperto dos três guarda o <strong>texto</strong> que a pessoa escreveu como argumento. Ótimo para mensagens de erro que dizem exatamente <strong>qual</strong> condição falhou:</p>
+
+<pre class="file" data-file="conferir.cs">using System.Runtime.CompilerServices;
+
+int idade = 15;
+Conferir(idade &gt;= 18);
+Conferir(idade &gt; 0);
+
+void Conferir(bool condicao, [CallerArgumentExpression(nameof(condicao))] string expressao = "")
+{
+    Console.WriteLine(condicao ? $"ok: {expressao}" : $"FALHOU: {expressao}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run conferir.cs
+FALHOU: idade &gt;= 18
+ok: idade &gt; 0</pre>
+
+<p>O argumento do atributo, <code>nameof(condicao)</code>, diz <strong>de qual parâmetro</strong> copiar o texto. O próprio .NET usa isso: <code>ArgumentNullException.ThrowIfNull(cliente)</code> sabe escrever "cliente" na mensagem de erro porque tem um <code>[CallerArgumentExpression]</code>.</p>
+
+<hr>
+
+<h2>5. Criar o seu próprio atributo</h2>
+<p>Um atributo é só uma classe que <strong>herda de <code>Attribute</code></strong>. Por convenção, o nome termina em <code>Attribute</code>. A Ana quer etiquetar cada tipo de produto com a seção e o corredor da loja:</p>
+
+<pre class="file" data-file="secao.cs">using System.Reflection;
+
+foreach (var tipo in new[] { typeof(Caderno), typeof(Caneta), typeof(Borracha) })
+{
+    var etiqueta = tipo.GetCustomAttribute&lt;SecaoAttribute&gt;();
+    Console.WriteLine($"{tipo.Name}: {etiqueta?.Nome ?? "sem seção"} (corredor {etiqueta?.Corredor})");
+}
+
+[AttributeUsage(AttributeTargets.Class)]
+class SecaoAttribute(string nome) : Attribute
+{
+    public string Nome { get; } = nome;
+    public int Corredor { get; set; }
+}
+
+[Secao("Papelaria", Corredor = 3)]
+class Caderno { }
+
+[Secao("Escrita")]
+class Caneta { }
+
+class Borracha { }
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run secao.cs
+Caderno: Papelaria (corredor 3)
+Caneta: Escrita (corredor 0)
+Borracha: sem seção (corredor )</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Trecho</th><th>O que faz</th></tr>
+<tr><td><code>[AttributeUsage(AttributeTargets.Class)]</code></td><td>Um atributo <strong>no atributo</strong>: diz onde a etiqueta pode ser colada. Aqui, só em classes. Outros alvos: <code>Method</code>, <code>Property</code>, <code>Field</code>, <code>Parameter</code>, <code>Enum</code>, <code>All</code>…</td></tr>
+<tr><td><code>class SecaoAttribute(string nome) : Attribute</code></td><td>A classe do atributo, com um <a href="construtores.html">construtor primário</a> que recebe o nome da seção.</td></tr>
+<tr><td><code>public int Corredor { get; set; }</code></td><td>Uma propriedade com <code>set</code>: é ela que o <code>Corredor = 3</code> preenche.</td></tr>
+<tr><td><code>[Secao("Papelaria", Corredor = 3)]</code></td><td>O uso, sem o sufixo <code>Attribute</code>.</td></tr>
+<tr><td><code>tipo.GetCustomAttribute&lt;SecaoAttribute&gt;()</code></td><td><strong>Lê</strong> a etiqueta de um tipo, enquanto o programa roda. Devolve <code>null</code> se não houver (a <code>Borracha</code>). Isso é <a href="reflexao.html">reflexão</a>, o assunto da próxima aula.</td></tr>
+</table>
+</div>
+
+<p>Repare: colar <code>[Secao]</code> numa classe, por si só, <strong>não faz nada</strong>. Ele só ganha efeito porque o laço lá em cima procura a etiqueta e age conforme o que encontra. É assim com todo atributo: alguém precisa lê-lo. Bibliotecas inteiras funcionam desse jeito, como o xUnit (que procura métodos com <code>[Fact]</code> para rodar como <a href="testes.html">testes</a>) e o <code>System.Text.Json</code> (que procura <code>[JsonPropertyName]</code> e <code>[JsonIgnore]</code>; veja <a href="json.html">JSON</a>).</p>
+
+<hr>
+
+<h2>Atributos que você vai encontrar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Atributo</th><th>Onde</th><th>Quem lê</th><th>Para quê</th></tr>
+<tr><td><code>[Obsolete]</code></td><td>Qualquer membro ou tipo</td><td>Compilador</td><td>Avisar (ou proibir) o uso de algo velho</td></tr>
+<tr><td><code>[Flags]</code></td><td>Enum</td><td>.NET</td><td>Enum de combinações (<code>Ler, Escrever</code>)</td></tr>
+<tr><td><code>[CallerMemberName]</code>, <code>[CallerLineNumber]</code>, <code>[CallerFilePath]</code>, <code>[CallerArgumentExpression]</code></td><td>Parâmetro opcional</td><td>Compilador</td><td>Preencher informações de quem chamou</td></tr>
+<tr><td><code>[AttributeUsage]</code></td><td>Classe de atributo</td><td>Compilador</td><td>Onde o atributo pode ser usado</td></tr>
+<tr><td><code>[JsonPropertyName("x")]</code>, <code>[JsonIgnore]</code></td><td>Propriedade</td><td><code>System.Text.Json</code></td><td>Nome no JSON / deixar de fora</td></tr>
+<tr><td><code>[Fact]</code>, <code>[Theory]</code></td><td>Método</td><td>xUnit</td><td>Marcar um teste</td></tr>
+<tr><td><code>[Required]</code>, <code>[Range(1, 10)]</code></td><td>Propriedade</td><td>Validação (ASP.NET e outros)</td><td>Regras de preenchimento</td></tr>
+<tr><td><code>[DebuggerDisplay("…")]</code></td><td>Tipo</td><td>Depurador</td><td>O que mostrar ao inspecionar o objeto</td></tr>
+<tr><td><code>[SetsRequiredMembers]</code></td><td>Construtor</td><td>Compilador</td><td>Dizer que o construtor preenche os <a href="inicializadores.html"><code>required</code></a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<h3>Atributo com nome errado (ou sem o <code>using</code>)</h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="desconhecido.cs">Console.WriteLine("oi");
+[Obsoleto]
+class Produto { }
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run desconhecido.cs
+/home/ana/cs/desconhecido.cs(2,2): error CS0246: O nome do tipo ou do namespace "ObsoletoAttribute" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?)
+/home/ana/cs/desconhecido.cs(2,2): error CS0246: O nome do tipo ou do namespace "Obsoleto" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> o compilador procurou uma classe <code>ObsoletoAttribute</code> e, depois, <code>Obsoleto</code> (por isso são dois erros iguais) e não achou nenhuma. Os nomes dos atributos do .NET são em inglês. <strong>Como consertar:</strong> confira a grafia (<code>[Obsolete]</code>). Se a grafia estiver certa, falta o <code>using</code> da pasta do atributo, como <code>using System.Runtime.CompilerServices;</code> para o <code>[CallerMemberName]</code> ou <code>using System.Text.Json.Serialization;</code> para o <code>[JsonIgnore]</code>.</p>
+</div>
+
+<div class="cenario">
+<h3>Atributo no lugar errado</h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="alvo.cs">class Produto
+{
+    [Secao("x")]
+    public string Nome = "";
+}
+[AttributeUsage(AttributeTargets.Class)]
+class SecaoAttribute(string nome) : Attribute
+{
+    public string Nome { get; } = nome;
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run alvo.cs
+/home/ana/cs/alvo.cs(3,6): error CS0592: Atributo "Secao" não é válido neste tipo de declaração. Ele é válido somente em "classe" declarações.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> o <code>[AttributeUsage(AttributeTargets.Class)]</code> diz que <code>Secao</code> só vale em classes, e ele foi colado num campo. (A ordem estranha das palavras, "em classe declarações", é da tradução.) <strong>Como consertar:</strong> mova o atributo para a classe ou, se ele deve mesmo valer em campos, acrescente o alvo: <code>[AttributeUsage(AttributeTargets.Class | AttributeTargets.Field)]</code>.</p>
+</div>
+
+<div class="cenario">
+<h3>O mesmo atributo duas vezes</h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="duplicado.cs">[Secao("a")]
+[Secao("b")]
+class Caderno { }
+[AttributeUsage(AttributeTargets.Class)]
+class SecaoAttribute(string nome) : Attribute { public string Nome { get; } = nome; }
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run duplicado.cs
+/home/ana/cs/duplicado.cs(2,2): error CS0579: Duplicar atributo "Secao"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> "atributo <code>Secao</code> duplicado" (<em>Duplicate 'Secao' attribute</em>). Por padrão, cada atributo só pode aparecer uma vez no mesmo lugar. <strong>Como consertar:</strong> deixe uma etiqueta só ou, se repetir faz sentido (um produto em duas seções), permita: <code>[AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]</code>, e leia todas com <code>GetCustomAttributes&lt;SecaoAttribute&gt;()</code> (no plural).</p>
+</div>
+
+<div class="cenario">
+<h3><code>error CS0619</code>: o método foi aposentado</h3>
+<p>O <code>[Obsolete("…", error: true)]</code> transforma o uso em erro (seção 1). <strong>Como consertar:</strong> faça o que a mensagem manda e troque pelo método novo. Se o código é seu e você ainda não pode trocar, volte o atributo para aviso (sem o <code>error: true</code>) por enquanto.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Exemplo</th></tr>
+<tr><td>Atributo simples</td><td><code>[Flags]</code></td></tr>
+<tr><td>Com argumentos</td><td><code>[Obsolete("Use X.", error: true)]</code></td></tr>
+<tr><td>Com propriedade</td><td><code>[Secao("Papelaria", Corredor = 3)]</code></td></tr>
+<tr><td>Vários</td><td><code>[A, B]</code> ou <code>[A]</code> e <code>[B]</code> em linhas separadas</td></tr>
+<tr><td>Em parâmetro</td><td><code>void F([CallerMemberName] string m = "")</code></td></tr>
+<tr><td>Criar</td><td><code>class SecaoAttribute : Attribute { … }</code></td></tr>
+<tr><td>Restringir o alvo</td><td><code>[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]</code></td></tr>
+<tr><td>Permitir repetir</td><td><code>[AttributeUsage(…, AllowMultiple = true)]</code></td></tr>
+<tr><td>Ler (um)</td><td><code>typeof(T).GetCustomAttribute&lt;SecaoAttribute&gt;()</code> (com <code>using System.Reflection;</code>)</td></tr>
+<tr><td>Ler (vários)</td><td><code>typeof(T).GetCustomAttributes&lt;SecaoAttribute&gt;()</code></td></tr>
+<tr><td>Silenciar um aviso</td><td><code>#pragma warning disable CS0618</code> … <code>#pragma warning restore CS0618</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<p>1. Complete para marcar o método como obsoleto, com mensagem:</p>
+<div class="ex-code">[<input data-answer="Obsolete">("Use Novo.")]</div>
+</div>
+
+<div class="exercise">
+<p>2. De qual classe todo atributo herda?</p>
+<div class="ex-code">class MeuAttribute : <input data-answer="Attribute|System.Attribute"> { }</div>
+</div>
+
+<div class="exercise">
+<p>3. Qual código de aviso aparece quando se usa um método com <code>[Obsolete("mensagem")]</code>?</p>
+<div class="ex-code">Resposta: <input data-answer="CS0618|cs0618"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. O que <code>[Obsolete("Use SomarTudo.", error: true)]</code> faz com o código que usa o método?</p>
+<label><input type="radio" name="q4"> Mostra um aviso, mas compila.</label>
+<label><input type="radio" name="q4"> Lança uma exceção quando o método é chamado.</label>
+<label><input type="radio" name="q4"> Não compila: erro <code>CS0619</code>.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. Você colou <code>[Secao("Papelaria")]</code> numa classe e nada mudou no programa. Por quê?</p>
+<label><input type="radio" name="q5"> Porque um atributo só tem efeito quando alguém (compilador, biblioteca ou seu código) o lê.</label>
+<label><input type="radio" name="q5"> Porque faltou o sufixo <code>Attribute</code>.</label>
+<label><input type="radio" name="q5"> Porque atributos só funcionam em métodos.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">6. Com <code>[Flags] enum Permissao { Ler = 1, Escrever = 2 }</code>, o que mostra <code>Console.WriteLine(Permissao.Ler | Permissao.Escrever)</code>?</p>
+<label><input type="radio" name="q6"> <code>3</code></label>
+<label><input type="radio" name="q6"> <code>Ler, Escrever</code></label>
+<label><input type="radio" name="q6"> <code>Escrever</code></label>
+</div>
+
+<div class="trycs" data-goal="out:ok: estoque &gt; 0,out:FALHOU: preco &gt;= 0,out:FALHOU: nome.Length &lt;= 5,src:CallerArgumentExpression">
+<p class="try-task"><strong>Missão final:</strong> o <code>Conferir</code> mostra só <code>FALHOU</code>, sem dizer o quê. Acrescente um segundo parâmetro <code>[CallerArgumentExpression(nameof(condicao))] string expressao = ""</code> e mostre-o na mensagem, para a saída ficar <code>ok: estoque &gt; 0</code>, <code>FALHOU: preco &gt;= 0</code> e <code>FALHOU: nome.Length &lt;= 5</code>. Não esqueça o <code>using</code> lá em cima.</p>
+<pre class="script">int estoque = 3;
+decimal preco = -2.50m;
+string nome = "Caderno";
+
+Conferir(estoque &gt; 0);
+Conferir(preco &gt;= 0);
+Conferir(nome.Length &lt;= 5);
+
+void Conferir(bool condicao)
+{
+    Console.WriteLine(condicao ? "ok" : "FALHOU");
+}
+</pre>
+<pre class="solucao">using System.Runtime.CompilerServices;
+
+int estoque = 3;
+decimal preco = -2.50m;
+string nome = "Caderno";
+
+Conferir(estoque &gt; 0);
+Conferir(preco &gt;= 0);
+Conferir(nome.Length &lt;= 5);
+
+void Conferir(bool condicao, [CallerArgumentExpression(nameof(condicao))] string expressao = "")
+{
+    Console.WriteLine(condicao ? $"ok: {expressao}" : $"FALHOU: {expressao}");
+}
+</pre>
+</div>
+
+<p>A solução, na máquina da Ana:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run conferir2.cs
+ok: estoque &gt; 0
+FALHOU: preco &gt;= 0
+FALHOU: nome.Length &lt;= 5</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um <strong>atributo</strong> é uma etiqueta entre colchetes colada em tipos, membros e parâmetros. Ele só tem efeito quando alguém o lê: o compilador, o .NET, uma biblioteca ou o seu código.</li>
+  <li><code>[Obsolete]</code> dá o aviso <code>CS0612</code>; com mensagem, <code>CS0618</code>; com <code>error: true</code>, o erro <code>CS0619</code>. Sempre diga na mensagem o que usar no lugar.</li>
+  <li><code>[Flags]</code> marca enums de combinações (valores 1, 2, 4, 8…, juntados com <code>|</code>), e o <code>ToString</code> passa a mostrar <code>Ler, Escrever</code>.</li>
+  <li><code>[CallerMemberName]</code>, <code>[CallerLineNumber]</code> e <code>[CallerArgumentExpression]</code> <span class="versao">C# 10</span> fazem o compilador preencher parâmetros opcionais com dados de quem chamou.</li>
+  <li>Um atributo próprio é uma classe que herda de <code>Attribute</code> (nome terminando em <code>Attribute</code>); o <code>[AttributeUsage]</code> limita onde ela vale (<code>CS0592</code>) e se pode repetir (<code>CS0579</code>). Lê-se com <code>GetCustomAttribute</code>.</li>
+  <li>Os argumentos de atributos precisam ser constantes. Nome errado ou <code>using</code> faltando: <code>CS0246</code>.</li>
+</ul>
+
+<p>Próxima aula: <a href="reflexao.html">Reflexão</a>, o programa examinando os próprios tipos, métodos e atributos enquanto roda.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
