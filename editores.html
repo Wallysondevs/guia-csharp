@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Editores e IDEs — VS Code com C# Dev Kit, Visual Studio 2026 e Rider | Guia C#</title>
+<meta name="description" content="Onde escrever C#: a diferença entre editor de texto, editor de código e IDE; o VS Code com as extensões C# e C# Dev Kit (e a licença), o terminal integrado e o dotnet run; o Visual Studio 2026 Community; o JetBrains Rider gratuito para uso não comercial; Vim e Neovim. Os cuidados com o arquivo: extensão .cs, UTF-8 (o Ol� do Latin-1) e salvar antes de rodar, com saídas reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Editores e IDEs</span></h1>
+
+<p class="intro">Código C# é <strong>texto puro</strong>: dá para escrevê-lo até no Bloco de Notas. Mas um bom editor de código faz a diferença entre sofrer e aprender: ele pinta cada parte do código de uma cor, sublinha o erro enquanto você digita, completa os nomes (<code>Console.Wr…</code> vira <code>Console.WriteLine</code>) e roda o programa com um atalho. Nesta aula você conhece os editores e IDEs mais usados para C#, prepara o VS Code e aprende os cuidados com o arquivo que evitam muita dor de cabeça.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A diferença entre editor de texto, editor de código e IDE, e por que nenhum deles é o compilador.</li>
+  <li>Como preparar o <strong>VS Code</strong> com as extensões <strong>C#</strong> e <strong>C# Dev Kit</strong>, e o que diz a licença de cada uma.</li>
+  <li>Como rodar o programa pelo terminal integrado do VS Code.</li>
+  <li>O que oferecem o <strong>Visual Studio 2026</strong>, o <strong>JetBrains Rider</strong> e o Vim/Neovim, e qual escolher.</li>
+  <li>Os cuidados com o arquivo: a extensão <code>.cs</code>, a codificação UTF-8 e salvar antes de rodar.</li>
+</ul>
+</div>
+
+<p>Esta aula não tem capturas de tela: os menus mudam a cada versão, e o guia descreve o caminho pelo nome dos botões. As saídas de terminal foram produzidas na máquina fictícia da Ana, com o .NET 10, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: caneta, caderno e estojo completo</h2>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>Comparação</th><th>O que faz</th><th>Exemplos</th></tr>
+<tr><td><strong>Editor de texto</strong></td><td>Uma caneta e uma folha</td><td>Só escreve e salva texto.</td><td>Bloco de Notas, gedit, Editor de Texto do Ubuntu, nano</td></tr>
+<tr><td><strong>Editor de código</strong></td><td>Um caderno com régua, marca-texto e corretor</td><td>Cores por tipo de palavra, números das linhas, completar nomes, marcar erros; com extensões, roda e depura.</td><td>VS Code, Vim, Neovim, Zed, Sublime Text</td></tr>
+<tr><td><strong>IDE</strong> (<em>Integrated Development Environment</em>, "ambiente de desenvolvimento integrado")</td><td>O estojo completo</td><td>Tudo do editor de código, mais projetos, depurador, testes e ferramentas de análise, já configurados e ligados entre si.</td><td>Visual Studio 2026, JetBrains Rider</td></tr>
+</table>
+</div>
+
+<div class="warning">
+<strong>Nenhum deles é o compilador</strong>
+<p>O editor só ajuda a <strong>escrever</strong>. Quem compila e roda o programa continua sendo o <strong>.NET SDK</strong>, que você instalou na aula <a href="instalar-linux.html">Instalar no Linux</a> ou <a href="instalar-windows-mac.html">Instalar no Windows e macOS</a>. Sem o SDK, o mais bonito dos editores não consegue rodar nada. A exceção é o Visual Studio, que instala o SDK junto. Mesmo assim, por baixo, tudo usa o mesmo comando <code>dotnet</code> e o mesmo compilador Roslyn: o erro que o editor sublinha é o mesmo que o <code>dotnet run</code> mostra.</p>
+</div>
+
+<hr>
+
+<h2>1. Por que um editor de código ajuda tanto</h2>
+<p>Veja um engano que todo iniciante comete: esquecer de fechar as aspas. A Ana escreveu <code>"Olá, mundo!</code> e o <code>"</code> do fim sumiu:</p>
+
+<pre class="file" data-file="aspas.cs · erro de propósito">Console.WriteLine("Olá, mundo!);
+Console.WriteLine("Tchau!");
+</pre>
+
+<p>Num editor de código, o problema salta aos olhos antes mesmo de rodar: o texto entre aspas tem uma cor própria, e essa cor "vaza" até o fim da linha. O editor também sublinha o erro com uma ondinha vermelha. Sem essa ajuda, a Ana só descobre ao rodar:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run aspas.cs
+/home/ana/cs/aspas.cs(1,19): error CS1010: Newline em constante     « a primeira mensagem diz tudo
+/home/ana/cs/aspas.cs(1,33): error CS1003: Erro de sintaxe, "," esperado
+/home/ana/cs/aspas.cs(2,28): error CS1026: ) esperado               « a linha 2 está certa!
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A primeira mensagem já diz o problema: <code>CS1010: Newline em constante</code>, "quebra de linha dentro de uma constante": o texto começou na coluna 19 (nas aspas) e chegou ao fim da linha sem fechar. As outras são consequência: sem as aspas fechadas, o compilador se perdeu e reclamou até da linha 2, que está certa. Regra de ouro, que a aula <a href="erros-compilacao.html">Lendo Erros do Compilador</a> detalha: <strong>leia e conserte a primeira mensagem, e rode de novo</strong>.</p>
+
+<p>O editor do guia também pinta o código. Repare nas cores da linha 1:</p>
+
+<div class="trycs" data-goal="outre:^Olá\, mundo!\nTchau!\n$">
+<p class="try-task"><strong>Missão:</strong> rode e leia o erro. Depois feche as aspas no lugar certo (depois do <code>!</code>, antes do <code>)</code>) e rode de novo: devem aparecer as duas linhas.</p>
+<pre class="script" data-file="aspas.cs">Console.WriteLine("Olá, mundo!);
+Console.WriteLine("Tchau!");
+</pre>
+<pre class="solucao">Console.WriteLine("Olá, mundo!");
+Console.WriteLine("Tchau!");
+</pre>
+</div>
+
+<p>Além das cores, um editor de código:</p>
+<ul>
+  <li><strong>numera as linhas</strong>, os mesmos números que as mensagens do compilador citam (<code>aspas.cs(1,19)</code> é a linha 1, coluna 19);</li>
+  <li><strong>faz o recuo sozinho</strong>: depois de um <code>{</code>, a próxima linha já começa mais para dentro;</li>
+  <li><strong>fecha os pares</strong>: digitou <code>(</code>, ele põe o <code>)</code>; digitou <code>"</code>, ele põe o outro <code>"</code>;</li>
+  <li><strong>completa nomes</strong> (o <strong>IntelliSense</strong>): digite <code>Console.</code> e ele mostra a lista de tudo o que existe dentro do <code>Console</code>, com uma explicação de cada item;</li>
+  <li><strong>marca erros e avisos</strong> enquanto você digita, com os mesmos códigos <code>CSxxxx</code> do compilador, e muitas vezes oferece o conserto (a "lâmpada", <kbd>Ctrl</kbd>+<kbd>.</kbd>).</li>
+</ul>
+
+<hr>
+
+<h2>2. VS Code</h2>
+<p>O <strong>Visual Studio Code</strong> (VS Code) é um editor de código gratuito da Microsoft, para Windows, Linux e macOS. Sozinho, ele só pinta o código; com as extensões de C#, vira um ambiente completo. É leve, muito usado e o recomendado para seguir o guia. Não confunda com o <strong>Visual Studio</strong> (sem "Code"), a IDE pesada só para Windows (seção 3).</p>
+
+<h3>Instalando</h3>
+<ol class="passo">
+  <li>Baixe em <a href="https://code.visualstudio.com/">code.visualstudio.com</a>: no Ubuntu e no Debian, o arquivo <code>.deb</code>; no Fedora, o <code>.rpm</code>; no Windows e no macOS, o instalador.</li>
+  <li>Instale como qualquer programa. No Ubuntu, dê dois cliques no <code>.deb</code> ou rode <code>sudo apt install ./code_*.deb</code> na pasta do download.</li>
+  <li>Abra a pasta dos seus programas: no terminal, <code>code ~/cs</code>; ou, no VS Code, <strong>Arquivo › Abrir Pasta</strong>. Trabalhe sempre com a <strong>pasta</strong> aberta, não com arquivos soltos.</li>
+  <li>Crie um arquivo com <strong>Arquivo › Novo Arquivo</strong> e salve com um nome terminado em <code>.cs</code>, como <code>ola.cs</code>. O VS Code reconhece a linguagem (o canto de baixo da janela passa a dizer <strong>C#</strong>) e oferece instalar a extensão.</li>
+</ol>
+
+<h3>As extensões: C# e C# Dev Kit</h3>
+<p>Abra a aba <strong>Extensões</strong> (o ícone de quadradinhos na barra da esquerda, ou <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd>) e procure por <strong>C# Dev Kit</strong>. Ao instalá-la, o VS Code instala junto a extensão <strong>C#</strong>, de que ela depende:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>C#</th><th>C# Dev Kit</th></tr>
+<tr><td>Identificador</td><td><code>ms-dotnettools.csharp</code></td><td><code>ms-dotnettools.csdevkit</code></td></tr>
+<tr><td>O que faz</td><td>Cores, IntelliSense, erros sublinhados, ir para a definição, depurador. Usa o próprio Roslyn por baixo.</td><td>Por cima da C#: o painel <strong>Gerenciador de Soluções</strong>, criar projetos pelo menu, rodar testes, mais recursos de depuração.</td></tr>
+<tr><td>Licença</td><td>Código aberto (licença MIT)</td><td>Gratuita para uso pessoal, estudo e código aberto, e para empresas de até 5 programadores. Acima disso, precisa de assinatura do Visual Studio. A Microsoft pede que você entre com uma conta Microsoft.</td></tr>
+<tr><td>Precisa?</td><td><strong>Sim</strong></td><td>Opcional, mas ajuda muito com projetos</td></tr>
+</table>
+</div>
+
+<p>Para o guia, a extensão <strong>C#</strong> sozinha já basta; a C# Dev Kit é conforto. Se você prefere ficar só com software livre, fique só com a C#. A Dev Kit também oferece, na primeira vez, instalar o .NET SDK, caso ele ainda não esteja no computador.</p>
+
+<h3>Rodando pelo terminal integrado</h3>
+<p>O VS Code tem um terminal dentro dele: <strong>Exibir › Terminal</strong>, ou <kbd>Ctrl</kbd>+<kbd>'</kbd> (a tecla do apóstrofo, no teclado brasileiro). É um terminal normal, já aberto na pasta do projeto: ali você roda o mesmo <code>dotnet run ola.cs</code> do guia.</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ola.cs
+Olá, mundo!</pre>
+
+<p>Esse é o jeito recomendado para o Nível 1: escreva no editor, salve com <kbd>Ctrl</kbd>+<kbd>S</kbd> e rode no terminal integrado. Você vê exatamente as mesmas mensagens do guia.</p>
+
+<h3>Uma configuração que vale a pena: salvar sozinho</h3>
+<p>O erro mais bobo do mundo é rodar sem salvar (veja a seção 5). Para evitá-lo, ligue o salvamento automático: <strong>Arquivo › Salvamento Automático</strong>. A partir daí, o VS Code salva o arquivo sempre que você para de digitar por um instante.</p>
+
+<hr>
+
+<h2>3. Visual Studio 2026 (Windows)</h2>
+<p>O <strong>Visual Studio</strong> é a IDE completa da Microsoft para C#, com mais de 25 anos de estrada. Ele só existe para <strong>Windows</strong>. A versão atual, o <strong>Visual Studio 2026</strong> (versão 18), é a primeira com suporte ao .NET 10. A edição <strong>Community</strong> é gratuita para estudantes, pessoas físicas, projetos de código aberto e pequenas empresas.</p>
+
+<ul>
+  <li><strong>Prós:</strong> tudo pronto e integrado: projetos, depurador visual muito bom, editor de janelas (para WPF e WinForms), testes, análise de desempenho. Instala o .NET SDK junto.</li>
+  <li><strong>Contras:</strong> pesado (vários gigabytes) e só Windows. Ele esconde muito do que acontece por baixo, e o guia ensina pelo terminal.</li>
+</ul>
+
+<p>Na instalação, marque a carga de trabalho <strong>Desenvolvimento para desktop com .NET</strong>. Para os exemplos do guia, crie um projeto do tipo <strong>Aplicativo de Console</strong> (aula <a href="projetos-console.html">Projetos (dotnet new console)</a>) e escreva o código no <code>Program.cs</code>. O <strong>Visual Studio for Mac</strong>, que existia antes, foi <strong>descontinuado</strong> em 31 de agosto de 2024: no Mac, use o VS Code ou o Rider.</p>
+
+<hr>
+
+<h2>4. Outras opções</h2>
+
+<h3>JetBrains Rider</h3>
+<p>O <strong>Rider</strong> é a IDE de C# da JetBrains (a mesma empresa do IntelliJ, para Java). Ele roda no <strong>Windows, no Linux e no macOS</strong>, tem um analisador de código muito esperto (sugere melhorias em quase toda linha) e um bom depurador. Desde outubro de 2024, ele é <strong>gratuito para uso não comercial</strong> (estudar, projetos pessoais, código aberto); para trabalho, é pago. Muita gente que programa C# no Linux ou no Mac usa o Rider.</p>
+
+<h3>Vim, Neovim, Emacs, Zed, Sublime Text</h3>
+<p>Editores que entendem o <strong>LSP</strong> (<em>Language Server Protocol</em>, um jeito padrão de um editor conversar com um "servidor de linguagem") ganham completar e erros sublinhados para C# com um servidor de linguagem baseado no Roslyn. A configuração é manual e cada editor tem a sua. São ótimos para quem já usa um deles; para quem está começando, o VS Code dá menos trabalho.</p>
+
+<h3>Qual escolher?</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Recomendação</th></tr>
+<tr><td>Está começando (qualquer sistema)</td><td><strong>VS Code com a extensão C#</strong> e o terminal integrado</td></tr>
+<tr><td>Windows, quer tudo pronto, vai fazer programas de janela</td><td>Visual Studio 2026 Community</td></tr>
+<tr><td>Linux ou macOS, quer uma IDE completa</td><td>JetBrains Rider (grátis para uso não comercial)</td></tr>
+<tr><td>Já usa Vim, Neovim ou Emacs</td><td>Continue nele, com um servidor de linguagem de C#</td></tr>
+<tr><td>Ainda não quer instalar nada</td><td>O editor do guia, no navegador (aula <a href="simulador.html">O Editor do Guia</a>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>5. Os cuidados com o arquivo</h2>
+
+<h3>A extensão <code>.cs</code></h3>
+<p>O nome do arquivo tem de terminar em <code>.cs</code>: é por ela que o editor sabe que é C# e que o <code>dotnet run</code> sabe que é um programa. Cuidado com o Windows, que esconde as extensões: o Bloco de Notas pode salvar <code>ola.cs.txt</code> (aula <a href="instalar-windows-mac.html">Instalar no Windows e macOS</a>). Use nomes sem espaços e sem acentos (<code>ola.cs</code>, <code>media_notas.cs</code>): funcionam com o <code>dotnet</code> e evitam aspas nos comandos.</p>
+
+<h3>A codificação: UTF-8</h3>
+<p>Um arquivo de texto guarda letras como números, e há mais de uma "tabela" para isso (a <strong>codificação</strong>). Hoje, o padrão do mundo é o <strong>UTF-8</strong>, que tem todas as letras de todas as línguas, e é ele que o .NET espera. O VS Code, o Visual Studio e o Rider já salvam em UTF-8. Mas editores antigos do Windows às vezes salvam em <strong>Latin-1</strong> (ISO-8859-1), e aí os acentos estragam. A Ana gravou o mesmo <code>Olá, mundo!</code> nas duas codificações para comparar:</p>
+
+<pre class="term" data-cwd="~/cs">$ file ola.cs latin1.cs                           « o file descobre a codificação
+ola.cs:    Unicode text, UTF-8 text
+latin1.cs: ISO-8859 text                          « ISO-8859 = Latin-1
+$ dotnet run ola.cs
+Olá, mundo!
+$ dotnet run latin1.cs
+Ol�, mundo!                                       « o á virou �</pre>
+
+<p>O <code>�</code> é o "caractere de substituição": o compilador leu o arquivo como UTF-8, encontrou um byte que não faz sentido em UTF-8 (o <code>á</code> do Latin-1) e o trocou por esse símbolo. O programa compilou e rodou, só que com a letra errada, e o erro passa despercebido. <strong>Como evitar:</strong> salve sempre em UTF-8. No VS Code, a codificação aparece no canto de baixo da janela (<code>UTF-8</code>); clicando nela, dá para escolher <strong>Salvar com Codificação › UTF-8</strong>.</p>
+
+<h3>Salvar antes de rodar</h3>
+<p>O <code>dotnet run</code> lê o arquivo que está <strong>no disco</strong>, não o que está na tela do editor. Se você mudou o código e não salvou, ele roda a versão antiga, e você fica sem entender por que nada mudou. No VS Code, um arquivo não salvo tem um <strong>círculo branco</strong> no lugar do <code>×</code> da aba. Salve com <kbd>Ctrl</kbd>+<kbd>S</kbd> (no Mac, <kbd>Cmd</kbd>+<kbd>S</kbd>), ou ligue o salvamento automático.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>Mudei o código e a saída não mudou</strong>
+<p><strong>O que aconteceu:</strong> o arquivo não foi salvo. O <code>dotnet run</code> compilou e rodou a versão que estava no disco.</p>
+<p><strong>Como consertar:</strong> salve (<kbd>Ctrl</kbd>+<kbd>S</kbd>) e rode de novo. Confira se a aba do arquivo não tem o círculo de "não salvo".</p>
+</div>
+
+<div class="cenario">
+<strong>Os acentos saem como <code>�</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run latin1.cs
+Ol�, mundo!</pre>
+<p><strong>O que aconteceu:</strong> o arquivo foi salvo numa codificação antiga (Latin-1), e o compilador esperava UTF-8.</p>
+<p><strong>Como consertar:</strong> abra o arquivo no VS Code, clique na codificação no canto de baixo, escolha <strong>Reabrir com Codificação › Western (ISO 8859-1)</strong> para ver os acentos certos e depois <strong>Salvar com Codificação › UTF-8</strong>. No terminal do Linux, o <code>iconv -f latin1 -t utf-8 latin1.cs -o novo.cs</code> faz a conversão.</p>
+</div>
+
+<div class="cenario">
+<strong>O VS Code não pinta o código nem completa nada</strong>
+<p><strong>O que aconteceu:</strong> a extensão C# não está instalada, ou o arquivo não termina em <code>.cs</code> (o canto de baixo da janela diz <strong>Texto sem Formatação</strong> em vez de <strong>C#</strong>), ou o .NET SDK não está instalado e a extensão não consegue iniciar o servidor de linguagem (ela avisa com uma mensagem no canto da tela).</p>
+<p><strong>Como consertar:</strong> confira as três coisas, nessa ordem: o nome do arquivo, a extensão C# na aba Extensões e o <code>dotnet --version</code> no terminal integrado. Depois, recarregue a janela (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> e <strong>Developer: Reload Window</strong>).</p>
+</div>
+
+<div class="cenario">
+<strong>O editor sublinha um erro, mas o <code>dotnet run</code> funciona (ou o contrário)</strong>
+<p><strong>O que aconteceu:</strong> o editor analisa o código enquanto você digita e, às vezes, fica um passo atrás (por exemplo, logo depois de você mudar a versão do .NET ou criar um arquivo).</p>
+<p><strong>Como consertar:</strong> quem manda é o <code>dotnet run</code>. Salve e rode no terminal; se o erro sumiu lá, recarregue a janela do editor.</p>
+</div>
+
+<hr>
+
+<h2>Referência: atalhos do VS Code</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Atalho (Windows e Linux)</th><th>No Mac</th><th>O que faz</th></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td><kbd>Cmd</kbd>+<kbd>S</kbd></td><td>Salvar</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>'</kbd></td><td><kbd>Ctrl</kbd>+<kbd>'</kbd></td><td>Abrir e fechar o terminal integrado</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Espaço</kbd></td><td><kbd>Ctrl</kbd>+<kbd>Espaço</kbd></td><td>Pedir sugestões (IntelliSense)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>.</kbd></td><td><kbd>Cmd</kbd>+<kbd>.</kbd></td><td>A "lâmpada": consertos rápidos para o erro sob o cursor</td></tr>
+<tr><td><kbd>F12</kbd></td><td><kbd>F12</kbd></td><td>Ir para a definição do nome sob o cursor</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd></td><td><kbd>Shift</kbd>+<kbd>Option</kbd>+<kbd>F</kbd></td><td>Arrumar o recuo e os espaços do arquivo inteiro</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>/</kbd></td><td><kbd>Cmd</kbd>+<kbd>/</kbd></td><td>Comentar ou descomentar a linha (aula <a href="comentarios.html">Comentários</a>)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></td><td><kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></td><td>A paleta de comandos: procura qualquer comando pelo nome</td></tr>
+<tr><td><kbd>F5</kbd></td><td><kbd>F5</kbd></td><td>Rodar com o depurador (aula <a href="depuracao.html">Depuração</a>)</td></tr>
+</table>
+</div>
+
+<p>Alguns atalhos dependem do teclado: no brasileiro (ABNT2), certas teclas de símbolo ficam em outro lugar. Se um atalho não funcionar, procure o comando pelo nome na paleta (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>), por exemplo "comentário"; ela mostra ao lado o atalho certo para o seu teclado.</p>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A extensão do arquivo</h3>
+<p>Complete o nome do arquivo de código C#:</p>
+<div class="ex-code">media<input data-answer=".cs" aria-label="extensão"></div>
+</div>
+
+<div class="exercise">
+<h3>2. A codificação</h3>
+<p>Em qual codificação você deve salvar os arquivos <code>.cs</code>? (Escreva com o hífen.)</p>
+<div class="ex-code"><input data-answer="UTF-8|utf-8" aria-label="codificação"></div>
+</div>
+
+<div class="exercise">
+<h3>3. A extensão do VS Code</h3>
+<p>Qual é o nome da extensão do VS Code que traz cores, IntelliSense e o depurador para C# (a de código aberto, da qual a Dev Kit depende)?</p>
+<div class="ex-code"><input data-answer="C#|c#" aria-label="nome da extensão"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Qual destas IDEs só existe para Windows?</p>
+<label><input type="radio" name="q4"> VS Code</label>
+<label><input type="radio" name="q4"> Visual Studio 2026</label>
+<label><input type="radio" name="q4"> JetBrains Rider</label>
+<label><input type="radio" name="q4"> Neovim</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. O <code>dotnet run</code> mostrou <code>Ol�, mundo!</code>. O que aconteceu?</p>
+<label><input type="radio" name="q5"> O <code>Console.WriteLine</code> não aceita acentos.</label>
+<label><input type="radio" name="q5"> O terminal está quebrado.</label>
+<label><input type="radio" name="q5"> Faltou um <code>;</code>.</label>
+<label><input type="radio" name="q5"> O arquivo foi salvo numa codificação antiga (Latin-1), e não em UTF-8.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Com vários erros na tela, qual você deve consertar primeiro?</p>
+<label><input type="radio" name="q6"> O primeiro: os outros muitas vezes são consequência dele.</label>
+<label><input type="radio" name="q6"> O último.</label>
+<label><input type="radio" name="q6"> O mais comprido.</label>
+<label><input type="radio" name="q6"> Tanto faz, o compilador ignora a ordem.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">7. Você já tem o VS Code. O que mais precisa estar instalado para rodar C#?</p>
+<label><input type="radio" name="q7"> Nada, o VS Code compila sozinho.</label>
+<label><input type="radio" name="q7"> O Visual Studio 2026.</label>
+<label><input type="radio" name="q7"> O .NET SDK (e, para ajudar na escrita, a extensão C#).</label>
+<label><input type="radio" name="q7"> O .NET Framework 4.8.</label>
+</div>
+
+<h3>Missão final: a lista de compras</h3>
+<div class="trycs" data-goal="outre:^Lista de compras:\n- arroz\n- feijão\n- café\n$">
+<p class="try-task"><strong>Missão:</strong> a lista da Ana tem três erros de digitação, do tipo que um editor de código sublinha na hora: aspas que não fecham, um ponto e vírgula esquecido e um <code>WriteLine</code> com o <code>l</code> minúsculo. Conserte um por vez, lendo a <strong>primeira</strong> mensagem a cada vez, até a saída ser a lista com <code>arroz</code>, <code>feijão</code> e <code>café</code>.</p>
+<pre class="script" data-file="compras.cs">Console.WriteLine("Lista de compras:");
+Console.WriteLine("- arroz);
+Console.WriteLine("- feijão")
+Console.Writeline("- café");
+</pre>
+<pre class="solucao">Console.WriteLine("Lista de compras:");
+Console.WriteLine("- arroz");
+Console.WriteLine("- feijão");
+Console.WriteLine("- café");
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Editor de texto escreve; editor de código pinta, completa e marca erros; IDE junta tudo com projetos e depurador. <strong>Nenhum deles é o compilador</strong>: quem compila é o .NET SDK.</li>
+  <li>Para começar: <strong>VS Code</strong> com a extensão <strong>C#</strong> (código aberto); a <strong>C# Dev Kit</strong> é opcional, gratuita para uso pessoal e pequenas equipes.</li>
+  <li>Rode pelo terminal integrado (<kbd>Ctrl</kbd>+<kbd>'</kbd>) com <code>dotnet run ola.cs</code>, como no guia.</li>
+  <li><strong>Visual Studio 2026</strong>: IDE completa, só Windows, Community gratuita. <strong>Rider</strong>: Windows, Linux e Mac, grátis para uso não comercial. O Visual Studio for Mac acabou em 2024.</li>
+  <li>Cuidados: arquivo terminado em <code>.cs</code>, salvo em <strong>UTF-8</strong> (senão, <code>Ol�</code>), e <strong>salvo antes de rodar</strong>.</li>
+  <li>Com vários erros, conserte o <strong>primeiro</strong> e rode de novo.</li>
+  <li>Próximo passo: conhecer o editor do navegador em <a href="simulador.html">O Editor do Guia</a> e escrever o primeiro programa em <a href="primeiro-programa.html">Olá, Mundo</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
