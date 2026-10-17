@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Instalar no Linux — o .NET 10 SDK no Ubuntu, Debian, Fedora e Arch | Guia C#</title>
+<meta name="description" content="Como instalar o .NET 10 SDK no Linux para programar em C#: sudo apt install dotnet-sdk-10.0 no Ubuntu 26.04 (com a simulação real do apt e os 10 pacotes), Ubuntu 24.04 e 22.04, Debian com o repositório da Microsoft, Fedora, Arch, Snap e o script dotnet-install.sh. A mensagem de boas-vindas do primeiro uso, dotnet --version, dotnet --info e os erros mais comuns.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Instalar no Linux</span></h1>
+
+<p class="intro">As caixas Experimente do guia compilam e rodam C# no navegador, mas, para programar de verdade, você vai querer o <strong>.NET SDK</strong> no seu computador. No Linux, isso é fácil: no Ubuntu, ele está no repositório oficial, a um comando de distância. Nesta aula você instala o .NET 10 SDK no Ubuntu (e vê os comandos do Debian, do Fedora e do Arch), confere a instalação com <code>dotnet --version</code> e <code>dotnet --info</code>, vê a mensagem de boas-vindas do primeiro uso e roda o primeiro programa.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é um <strong>gerenciador de pacotes</strong> e por que ele facilita tudo.</li>
+  <li>Como descobrir se o .NET já está instalado.</li>
+  <li>Como instalar o pacote <code>dotnet-sdk-10.0</code> no Ubuntu e o que vem junto.</li>
+  <li>Os comandos do Ubuntu 24.04 e 22.04, do Debian, do Fedora, do Arch, do Snap e do script da Microsoft.</li>
+  <li>Como conferir a instalação com <code>dotnet --version</code> e <code>dotnet --info</code>.</li>
+  <li>O que diz a mensagem de boas-vindas que aparece no primeiro uso.</li>
+  <li>Como testar o C# 14 com um programa.</li>
+</ul>
+</div>
+
+<p>Esta aula é para quem usa Linux. No Windows ou no macOS, veja <a href="instalar-windows-mac.html">Instalar no Windows e macOS</a>. As saídas de terminal foram produzidas na máquina da Ana, que usa <strong>Ubuntu 26.04</strong> com o .NET já instalado. Por isso, no ponto em que se instala de verdade, a aula mostra a <strong>simulação</strong> que o próprio <code>apt</code> faz, e marca como <strong>ilustrativo</strong> o que não foi rodado.</p>
+
+<hr>
+
+<h2>A ideia: a loja de aplicativos do Linux</h2>
+<p>No celular, você não procura aplicativos em sites aleatórios: abre a loja, procura pelo nome e toca em "Instalar". A loja baixa o aplicativo, instala, e depois avisa quando há atualização. O Linux tem isso há muito mais tempo que os celulares: é o <strong>gerenciador de pacotes</strong>. Cada programa vem num <strong>pacote</strong>, e o gerenciador baixa os pacotes de um <strong>repositório</strong> oficial da sua distribuição, com tudo de que o programa precisa para funcionar (as <strong>dependências</strong>).</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Distribuição</th><th>Gerenciador de pacotes</th></tr>
+<tr><td>Ubuntu, Debian, Linux Mint, Pop!_OS</td><td><code>apt</code></td></tr>
+<tr><td>Fedora, Red Hat, Rocky Linux, AlmaLinux</td><td><code>dnf</code></td></tr>
+<tr><td>Arch, Manjaro, EndeavourOS</td><td><code>pacman</code></td></tr>
+<tr><td>Várias (pacotes que funcionam em qualquer distribuição)</td><td><code>snap</code></td></tr>
+</table>
+</div>
+
+<p>Para programar em C#, você precisa de um pacote só: o <strong>.NET SDK</strong> (aula <a href="dotnet.html">.NET: SDK, Runtime e CLR</a>). Ele traz o compilador de C#, o Runtime que roda os programas, a biblioteca de classes e o comando <code>dotnet</code>.</p>
+
+<hr>
+
+<h2>1. O .NET já está instalado?</h2>
+<p>Antes de instalar, pergunte. Abra o terminal (no Ubuntu: <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd>) e digite:</p>
+
+<pre class="term">$ dotnet --version
+10.0.112                                        « está instalado: SDK 10.0.112</pre>
+
+<p>Se apareceu um número começando com <code>10.</code>, você já tem o .NET 10 e pode pular para a <a href="#conferir">seção 4</a>. Se o número começa com <code>8.</code> ou <code>9.</code>, você tem uma versão mais antiga, que sai de suporte em novembro de 2026 (aula <a href="versoes.html">Versões</a>): instale também o 10, que os dois convivem. Se o .NET não estiver instalado, a resposta é esta:</p>
+
+<pre class="term">$ dotnet --version
+bash: dotnet: comando não encontrado            « o terminal não achou nenhum programa chamado dotnet
+$ echo $?
+127                                             « 127: "comando não encontrado"</pre>
+
+<p>(No Ubuntu de computador, logo abaixo pode aparecer uma sugestão de qual pacote tem o comando.) Nesse caso, siga a seção da sua distribuição.</p>
+
+<hr>
+
+<h2>2. Ubuntu: <code>dotnet-sdk-10.0</code></h2>
+<p>Desde o Ubuntu 22.04, o .NET está no <strong>repositório oficial do Ubuntu</strong>: a Canonical (a empresa do Ubuntu) compila o .NET a partir do código-fonte e o mantém atualizado, como qualquer outro programa do sistema. No Ubuntu 26.04, o pacote se chama <code>dotnet-sdk-10.0</code>. São dois comandos: o primeiro atualiza a lista de pacotes (o "catálogo da loja"); o segundo instala:</p>
+
+<pre class="file" data-file="no terminal">sudo apt update
+sudo apt install dotnet-sdk-10.0</pre>
+
+<dl class="anatomy">
+  <dt>sudo</dt><dd>"Faça como administrador" (<em>superuser do</em>). Instalar programas mexe no sistema todo, então é preciso permissão de administrador. O <code>sudo</code> pede a <strong>sua</strong> senha, que não aparece enquanto você digita (nem bolinhas): é normal, digite e tecle Enter.</dd>
+  <dt>apt</dt><dd>O gerenciador de pacotes do Ubuntu e do Debian.</dd>
+  <dt>update</dt><dd>Baixa a lista mais nova de pacotes e versões. Não instala nada.</dd>
+  <dt>install</dt><dd>A ação: instalar.</dd>
+  <dt>dotnet-sdk-10.0</dt><dd>O nome do pacote: o SDK do .NET 10. O <code>-10.0</code> no nome deixa várias versões conviverem (<code>dotnet-sdk-8.0</code>, <code>dotnet-sdk-10.0</code>…).</dd>
+</dl>
+
+<h3>O que vem junto</h3>
+<p>O <code>apt-cache depends</code> mostra de que o pacote depende:</p>
+
+<pre class="term">$ apt-cache depends dotnet-sdk-10.0
+dotnet-sdk-10.0
+  Depende: aspnetcore-runtime-10.0                « o Runtime para sites (ASP.NET Core)
+  Depende: aspnetcore-targeting-pack-10.0
+  Depende: dotnet-apphost-pack-10.0               « o "lançador" dos programas
+  Depende: dotnet-runtime-10.0                    « o Runtime: CLR, JIT, biblioteca
+  Depende: dotnet-targeting-pack-10.0             « as "plantas" da biblioteca para o compilador
+  Depende: dotnet-templates-10.0                  « os modelos do dotnet new
+  Depende: ca-certificates
+  Depende: libc6
+  Depende: libgcc-s1
+  Depende: libstdc++6
+  Quebra: &lt;dotnet-sdk-6.0&gt;                       « não convive com o pacote antigo do .NET 6
+  Recomenda: dotnet-sdk-aot-10.0                  « recomendado: entra junto por padrão
+  Sugere: dotnet-sdk-dbg-10.0                     « sugerido: NÃO entra sozinho</pre>
+
+<p>Repare que o SDK depende do <code>dotnet-runtime-10.0</code>: é por isso que, instalando o SDK, você ganha o Runtime de graça. As quatro últimas dependências (<code>libc6</code> e companhia) são bibliotecas básicas do sistema que todo Ubuntu já tem.</p>
+
+<h3>A simulação</h3>
+<p>Dá para ver o que <strong>aconteceria</strong>, sem instalar nada, com a opção <code>-s</code> (<em>simulate</em>, "simular"). A simulação nem precisa de <code>sudo</code>. Como a Ana já tem o .NET, a resposta direta é curta:</p>
+
+<pre class="term">$ apt install -s dotnet-sdk-10.0
+NOTA: Esta é apenas uma simulação!
+      apt precisa de privilégios de root para execução real.
+      Lembre-se também de que a trava está desativada e,
+      portanto, não dependa da relevância para a situação real atual!
+
+dotnet-sdk-10.0 já é a versão mais nova (10.0.112-0ubuntu1~26.04.1).   « nada a fazer
+Resumo:
+  Atualizando: 0, Instalando: 0, Removendo: 0, Não atualizando: 0</pre>
+
+<p>Para ver a simulação de um computador <strong>sem</strong> o .NET, a Ana fez uma cópia da lista de pacotes instalados (o arquivo <code>/var/lib/dpkg/status</code>) sem as linhas do .NET, guardou em <code>~/.cache/sim/status</code> e pediu ao <code>apt</code> para usar essa cópia (a opção <code>-o Dir::State::status=…</code>). O resto é a resposta real do <code>apt</code>:</p>
+
+<pre class="term">$ apt install -s -o Dir::State::status=$HOME/.cache/sim/status dotnet-sdk-10.0
+NOTA: Esta é apenas uma simulação!
+      apt precisa de privilégios de root para execução real.
+      Lembre-se também de que a trava está desativada e,
+      portanto, não dependa da relevância para a situação real atual!
+
+Instalando:                                       « o que você pediu
+  dotnet-sdk-10.0
+
+Instalando dependências:                          « o que vem junto, automaticamente
+  aspnetcore-runtime-10.0         dotnet-runtime-10.0
+  aspnetcore-targeting-pack-10.0  dotnet-sdk-aot-10.0
+  dotnet-apphost-pack-10.0        dotnet-targeting-pack-10.0
+  dotnet-host-10.0                dotnet-templates-10.0
+  dotnet-hostfxr-10.0
+
+Pacotes sugeridos:                                « opcionais: NÃO serão instalados
+  aspnetcore-runtime-dbg-10.0  dotnet-runtime-dbg-10.0  dotnet-sdk-dbg-10.0
+
+Resumo:
+  Atualizando: 0, Instalando: 10, Removendo: 0, Não atualizando: 0
+Inst dotnet-host-10.0 (10.0.12-0ubuntu1~26.04.1 Ubuntu:26.04/resolute-updates, Ubuntu:26.04/resolute-security [amd64])
+Inst dotnet-hostfxr-10.0 (10.0.12-0ubuntu1~26.04.1 Ubuntu:26.04/resolute-updates, Ubuntu:26.04/resolute-security [amd64])
+Inst dotnet-runtime-10.0 (10.0.12-0ubuntu1~26.04.1 Ubuntu:26.04/resolute-updates, Ubuntu:26.04/resolute-security [amd64])
+Inst aspnetcore-runtime-10.0 (10.0.12-0ubuntu1~26.04.1 Ubuntu:26.04/resolute-updates, Ubuntu:26.04/resolute-security [amd64])
+Inst aspnetcore-targeting-pack-10.0 (10.0.12-0ubuntu1~26.04.1 Ubuntu:26.04/resolute-updates, Ubuntu:26.04/resolute-security [amd64])
+Inst dotnet-apphost-pack-10.0 (10.0.12-0ubuntu1~26.04.1 Ubuntu:26.04/resolute-updates, Ubuntu:26.04/resolute-security [amd64])
+Inst dotnet-targeting-pack-10.0 (10.0.12-0ubuntu1~26.04.1 Ubuntu:26.04/resolute-updates, Ubuntu:26.04/resolute-security [amd64])
+Inst dotnet-templates-10.0 (10.0.112-0ubuntu1~26.04.1 Ubuntu:26.04/resolute-updates, Ubuntu:26.04/resolute-security [amd64])
+Inst dotnet-sdk-10.0 (10.0.112-0ubuntu1~26.04.1 Ubuntu:26.04/resolute-updates, Ubuntu:26.04/resolute-security [amd64])
+Inst dotnet-sdk-aot-10.0 (10.0.112-0ubuntu1~26.04.1 Ubuntu:26.04/resolute-updates, Ubuntu:26.04/resolute-security [amd64])
+Conf dotnet-host-10.0 (10.0.12-0ubuntu1~26.04.1 Ubuntu:26.04/resolute-updates, Ubuntu:26.04/resolute-security [amd64])
+…                                                 « mais 9 linhas Conf, uma por pacote</pre>
+
+<p>Você pediu um pacote, e o <code>apt</code> traria dez. As linhas <code>Inst</code> ("instalar") mostram a ordem: primeiro o <code>dotnet-host-10.0</code> (o comando <code>dotnet</code>) e o <code>dotnet-hostfxr-10.0</code> (a peça que escolhe qual versão do .NET usar), depois o Runtime e, no fim, o SDK. As linhas <code>Conf</code> ("configurar") vêm depois de tudo desempacotado. Esse é o trabalho do gerenciador: resolver as dependências por você. Somando o tamanho dos dez pacotes, são cerca de <strong>163 MB para baixar</strong> e uns <strong>620 MB de espaço em disco</strong>.</p>
+
+<p>Numa instalação de verdade, com <code>sudo</code> e sem o <code>-s</code>, o <code>Resumo</code> mostra também o tamanho do download e o espaço necessário, e vêm a pergunta <code>Continuar? [S/n]</code> (tecle Enter: o <code>S</code> maiúsculo é a resposta padrão), as linhas <code>Obter:</code> do download e as linhas <code>Desempacotando …</code> e <code>Configurando …</code> de cada pacote (ilustrativo: a Ana já tinha o .NET). Em uma conexão comum, leva um ou dois minutos.</p>
+
+<h3>Qual versão vou receber?</h3>
+<p>O <code>apt-cache policy</code> mostra a versão instalada e as disponíveis:</p>
+
+<pre class="term">$ apt-cache policy dotnet-sdk-10.0
+dotnet-sdk-10.0:
+  Instalado: 10.0.112-0ubuntu1~26.04.1             « a instalada
+  Candidato: 10.0.112-0ubuntu1~26.04.1             « a que o apt instalaria (a mesma: está em dia)
+  Tabela de versão:
+ *** 10.0.112-0ubuntu1~26.04.1 500
+        500 http://archive.ubuntu.com/ubuntu resolute-updates/main amd64 Packages
+        500 http://security.ubuntu.com/ubuntu resolute-security/main amd64 Packages
+        100 /var/lib/dpkg/status
+     10.0.105-0ubuntu1 500                         « a que veio no lançamento do Ubuntu 26.04
+        500 http://archive.ubuntu.com/ubuntu resolute/main amd64 Packages</pre>
+
+<p>Como ler <code>10.0.112-0ubuntu1~26.04.1</code>: <code>10.0.112</code> é a versão do SDK, e o resto é a revisão do pacote feita pelo Ubuntu. O <code>resolute</code> é o apelido do Ubuntu 26.04. Repare nas duas versões: o Ubuntu 26.04 saiu com o SDK <code>10.0.105</code>, e as correções mensais chegaram pelo <code>resolute-updates</code> e pelo <code>resolute-security</code> até o <code>10.0.112</code>. É por isso que vale rodar o <code>sudo apt upgrade</code> de vez em quando.</p>
+
+<h3>Ubuntu 24.04 e 22.04</h3>
+<p>Nas versões mais antigas do Ubuntu, o .NET 10 também existe, às vezes num repositório extra. Segundo a documentação oficial da Microsoft (ilustrativo, não rodado na máquina da Ana):</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Ubuntu</th><th>No repositório do Ubuntu</th><th>No repositório extra (<em>backports</em>)</th><th>Para o .NET 10</th></tr>
+<tr><td>26.04 LTS</td><td>10.0</td><td>9.0, 8.0</td><td><code>sudo apt install dotnet-sdk-10.0</code></td></tr>
+<tr><td>24.04 LTS</td><td>10.0, 8.0</td><td>9.0</td><td><code>sudo apt install dotnet-sdk-10.0</code></td></tr>
+<tr><td>22.04 LTS</td><td>8.0</td><td>10.0, 9.0</td><td>primeiro o repositório extra (abaixo), depois <code>sudo apt install dotnet-sdk-10.0</code></td></tr>
+</table>
+</div>
+
+<p>O repositório extra se chama <strong>Ubuntu .NET backports</strong> e é mantido pela equipe do .NET no Ubuntu. Para acrescentá-lo (ilustrativo):</p>
+
+<pre class="file" data-file="no terminal (Ubuntu 22.04, ou para o .NET 8 ou 9 no 26.04)">sudo add-apt-repository ppa:dotnet/backports
+sudo apt update
+sudo apt install dotnet-sdk-10.0</pre>
+
+<hr>
+
+<h2>3. Debian, Fedora, Arch e outras formas</h2>
+<p>Nas outras distribuições, os comandos seguem a documentação oficial de cada uma. Eles não foram executados na máquina da Ana (que é Ubuntu), por isso a tabela é <strong>ilustrativa</strong>:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Distribuição</th><th>Comando</th><th>Observação</th></tr>
+<tr><td><strong>Debian 13</strong> (e 12)</td><td>Primeiro o repositório da Microsoft:<br><code>wget https://packages.microsoft.com/config/debian/13/packages-microsoft-prod.deb -O packages-microsoft-prod.deb</code><br><code>sudo dpkg -i packages-microsoft-prod.deb</code><br><code>rm packages-microsoft-prod.deb</code><br>depois <code>sudo apt update</code> e <code>sudo apt install dotnet-sdk-10.0</code></td><td>O Debian não traz o .NET no repositório próprio; quem mantém o pacote é a Microsoft. No Debian 12, troque o <code>13</code> do endereço por <code>12</code>.</td></tr>
+<tr><td><strong>Fedora</strong></td><td><code>sudo dnf install dotnet-sdk-10.0</code></td><td>Está no repositório do próprio Fedora.</td></tr>
+<tr><td><strong>Arch</strong> (e Manjaro)</td><td><code>sudo pacman -S dotnet-sdk</code></td><td>O Arch tem sempre a versão mais nova, com o nome sem número.</td></tr>
+<tr><td><strong>Snap</strong> (qualquer distribuição com <code>snap</code>)</td><td><code>sudo snap install dotnet-sdk-100</code></td><td><code>100</code> = .NET 10.0. O Snap não cria o comando <code>dotnet</code> sozinho: a documentação ensina a criar um atalho em <code>/usr/local/bin/dotnet</code>.</td></tr>
+</table>
+</div>
+
+<h3>Sem administrador: o script <code>dotnet-install.sh</code></h3>
+<p>A Microsoft oferece um script que instala o .NET <strong>na sua pasta pessoal</strong>, sem <code>sudo</code>. Ele serve para computadores em que você não é administrador ou para ter uma versão que a sua distribuição ainda não tem (ilustrativo):</p>
+
+<pre class="file" data-file="no terminal">wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
+chmod +x dotnet-install.sh
+./dotnet-install.sh --channel 10.0</pre>
+
+<p>O .NET vai para <code>~/.dotnet</code>, e você precisa avisar o terminal onde ele está, acrescentando ao fim do arquivo <code>~/.bashrc</code> as linhas <code>export DOTNET_ROOT=$HOME/.dotnet</code> e <code>export PATH=$PATH:$DOTNET_ROOT</code>. A desvantagem: o <code>apt upgrade</code> não atualiza essa cópia; você precisa rodar o script de novo a cada correção.</p>
+
+<h3>Qual escolher?</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Quando usar</th></tr>
+<tr><td>Pacote da distribuição (<code>apt</code>, <code>dnf</code>, <code>pacman</code>)</td><td><strong>Sempre que existir.</strong> Atualiza junto com o sistema. É a forma do guia.</td></tr>
+<tr><td>Repositório da Microsoft</td><td>No Debian, ou quando a sua distribuição não tem o .NET 10.</td></tr>
+<tr><td>Snap</td><td>Distribuições sem pacote do .NET, mas com <code>snap</code>.</td></tr>
+<tr><td><code>dotnet-install.sh</code></td><td>Sem acesso de administrador, ou para testar uma versão de pré-lançamento (como o .NET 11).</td></tr>
+</table>
+</div>
+
+<div class="warning">
+<strong>Não misture duas fontes para a mesma versão</strong>
+<p>No Ubuntu, instalar o <code>dotnet-sdk-10.0</code> do Ubuntu <strong>e</strong> o do repositório da Microsoft causa conflitos: os pacotes têm o mesmo nome, mas os arquivos vão para pastas diferentes (<code>/usr/lib/dotnet</code> e <code>/usr/share/dotnet</code>), e o <code>dotnet</code> pode deixar de achar o SDK. Escolha uma fonte só. No Ubuntu, a recomendação da Microsoft é usar a do próprio Ubuntu.</p>
+</div>
+
+<hr>
+
+<h2 id="conferir">4. Conferindo a instalação</h2>
+<p>Depois de instalar, confira. O primeiro comando mostra só a versão do SDK:</p>
+
+<pre class="term">$ dotnet --version
+10.0.112</pre>
+
+<p>O segundo mostra tudo o que o .NET sabe sobre si mesmo e sobre o computador:</p>
+
+<pre class="term">$ dotnet --info
+.NET SDK:
+ Version:           10.0.112                         « o SDK
+ Commit:            95017c711e
+ Workload version:  10.0.100-manifests.63b36e85
+ MSBuild version:   18.0.11+95017c711
+
+Ambiente de runtime:
+ OS Name:     ubuntu
+ OS Version:  26.04
+ OS Platform: Linux                                  « o sistema
+ RID:         ubuntu.26.04-x64
+ Base Path:   /usr/lib/dotnet/sdk/10.0.112/
+
+Cargas de trabalho do .NET instaladas:
+Não há cargas de trabalho instaladas para exibir.
+Configurado para usar workload sets ao instalar novos manifestos.
+Nenhum conjunto de cargas de trabalho está instalado. Execute "dotnet workload restore" para instalar um conjunto de cargas de trabalho.
+
+Host:
+  Version:      10.0.12                              « o comando dotnet e o Runtime
+  Architecture: x64
+  Commit:       95017c711e
+
+.NET SDKs installed:
+  10.0.112 [/usr/lib/dotnet/sdk]
+
+.NET runtimes installed:
+  Microsoft.AspNetCore.App 10.0.12 [/usr/lib/dotnet/shared/Microsoft.AspNetCore.App]
+  Microsoft.NETCore.App 10.0.12 [/usr/lib/dotnet/shared/Microsoft.NETCore.App]
+
+Other architectures found:
+  None
+
+Environment variables:
+  Not set
+
+global.json file:
+  Not found
+
+Learn more:
+  https://aka.ms/dotnet/info
+
+Download .NET:
+  https://aka.ms/dotnet/download</pre>
+
+<dl class="anatomy">
+  <dt>.NET SDK</dt><dd>A versão do SDK (<code>10.0.112</code>) e do MSBuild, o "mestre de obras" do build.</dd>
+  <dt>Ambiente de runtime</dt><dd>O sistema (<code>ubuntu</code> <code>26.04</code>, <code>Linux</code>) e o <strong>RID</strong> (<em>runtime identifier</em>), o "nome técnico" da plataforma: <code>ubuntu.26.04-x64</code> = Ubuntu 26.04 em processador x64.</dd>
+  <dt>Cargas de trabalho</dt><dd>Pacotes opcionais para celular, navegador etc. (<em>workloads</em>). O guia não precisa de nenhuma; pode ignorar essas linhas.</dd>
+  <dt>Host</dt><dd>O comando <code>dotnet</code> em si (o "anfitrião"), versão <code>10.0.12</code>.</dd>
+  <dt>SDKs installed e runtimes installed</dt><dd>O mesmo que <code>dotnet --list-sdks</code> e <code>dotnet --list-runtimes</code> (aula <a href="dotnet.html">.NET: SDK, Runtime e CLR</a>).</dd>
+  <dt>global.json file: Not found</dt><dd>Um arquivo opcional que fixa a versão do SDK de uma pasta. Sem ele, vale o SDK mais novo instalado.</dd>
+</dl>
+
+<p>Repare que a saída mistura português e inglês: as partes do SDK estão traduzidas, e as do <code>dotnet</code> básico (o host), não. É assim mesmo. Para ver onde o comando está:</p>
+
+<pre class="term">$ which dotnet                                    « onde está o comando
+/usr/bin/dotnet
+$ readlink -f $(which dotnet)                     « para onde aponta o atalho
+/usr/lib/dotnet/dotnet</pre>
+
+<p>O <code>/usr/bin/dotnet</code> é um <strong>atalho</strong> (um link simbólico) para o <code>dotnet</code> de verdade, que mora em <code>/usr/lib/dotnet</code>, junto com o SDK e os Runtimes.</p>
+
+<hr>
+
+<h2>5. O primeiro uso: a mensagem de boas-vindas</h2>
+<p>O <code>--version</code> e o <code>--info</code> só respondem. Mas, na <strong>primeira vez</strong> que você usa um comando de verdade do SDK, como o <code>dotnet run</code>, ele se apresenta. Crie uma pasta para os seus programas, entre nela e crie o arquivo <code>ola.cs</code> com um editor de texto (o editor de textos do seu sistema, o <code>nano ola.cs</code> no terminal, ou um editor de programação, aula <a href="editores.html">Editores e IDEs</a>), com uma linha só:</p>
+
+<pre class="term">$ mkdir cs                                        « cria a pasta cs na sua pasta pessoal
+$ cd cs                                           « entra nela</pre>
+
+<pre class="file" data-file="ola.cs">Console.WriteLine("Olá, mundo!");
+</pre>
+
+<p>Agora rode com <code>dotnet run ola.cs</code>. Na primeira vez, aparece isto:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ola.cs
+
+Bem-vindo(a) ao .NET 10.0.
+---------------------
+Versão do SDK: 10.0.112
+
+----------------
+Instalou um certificado de desenvolvimento ASP.NET Core HTTPS.
+Para confiar no certificado, execute 'dotnet dev-certs https --trust'
+Saiba mais HTTPS: https://aka.ms/dotnet-https
+
+----------------
+Escreva seu primeiro aplicativo: https://aka.ms/dotnet-hello-world
+Descubra o que há de novo: https://aka.ms/dotnet-whats-new
+Explorar a documentação: https://aka.ms/dotnet-docs
+Relate problemas e encontre a fonte no GitHub: https://github.com/dotnet/core
+Use 'dotnet --help' para ver os comandos disponíveis ou visite: https://aka.ms/dotnet-cli
+--------------------------------------------------------------------------------------
+Olá, mundo!                                       « e, no fim, o seu programa</pre>
+
+<dl class="anatomy">
+  <dt>Bem-vindo(a) ao .NET 10.0</dt><dd>A apresentação, com a versão do SDK.</dd>
+  <dt>certificado de desenvolvimento ASP.NET Core HTTPS</dt><dd>O SDK criou um certificado para testar sites com <code>https://</code> no seu computador. Só interessa para quem faz sites com ASP.NET Core; para o guia, pode ignorar.</dd>
+  <dt>Os endereços aka.ms</dt><dd>Atalhos para a documentação oficial: o primeiro programa, as novidades, a referência do comando <code>dotnet</code>.</dd>
+  <dt>Olá, mundo!</dt><dd>Depois da apresentação, o programa rodou normalmente.</dd>
+</dl>
+
+<p>A mensagem aparece <strong>uma vez só</strong>. O .NET anota que já se apresentou criando uns arquivinhos na pasta escondida <code>~/.dotnet</code>, e da segunda vez em diante vai direto ao programa:</p>
+
+<pre class="term" data-cwd="~/cs">$ ls -a ~/.dotnet
+.
+..
+10.0.112.aspNetCertificateSentinel                « "já criei o certificado"
+10.0.112.dotnetFirstUseSentinel                   « "já me apresentei"
+10.0.112.toolpath.sentinel
+corefx
+$ dotnet run ola.cs
+Olá, mundo!                                       « da segunda vez, só o programa</pre>
+
+<p><em>Sentinel</em> quer dizer "sentinela": arquivos vazios que só servem para marcar que algo já foi feito. Se você apagar esses arquivos, a mensagem aparece de novo no próximo comando.</p>
+
+<div class="note">
+<strong>E a telemetria?</strong>
+<p>O .NET baixado do site da Microsoft (pelo script, pelo instalador do Windows ou pelo repositório da Microsoft) mostra, nessa mesma mensagem, um parágrafo sobre <strong>telemetria</strong>: as ferramentas mandam à Microsoft dados anônimos de uso, e você pode desligar isso pondo <code>export DOTNET_CLI_TELEMETRY_OPTOUT=1</code> no seu <code>~/.bashrc</code>. O .NET compilado pelo Ubuntu não mostra esse parágrafo, como você viu na saída da Ana.</p>
+</div>
+
+<hr>
+
+<h2>6. O teste final: o C# 14</h2>
+<p>O <code>Olá, mundo!</code> provou que o SDK funciona. Falta conferir a versão da linguagem. Este programa usa uma novidade do <span class="versao">C# 14</span>, a atribuição com <code>?.</code> ("se o cliente existir, mude o nome dele"). Não precisa entender o código agora: a aula <a href="operadores-null.html">Operadores ??, ?. e ??=</a> explica.</p>
+
+<pre class="file" data-file="teste14.cs">Cliente? cliente = new Cliente();
+cliente?.Nome = "Ana";
+Console.WriteLine($"C# 14 funcionando! Cliente: {cliente?.Nome}");
+
+class Cliente
+{
+    public string Nome { get; set; } = "";
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run teste14.cs
+C# 14 funcionando! Cliente: Ana                   « tudo certo</pre>
+
+<p>Se apareceu essa linha, o seu computador está pronto para o guia inteiro. Com um SDK mais antigo (do .NET 9, por exemplo), o mesmo arquivo dá o erro <code>CS9260</code>: <code>O recurso "atribuição condicional nula" não está disponível no C# 13.0</code> (aula <a href="versoes.html">Versões</a>). O mesmo programa roda aqui no editor, que também usa o C# 14:</p>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> rode e compare com a saída do terminal da Ana. Depois troque <code>"Ana"</code> pelo seu nome e rode de novo.</p>
+<pre class="script" data-file="teste14.cs">Cliente? cliente = new Cliente();
+cliente?.Nome = "Ana";
+Console.WriteLine($"C# 14 funcionando! Cliente: {cliente?.Nome}");
+
+class Cliente
+{
+    public string Nome { get; set; } = "";
+}
+</pre>
+</div>
+
+<h3>Atualizando</h3>
+<p>O gerenciador de pacotes também cuida das atualizações. De tempos em tempos, rode (ilustrativo):</p>
+
+<pre class="file" data-file="no terminal">sudo apt update
+sudo apt upgrade</pre>
+
+<p>O <code>upgrade</code> atualiza todos os programas instalados, incluindo o .NET, para a última correção (de <code>10.0.112</code> para <code>10.0.113</code>, por exemplo). Ele não troca o .NET 10 pelo 11: versões novas do .NET chegam como pacotes novos, com outro número no nome (<code>dotnet-sdk-11.0</code>), e as duas convivem.</p>
+
+<hr>
+
+<h2 id="quando-errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>dotnet: comando não encontrado</code></strong>
+<pre class="term">$ dotnet --version
+bash: dotnet: comando não encontrado</pre>
+<p><strong>O que aconteceu:</strong> o .NET não está instalado, ou foi instalado pelo script <code>dotnet-install.sh</code> numa pasta que o terminal não conhece.</p>
+<p><strong>Como consertar:</strong> instale com <code>sudo apt install dotnet-sdk-10.0</code> (ou o comando da sua distribuição, na seção 3). Se usou o script, confira se as linhas <code>export DOTNET_ROOT=…</code> e <code>export PATH=…</code> estão no <code>~/.bashrc</code> e abra um terminal novo.</p>
+</div>
+
+<div class="cenario">
+<strong>Esqueceu o <code>sudo</code>: <code>você é root?</code></strong>
+<pre class="term">$ apt install dotnet-sdk-dbg-10.0
+Erro: Não foi possível abrir arquivo de trava /var/lib/dpkg/lock-frontend - open (13: Permissão negada)
+Erro: Não é possível adquirir a trava da interface do dpkg (/var/lib/dpkg/lock-frontend), você é root?
+$ echo $?
+100</pre>
+<p><strong>O que aconteceu:</strong> instalar programas mexe no sistema todo, e só o administrador (o <code>root</code>) pode fazer isso. A "trava" (<em>lock</em>) é um arquivo que garante que só um programa instale pacotes por vez; um usuário comum não tem permissão nem de abri-lo.</p>
+<p><strong>Como consertar:</strong> repita o comando com <code>sudo</code> na frente. Um atalho do terminal: <code>sudo !!</code> repete o último comando com <code>sudo</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Instalou só o Runtime: <code>No .NET SDKs were found.</code></strong>
+<p><strong>O que aconteceu:</strong> alguém instalou o <code>dotnet-runtime-10.0</code> em vez do <code>dotnet-sdk-10.0</code>. O comando <code>dotnet</code> existe e roda programas prontos, mas o <code>dotnet run</code> responde, em inglês, <code>No .NET SDKs were found.</code> A aula <a href="dotnet.html">.NET: SDK, Runtime e CLR</a> mostra a mensagem inteira.</p>
+<p><strong>Como consertar:</strong> <code>sudo apt install dotnet-sdk-10.0</code>. O Runtime que já está lá é aproveitado.</p>
+</div>
+
+<div class="cenario">
+<strong>Duas fontes misturadas: <code>A fatal error occurred. The folder [/usr/share/dotnet/host/fxr] does not exist</code> (ilustrativo)</strong>
+<p><strong>O que aconteceu:</strong> o .NET foi instalado pelo repositório da Microsoft <strong>e</strong> pelo do Ubuntu, e o comando <code>dotnet</code> de uma fonte procura as peças na pasta da outra. É o problema do aviso da seção 3. (A tela segue a mensagem descrita na documentação da Microsoft; a máquina da Ana tem uma fonte só.)</p>
+<p><strong>Como consertar:</strong> remova os pacotes do .NET (<code>sudo apt remove 'dotnet*' 'aspnet*' 'netstandard*'</code>, como manda a documentação da Microsoft), tire o repositório que você não quer usar e instale de novo de uma fonte só.</p>
+</div>
+
+<div class="cenario">
+<strong>A mensagem de boas-vindas aparece toda vez</strong>
+<p><strong>O que aconteceu:</strong> o .NET não consegue gravar os arquivos "sentinela" em <code>~/.dotnet</code>, quase sempre porque essa pasta foi criada pelo <code>root</code> (alguém rodou <code>sudo dotnet …</code> uma vez).</p>
+<p><strong>Como consertar:</strong> devolva a pasta para você com <code>sudo chown -R $USER: ~/.dotnet</code>, e nunca rode o <code>dotnet</code> com <code>sudo</code>: ele não precisa.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Distribuição</th><th>Instalar o .NET 10 SDK</th></tr>
+<tr><td>Ubuntu 26.04 e 24.04</td><td><code>sudo apt update</code> e <code>sudo apt install dotnet-sdk-10.0</code></td></tr>
+<tr><td>Ubuntu 22.04</td><td><code>sudo add-apt-repository ppa:dotnet/backports</code> e depois o mesmo <code>apt install</code></td></tr>
+<tr><td>Debian 12 e 13</td><td>Repositório da Microsoft (<code>packages-microsoft-prod.deb</code>) e <code>sudo apt install dotnet-sdk-10.0</code></td></tr>
+<tr><td>Fedora</td><td><code>sudo dnf install dotnet-sdk-10.0</code></td></tr>
+<tr><td>Arch, Manjaro</td><td><code>sudo pacman -S dotnet-sdk</code></td></tr>
+<tr><td>Qualquer uma, com Snap</td><td><code>sudo snap install dotnet-sdk-100</code></td></tr>
+<tr><td>Sem administrador</td><td><code>./dotnet-install.sh --channel 10.0</code></td></tr>
+</table>
+</div>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>Para quê</th></tr>
+<tr><td><code>dotnet --version</code></td><td>Conferir se está instalado e a versão do SDK</td></tr>
+<tr><td><code>dotnet --info</code></td><td>Tudo: SDK, Runtimes, sistema, RID</td></tr>
+<tr><td><code>which dotnet</code></td><td>Onde está o comando</td></tr>
+<tr><td><code>apt-cache policy dotnet-sdk-10.0</code></td><td>Versão instalada e disponível (Ubuntu/Debian)</td></tr>
+<tr><td><code>apt-cache depends dotnet-sdk-10.0</code></td><td>O que o pacote traz junto</td></tr>
+<tr><td><code>apt install -s pacote</code></td><td>Simular uma instalação, sem instalar</td></tr>
+<tr><td><code>sudo apt update</code> e <code>sudo apt upgrade</code></td><td>Atualizar o catálogo e os programas</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Instalar no Ubuntu</h3>
+<p>Complete o comando que instala o .NET 10 SDK no Ubuntu:</p>
+<div class="ex-code">sudo apt install <input data-answer="dotnet-sdk-10.0" aria-label="pacote"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Tudo sobre o .NET</h3>
+<p>Complete o comando que mostra o SDK, os Runtimes e o sistema de uma vez:</p>
+<div class="ex-code">dotnet <input data-answer="--info" aria-label="opção"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Instalar no Fedora</h3>
+<p>Complete o comando do Fedora:</p>
+<div class="ex-code">sudo <input data-answer="dnf" aria-label="gerenciador"> install dotnet-sdk-10.0</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Você pediu para instalar só o <code>dotnet-sdk-10.0</code>, e o <code>apt</code> mostrou dez pacotes. Por quê?</p>
+<label><input type="radio" name="q4"> Porque o <code>apt</code> instala tudo o que começa com <code>dotnet</code>.</label>
+<label><input type="radio" name="q4"> Porque o SDK depende de outros pacotes, como o Runtime, e o <code>apt</code> traz as dependências junto.</label>
+<label><input type="radio" name="q4"> Porque são dez versões diferentes do .NET.</label>
+<label><input type="radio" name="q4"> É um erro: deveria ser um só.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. A mensagem <code>Bem-vindo(a) ao .NET 10.0.</code> apareceu no primeiro <code>dotnet run</code>. O que vai acontecer no segundo?</p>
+<label><input type="radio" name="q5"> Ela aparece de novo, sempre.</label>
+<label><input type="radio" name="q5"> Ela aparece só se o programa tiver erro.</label>
+<label><input type="radio" name="q5"> O programa não roda até você apagar a mensagem.</label>
+<label><input type="radio" name="q5"> Não aparece mais: o .NET marcou em <code>~/.dotnet</code> que já se apresentou.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. O <code>apt install</code> respondeu <code>você é root?</code>. O que faltou?</p>
+<label><input type="radio" name="q6"> O <code>sudo</code> antes do comando.</label>
+<label><input type="radio" name="q6"> Internet.</label>
+<label><input type="radio" name="q6"> O <code>-s</code> no fim.</label>
+<label><input type="radio" name="q6"> Reiniciar o computador.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">7. No Ubuntu, qual é a fonte recomendada para o .NET 10?</p>
+<label><input type="radio" name="q7"> O repositório da Microsoft e o do Ubuntu, os dois juntos.</label>
+<label><input type="radio" name="q7"> Um arquivo baixado de um site qualquer.</label>
+<label><input type="radio" name="q7"> O repositório do próprio Ubuntu (<code>sudo apt install dotnet-sdk-10.0</code>).</label>
+<label><input type="radio" name="q7"> O .NET Framework 4.8.</label>
+</div>
+
+<h3>Missão final: o cartão da instalação</h3>
+<p>Para comemorar, um programa que mostra o que a Ana instalou. Faça a missão aqui no editor e, depois, repita no seu terminal com <code>dotnet run</code>.</p>
+
+<div class="trycs" data-goal="outre:SDK 10\.0\.112\nRuntime 10\.0\.12\nC# 14\n$">
+<p class="try-task"><strong>Missão:</strong> o cartão da Ana está incompleto. Acrescente uma linha <code>Console.WriteLine</code> para o <code>C# 14</code>, logo depois da do Runtime, para a saída terminar com as três peças, uma por linha: <code>SDK 10.0.112</code>, <code>Runtime 10.0.12</code> e <code>C# 14</code>.</p>
+<pre class="script" data-file="cartao.cs">Console.WriteLine("Instalado no notebook da Ana:");
+Console.WriteLine("SDK 10.0.112");
+Console.WriteLine("Runtime 10.0.12");
+</pre>
+<pre class="solucao">Console.WriteLine("Instalado no notebook da Ana:");
+Console.WriteLine("SDK 10.0.112");
+Console.WriteLine("Runtime 10.0.12");
+Console.WriteLine("C# 14");
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>O Linux instala programas pelo <strong>gerenciador de pacotes</strong>: <code>apt</code> (Ubuntu/Debian), <code>dnf</code> (Fedora), <code>pacman</code> (Arch), <code>snap</code>.</li>
+  <li>Antes de instalar, pergunte: <code>dotnet --version</code>. Para o guia, o SDK tem de começar com <code>10.</code>.</li>
+  <li>No Ubuntu 26.04 e 24.04: <code>sudo apt update</code> e <code>sudo apt install dotnet-sdk-10.0</code>. O <code>apt</code> traz dez pacotes, com o Runtime junto (cerca de 163 MB de download).</li>
+  <li>Debian usa o repositório da Microsoft; Fedora, <code>dnf install dotnet-sdk-10.0</code>; Arch, <code>pacman -S dotnet-sdk</code>; sem administrador, o <code>dotnet-install.sh</code>. Não misture duas fontes.</li>
+  <li>Confira com <code>dotnet --version</code> e <code>dotnet --info</code>. No primeiro comando de verdade, aparece a mensagem <code>Bem-vindo(a) ao .NET 10.0.</code>, uma vez só.</li>
+  <li>O teste final: um programa com um recurso do C# 14 tem de rodar.</li>
+  <li>Próximo passo: escolher onde escrever o código, em <a href="editores.html">Editores e IDEs</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
