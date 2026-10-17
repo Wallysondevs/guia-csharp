@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Classes Parciais — partial class em vários arquivos | Guia C#</title>
+<meta name="description" content="Classes parciais em C# para quem está começando: partial class dividida em vários arquivos de um projeto, como o compilador junta as partes, métodos parciais, propriedades parciais (C# 13) e construtores parciais (C# 14), para que servem (código gerado) e os erros reais CS0260, CS0101, CS0262, CS0111 e CS8795 do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Classes Parciais</span></h1>
+
+<p class="intro">Até aqui, cada classe ficou inteira num lugar só, entre um <code>{</code> e um <code>}</code>. Com a palavra <code>partial</code> ("parcial"), uma classe pode ser escrita em <strong>pedaços</strong>, em arquivos diferentes, e o compilador junta tudo numa classe só. Parece uma curiosidade, mas é assim que funcionam as ferramentas que <strong>escrevem código para você</strong>: elas ficam com um arquivo, você fica com outro, e ninguém apaga o trabalho de ninguém.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma classe parcial (<code>partial class</code>) e como dividi-la em vários arquivos de um projeto.</li>
+  <li>Como o compilador junta as partes, e as regras que ele cobra (<code>CS0260</code>, <code>CS0101</code>, <code>CS0262</code>, <code>CS0111</code>).</li>
+  <li>Para que servem as classes parciais: código gerado por ferramentas e classes grandes.</li>
+  <li>Métodos parciais: declarar num arquivo e, se quiser, escrever em outro.</li>
+  <li>Propriedades parciais <span class="versao">C# 13</span> e construtores parciais <span class="versao">C# 14</span>.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>A ideia: um livro escrito a quatro mãos</h2>
+<p>Dois autores escrevem um livro juntos. Um fica com os capítulos 1 a 5; o outro, com os capítulos 6 a 10. Cada um escreve no seu próprio caderno, sem mexer no do outro. No fim, a editora junta os cadernos e imprime <strong>um livro só</strong>. Quem compra o livro nem sabe que ele foi escrito em dois cadernos.</p>
+
+<p>Uma classe parcial é esse livro:</p>
+<ul>
+  <li>cada <strong>caderno</strong> é um arquivo <code>.cs</code> com um pedaço da classe, marcado com <code>partial</code>;</li>
+  <li>a <strong>editora</strong> é o compilador, que junta os pedaços;</li>
+  <li>o <strong>livro</strong> é a classe final: para quem usa, ela é uma classe comum.</li>
+</ul>
+
+<hr>
+
+<h2>Um projeto com vários arquivos</h2>
+<p>Até agora, a Ana rodava arquivos soltos com <code>dotnet run arquivo.cs</code>. Uma classe espalhada em vários arquivos pede um <strong>projeto</strong> (veja <a href="projetos-console.html">Projetos</a>): uma pasta em que todos os <code>.cs</code> são compilados juntos. Ela criou o projeto da lojinha na pasta <code>~/projetos</code>:</p>
+
+<pre class="term">$ cd ~/projetos
+$ dotnet new console -o Loja
+O modelo "Aplicativo do Console" foi criado com êxito.
+
+Processando ações pós-criação...
+Restaurando /home/ana/projetos/Loja/Loja.csproj:
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Loja/Loja.csproj restaurado (em 108 ms).
+A restauração foi bem-sucedida.
+
+$ cd Loja</pre>
+
+<p>Depois, ela trocou o conteúdo do <code>Program.cs</code> e criou mais dois arquivos na mesma pasta, com o editor de texto:</p>
+
+<pre class="term">$ ls
+Loja.csproj  obj  Produto.cs  Produto.Precos.cs  Program.cs</pre>
+
+<p>Os três arquivos <code>.cs</code>:</p>
+
+<pre class="file" data-file="Program.cs">Produto cafe = new Produto("Café", 18.90m);
+cafe.Mostrar();
+cafe.AplicarDesconto(10);
+cafe.Mostrar();
+</pre>
+
+<pre class="file" data-file="Produto.cs">partial class Produto
+{
+    public string Nome { get; }
+    public decimal Preco { get; private set; }
+
+    public Produto(string nome, decimal preco)
+    {
+        Nome = nome;
+        Preco = preco;
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{Nome}: {Preco:C}");
+    }
+}
+</pre>
+
+<pre class="file" data-file="Produto.Precos.cs">partial class Produto
+{
+    public void AplicarDesconto(int porcento)
+    {
+        Preco -= Preco * porcento / 100;
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>partial class Produto (em Produto.cs)</dt><dd>A primeira parte da classe: as propriedades, o construtor e o <code>Mostrar()</code>. O <code>partial</code> avisa: "esta não é a classe inteira; procure as outras partes".</dd>
+  <dt>partial class Produto (em Produto.Precos.cs)</dt><dd>A segunda parte, com <strong>o mesmo nome</strong>. Aqui fica o que mexe em preços.</dd>
+  <dt>Preco -= Preco * porcento / 100;</dt><dd>O método da segunda parte usa a propriedade <code>Preco</code>, que foi declarada na primeira. Para o compilador, é tudo uma classe só: cada parte enxerga tudo das outras, inclusive o que é <code>private</code> (como o <code>set</code> do <code>Preco</code>).</dd>
+  <dt>Produto.Precos.cs</dt><dd>O nome do arquivo não importa para o compilador, mas a convenção é <code>Classe.Assunto.cs</code>: quem abre a pasta vê na hora que os dois arquivos são da mesma classe.</dd>
+  <dt>Program.cs</dt><dd>Usa o <code>Produto</code> como uma classe qualquer: chama o <code>Mostrar()</code> (parte 1) e o <code>AplicarDesconto()</code> (parte 2) sem saber de onde cada um veio.</dd>
+</dl>
+
+<p>Num projeto, o comando é só <code>dotnet run</code>, sem o nome do arquivo: ele compila <strong>todos</strong> os <code>.cs</code> da pasta.</p>
+
+<pre class="term">$ dotnet run
+Café: R$ 18,90
+Café: R$ 17,01      « 18,90 menos 10% (1,89)</pre>
+
+<div class="tip">
+<strong>No editor do guia</strong>
+<p>Nas caixas "Experimente" com vários arquivos, cada arquivo vira uma <strong>aba</strong>. Todas as abas são compiladas juntas, como num projeto. Clique no nome do arquivo para trocar de aba.</p>
+</div>
+
+<div class="trycs" data-goal="outre:Café: R\$\s20\,79,src:void\s+Aumentar\s*\(">
+<p class="try-task"><strong>Missão:</strong> a Ana já escreveu, no <code>Program.cs</code>, a chamada <code>cafe.Aumentar(10)</code>, mas o método não existe (rode e veja o erro). Na aba <code>Produto.Precos.cs</code>, crie o método <code>public void Aumentar(int porcento)</code>, que soma ao preço a porcentagem pedida (<code>Preco += Preco * porcento / 100;</code>). A saída deve terminar com <code>Café: R$ 20,79</code>.</p>
+<pre class="script" data-file="Program.cs">Produto cafe = new Produto("Café", 18.90m);
+cafe.Mostrar();
+cafe.Aumentar(10);
+cafe.Mostrar();
+</pre>
+<pre class="script" data-file="Produto.cs">partial class Produto
+{
+    public string Nome { get; }
+    public decimal Preco { get; private set; }
+
+    public Produto(string nome, decimal preco)
+    {
+        Nome = nome;
+        Preco = preco;
+    }
+
+    public void Mostrar()
+    {
+        Console.WriteLine($"{Nome}: {Preco:C}");
+    }
+}
+</pre>
+<pre class="script" data-file="Produto.Precos.cs">partial class Produto
+{
+    public void AplicarDesconto(int porcento)
+    {
+        Preco -= Preco * porcento / 100;
+    }
+
+    // crie aqui o método Aumentar
+}
+</pre>
+<pre class="solucao" data-file="Produto.Precos.cs">partial class Produto
+{
+    public void AplicarDesconto(int porcento)
+    {
+        Preco -= Preco * porcento / 100;
+    }
+
+    public void Aumentar(int porcento)
+    {
+        Preco += Preco * porcento / 100;
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>As regras que o compilador cobra</h2>
+
+<h3>1. Todas as partes levam <code>partial</code></h3>
+<p>A Ana esqueceu o <code>partial</code> no <code>Produto.Precos.cs</code> (ficou só <code>class Produto</code>):</p>
+
+<pre class="term">$ dotnet run
+/home/ana/projetos/Loja/Produto.Precos.cs(1,7): error CS0260: Modificador parcial ausente na declaração do tipo "Produto"; existe outra declaração parcial deste tipo [/home/ana/projetos/Loja/Loja.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Falta o modificador <code>partial</code> na declaração de <code>Produto</code>; existe outra declaração parcial." O compilador achou uma parte com <code>partial</code> (a de <code>Produto.cs</code>) e outra sem. Num projeto, a mensagem termina com o nome do <code>.csproj</code> entre colchetes: é o projeto que estava sendo compilado.</p>
+
+<h3>2. Sem <code>partial</code>, são duas classes com o mesmo nome</h3>
+<p>E se <strong>nenhuma</strong> parte tiver <code>partial</code>? Aí o compilador vê duas classes diferentes com o mesmo nome:</p>
+
+<pre class="term">$ dotnet run
+/home/ana/projetos/Loja/Produto.Precos.cs(1,7): error CS0101: O namespace "&lt;global namespace&gt;" já contém uma definição para "Produto" [/home/ana/projetos/Loja/Loja.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O "namespace global" é o lugar das classes que não estão em nenhum <a href="namespaces.html">namespace</a>. Ali já existe um <code>Produto</code>, e não cabe outro.</p>
+
+<h3>3. As partes têm de concordar</h3>
+<p>Os modificadores da classe têm de combinar. Com <code>internal partial class Produto</code> num arquivo e <code>public partial class Produto</code> no outro:</p>
+
+<pre class="term">$ dotnet run
+/home/ana/projetos/Loja/Produto.cs(1,24): error CS0262: Declarações parciais de "Produto" têm modificadores de acessibilidade conflitantes [/home/ana/projetos/Loja/Loja.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Escreva o mesmo modificador nas duas partes, ou escreva só numa (as outras herdam). O mesmo vale para a classe mãe: se uma parte diz <code>partial class Produto : Item</code>, as outras podem repetir <code>: Item</code> ou não dizer nada, mas não podem citar outra mãe. Já as <a href="interfaces.html">interfaces</a> se somam: cada parte pode acrescentar as suas.</p>
+
+<h3>4. Um membro só existe uma vez</h3>
+<p>As partes são uma classe só, então não podem repetir um membro. A Ana criou um terceiro arquivo, <code>Produto.Extra.cs</code>, com outro <code>Mostrar()</code>:</p>
+
+<pre class="file" data-file="Produto.Extra.cs">partial class Produto
+{
+    public void Mostrar() =&gt; Console.WriteLine(Nome);
+}
+</pre>
+
+<pre class="term">$ dotnet run
+/home/ana/projetos/Loja/Produto.Extra.cs(3,17): error CS0111: Tipo "Produto" já define um membro chamado "Mostrar" com os mesmos tipos de parâmetro [/home/ana/projetos/Loja/Loja.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>É o mesmo erro de escrever dois <code>Mostrar()</code> iguais numa classe comum (veja <a href="sobrecarga.html">Sobrecarga</a>): o <code>partial</code> não cria cópias, só divide.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Regra</th><th>Se quebrar</th></tr>
+<tr><td>Todas as partes com <code>partial</code></td><td><code>CS0260</code> (faltou em uma) ou <code>CS0101</code> (faltou em todas)</td></tr>
+<tr><td>Mesmo nome, mesmo namespace, mesmo projeto</td><td>Senão, são classes diferentes</td></tr>
+<tr><td>Modificadores de acesso iguais (ou só em uma parte)</td><td><code>CS0262</code></td></tr>
+<tr><td>Cada membro aparece numa parte só</td><td><code>CS0111</code></td></tr>
+</table>
+</div>
+
+<div class="note">
+<strong>Também funciona num arquivo só</strong>
+<p>As partes podem estar até no mesmo arquivo, e então <code>dotnet run arquivo.cs</code> serve. Não é útil no dia a dia, mas mostra que <code>partial</code> não tem nada a ver com arquivos: é só "esta classe continua em outro lugar". O que <strong>não</strong> funciona é espalhar as partes em <strong>projetos</strong> diferentes: o compilador só junta as partes de um mesmo projeto.</p>
+</div>
+
+<hr>
+
+<h2>Para que serve?</h2>
+
+<h3>1. Código gerado por ferramentas</h3>
+<p>É o uso principal. Muitas ferramentas do .NET <strong>escrevem código C#</strong> automaticamente:</p>
+<ul>
+  <li>o desenhista de telas do Windows Forms e do WPF grava os botões e as caixas de texto que você arrastou num arquivo como <code>Form1.Designer.cs</code>;</li>
+  <li>os <strong>geradores de código</strong> (<em>source generators</em>) do compilador criam código na hora de compilar. O <code>[GeneratedRegex]</code> da aula de <a href="regex.html">Regex</a> e o gerador do <a href="json.html">JSON</a> trabalham assim.</li>
+</ul>
+<p>A ferramenta fica com a parte dela e pode reescrevê-la a qualquer momento. Você escreve a sua parte em outro arquivo, que a ferramenta nunca toca. Sem <code>partial</code>, cada vez que a ferramenta regravasse o arquivo, o seu código sumiria.</p>
+
+<h3>2. Classes grandes</h3>
+<p>Uma classe muito grande pode ser dividida por assunto: <code>Pedido.cs</code>, <code>Pedido.Validacao.cs</code>, <code>Pedido.Impressao.cs</code>. Use com cuidado: uma classe tão grande que precisa de vários arquivos muitas vezes está fazendo coisas demais e seria melhor dividida em <strong>classes</strong> menores.</p>
+
+<hr>
+
+<h2>Métodos parciais</h2>
+<p>Uma parte da classe pode <strong>declarar</strong> um método sem corpo e chamá-lo, e outra parte pode escrever esse corpo. É o jeito de uma ferramenta deixar um "gancho": "se você quiser fazer algo quando o preço mudar, escreva este método".</p>
+
+<p>A Ana montou outro projeto, <code>~/projetos/Precos</code>, com três arquivos:</p>
+
+<pre class="file" data-file="Program.cs">Produto cafe = new Produto("Café", 18.90m);
+cafe.MudarPreco(21.50m);
+cafe.MudarPreco(19.90m);
+</pre>
+
+<pre class="file" data-file="Produto.cs">partial class Produto
+{
+    public string Nome { get; }
+    public decimal Preco { get; private set; }
+
+    public Produto(string nome, decimal preco)
+    {
+        Nome = nome;
+        Preco = preco;
+    }
+
+    public void MudarPreco(decimal novo)
+    {
+        decimal antigo = Preco;
+        Preco = novo;
+        AoMudarPreco(antigo, novo);
+    }
+
+    partial void AoMudarPreco(decimal antigo, decimal novo);
+}
+</pre>
+
+<pre class="file" data-file="Produto.Avisos.cs">partial class Produto
+{
+    partial void AoMudarPreco(decimal antigo, decimal novo)
+    {
+        Console.WriteLine($"{Nome}: {antigo:C} → {novo:C}");
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>partial void AoMudarPreco(decimal antigo, decimal novo);</dt><dd>A <strong>declaração</strong> do método parcial, sem corpo, terminada em <code>;</code>. É o gancho.</dd>
+  <dt>AoMudarPreco(antigo, novo);</dt><dd>O <code>MudarPreco</code> chama o gancho depois de trocar o preço.</dd>
+  <dt>partial void AoMudarPreco(…) { … }</dt><dd>A <strong>implementação</strong>, em outro arquivo, com a mesma assinatura e o corpo.</dd>
+</dl>
+
+<pre class="term">$ dotnet run
+Café: R$ 18,90 → R$ 21,50
+Café: R$ 21,50 → R$ 19,90</pre>
+
+<p>A surpresa: um método parcial <code>void</code>, sem modificador de acesso, <strong>não precisa</strong> ser implementado. A Ana tirou o <code>Produto.Avisos.cs</code> da pasta e rodou de novo:</p>
+
+<pre class="term">$ mv Produto.Avisos.cs ~/
+$ dotnet run
+$                   « compilou, rodou e não mostrou nada</pre>
+
+<p>Sem implementação, o compilador <strong>apaga</strong> o gancho e todas as chamadas a ele, como se nunca tivessem existido. Por isso esse tipo de método parcial tem regras: tem de ser <code>void</code>, não pode ter modificador de acesso (é sempre <code>private</code>) nem parâmetros <code>out</code>.</p>
+
+<h3>Com modificador de acesso, a implementação é obrigatória <span class="versao">C# 9</span></h3>
+<p>Desde o C# 9, um método parcial pode ser <code>public</code>, devolver valores e ter <code>out</code>. Em troca, a implementação vira obrigatória (o compilador não tem como "apagar" uma chamada que devolve um valor):</p>
+
+<pre class="file" data-file="SemImpl.cs">Console.WriteLine(new Cliente().Desconto());
+
+partial class Cliente
+{
+    public partial decimal Desconto();
+}
+</pre>
+
+<pre class="term">$ dotnet run SemImpl.cs
+/home/ana/cs/SemImpl.cs(5,28): error CS8795: O método parcial 'Cliente.Desconto()' precisa ter uma parte de implementação porque ele tem modificadores de acessibilidade.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>É assim que os geradores de código modernos trabalham: <strong>você</strong> declara <code>public partial …</code> (o que quer) e o <strong>gerador</strong> escreve a implementação (o como).</p>
+
+<h3>Propriedades e construtores parciais <span class="versao">C# 13</span> <span class="versao">C# 14</span></h3>
+<p>O C# 13 (.NET 9) estendeu a ideia às propriedades, e o C# 14 (.NET 10), aos construtores e eventos. A regra é a mesma do método com acesso: uma parte declara, outra implementa, e as duas são obrigatórias.</p>
+
+<pre class="file" data-file="Novo.cs">Console.WriteLine(new Cliente("Ana").Saudacao);
+
+partial class Cliente
+{
+    public partial Cliente(string nome);
+    public partial string Saudacao { get; }
+}
+
+partial class Cliente
+{
+    private readonly string nome;
+
+    public partial Cliente(string nome)
+    {
+        this.nome = nome;
+    }
+
+    public partial string Saudacao =&gt; $"Olá, {nome}!";
+}
+</pre>
+
+<pre class="term">$ dotnet run Novo.cs
+Olá, Ana!</pre>
+
+<p>Aqui as duas partes estão no mesmo arquivo só para caber num exemplo. Na vida real, a primeira parte seria sua e a segunda viria de um gerador. Você vai usar isso pouco no começo, mas vai encontrar em código moderno.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS0260: "Modificador parcial ausente na declaração do tipo …"</strong>
+<pre class="term">$ dotnet run
+/home/ana/projetos/Loja/Produto.Precos.cs(1,7): error CS0260: Modificador parcial ausente na declaração do tipo "Produto"; existe outra declaração parcial deste tipo [/home/ana/projetos/Loja/Loja.csproj]</pre>
+<p><strong>O que aconteceu:</strong> uma das partes está sem <code>partial</code>.</p>
+<p><strong>Como resolver:</strong> escreva <code>partial class</code> no arquivo apontado.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0101: "… já contém uma definição para …"</strong>
+<pre class="term">$ dotnet run
+/home/ana/projetos/Loja/Produto.Precos.cs(1,7): error CS0101: O namespace "&lt;global namespace&gt;" já contém uma definição para "Produto" [/home/ana/projetos/Loja/Loja.csproj]</pre>
+<p><strong>O que aconteceu:</strong> duas classes com o mesmo nome, nenhuma com <code>partial</code>. Também acontece sem querer, quando você copia um arquivo para testar e esquece o original na pasta do projeto.</p>
+<p><strong>Como resolver:</strong> se a ideia era dividir a classe, use <code>partial</code> nas duas partes. Se não, renomeie uma delas ou apague a cópia.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0246 com a classe em outro arquivo</strong>
+<p><strong>O que aconteceu:</strong> o <code>Program.cs</code> diz que <code>Produto</code> "não pode ser encontrado". Quase sempre, o arquivo da classe está <strong>fora</strong> da pasta do projeto (por exemplo, na pasta de cima), ou o nome da classe está escrito diferente nos dois lugares (<code>produto</code> × <code>Produto</code>).</p>
+<p><strong>Como resolver:</strong> coloque todos os <code>.cs</code> na pasta do <code>.csproj</code> (ou em subpastas dela) e rode <code>dotnet run</code> nessa pasta.</p>
+</div>
+
+<div class="cenario">
+<strong>CS8795: "O método parcial … precisa ter uma parte de implementação …"</strong>
+<pre class="term">$ dotnet run SemImpl.cs
+/home/ana/cs/SemImpl.cs(5,28): error CS8795: O método parcial 'Cliente.Desconto()' precisa ter uma parte de implementação porque ele tem modificadores de acessibilidade.</pre>
+<p><strong>O que aconteceu:</strong> um método parcial com <code>public</code> (ou que devolve valor) foi só declarado.</p>
+<p><strong>Como resolver:</strong> escreva a implementação, com <code>public partial</code> e o corpo, em uma das partes. Se o método vem de um gerador de código, confira se o pacote do gerador está instalado no projeto.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>partial class Produto { … }</code></td><td>Uma parte da classe; as partes do mesmo projeto viram uma classe só</td></tr>
+<tr><td><code>Produto.cs</code>, <code>Produto.Precos.cs</code></td><td>Convenção de nomes dos arquivos de uma classe parcial</td></tr>
+<tr><td><code>partial void Gancho();</code></td><td>Método parcial opcional: sem implementação, ele e as chamadas somem</td></tr>
+<tr><td><code>public partial decimal Desconto();</code></td><td>Método parcial com acesso <span class="versao">C# 9</span>: implementação obrigatória</td></tr>
+<tr><td><code>public partial string Saudacao { get; }</code></td><td>Propriedade parcial <span class="versao">C# 13</span></td></tr>
+<tr><td><code>public partial Cliente(string nome);</code></td><td>Construtor parcial <span class="versao">C# 14</span></td></tr>
+<tr><td><code>partial struct</code>, <code>partial interface</code>, <code>partial record</code></td><td>Também existem</td></tr>
+<tr><td><code>dotnet run</code> (num projeto)</td><td>Compila todos os <code>.cs</code> da pasta</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A palavra-chave</h3>
+<p>Complete para esta ser uma das partes da classe <code>Pedido</code>:</p>
+<div class="ex-code"><input data-answer="partial class|public partial class|internal partial class" aria-label="declaração"> Pedido { }</div>
+</div>
+
+<div class="exercise">
+<h3>2. O nome do arquivo</h3>
+<p>Seguindo a convenção, complete o nome do arquivo da parte de <code>Pedido</code> que cuida da impressão:</p>
+<div class="ex-code"><input data-answer="Pedido.Impressao.cs|Pedido.Impressão.cs" aria-label="arquivo"></div>
+</div>
+
+<div class="exercise">
+<h3>3. O gancho</h3>
+<p>Complete a declaração do método parcial opcional <code>AoSalvar</code>, sem parâmetros:</p>
+<div class="ex-code"><input data-answer="partial void AoSalvar();" aria-label="declaração"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. <code>Produto.cs</code> tem <code>partial class Produto</code> e <code>Produto.Precos.cs</code> tem <code>class Produto</code>, sem <code>partial</code>. O que acontece?</p>
+<label><input type="radio" name="q4"> Compila: basta um <code>partial</code></label>
+<label><input type="radio" name="q4"> Erro <code>CS0260</code>: falta o modificador parcial</label>
+<label><input type="radio" name="q4"> O compilador usa só o primeiro arquivo</label>
+<label><input type="radio" name="q4"> Exceção ao rodar</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Um método da parte 2 pode usar um campo <code>private</code> declarado na parte 1?</p>
+<label><input type="radio" name="q5"> Não: <code>private</code> só vale no mesmo arquivo</label>
+<label><input type="radio" name="q5"> Só se o campo for <code>protected</code></label>
+<label><input type="radio" name="q5"> Sim: as partes são uma classe só</label>
+<label><input type="radio" name="q5"> Só se as partes estiverem no mesmo arquivo</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. <code>partial void AoMudarPreco();</code> foi declarado e chamado, mas ninguém escreveu a implementação. O que acontece?</p>
+<label><input type="radio" name="q6"> Compila; a chamada é apagada e nada acontece</label>
+<label><input type="radio" name="q6"> Erro <code>CS8795</code></label>
+<label><input type="radio" name="q6"> Exceção <code>NotImplementedException</code> ao rodar</label>
+<label><input type="radio" name="q6"> Erro <code>CS0101</code></label>
+</div>
+
+<div class="trycs" data-goal="outre:Café: R\$\s18\,90 → R\$\s21\,50,src:partial\s+void\s+AoMudarPreco\s*\([^)]*\)\s*\{">
+<p class="try-task"><strong>Missão final:</strong> no projeto dos preços, o <code>Produto.cs</code> já declara e chama o gancho <code>partial void AoMudarPreco(decimal antigo, decimal novo);</code>. Rode: nada aparece, porque ninguém implementou o gancho. Na aba <code>Produto.Avisos.cs</code>, escreva a implementação, que mostra <code>{Nome}: {antigo:C} → {novo:C}</code> com <code>Console.WriteLine</code>. A primeira linha da saída deve ser <code>Café: R$ 18,90 → R$ 21,50</code>. (Você pode copiar o <code>→</code> deste texto.)</p>
+<pre class="script" data-file="Program.cs">Produto cafe = new Produto("Café", 18.90m);
+cafe.MudarPreco(21.50m);
+cafe.MudarPreco(19.90m);
+</pre>
+<pre class="script" data-file="Produto.cs">partial class Produto
+{
+    public string Nome { get; }
+    public decimal Preco { get; private set; }
+
+    public Produto(string nome, decimal preco)
+    {
+        Nome = nome;
+        Preco = preco;
+    }
+
+    public void MudarPreco(decimal novo)
+    {
+        decimal antigo = Preco;
+        Preco = novo;
+        AoMudarPreco(antigo, novo);
+    }
+
+    partial void AoMudarPreco(decimal antigo, decimal novo);
+}
+</pre>
+<pre class="script" data-file="Produto.Avisos.cs">partial class Produto
+{
+    // implemente aqui o AoMudarPreco
+}
+</pre>
+<pre class="solucao" data-file="Produto.Avisos.cs">partial class Produto
+{
+    partial void AoMudarPreco(decimal antigo, decimal novo)
+    {
+        Console.WriteLine($"{Nome}: {antigo:C} → {novo:C}");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>partial class</code> divide uma classe em partes, em arquivos diferentes do mesmo projeto. O compilador junta tudo numa classe só, e cada parte enxerga as outras.</li>
+  <li>Todas as partes levam <code>partial</code> (<code>CS0260</code>; sem nenhum, <code>CS0101</code>), concordam nos modificadores (<code>CS0262</code>) e não repetem membros (<code>CS0111</code>).</li>
+  <li>Vários arquivos pedem um projeto: <code>dotnet new console -o Loja</code> e <code>dotnet run</code> na pasta.</li>
+  <li>O uso principal é o código gerado por ferramentas: a ferramenta fica com uma parte, você com outra.</li>
+  <li>Método parcial <code>partial void X();</code> é um gancho opcional, apagado se não for implementado. Com modificador de acesso <span class="versao">C# 9</span>, propriedades <span class="versao">C# 13</span> e construtores <span class="versao">C# 14</span>, a implementação é obrigatória (<code>CS8795</code>). Próxima aula: <a href="object.html">A Classe object</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
