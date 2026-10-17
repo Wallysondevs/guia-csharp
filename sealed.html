@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# sealed — classes e métodos que não podem ser herdados | Guia C#</title>
+<meta name="description" content="A palavra-chave sealed em C# para quem está começando: classe selada que ninguém herda, sealed override que encerra a sobrescrita de um método, por que string é selada, quando selar, e os erros reais CS0509, CS0239, CS0238, CS0418 e o aviso CS0628 do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">sealed</span></h1>
+
+<p class="intro">A <a href="heranca.html">herança</a> deixa qualquer classe virar mãe de outra, e o <a href="virtual-override.html"><code>override</code></a> deixa as filhas trocarem os métodos da mãe. Na maior parte do tempo, isso é ótimo. Mas às vezes você <strong>não quer</strong> que ninguém mexa: uma conta bancária cujas regras não podem ser burladas, um cálculo de imposto que tem de ser sempre o mesmo. A palavra <code>sealed</code> ("selado", como um envelope lacrado) fecha a porta: uma classe <code>sealed</code> não pode ter filhas, e um método <code>sealed override</code> não pode mais ser trocado.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma classe selada (<code>sealed class</code>) e o erro de quem tenta herdar dela (<code>CS0509</code>).</li>
+  <li>Por que o <code>string</code> do .NET é selado.</li>
+  <li>Como selar só um método: <code>sealed override</code> (e os erros <code>CS0239</code> e <code>CS0238</code>).</li>
+  <li>Por que <code>protected</code> numa classe selada dá aviso (<code>CS0628</code>).</li>
+  <li>Quando vale a pena selar.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com <code>dotnet run arquivo.cs</code> no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: o envelope lacrado</h2>
+<p>Quando um documento importante vai pelo correio, ele vai num envelope <strong>lacrado</strong>: quem recebe sabe que ninguém abriu e mudou o conteúdo no caminho. Uma classe selada é assim. Quem usa a classe <code>Conta</code> sabe que todo objeto <code>Conta</code> é <strong>exatamente</strong> aquela classe, com aquelas regras, e não uma filha "esperta" que trocou o comportamento.</p>
+
+<p>Se você já viu Java: o <code>sealed</code> do C# é o <code>final</code> do Java. (O Java também tem uma palavra <code>sealed</code>, mas com outro significado: lá ela lista quem pode herdar.)</p>
+
+<hr>
+
+<h2>Uma classe selada</h2>
+
+<pre class="file" data-file="selada.cs">Conta c = new Conta("Ana", 100m);
+c.Depositar(50m);
+Console.WriteLine($"{c.Titular}: {c.Saldo:C}");
+
+sealed class Conta
+{
+    public string Titular { get; }
+    public decimal Saldo { get; private set; }
+
+    public Conta(string titular, decimal saldo)
+    {
+        Titular = titular;
+        Saldo = saldo;
+    }
+
+    public void Depositar(decimal valor)
+    {
+        Saldo += valor;
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>sealed class Conta</dt><dd>Uma classe selada. Por dentro ela é igual a qualquer classe: propriedades, construtor, métodos. A única diferença é que <strong>nenhuma classe pode herdar dela</strong>.</dd>
+  <dt>public decimal Saldo { get; private set; }</dt><dd>O saldo pode ser lido por todos, mas só a própria classe muda o valor (veja <a href="encapsulamento.html">Encapsulamento</a>).</dd>
+  <dt>Conta c = new Conta("Ana", 100m);</dt><dd>Criar objetos de uma classe selada é normal. Selar não impede o uso; impede a herança.</dd>
+</dl>
+
+<pre class="term">$ dotnet run selada.cs
+Ana: R$ 150,00</pre>
+
+<p>Agora, alguém tenta criar uma conta "trapaceira", que herda de <code>Conta</code>. A Ana acrescentou no fim do arquivo:</p>
+
+<div class="warning">
+<strong>Este código tem um erro de propósito</strong>
+<pre class="file" data-file="herdar.cs">// … tudo o que estava em selada.cs
+
+class ContaTrapaceira : Conta
+{
+    public ContaTrapaceira(string titular) : base(titular, 0m) { }
+}
+</pre>
+</div>
+
+<pre class="term">$ dotnet run herdar.cs
+/home/ana/cs/herdar.cs(22,25): error CS0509: "ContaTrapaceira": não é possível derivar do tipo sealed "Conta"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Derivar" é outra palavra para herdar: uma classe filha é uma classe <strong>derivada</strong>. A coluna 25 da linha 22 aponta o <code>Conta</code> depois do <code>:</code>. Em inglês: <em>'ContaTrapaceira': cannot derive from sealed type 'Conta'</em>.</p>
+
+<div class="trycs" data-goal="erro:CS0509,src:sealed\s+class\s+Conta">
+<p class="try-task"><strong>Missão:</strong> o programa abaixo compila, e a <code>ContaTrapaceira</code> consegue herdar de <code>Conta</code>. Sele a classe <code>Conta</code> (acrescente <code>sealed</code> antes de <code>class Conta</code>) e rode: o compilador tem de recusar a filha com o erro <code>CS0509</code>.</p>
+<pre class="script">Conta c = new Conta("Ana", 100m);
+c.Depositar(50m);
+Console.WriteLine($"{c.Titular}: {c.Saldo:C}");
+
+class Conta
+{
+    public string Titular { get; }
+    public decimal Saldo { get; private set; }
+
+    public Conta(string titular, decimal saldo)
+    {
+        Titular = titular;
+        Saldo = saldo;
+    }
+
+    public void Depositar(decimal valor)
+    {
+        Saldo += valor;
+    }
+}
+
+class ContaTrapaceira : Conta
+{
+    public ContaTrapaceira(string titular) : base(titular, 0m) { }
+}
+</pre>
+<pre class="solucao">Conta c = new Conta("Ana", 100m);
+c.Depositar(50m);
+Console.WriteLine($"{c.Titular}: {c.Saldo:C}");
+
+sealed class Conta
+{
+    public string Titular { get; }
+    public decimal Saldo { get; private set; }
+
+    public Conta(string titular, decimal saldo)
+    {
+        Titular = titular;
+        Saldo = saldo;
+    }
+
+    public void Depositar(decimal valor)
+    {
+        Saldo += valor;
+    }
+}
+
+class ContaTrapaceira : Conta
+{
+    public ContaTrapaceira(string titular) : base(titular, 0m) { }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>O <code>string</code> é selado</h2>
+<p>Muitas classes do próprio .NET são seladas. A mais famosa é <code>string</code>. Tente criar o seu "texto melhorado":</p>
+
+<pre class="file" data-file="texto.cs">class MeuTexto : string
+{
+}
+</pre>
+
+<pre class="term">$ dotnet run texto.cs
+/home/ana/cs/texto.cs(1,18): error CS0509: "MeuTexto": não é possível derivar do tipo sealed "string"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Por quê? Todo o .NET conta com o fato de que um <code>string</code> é <strong>imutável</strong> (nunca muda depois de criado; veja <a href="strings.html">Strings</a>) e se compara pelo conteúdo. Uma filha poderia quebrar essas promessas e, com elas, dicionários, senhas, nomes de arquivo... Selando, os criadores do .NET garantem que todo <code>string</code> é o <code>string</code> deles. Para acrescentar métodos a um tipo selado, o C# tem outro caminho: os <a href="extensoes.html">métodos de extensão</a>.</p>
+
+<p>Dá para perguntar ao próprio .NET se um tipo é selado, com <code>typeof(…).IsSealed</code> (você verá o <code>typeof</code> em <a href="reflexao.html">Reflexão</a>):</p>
+
+<pre class="file" data-file="lista.cs">Console.WriteLine(typeof(string).IsSealed);
+Console.WriteLine(typeof(System.Text.StringBuilder).IsSealed);
+Console.WriteLine(typeof(Exception).IsSealed);
+</pre>
+
+<pre class="term">$ dotnet run lista.cs
+True
+True
+False      « Exception foi feita para ser herdada (veja Exceções Próprias)</pre>
+
+<hr>
+
+<h2>Selar só um método: <code>sealed override</code></h2>
+<p>Às vezes a classe pode ter filhas, mas um método específico já está "no ponto" e não deve mais mudar dali para baixo. Para isso, o <code>sealed</code> vai no método, junto do <code>override</code>:</p>
+
+<pre class="file" data-file="metodo.cs">Forma[] formas = [new Forma(), new Quadrado(), new QuadradoColorido()];
+foreach (Forma f in formas)
+{
+    Console.WriteLine(f.Descrever());
+}
+
+class Forma
+{
+    public virtual string Descrever() =&gt; "Uma forma qualquer";
+}
+
+class Quadrado : Forma
+{
+    public sealed override string Descrever() =&gt; "Um quadrado: 4 lados iguais";
+}
+
+class QuadradoColorido : Quadrado
+{
+    public string Cor =&gt; "azul";
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>public virtual string Descrever()</dt><dd>Na mãe, o método é <code>virtual</code>: as filhas podem trocar (veja <a href="virtual-override.html">virtual e override</a>).</dd>
+  <dt>public sealed override string Descrever()</dt><dd>O <code>Quadrado</code> troca o método (<code>override</code>) e <strong>lacra</strong> a sua versão (<code>sealed</code>). Daqui para baixo, ninguém troca mais.</dd>
+  <dt>class QuadradoColorido : Quadrado</dt><dd>A classe <code>Quadrado</code> não é selada, então pode ter filhas. O <code>QuadradoColorido</code> herda tudo e acrescenta a <code>Cor</code>, mas fica com o <code>Descrever()</code> do quadrado.</dd>
+</dl>
+
+<pre class="term">$ dotnet run metodo.cs
+Uma forma qualquer
+Um quadrado: 4 lados iguais
+Um quadrado: 4 lados iguais      « o QuadradoColorido usa a versão lacrada</pre>
+
+<p>Se o <code>QuadradoColorido</code> tentar escrever o próprio <code>public override string Descrever()</code>:</p>
+
+<pre class="term">$ dotnet run metodo-erro.cs
+/home/ana/cs/metodo-erro.cs(21,28): error CS0239: "QuadradoColorido.Descrever()": não é possível substituir o membro herdado "Quadrado.Descrever()" porque ele é sealed
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Substituir" é a tradução de <em>override</em>. O compilador diz qual versão está lacrada: a do <code>Quadrado</code>.</p>
+
+<h3><code>sealed</code> só num <code>override</code></h3>
+<p>Um método comum, que não é <code>virtual</code>, já não pode ser trocado: não faz sentido selá-lo. Por isso, <code>sealed</code> num método só vale junto de <code>override</code>. Se a Ana escrever <code>public sealed string Descrever()</code> na <code>Forma</code>:</p>
+
+<pre class="term">$ dotnet run naooverride.cs
+/home/ana/cs/naooverride.cs(9,26): error CS0238: "Forma.Descrever()" não pode ser sealed porque não é uma substituição
+/home/ana/cs/naooverride.cs(14,35): error CS0506: "Quadrado.Descrever()": não é possível substituir o membro herdado "Forma.Descrever()" porque ele não está marcado como virtual, abstract ou override
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O primeiro erro é o que importa: "não pode ser sealed porque não é uma substituição" (<em>cannot be sealed because it is not an override</em>). O segundo é consequência: sem o <code>virtual</code>, o <code>Quadrado</code> não tem o que substituir. Para "proibir a troca" na mãe, basta <strong>não</strong> escrever <code>virtual</code>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na classe</th><th>As filhas podem trocar o método?</th></tr>
+<tr><td><code>public string Descrever()</code></td><td>Não (o padrão do C#)</td></tr>
+<tr><td><code>public virtual string Descrever()</code></td><td>Sim</td></tr>
+<tr><td><code>public override string Descrever()</code></td><td>Sim, as netas também</td></tr>
+<tr><td><code>public sealed override string Descrever()</code></td><td>Não, daqui para baixo</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2><code>protected</code> numa classe selada</h2>
+<p>Um membro <code>protected</code> é visível para a própria classe e para as filhas (veja <a href="modificadores-acesso.html">public, private e internal</a>). Numa classe selada não há filhas, então <code>protected</code> é o mesmo que <code>private</code>. O compilador avisa, mas o programa roda:</p>
+
+<pre class="file" data-file="protegido.cs">Console.WriteLine(new Cofre().Abrir());
+
+sealed class Cofre
+{
+    protected string segredo = "1234";
+
+    public string Abrir() =&gt; $"Aberto com {segredo.Length} dígitos";
+}
+</pre>
+
+<pre class="term">$ dotnet run protegido.cs
+/home/ana/cs/protegido.cs(5,22): warning CS0628: 'Cofre.segredo': novo membro protegido declarado no tipo selado
+Aberto com 4 dígitos</pre>
+
+<p>O conserto é trocar <code>protected</code> por <code>private</code>, que diz a verdade sobre quem enxerga o campo.</p>
+
+<hr>
+
+<h2><code>sealed</code>, <code>abstract</code> e <code>static</code></h2>
+<ul>
+  <li><strong><code>abstract sealed</code> é proibido</strong> (<code>CS0418</code>): uma classe abstrata existe para ser herdada, e uma selada proíbe a herança. O erro aparece em <a href="abstratas.html">Classes Abstratas</a>.</li>
+  <li><strong>Uma <code>static class</code> já é fechada</strong> (veja <a href="static.html">static</a>): ninguém herda dela. Tentar <code>class Mais : Util</code>, com <code>Util</code> estática, dá outro erro: <code>CS0709: "Mais": não pode derivar da classe static "Util"</code>.</li>
+</ul>
+
+<hr>
+
+<h2>Quando selar?</h2>
+<p>Pense em duas pessoas: quem <strong>escreve</strong> a classe e quem a <strong>usa</strong>. Quem permite herança faz uma promessa difícil: "qualquer filha que trocar estes métodos vai funcionar". Muitas vezes a classe não foi pensada para isso.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>O que fazer</th></tr>
+<tr><td>A classe não foi pensada para ter filhas (a maioria das classes de um programa)</td><td>Pode selar: deixa a intenção clara e evita surpresas</td></tr>
+<tr><td>Regras que não podem ser burladas (conta, senha, cálculo de imposto)</td><td>Selar</td></tr>
+<tr><td>Uma família de classes (<code>Forma</code>, <code>Funcionario</code>)</td><td>Não selar a mãe; talvez selar as "folhas" (<code>Circulo</code>, <code>Quadrado</code>)</td></tr>
+<tr><td>Uma classe herdou um método e a versão dela já é a definitiva</td><td><code>sealed override</code> só naquele método</td></tr>
+<tr><td>Uma biblioteca usada por outras pessoas</td><td>Selar o que não é feito para herança: tirar o <code>sealed</code> depois é fácil; colocar depois quebra quem já herdou</td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>Um bônus: velocidade</strong>
+<p>Quando o tipo é selado, o .NET sabe que um método nunca será trocado por uma filha e pode chamá-lo de forma mais direta. O ganho é pequeno, e não é o motivo principal para selar; o motivo principal é deixar o projeto claro.</p>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS0509: "não é possível derivar do tipo sealed …"</strong>
+<pre class="term">$ dotnet run herdar.cs
+/home/ana/cs/herdar.cs(22,25): error CS0509: "ContaTrapaceira": não é possível derivar do tipo sealed "Conta"</pre>
+<p><strong>O que aconteceu:</strong> uma classe tentou herdar de uma classe selada.</p>
+<p><strong>Como resolver:</strong> se a classe é sua e deve ter filhas, tire o <code>sealed</code>. Se não é sua (como <code>string</code>), use a classe <strong>dentro</strong> da sua, como um campo ou uma propriedade (composição), ou crie <a href="extensoes.html">métodos de extensão</a>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0239: "não é possível substituir o membro herdado … porque ele é sealed"</strong>
+<pre class="term">$ dotnet run metodo-erro.cs
+/home/ana/cs/metodo-erro.cs(21,28): error CS0239: "QuadradoColorido.Descrever()": não é possível substituir o membro herdado "Quadrado.Descrever()" porque ele é sealed</pre>
+<p><strong>O que aconteceu:</strong> uma classe tentou trocar um método lacrado com <code>sealed override</code> numa classe acima dela.</p>
+<p><strong>Como resolver:</strong> use o método herdado como está, ou, se o método realmente deve mudar, tire o <code>sealed</code> lá na classe que o lacrou.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0238: "… não pode ser sealed porque não é uma substituição"</strong>
+<pre class="term">$ dotnet run naooverride.cs
+/home/ana/cs/naooverride.cs(9,26): error CS0238: "Forma.Descrever()" não pode ser sealed porque não é uma substituição</pre>
+<p><strong>O que aconteceu:</strong> <code>sealed</code> num método sem <code>override</code>.</p>
+<p><strong>Como resolver:</strong> apague o <code>sealed</code>: um método sem <code>virtual</code> já não pode ser trocado.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>sealed class Conta { … }</code></td><td>Classe que ninguém pode herdar</td></tr>
+<tr><td><code>public sealed override string Descrever()</code></td><td>Troca o método da mãe e proíbe as filhas de trocá-lo de novo</td></tr>
+<tr><td><code>protected</code> numa classe selada</td><td>Aviso <code>CS0628</code>; use <code>private</code></td></tr>
+<tr><td><code>abstract sealed class</code></td><td>Proibido (<code>CS0418</code>)</td></tr>
+<tr><td><code>typeof(string).IsSealed</code></td><td><code>True</code>: o <code>string</code> é selado</td></tr>
+<tr><td>Equivalente em Java</td><td><code>final class</code> e <code>final</code> no método</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Lacrar a classe</h3>
+<p>Complete para que nenhuma classe possa herdar de <code>Senha</code>:</p>
+<div class="ex-code"><input data-answer="sealed class|public sealed class" aria-label="declaração"> Senha { }</div>
+</div>
+
+<div class="exercise">
+<h3>2. Lacrar só o método</h3>
+<p>Na classe <code>Quadrado : Forma</code>, complete para trocar o <code>Descrever()</code> da mãe e proibir as filhas de trocá-lo de novo:</p>
+<div class="ex-code">public <input data-answer="sealed override|override sealed" aria-label="modificadores"> string Descrever() =&gt; "Quadrado";</div>
+</div>
+
+<div class="exercise">
+<h3>3. O código do erro</h3>
+<p>Qual é o código do erro de quem tenta herdar de <code>string</code>?</p>
+<div class="ex-code"><input data-answer="CS0509|cs0509" aria-label="código do erro"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. A classe <code>Conta</code> é <code>sealed</code>. O que <strong>pode</strong> ser feito com ela?</p>
+<label><input type="radio" name="q4"> <code>class Poupanca : Conta { }</code></label>
+<label><input type="radio" name="q4"> <code>Conta c = new Conta("Ana", 100m);</code></label>
+<label><input type="radio" name="q4"> <code>abstract sealed class Conta</code></label>
+<label><input type="radio" name="q4"> Nada: classe selada não pode ser usada</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Onde o <code>sealed</code> pode ir num método?</p>
+<label><input type="radio" name="q5"> Em qualquer método</label>
+<label><input type="radio" name="q5"> Só em métodos <code>virtual</code></label>
+<label><input type="radio" name="q5"> Só junto de <code>override</code></label>
+<label><input type="radio" name="q5"> Só em métodos <code>static</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que <code>protected</code> numa classe selada dá o aviso <code>CS0628</code>?</p>
+<label><input type="radio" name="q6"> Porque não existem filhas para enxergar o membro: ele é, na prática, <code>private</code></label>
+<label><input type="radio" name="q6"> Porque o programa vai travar</label>
+<label><input type="radio" name="q6"> Porque <code>protected</code> não existe em C#</label>
+<label><input type="radio" name="q6"> Porque o membro fica público</label>
+</div>
+
+<div class="trycs" data-goal="compila,outre:Cartão internacional: taxa R\$\s9\,00,src:sealed\s+class\s+Pix,src:sealed\s+override\s+decimal\s+Taxa">
+<p class="try-task"><strong>Missão final:</strong> a lojinha da Ana aceita Pix e cartão. Faça duas mudanças, sem mudar a saída: (1) sele a classe <code>Pix</code>, porque ninguém deve criar um "Pix especial" com outra taxa; (2) no <code>CartaoInternacional</code>, transforme o <code>override</code> da <code>Taxa()</code> em <code>sealed override</code>. O programa tem de compilar e mostrar <code>Cartão internacional: taxa R$ 9,00</code>.</p>
+<pre class="script">Pagamento[] pagamentos = [new Pix(100m), new Cartao(100m), new CartaoInternacional(100m)];
+foreach (Pagamento p in pagamentos)
+{
+    Console.WriteLine($"{p.Nome}: taxa {p.Taxa():C}");
+}
+
+abstract class Pagamento
+{
+    public decimal Valor { get; }
+
+    protected Pagamento(decimal valor)
+    {
+        Valor = valor;
+    }
+
+    public abstract string Nome { get; }
+    public abstract decimal Taxa();
+}
+
+class Pix : Pagamento
+{
+    public Pix(decimal valor) : base(valor) { }
+
+    public override string Nome =&gt; "Pix";
+    public override decimal Taxa() =&gt; 0m;
+}
+
+class Cartao : Pagamento
+{
+    public Cartao(decimal valor) : base(valor) { }
+
+    public override string Nome =&gt; "Cartão";
+    public override decimal Taxa() =&gt; Valor * 0.03m;
+}
+
+class CartaoInternacional : Cartao
+{
+    public CartaoInternacional(decimal valor) : base(valor) { }
+
+    public override string Nome =&gt; "Cartão internacional";
+    public override decimal Taxa() =&gt; base.Taxa() + Valor * 0.06m;
+}
+</pre>
+<pre class="solucao">Pagamento[] pagamentos = [new Pix(100m), new Cartao(100m), new CartaoInternacional(100m)];
+foreach (Pagamento p in pagamentos)
+{
+    Console.WriteLine($"{p.Nome}: taxa {p.Taxa():C}");
+}
+
+abstract class Pagamento
+{
+    public decimal Valor { get; }
+
+    protected Pagamento(decimal valor)
+    {
+        Valor = valor;
+    }
+
+    public abstract string Nome { get; }
+    public abstract decimal Taxa();
+}
+
+sealed class Pix : Pagamento
+{
+    public Pix(decimal valor) : base(valor) { }
+
+    public override string Nome =&gt; "Pix";
+    public override decimal Taxa() =&gt; 0m;
+}
+
+class Cartao : Pagamento
+{
+    public Cartao(decimal valor) : base(valor) { }
+
+    public override string Nome =&gt; "Cartão";
+    public override decimal Taxa() =&gt; Valor * 0.03m;
+}
+
+class CartaoInternacional : Cartao
+{
+    public CartaoInternacional(decimal valor) : base(valor) { }
+
+    public override string Nome =&gt; "Cartão internacional";
+    public sealed override decimal Taxa() =&gt; base.Taxa() + Valor * 0.06m;
+}
+</pre>
+</div>
+
+<pre class="term">$ dotnet run pagamentos.cs      « a solução
+Pix: taxa R$ 0,00
+Cartão: taxa R$ 3,00
+Cartão internacional: taxa R$ 9,00</pre>
+
+<p>Repare na linha <code>base.Taxa() + Valor * 0.06m</code>: o cartão internacional usa a taxa do cartão comum (3%) e soma 6%. Depois do <code>sealed override</code>, nenhuma filha do <code>CartaoInternacional</code> pode trocar essa conta.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>sealed class</code> = classe lacrada: dá para criar objetos, mas não dá para herdar (<code>CS0509</code>). É o <code>final</code> do Java.</li>
+  <li><code>string</code> e <code>StringBuilder</code> são selados; para acrescentar métodos a eles, use métodos de extensão.</li>
+  <li><code>sealed override</code> lacra só um método: as filhas herdam a versão, mas não podem trocá-la (<code>CS0239</code>). <code>sealed</code> sem <code>override</code> é erro (<code>CS0238</code>).</li>
+  <li><code>protected</code> numa classe selada é <code>private</code> disfarçado (aviso <code>CS0628</code>). <code>abstract sealed</code> é proibido (<code>CS0418</code>).</li>
+  <li>Sele o que não foi pensado para herança e as regras que não podem ser burladas. Próxima aula: <a href="partial.html">Classes Parciais</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
