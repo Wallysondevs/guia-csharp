@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Operadores — tabela completa de precedência e associatividade | Guia C#</title>
+<meta name="description" content="Referência dos operadores do C# 14: a tabela completa de precedência e associatividade, do x.y ao =>, e uma tabela por grupo (aritméticos, atribuição, ++ e --, comparação, lógicos, bits, null, tipos, índices e intervalos, lambda, switch e with), cada um com exemplo, a saída real do dotnet 10 e a aula do guia. Com as armadilhas mais comuns e os erros reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Operadores</span></h1>
+
+<p class="intro">Operadores são os símbolos que fazem contas e comparações: <code>+</code>, <code>==</code>, <code>&amp;&amp;</code>, <code>??</code>… Esta página traz <strong>todos</strong> os operadores do C# 14 em tabelas: primeiro a <strong>precedência</strong> (quem é calculado primeiro numa expressão com vários), depois cada grupo, com exemplo e resultado. Para aprender com calma, comece por <a href="operadores-aritmeticos.html">Operadores Aritméticos</a> e <a href="precedencia.html">Precedência</a>.</p>
+
+<p>Todos os resultados vêm dos programas desta página, rodados no <code>dotnet</code> 10.0.112 da máquina da Ana (pasta <code>~/cs/op</code>, cultura pt-BR) e no editor do guia, que deram a mesma saída.</p>
+
+<p>Atalhos: <a href="#precedencia">Precedência</a> · <a href="#aritmeticos">Aritméticos</a> · <a href="#atribuicao">Atribuição</a> · <a href="#incremento">++ e --</a> · <a href="#comparacao">Comparação</a> · <a href="#logicos">Lógicos</a> · <a href="#bits">Bits</a> · <a href="#null">null</a> · <a href="#tipos">Tipos</a> · <a href="#indices">Índices e intervalos</a> · <a href="#outros">Outros</a> · <a href="#armadilhas">Armadilhas</a> · <a href="#experimente">Experimente</a></p>
+
+<hr>
+
+<h2 id="precedencia">Tabela de precedência e associatividade</h2>
+<p>Numa expressão com vários operadores, os de cima da tabela são calculados antes dos de baixo, como a multiplicação antes da soma na escola. Na mesma linha, a <strong>associatividade</strong> decide: "esquerda → direita" quer dizer que <code>10 - 4 - 3</code> é <code>(10 - 4) - 3</code>; "direita → esquerda" quer dizer que <code>a = b = 7</code> é <code>a = (b = 7)</code>.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>#</th><th>Grupo</th><th>Operadores</th><th>Associatividade</th></tr>
+<tr><td>1</td><td>Primários</td><td><code>x.y</code> <code>f(x)</code> <code>a[i]</code> <code>x?.y</code> <code>x?[i]</code> <code>x++</code> <code>x--</code> <code>x!</code> <code>new</code> <code>typeof</code> <code>checked</code> <code>unchecked</code> <code>default</code> <code>nameof</code> <code>delegate</code> <code>sizeof</code> <code>stackalloc</code> <code>x-&gt;y</code></td><td>esquerda → direita</td></tr>
+<tr><td>2</td><td>Unários</td><td><code>+x</code> <code>-x</code> <code>!x</code> <code>~x</code> <code>++x</code> <code>--x</code> <code>^x</code> <code>(T)x</code> <code>await</code> <code>&amp;x</code> <code>*x</code> <code>true</code> <code>false</code></td><td>direita → esquerda</td></tr>
+<tr><td>3</td><td>Intervalo</td><td><code>x..y</code></td><td>(não se encadeia)</td></tr>
+<tr><td>4</td><td><code>switch</code> e <code>with</code></td><td><code>x switch { … }</code> <code>x with { … }</code></td><td>esquerda → direita</td></tr>
+<tr><td>5</td><td>Multiplicativos</td><td><code>x * y</code> <code>x / y</code> <code>x % y</code></td><td>esquerda → direita</td></tr>
+<tr><td>6</td><td>Aditivos</td><td><code>x + y</code> <code>x - y</code></td><td>esquerda → direita</td></tr>
+<tr><td>7</td><td>Deslocamento</td><td><code>x &lt;&lt; y</code> <code>x &gt;&gt; y</code> <code>x &gt;&gt;&gt; y</code></td><td>esquerda → direita</td></tr>
+<tr><td>8</td><td>Relacionais e de tipo</td><td><code>x &lt; y</code> <code>x &gt; y</code> <code>x &lt;= y</code> <code>x &gt;= y</code> <code>is</code> <code>as</code></td><td>esquerda → direita</td></tr>
+<tr><td>9</td><td>Igualdade</td><td><code>x == y</code> <code>x != y</code></td><td>esquerda → direita</td></tr>
+<tr><td>10</td><td>E (lógico ou de bits)</td><td><code>x &amp; y</code></td><td>esquerda → direita</td></tr>
+<tr><td>11</td><td>OU exclusivo</td><td><code>x ^ y</code></td><td>esquerda → direita</td></tr>
+<tr><td>12</td><td>OU (lógico ou de bits)</td><td><code>x | y</code></td><td>esquerda → direita</td></tr>
+<tr><td>13</td><td>E condicional</td><td><code>x &amp;&amp; y</code></td><td>esquerda → direita</td></tr>
+<tr><td>14</td><td>OU condicional</td><td><code>x || y</code></td><td>esquerda → direita</td></tr>
+<tr><td>15</td><td>Coalescência nula</td><td><code>x ?? y</code></td><td>direita → esquerda</td></tr>
+<tr><td>16</td><td>Condicional (ternário)</td><td><code>c ? a : b</code></td><td>direita → esquerda</td></tr>
+<tr><td>17</td><td>Atribuição e lambda</td><td><code>=</code> <code>+=</code> <code>-=</code> <code>*=</code> <code>/=</code> <code>%=</code> <code>&amp;=</code> <code>|=</code> <code>^=</code> <code>&lt;&lt;=</code> <code>&gt;&gt;=</code> <code>&gt;&gt;&gt;=</code> <code>??=</code> <code>=&gt;</code></td><td>direita → esquerda</td></tr>
+</table>
+</div>
+
+<p>Veja a tabela funcionando. Cada linha mostra a expressão e o resultado:</p>
+
+<pre class="file" data-file="precedencia.cs">// precedencia.cs — quem é calculado primeiro
+int a, b;
+string? nada = null, vazio = null;
+
+Console.WriteLine($"2 + 3 * 4       = {2 + 3 * 4}");
+Console.WriteLine($"(2 + 3) * 4     = {(2 + 3) * 4}");
+Console.WriteLine($"10 - 4 - 3      = {10 - 4 - 3}");
+Console.WriteLine($"100 / 10 / 5    = {100 / 10 / 5}");
+Console.WriteLine($"2 * 3 % 4       = {2 * 3 % 4}");
+Console.WriteLine($"-2 * -3         = {-2 * -3}");
+Console.WriteLine($"1 &lt;&lt; 2 + 1      = {1 &lt;&lt; 2 + 1}");
+Console.WriteLine($"8 &gt; 5 == true   = {8 &gt; 5 == true}");
+Console.WriteLine($"true || false &amp;&amp; false = {true || false &amp;&amp; false}");
+Console.WriteLine($"(true || false) &amp;&amp; false = {(true || false) &amp;&amp; false}");
+Console.WriteLine($"6 &amp; 3 | 8       = {6 &amp; 3 | 8}");
+Console.WriteLine($"nada ?? vazio ?? \"padrão\" = {nada ?? vazio ?? "padrão"}");
+Console.WriteLine($"5 &gt; 3 ? \"sim\" : \"não\" = {(5 &gt; 3 ? "sim" : "não")}");
+a = b = 7;
+Console.WriteLine($"a = b = 7       → a = {a}, b = {b}");
+a = 10;
+a += b *= 2;
+Console.WriteLine($"a += b *= 2     → a = {a}, b = {b}");
+int i = 5;
+int r = i++ + ++i;
+Console.WriteLine($"i++ + ++i (i=5) → {r}, e i = {i}");
+int[] v = [10, 20, 30];
+Console.WriteLine($"v[^1] * 2       = {v[^1] * 2}");
+Console.WriteLine($"-v[0] + v[1]    = {-v[0] + v[1]}");
+</pre>
+<pre class="term" data-cwd="~/cs/op">$ dotnet run precedencia.cs
+2 + 3 * 4       = 14
+(2 + 3) * 4     = 20
+10 - 4 - 3      = 3
+100 / 10 / 5    = 2
+2 * 3 % 4       = 2
+-2 * -3         = 6
+1 &lt;&lt; 2 + 1      = 8
+8 &gt; 5 == true   = True
+true || false &amp;&amp; false = True
+(true || false) &amp;&amp; false = False
+6 &amp; 3 | 8       = 10
+nada ?? vazio ?? "padrão" = padrão
+5 &gt; 3 ? "sim" : "não" = sim
+a = b = 7       → a = 7, b = 7
+a += b *= 2     → a = 24, b = 14
+i++ + ++i (i=5) → 12, e i = 7
+v[^1] * 2       = 60
+-v[0] + v[1]    = 10</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Expressão</th><th>É lida como</th><th>Resultado</th><th>Regra</th></tr>
+<tr><td><code>2 + 3 * 4</code></td><td><code>2 + (3 * 4)</code></td><td><code>14</code></td><td><code>*</code> (5) antes de <code>+</code> (6)</td></tr>
+<tr><td><code>10 - 4 - 3</code></td><td><code>(10 - 4) - 3</code></td><td><code>3</code></td><td>esquerda → direita</td></tr>
+<tr><td><code>100 / 10 / 5</code></td><td><code>(100 / 10) / 5</code></td><td><code>2</code></td><td>esquerda → direita (não é 100 / 2)</td></tr>
+<tr><td><code>2 * 3 % 4</code></td><td><code>(2 * 3) % 4</code></td><td><code>2</code></td><td><code>*</code> e <code>%</code> estão na mesma linha: esquerda → direita</td></tr>
+<tr><td><code>1 &lt;&lt; 2 + 1</code></td><td><code>1 &lt;&lt; (2 + 1)</code></td><td><code>8</code></td><td><code>+</code> (6) antes de <code>&lt;&lt;</code> (7)</td></tr>
+<tr><td><code>8 &gt; 5 == true</code></td><td><code>(8 &gt; 5) == true</code></td><td><code>True</code></td><td><code>&gt;</code> (8) antes de <code>==</code> (9)</td></tr>
+<tr><td><code>true || false &amp;&amp; false</code></td><td><code>true || (false &amp;&amp; false)</code></td><td><code>True</code></td><td><code>&amp;&amp;</code> (13) antes de <code>||</code> (14)</td></tr>
+<tr><td><code>6 &amp; 3 | 8</code></td><td><code>(6 &amp; 3) | 8</code></td><td><code>10</code></td><td><code>&amp;</code> (10) antes de <code>|</code> (12)</td></tr>
+<tr><td><code>nada ?? vazio ?? "padrão"</code></td><td><code>nada ?? (vazio ?? "padrão")</code></td><td><code>padrão</code></td><td>direita → esquerda: o primeiro que não é <code>null</code></td></tr>
+<tr><td><code>a = b = 7</code></td><td><code>a = (b = 7)</code></td><td>os dois valem 7</td><td>direita → esquerda: a atribuição devolve o valor atribuído</td></tr>
+<tr><td><code>a += b *= 2</code></td><td><code>a += (b *= 2)</code></td><td><code>a = 24</code>, <code>b = 14</code></td><td>direita → esquerda. Funciona, mas não escreva assim</td></tr>
+<tr><td><code>i++ + ++i</code> (com <code>i = 5</code>)</td><td><code>5 + 7</code></td><td><code>12</code></td><td>os operandos são calculados da esquerda para a direita: <code>i++</code> dá 5 (e <code>i</code> vira 6), <code>++i</code> dá 7. No C# isso é garantido; mesmo assim, evite</td></tr>
+<tr><td><code>-v[0] + v[1]</code></td><td><code>(-(v[0])) + v[1]</code></td><td><code>10</code></td><td><code>v[0]</code> (1) antes do <code>-</code> unário (2)</td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>Na dúvida, parênteses</strong>
+<p>Ninguém decora as 17 linhas. Os parênteses não custam nada e deixam a intenção clara para quem lê: <code>(a &amp;&amp; b) || c</code> é melhor que <code>a &amp;&amp; b || c</code>, mesmo que os dois sejam iguais. Basta lembrar três coisas: <code>* / %</code> antes de <code>+ -</code>; comparações antes de <code>&amp;&amp;</code> e <code>||</code>; e a atribuição por último. Aula: <a href="precedencia.html">Precedência</a>.</p>
+</div>
+
+<hr>
+
+<p>As tabelas de grupo a seguir usam este programa. Cada linha da saída corresponde a uma tabela:</p>
+<pre class="file" data-file="opers.cs">// opers.cs — um exemplo de cada grupo
+int x = 17, y = 5;
+Console.WriteLine($"{x + y} {x - y} {x * y} {x / y} {x % y} {-x}");
+Console.WriteLine($"{17.0 / 5} {17m / 5} {-17 / 5} {-17 % 5}");
+int c = 10;
+c += 5; Console.Write($"{c} ");
+c -= 3; Console.Write($"{c} ");
+c *= 2; Console.Write($"{c} ");
+c /= 4; Console.Write($"{c} ");
+c %= 4; Console.WriteLine(c);
+int n = 5;
+Console.WriteLine($"{n++} {n} {++n} {n--} {--n}");
+Console.WriteLine($"{x == y} {x != y} {x &lt; y} {x &gt; y} {x &lt;= 17} {x &gt;= 18}");
+bool t = true, f = false;
+Console.WriteLine($"{t &amp;&amp; f} {t || f} {!t} {t &amp; f} {t | f} {t ^ f} {t ^ t}");
+Console.WriteLine($"{6 &amp; 3} {6 | 3} {6 ^ 3} {~6} {1 &lt;&lt; 4} {-16 &gt;&gt; 2} {-16 &gt;&gt;&gt; 28}");
+string? nome = null;
+Console.WriteLine($"[{nome?.Length}] [{nome ?? "sem nome"}] [{nome?.ToUpper() ?? "?"}]");
+nome ??= "Ana";
+Console.WriteLine($"{nome} {nome!.Length}");
+object o = "texto";
+Console.WriteLine($"{o is string} {o is int} {(o as string)?.Length} {typeof(string).Name} {sizeof(long)} {nameof(nome)}");
+Console.WriteLine($"{(int)3.7} {(double)7 / 2} {default(int)}");
+int[] v = [10, 20, 30, 40, 50];
+Console.WriteLine($"{v[^1]} {v[^2]} {string.Join(",", v[1..3])} {string.Join(",", v[..2])} {string.Join(",", v[3..])}");
+Func&lt;int, int&gt; dobro = k =&gt; k * 2;
+Console.WriteLine(dobro(21));
+string tamanho = x switch { &lt; 10 =&gt; "pequeno", &lt; 100 =&gt; "médio", _ =&gt; "grande" };
+Console.WriteLine(tamanho);
+</pre>
+<pre class="term" data-cwd="~/cs/op">$ dotnet run opers.cs
+22 12 85 3 2 -17
+3,4 3,4 -3 -2
+15 12 24 6 2
+5 6 7 7 5
+False True False True True False
+False True False False True True False
+2 7 5 -7 16 -4 15
+[] [sem nome] [?]
+Ana 3
+True False 5 String 8 nome
+3 3,5 0
+50 40 20,30 10,20 40,50
+42
+médio</pre>
+
+<h2 id="aritmeticos">Aritméticos</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>Nome</th><th>Exemplo (<code>x = 17</code>, <code>y = 5</code>)</th><th>Resultado</th><th>Aula</th></tr>
+<tr><td><code>+</code></td><td>soma (e junta textos)</td><td><code>x + y</code></td><td><code>22</code></td><td rowspan="5"><a href="operadores-aritmeticos.html">Operadores Aritméticos</a></td></tr>
+<tr><td><code>-</code></td><td>subtração; com um operando só, troca o sinal</td><td><code>x - y</code> · <code>-x</code></td><td><code>12</code> · <code>-17</code></td></tr>
+<tr><td><code>*</code></td><td>multiplicação</td><td><code>x * y</code></td><td><code>85</code></td></tr>
+<tr><td><code>/</code></td><td>divisão. Entre inteiros, <strong>corta</strong> a parte decimal</td><td><code>x / y</code> · <code>17.0 / 5</code> · <code>17m / 5</code> · <code>-17 / 5</code></td><td><code>3</code> · <code>3,4</code> · <code>3,4</code> · <code>-3</code></td></tr>
+<tr><td><code>%</code></td><td>resto da divisão (com o sinal do primeiro)</td><td><code>x % y</code> · <code>-17 % 5</code></td><td><code>2</code> · <code>-2</code></td></tr>
+<tr><td><code>+x</code></td><td>mais unário (não muda nada)</td><td><code>+x</code></td><td><code>17</code></td><td><a href="operadores-aritmeticos.html">Operadores Aritméticos</a></td></tr>
+</table>
+</div>
+<p>Inteiro dividido por zero lança <code>DivideByZeroException</code>; <code>double</code> dividido por zero dá <code>∞</code> ou <code>NaN</code>. Detalhes em <a href="ref-tipos.html#especiais">Tipos e Limites</a>.</p>
+
+<h2 id="atribuicao">Atribuição</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>É o mesmo que</th><th>Exemplo (começando com <code>c = 10</code>)</th><th>Resultado</th><th>Aula</th></tr>
+<tr><td><code>=</code></td><td>guarda o valor</td><td><code>c = 10</code></td><td><code>10</code></td><td><a href="variaveis.html">Variáveis</a></td></tr>
+<tr><td><code>+=</code></td><td><code>c = c + 5</code></td><td><code>c += 5</code></td><td><code>15</code></td><td rowspan="5"><a href="operadores-atribuicao.html">Operadores de Atribuição</a></td></tr>
+<tr><td><code>-=</code></td><td><code>c = c - 3</code></td><td><code>c -= 3</code></td><td><code>12</code></td></tr>
+<tr><td><code>*=</code></td><td><code>c = c * 2</code></td><td><code>c *= 2</code></td><td><code>24</code></td></tr>
+<tr><td><code>/=</code></td><td><code>c = c / 4</code></td><td><code>c /= 4</code></td><td><code>6</code></td></tr>
+<tr><td><code>%=</code></td><td><code>c = c % 4</code></td><td><code>c %= 4</code></td><td><code>2</code></td></tr>
+<tr><td><code>&amp;=</code> <code>|=</code> <code>^=</code> <code>&lt;&lt;=</code> <code>&gt;&gt;=</code> <code>&gt;&gt;&gt;=</code></td><td><code>c = c &amp; …</code> etc.</td><td><code>flags |= 4</code></td><td>liga o bit 4</td><td><a href="operadores-atribuicao.html">Operadores de Atribuição</a></td></tr>
+<tr><td><code>??=</code></td><td><code>if (c is null) c = …</code></td><td><code>nome ??= "Ana"</code></td><td>só atribui se for <code>null</code></td><td><a href="operadores-null.html">Operadores ??, ?. e ??=</a></td></tr>
+</table>
+</div>
+
+<h2 id="incremento"><code>++</code> e <code>--</code></h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>O que faz</th><th>Exemplo (em sequência, começando com <code>n = 5</code>)</th><th>Mostra</th><th>Depois, <code>n</code> vale</th></tr>
+<tr><td><code>n++</code></td><td>usa o valor, <strong>depois</strong> soma 1</td><td><code>n++</code></td><td><code>5</code></td><td><code>6</code></td></tr>
+<tr><td><code>++n</code></td><td>soma 1, <strong>depois</strong> usa</td><td><code>++n</code></td><td><code>7</code></td><td><code>7</code></td></tr>
+<tr><td><code>n--</code></td><td>usa, depois subtrai 1</td><td><code>n--</code></td><td><code>7</code></td><td><code>6</code></td></tr>
+<tr><td><code>--n</code></td><td>subtrai 1, depois usa</td><td><code>--n</code></td><td><code>5</code></td><td><code>5</code></td></tr>
+</table>
+</div>
+<p>Sozinho numa linha (<code>n++;</code>), tanto faz a forma. A diferença só aparece quando o valor é usado na mesma expressão. Aula: <a href="incremento.html">++ e --</a>.</p>
+
+<h2 id="comparacao">Comparação</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>Pergunta</th><th>Exemplo (<code>x = 17</code>, <code>y = 5</code>)</th><th>Resultado</th><th>Aula</th></tr>
+<tr><td><code>==</code></td><td>é igual?</td><td><code>x == y</code></td><td><code>False</code></td><td rowspan="6"><a href="operadores-comparacao.html">Operadores de Comparação</a></td></tr>
+<tr><td><code>!=</code></td><td>é diferente?</td><td><code>x != y</code></td><td><code>True</code></td></tr>
+<tr><td><code>&lt;</code></td><td>é menor?</td><td><code>x &lt; y</code></td><td><code>False</code></td></tr>
+<tr><td><code>&gt;</code></td><td>é maior?</td><td><code>x &gt; y</code></td><td><code>True</code></td></tr>
+<tr><td><code>&lt;=</code></td><td>é menor ou igual?</td><td><code>x &lt;= 17</code></td><td><code>True</code></td></tr>
+<tr><td><code>&gt;=</code></td><td>é maior ou igual?</td><td><code>x &gt;= 18</code></td><td><code>False</code></td></tr>
+</table>
+</div>
+<p>Para textos, <code>==</code> compara o conteúdo (<code>"ana" == "Ana"</code> é <code>False</code>); para ignorar maiúsculas, <code>string.Equals(a, b, StringComparison.OrdinalIgnoreCase)</code> (veja <a href="ref-string.html">string e StringBuilder</a>). Para objetos de classe, <code>==</code> compara se é o <strong>mesmo</strong> objeto, a não ser que a classe defina outra coisa (records comparam os campos). Aula: <a href="object.html">A Classe object</a>.</p>
+
+<h2 id="logicos">Lógicos (com <code>bool</code>)</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>Nome</th><th>Verdadeiro quando…</th><th>Exemplo (<code>t = true</code>, <code>f = false</code>)</th><th>Resultado</th><th>Aula</th></tr>
+<tr><td><code>&amp;&amp;</code></td><td>E</td><td>os dois são verdadeiros. Se o primeiro é falso, <strong>nem olha</strong> o segundo</td><td><code>t &amp;&amp; f</code></td><td><code>False</code></td><td rowspan="3"><a href="operadores-logicos.html">Operadores Lógicos</a></td></tr>
+<tr><td><code>||</code></td><td>OU</td><td>pelo menos um é verdadeiro. Se o primeiro é verdadeiro, nem olha o segundo</td><td><code>t || f</code></td><td><code>True</code></td></tr>
+<tr><td><code>!</code></td><td>NÃO</td><td>o valor é falso</td><td><code>!t</code></td><td><code>False</code></td></tr>
+<tr><td><code>&amp;</code></td><td>E sem atalho</td><td>como <code>&amp;&amp;</code>, mas sempre calcula os dois lados</td><td><code>t &amp; f</code></td><td><code>False</code></td><td rowspan="3"><a href="operadores-logicos.html">Operadores Lógicos</a></td></tr>
+<tr><td><code>|</code></td><td>OU sem atalho</td><td>como <code>||</code>, sempre calculando os dois</td><td><code>t | f</code></td><td><code>True</code></td></tr>
+<tr><td><code>^</code></td><td>OU exclusivo</td><td>exatamente um é verdadeiro</td><td><code>t ^ f</code> · <code>t ^ t</code></td><td><code>True</code> · <code>False</code></td></tr>
+</table>
+</div>
+<p>O atalho do <code>&amp;&amp;</code> é o que torna seguro escrever <code>texto != null &amp;&amp; texto.Length &gt; 0</code>: se <code>texto</code> é <code>null</code>, o <code>Length</code> nem é lido.</p>
+
+<h2 id="bits">Bits (com inteiros)</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>Nome</th><th>Exemplo</th><th>Em binário</th><th>Resultado</th></tr>
+<tr><td><code>&amp;</code></td><td>E bit a bit</td><td><code>6 &amp; 3</code></td><td><code>110 &amp; 011 = 010</code></td><td><code>2</code></td></tr>
+<tr><td><code>|</code></td><td>OU bit a bit</td><td><code>6 | 3</code></td><td><code>110 | 011 = 111</code></td><td><code>7</code></td></tr>
+<tr><td><code>^</code></td><td>OU exclusivo bit a bit</td><td><code>6 ^ 3</code></td><td><code>110 ^ 011 = 101</code></td><td><code>5</code></td></tr>
+<tr><td><code>~</code></td><td>inverte todos os bits</td><td><code>~6</code></td><td>(complemento de dois)</td><td><code>-7</code></td></tr>
+<tr><td><code>&lt;&lt;</code></td><td>desloca para a esquerda (× 2 a cada casa)</td><td><code>1 &lt;&lt; 4</code></td><td><code>1 → 10000</code></td><td><code>16</code></td></tr>
+<tr><td><code>&gt;&gt;</code></td><td>desloca para a direita, mantendo o sinal</td><td><code>-16 &gt;&gt; 2</code></td><td>—</td><td><code>-4</code></td></tr>
+<tr><td><code>&gt;&gt;&gt;</code> <span class="versao">C# 11</span></td><td>desloca para a direita, enchendo com zeros</td><td><code>-16 &gt;&gt;&gt; 28</code></td><td>—</td><td><code>15</code></td></tr>
+</table>
+</div>
+<p>Os operadores de bits aparecem em <a href="enums.html">enums com <code>[Flags]</code></a>, em permissões e em formatos de arquivo. Para o dia a dia, os lógicos com <code>bool</code> bastam.</p>
+
+<h2 id="null">Operadores de <code>null</code></h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>O que faz</th><th>Exemplo (<code>nome = null</code>)</th><th>Resultado</th><th>Aula</th></tr>
+<tr><td><code>?.</code></td><td>acessa o membro só se não for <code>null</code>; senão, dá <code>null</code></td><td><code>nome?.Length</code></td><td><code>null</code> (mostrado vazio)</td><td rowspan="4"><a href="operadores-null.html">Operadores ??, ?. e ??=</a></td></tr>
+<tr><td><code>?[]</code></td><td>o mesmo para índices</td><td><code>lista?[0]</code></td><td><code>null</code> se <code>lista</code> for <code>null</code></td></tr>
+<tr><td><code>??</code></td><td>usa o da direita se o da esquerda for <code>null</code></td><td><code>nome ?? "sem nome"</code> · <code>nome?.ToUpper() ?? "?"</code></td><td><code>sem nome</code> · <code>?</code></td></tr>
+<tr><td><code>??=</code></td><td>atribui só se for <code>null</code></td><td><code>nome ??= "Ana"</code></td><td><code>nome</code> vira <code>"Ana"</code></td></tr>
+<tr><td><code>x!</code></td><td>"confie em mim, não é <code>null</code>": só cala o aviso do compilador, não muda nada ao rodar</td><td><code>nome!.Length</code></td><td><code>3</code></td><td><a href="referencias-anulaveis.html">Referências Anuláveis</a></td></tr>
+<tr><td><code>x?.y = valor</code> <span class="versao">C# 14</span></td><td>atribui só se <code>x</code> não for <code>null</code></td><td><code>cliente?.Nome = "Ana";</code></td><td>veja abaixo</td><td><a href="operadores-null.html">Operadores ??, ?. e ??=</a></td></tr>
+</table>
+</div>
+
+<p>A atribuição com <code>?.</code> é nova no C# 14 (antes, só dava para <strong>ler</strong> com <code>?.</code>):</p>
+<pre class="file" data-file="nullassign.cs">// C# 14: atribuição com ?.
+Cliente? semCliente = null;
+Cliente? cliente = new();
+semCliente?.Nome = "Bruno";     // não faz nada: semCliente é null
+cliente?.Nome = "Ana";          // atribui: cliente não é null
+Console.WriteLine($"[{semCliente?.Nome}] [{cliente?.Nome}]");
+
+class Cliente { public string Nome { get; set; } = ""; }
+</pre>
+<pre class="term" data-cwd="~/cs/op">$ dotnet run nullassign.cs
+[] [Ana]</pre>
+
+<h2 id="tipos">Operadores de tipo e conversão</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>O que faz</th><th>Exemplo (<code>object o = "texto"</code>)</th><th>Resultado</th><th>Aula</th></tr>
+<tr><td><code>is</code></td><td>testa o tipo (ou um padrão)</td><td><code>o is string</code> · <code>o is int</code></td><td><code>True</code> · <code>False</code></td><td><a href="pattern-matching.html">Pattern Matching</a></td></tr>
+<tr><td><code>as</code></td><td>converte, ou dá <code>null</code> se não der (só tipos de referência e anuláveis)</td><td><code>(o as string)?.Length</code></td><td><code>5</code></td><td><a href="polimorfismo.html">Polimorfismo</a></td></tr>
+<tr><td><code>(T)x</code></td><td>cast: converte, ou lança <code>InvalidCastException</code></td><td><code>(int)3.7</code> · <code>(double)7 / 2</code></td><td><code>3</code> · <code>3,5</code></td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
+<tr><td><code>typeof(T)</code></td><td>o <code>Type</code> de um tipo</td><td><code>typeof(string).Name</code></td><td><code>String</code></td><td><a href="reflexao.html">Reflexão</a></td></tr>
+<tr><td><code>sizeof(T)</code></td><td>bytes de um tipo de valor</td><td><code>sizeof(long)</code></td><td><code>8</code></td><td><a href="ref-tipos.html">Tipos e Limites</a></td></tr>
+<tr><td><code>nameof(x)</code></td><td>o nome, como texto</td><td><code>nameof(nome)</code></td><td><code>nome</code></td><td><a href="throw.html">throw</a></td></tr>
+<tr><td><code>default</code></td><td>o valor padrão</td><td><code>default(int)</code></td><td><code>0</code></td><td><a href="ref-tipos.html#padrao">Tipos e Limites</a></td></tr>
+</table>
+</div>
+<p>Repare no <code>(double)7 / 2</code>: o cast (linha 2 da precedência) vem antes da divisão (linha 5). Primeiro o 7 vira <code>7.0</code>, depois divide, e o resultado é <code>3,5</code>. Já <code>(double)(7 / 2)</code> daria <code>3</code>: a divisão de inteiros acontece antes.</p>
+
+<h2 id="indices">Índices e intervalos</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>O que faz</th><th>Exemplo (<code>v = [10, 20, 30, 40, 50]</code>)</th><th>Resultado</th><th>Aula</th></tr>
+<tr><td><code>a[i]</code></td><td>o item da posição <code>i</code> (do 0)</td><td><code>v[0]</code></td><td><code>10</code></td><td><a href="arrays.html">Arrays</a></td></tr>
+<tr><td><code>^n</code> <span class="versao">C# 8</span></td><td>contando do fim: <code>^1</code> é o último</td><td><code>v[^1]</code> · <code>v[^2]</code></td><td><code>50</code> · <code>40</code></td><td rowspan="2"><a href="indices-intervalos.html">Índices e Intervalos</a></td></tr>
+<tr><td><code>a..b</code> <span class="versao">C# 8</span></td><td>do <code>a</code> (incluído) ao <code>b</code> (fora)</td><td><code>v[1..3]</code> · <code>v[..2]</code> · <code>v[3..]</code></td><td><code>20,30</code> · <code>10,20</code> · <code>40,50</code></td></tr>
+</table>
+</div>
+
+<h2 id="outros">Outros operadores</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>O que faz</th><th>Exemplo</th><th>Aula</th></tr>
+<tr><td><code>x.y</code></td><td>acessa um membro</td><td><code>nome.Length</code></td><td><a href="classes-objetos.html">Classes e Objetos</a></td></tr>
+<tr><td><code>f(x)</code></td><td>chama um método</td><td><code>Math.Max(3, 7)</code></td><td><a href="metodos.html">Métodos</a></td></tr>
+<tr><td><code>new</code></td><td>cria um objeto</td><td><code>new List&lt;int&gt;()</code> · <code>new()</code></td><td><a href="construtores.html">Construtores</a></td></tr>
+<tr><td><code>c ? a : b</code></td><td>"se <code>c</code>, então <code>a</code>, senão <code>b</code>"</td><td><code>idade &gt;= 18 ? "maior" : "menor"</code></td><td><a href="ternario.html">Operador Ternário</a></td></tr>
+<tr><td><code>=&gt;</code></td><td>lambda (função sem nome) ou corpo de expressão</td><td><code>k =&gt; k * 2</code> (com <code>21</code> dá <code>42</code>)</td><td><a href="lambdas.html">Lambdas</a></td></tr>
+<tr><td><code>x switch { … }</code> <span class="versao">C# 8</span></td><td>escolhe um valor pelo padrão que casar</td><td><code>x switch { &lt; 10 =&gt; "pequeno", &lt; 100 =&gt; "médio", _ =&gt; "grande" }</code> (com 17 dá <code>médio</code>)</td><td><a href="switch-expressoes.html">Expressões switch</a></td></tr>
+<tr><td><code>x with { … }</code> <span class="versao">C# 9</span></td><td>cópia de um record ou struct com mudanças</td><td><code>p with { Preco = 9.90m }</code></td><td><a href="records.html">Records</a></td></tr>
+<tr><td><code>await</code></td><td>espera uma <code>Task</code> sem travar</td><td><code>await Task.Delay(1000)</code></td><td><a href="async-await.html">async e await</a></td></tr>
+<tr><td><code>checked(…)</code>, <code>unchecked(…)</code></td><td>estouro vira exceção, ou dá a volta</td><td><code>checked(a * b)</code></td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>+</code> com texto</td><td>junta (concatena)</td><td><code>"Olá, " + nome</code></td><td><a href="strings.html">Strings</a></td></tr>
+<tr><td><code>&amp;x</code>, <code>*p</code>, <code>p-&gt;y</code></td><td>endereço e ponteiro (só em código <code>unsafe</code>)</td><td><code>int* p = &amp;x;</code></td><td><a href="memoria.html">Memória</a></td></tr>
+</table>
+</div>
+<p>Suas classes podem definir o que <code>+</code>, <code>==</code>, <code>&lt;</code> e outros fazem com elas: aula <a href="sobrecarga-operadores.html">Sobrecarga de Operadores</a>.</p>
+
+<hr>
+
+<h2 id="armadilhas">Armadilhas</h2>
+
+<div class="cenario">
+<strong>Texto + número: a soma que vira emenda</strong>
+<pre class="file" data-file="e4.cs">string nome = "Ana";
+int idade = 29;
+Console.WriteLine("Idade: " + idade + 1);
+Console.WriteLine("Idade: " + (idade + 1));
+Console.WriteLine(1 + 2 + " anos");
+Console.WriteLine(nome + 1 + 2);
+</pre>
+<pre class="term" data-cwd="~/cs/op">$ dotnet run e4.cs
+Idade: 291
+Idade: 30
+3 anos
+Ana12</pre>
+<p><strong>O que aconteceu:</strong> <code>+</code> é calculado da esquerda para a direita. Em <code>"Idade: " + idade + 1</code>, primeiro vem <code>"Idade: " + 29</code>, que já é texto (<code>"Idade: 29"</code>); depois, texto + 1 emenda o <code>1</code>. Em <code>1 + 2 + " anos"</code>, a conta <code>1 + 2</code> acontece antes de aparecer o texto.</p>
+<p><strong>Como consertar:</strong> parênteses na conta, <code>(idade + 1)</code>, ou, melhor ainda, interpolação: <code>$"Idade: {idade + 1}"</code> (aula <a href="interpolacao.html">Interpolação</a>).</p>
+</div>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Mensagem real (lab)</th><th>O que aconteceu e como consertar</th><th>Aula</th></tr>
+<tr><td><code>if (idade = 18)</code></td><td><code>error CS0029: Não é possível converter implicitamente tipo "int" em "bool"</code></td><td><code>=</code> guarda; <code>==</code> compara. Escreva <code>if (idade == 18)</code>. No C#, o erro aparece na compilação (em C, compilaria).</td><td><a href="operadores-comparacao.html">Comparação</a></td></tr>
+<tr><td><code>if (permissoes &amp; 4 == 4)</code></td><td><code>error CS0019: O operador "&amp;" não pode ser aplicado a operandos dos tipos "int" e "bool"</code></td><td>O <code>==</code> (linha 9) vem antes do <code>&amp;</code> (linha 10): virou <code>permissoes &amp; (4 == 4)</code>. Escreva <code>(permissoes &amp; 4) == 4</code>.</td><td><a href="precedencia.html">Precedência</a></td></tr>
+<tr><td><code>if (nota &gt;= 0 &amp;&amp; &lt;= 10)</code></td><td><code>error CS1525: Termo de expressão inválido "&lt;="</code></td><td>Cada lado do <code>&amp;&amp;</code> é uma comparação completa: <code>nota &gt;= 0 &amp;&amp; nota &lt;= 10</code>. Ou, com padrões: <code>nota is &gt;= 0 and &lt;= 10</code>.</td><td><a href="pattern-matching.html">Pattern Matching</a></td></tr>
+<tr><td><code>int media = prova1 + prova2 / 2;</code></td><td>(compila, e a média sai errada)</td><td>A divisão vem antes da soma. Escreva <code>(prova1 + prova2) / 2</code>. Veja a missão abaixo.</td><td><a href="precedencia.html">Precedência</a></td></tr>
+<tr><td><code>7 / 2</code> esperando 3,5</td><td>(compila e dá <code>3</code>)</td><td>Entre inteiros, a divisão corta. Use <code>7.0 / 2</code>, <code>7m / 2</code> ou <code>(double)7 / 2</code>.</td><td><a href="operadores-aritmeticos.html">Aritméticos</a></td></tr>
+<tr><td><code>0.1 + 0.2 == 0.3</code></td><td>(compila e dá <code>False</code>)</td><td>O <code>double</code> não guarda 0,1 exato. Compare com tolerância, ou use <code>decimal</code>.</td><td><a href="decimais.html">float, double e decimal</a></td></tr>
+</table>
+</div>
+
+<h2 id="experimente">Experimente</h2>
+<div class="trycs" data-goal="out:Média: 8">
+<p class="try-task"><strong>Missão:</strong> a Ana tirou 7 e 9 nas provas, mas o programa diz que a média é 11. Conserte a conta (sem mudar os números) para sair <code>Média: 8</code>.</p>
+<pre class="script">int prova1 = 7;
+int prova2 = 9;
+int media = prova1 + prova2 / 2;
+Console.WriteLine($"Média: {media}");
+</pre>
+<pre class="solucao">int prova1 = 7;
+int prova2 = 9;
+int media = (prova1 + prova2) / 2;
+Console.WriteLine($"Média: {media}");
+</pre>
+</div>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> tente prever cada resultado antes de rodar. Depois, tire e ponha parênteses e veja o que muda.</p>
+<pre class="script">int a = 2, b = 3, c = 4;
+Console.WriteLine(a + b * c);
+Console.WriteLine((a + b) * c);
+Console.WriteLine(a * b % c);
+Console.WriteLine(a &lt; b == b &lt; c);
+Console.WriteLine(a &gt; b || b &lt; c &amp;&amp; c &gt; 10);
+Console.WriteLine("Total: " + a + b);
+Console.WriteLine($"Total: {a + b}");
+string? apelido = null;
+Console.WriteLine(apelido ?? "sem apelido");
+</pre>
+</div>
+
+<h2>Resumo</h2>
+<ul>
+  <li>São 17 níveis de precedência. O essencial: primários (<code>x.y</code>, <code>f()</code>, <code>a[i]</code>, <code>x++</code>), unários (<code>-x</code>, <code>!x</code>, cast), <code>* / %</code>, <code>+ -</code>, comparações, <code>==</code>, <code>&amp;&amp;</code>, <code>||</code>, <code>??</code>, <code>?:</code> e, por último, a atribuição e o <code>=&gt;</code>.</li>
+  <li>Quase todos vão da esquerda para a direita; a atribuição, o <code>??</code> e o <code>?:</code> vão da direita para a esquerda.</li>
+  <li>Divisão entre inteiros corta; <code>%</code> é o resto.</li>
+  <li><code>&amp;&amp;</code> e <code>||</code> param assim que sabem a resposta; <code>&amp;</code> e <code>|</code> calculam os dois lados.</li>
+  <li><code>?.</code>, <code>??</code> e <code>??=</code> tratam o <code>null</code>; no C# 14, <code>x?.y = valor</code> também atribui.</li>
+  <li>Na dúvida, parênteses.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
