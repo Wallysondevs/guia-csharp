@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# while — repetir enquanto a condição for verdadeira | Guia C#</title>
+<meta name="description" content="O laço while em C# para quem nunca programou: contador, contagem regressiva, acumular uma soma, repetir sem saber quantas vezes (a poupança da Ana), o laço que não roda nenhuma vez, o laço infinito (timeout e código 124), o ; depois do while (CS0642), while (true) e os erros CS0029, CS0103 e CS0165, com saídas reais do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">while</span></h1>
+
+<p class="intro">Imagine mostrar os números de 1 a 100 escrevendo cem <code>Console.WriteLine</code>. Ou somar as vendas de um mês inteiro, dia por dia. Computadores são ótimos para repetir, e as instruções que repetem um trecho de código se chamam <strong>laços</strong> (em inglês, <em>loops</em>). O mais simples deles é o <code>while</code> ("enquanto"): ele repete um bloco <strong>enquanto</strong> uma condição for verdadeira. Nesta aula você também vai ver o perigo de todo laço, o <strong>laço infinito</strong>, e como testá-lo sem medo.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como o <code>while</code> funciona: testa a condição, roda o bloco, testa de novo…</li>
+  <li>As três peças de um laço com contador: <strong>início</strong>, <strong>condição</strong> e <strong>passo</strong>.</li>
+  <li>Como contar para trás e como <strong>acumular</strong> uma soma.</li>
+  <li>Como repetir quando você <strong>não sabe</strong> quantas vezes vai ser.</li>
+  <li>O <strong>laço infinito</strong>: por que acontece e como parar (<kbd>Ctrl</kbd>+<kbd>C</kbd> e <code>timeout</code>).</li>
+  <li>Os erros mais comuns, com as mensagens reais do compilador.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana, na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: "enquanto tiver louça, lave"</h2>
+<p>Depois do almoço, a Ana olha a pia: <strong>enquanto</strong> tiver louça suja, ela pega um prato e lava. Antes de cada prato, ela olha de novo. Quando a pia fica vazia, ela para e vai fazer outra coisa. Ela não precisa saber, antes de começar, quantos pratos são.</p>
+<p>O <code>while</code> faz exatamente isso:</p>
+<ol class="passo">
+  <li><strong>Testa</strong> a condição ("tem louça?").</li>
+  <li>Se for <code>true</code>, <strong>roda o bloco</strong> (lava um prato) e <strong>volta</strong> ao passo 1.</li>
+  <li>Se for <code>false</code>, <strong>sai</strong> do laço e o programa continua depois dele.</li>
+</ol>
+<p>Cada passagem pelo bloco se chama uma <strong>volta</strong> (ou iteração).</p>
+
+<hr>
+
+<h2>1. O primeiro <code>while</code></h2>
+
+<pre class="file" data-file="voltas.cs">int i = 1;
+while (i &lt;= 5)
+{
+    Console.WriteLine($"Volta {i}");
+    i++;
+}
+Console.WriteLine($"Fim! i agora vale {i}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run voltas.cs
+Volta 1
+Volta 2
+Volta 3
+Volta 4
+Volta 5
+Fim! i agora vale 6</pre>
+
+<dl class="anatomy">
+  <dt>int i = 1;</dt><dd>O <strong>início</strong>: cria o contador antes do laço. O nome <code>i</code> é tradição para contadores (de "índice").</dd>
+  <dt>while (i &lt;= 5)</dt><dd>A <strong>condição</strong>, entre parênteses, como no <code>if</code>. Tem de dar <code>bool</code>. É testada <strong>antes de cada volta</strong>.</dd>
+  <dt>{ … }</dt><dd>O <strong>corpo</strong> do laço: o que se repete. Chaves sempre, pelo mesmo motivo da aula de <a href="if-else.html">if e else</a>.</dd>
+  <dt>i++;</dt><dd>O <strong>passo</strong>: soma 1 ao contador (aula <a href="incremento.html">++ e --</a>). Sem ele, <code>i</code> ficaria valendo 1 para sempre (seção 5).</dd>
+  <dt>Fim! i agora vale 6</dt><dd>O laço parou quando <code>i</code> chegou a 6, porque <code>6 &lt;= 5</code> é <code>false</code>. Por isso, depois do laço, <code>i</code> vale 6, e não 5.</dd>
+</dl>
+
+<h3>Volta por volta</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Teste</th><th><code>i</code> antes</th><th><code>i &lt;= 5</code>?</th><th>O que acontece</th></tr>
+<tr><td>1º</td><td>1</td><td>true</td><td>mostra <code>Volta 1</code>, <code>i</code> vira 2</td></tr>
+<tr><td>2º</td><td>2</td><td>true</td><td>mostra <code>Volta 2</code>, <code>i</code> vira 3</td></tr>
+<tr><td>3º</td><td>3</td><td>true</td><td>mostra <code>Volta 3</code>, <code>i</code> vira 4</td></tr>
+<tr><td>4º</td><td>4</td><td>true</td><td>mostra <code>Volta 4</code>, <code>i</code> vira 5</td></tr>
+<tr><td>5º</td><td>5</td><td>true</td><td>mostra <code>Volta 5</code>, <code>i</code> vira 6</td></tr>
+<tr><td>6º</td><td>6</td><td><strong>false</strong></td><td>sai do laço</td></tr>
+</table>
+</div>
+<p>Cinco voltas, mas <strong>seis</strong> testes: o último teste é o que dá <code>false</code> e encerra o laço.</p>
+
+<div class="trycs" data-goal="outre:^7 x 1 = 7\n(.*\n){8}7 x 10 = 70\n$">
+<p class="try-task"><strong>Missão:</strong> o programa mostra a tabuada do 7, mas só até o 3. Mude o que for preciso para ele ir de <code>7 x 1</code> até <code>7 x 10</code>.</p>
+<pre class="out">7 x 1 = 7
+7 x 2 = 14
+…
+7 x 10 = 70</pre>
+<pre class="script">int i = 1;
+while (i &lt;= 3)
+{
+    Console.WriteLine($"7 x {i} = {7 * i}");
+    i++;
+}
+</pre>
+<pre class="solucao">int i = 1;
+while (i &lt;= 10)
+{
+    Console.WriteLine($"7 x {i} = {7 * i}");
+    i++;
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Contar para trás</h2>
+<p>Para uma contagem regressiva, o contador começa no maior valor, a condição usa <code>&gt;=</code> e o passo é <code>--</code>:</p>
+
+<pre class="file" data-file="regressiva.cs">int s = 10;
+while (s &gt;= 1)
+{
+    Console.Write($"{s} ");
+    s--;
+}
+Console.WriteLine("Feliz Ano Novo!");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run regressiva.cs
+10 9 8 7 6 5 4 3 2 1 Feliz Ano Novo!</pre>
+
+<p>O <code>Console.Write</code> (sem o "Line") não pula linha, por isso os números ficaram lado a lado, cada um seguido de um espaço (aula <a href="saida.html">Saída</a>).</p>
+
+<hr>
+
+<h2>3. Acumular: a soma de 1 a 100</h2>
+<p>Um laço também serve para <strong>juntar</strong> resultados. A ideia é ter uma variável "acumuladora" que começa em 0 e recebe um pouco a cada volta, como um cofrinho:</p>
+
+<pre class="file" data-file="soma.cs">int n = 1;
+int soma = 0;
+while (n &lt;= 100)
+{
+    soma += n;
+    n++;
+}
+Console.WriteLine($"1 + 2 + ... + 100 = {soma}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run soma.cs
+1 + 2 + ... + 100 = 5050</pre>
+
+<dl class="anatomy">
+  <dt>int soma = 0;</dt><dd>O acumulador começa em <strong>zero</strong>, antes do laço. Se fosse criado dentro do laço, voltaria a zero a cada volta.</dd>
+  <dt>soma += n;</dt><dd>O mesmo que <code>soma = soma + n;</code> (aula <a href="operadores-atribuicao.html">Operadores de Atribuição</a>). Na 1ª volta, soma vira 1; na 2ª, 3; na 3ª, 6; …</dd>
+  <dt>{soma}</dt><dd>O resultado é mostrado <strong>depois</strong> do laço, uma vez só.</dd>
+</dl>
+
+<hr>
+
+<h2>4. Quando você não sabe quantas voltas</h2>
+<p>Até aqui, dava para saber de antemão quantas voltas seriam (5, 10, 100). Para isso, a próxima aula, <a href="for.html">for</a>, é até mais prática. O <code>while</code> brilha quando o número de voltas <strong>depende do que acontece</strong> dentro do laço. A Ana guarda R$ 150 por mês e quer saber em quantos meses chega a R$ 1.000:</p>
+
+<pre class="file" data-file="poupanca.cs">decimal guardado = 0m;
+decimal porMes = 150m;
+decimal meta = 1000m;
+int meses = 0;
+while (guardado &lt; meta)
+{
+    guardado += porMes;
+    meses++;
+    Console.WriteLine($"Mês {meses}: R$ {guardado:N2}");
+}
+Console.WriteLine($"Meta atingida em {meses} meses!");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run poupanca.cs
+Mês 1: R$ 150,00
+Mês 2: R$ 300,00
+Mês 3: R$ 450,00
+Mês 4: R$ 600,00
+Mês 5: R$ 750,00
+Mês 6: R$ 900,00
+Mês 7: R$ 1.050,00          « 1.050 não é &lt; 1.000: o laço para aqui
+Meta atingida em 7 meses!</pre>
+
+<p>Ninguém escreveu "7" no programa: o laço descobriu sozinho. Mude <code>porMes</code> para <code>200m</code> e ele para no mês 5; mude a meta para <code>5000m</code> e ele vai até o mês 34. O dinheiro está em <code>decimal</code>, como sempre neste guia (aula <a href="decimais.html">float, double e decimal</a>).</p>
+
+<h3>O laço que não roda nenhuma vez</h3>
+<p>Como a condição é testada <strong>antes</strong> da primeira volta, se ela já começa <code>false</code>, o corpo nunca roda:</p>
+
+<pre class="file" data-file="zero.cs">int estoque = 0;
+while (estoque &gt; 0)
+{
+    Console.WriteLine("Vendendo uma unidade...");
+    estoque--;
+}
+Console.WriteLine("Estoque vazio.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run zero.cs
+Estoque vazio.          « 0 &gt; 0 é false: zero voltas</pre>
+
+<p>Isso é uma qualidade: o <code>while</code> nunca faz uma volta "a mais" quando não devia. Quando você precisa que o corpo rode <strong>pelo menos uma vez</strong> (por exemplo, para mostrar um menu antes de perguntar se a pessoa quer sair), existe o <a href="do-while.html">do while</a>, a próxima aula.</p>
+
+<hr>
+
+<h2 id="infinito">5. O laço infinito</h2>
+<p>Se a condição <strong>nunca</strong> ficar falsa, o laço nunca termina. Isso se chama <strong>laço infinito</strong>, e o motivo mais comum é esquecer o passo. Neste programa falta o <code>i++</code>: <code>i</code> vale 1 para sempre, e <code>1 &lt;= 5</code> é sempre <code>true</code>.</p>
+
+<pre class="file" data-file="infinito.cs">int i = 1;
+Console.WriteLine("Calculando os dobros...");
+while (i &lt;= 5)
+{
+    int dobro = i * 2;
+}
+Console.WriteLine("Pronto!");
+</pre>
+
+<p>O compilador não reclama: um laço infinito é um programa válido (às vezes ele é até de propósito, como num jogo que roda até o jogador sair). O problema só aparece ao rodar: o programa mostra <code>Calculando os dobros...</code> e fica parado, com o processador trabalhando sem parar, sem nunca chegar ao <code>Pronto!</code>. No terminal, aperte <kbd>Ctrl</kbd>+<kbd>C</kbd> para interromper o programa.</p>
+
+<h3>Como testar sem medo: <code>timeout</code></h3>
+<p>Quando você suspeita que um programa pode travar, rode-o com o comando <code>timeout</code> do Linux, que dá um prazo em segundos e encerra o programa se ele passar disso. Foi assim que os laços infinitos deste guia foram testados. Dê um prazo folgado: o primeiro <code>dotnet run</code> de um arquivo novo gasta alguns segundos só para compilar.</p>
+
+<pre class="term" data-cwd="~/cs">$ timeout 15 dotnet run infinito.cs
+Calculando os dobros...           « e nada mais por 15 segundos
+$ echo $?
+124</pre>
+
+<p>O <code>echo $?</code> mostra o código de saída do último comando. O <code>124</code> é o jeito do <code>timeout</code> dizer "o prazo acabou e eu tive que encerrar o programa". Se o programa tivesse terminado sozinho a tempo, o código seria o dele (normalmente <code>0</code>).</p>
+
+<div class="warning">
+<strong>No editor do guia</strong>
+<p>Um laço infinito também não termina sozinho na caixa "Experimente". Se a caixa ficar rodando sem parar, recarregue a página. Antes de rodar, confira se o laço tem um passo que leva a condição a ficar falsa.</p>
+</div>
+
+<h3>Laço infinito de propósito: <code>while (true)</code></h3>
+<p>Às vezes é mais fácil escrever "repita para sempre" e decidir a saída <strong>lá dentro</strong>, com <code>break</code> ("quebrar"), que sai do laço na hora:</p>
+
+<pre class="file" data-file="dado.cs">int vidas = 3;
+while (true)
+{
+    Console.WriteLine($"Vidas: {vidas}");
+    vidas--;
+    if (vidas == 0)
+    {
+        break;
+    }
+}
+Console.WriteLine("Fim de jogo.");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run dado.cs
+Vidas: 3
+Vidas: 2
+Vidas: 1
+Fim de jogo.</pre>
+
+<p>O <code>break</code> e o seu parente <code>continue</code> têm uma aula só para eles: <a href="break-continue.html">break e continue</a>.</p>
+
+<hr>
+
+<h2>6. O <code>;</code> depois do <code>while</code></h2>
+<p>A armadilha do <code>if (…);</code> também existe aqui, e é pior: vira um laço infinito silencioso.</p>
+
+<pre class="file" data-file="pv.cs">int i = 1;
+while (i &lt;= 5);
+{
+    Console.WriteLine($"Volta {i}");
+    i++;
+}
+Console.WriteLine("Fim!");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ timeout 15 dotnet run pv.cs
+/home/ana/cs/pv.cs(2,15): warning CS0642: Instrução empty possivelmente incorreta
+$ echo $?
+124                « nem "Volta 1" apareceu</pre>
+
+<ol class="passo">
+  <li>O <code>;</code> logo depois do <code>)</code> é uma instrução vazia, e ela virou o corpo do laço: "enquanto <code>i &lt;= 5</code>, não faça nada".</li>
+  <li>Como o corpo não faz nada, <code>i</code> nunca muda, e o laço nunca termina.</li>
+  <li>O bloco <code>{ … }</code> de baixo ficou fora do laço e nunca é alcançado.</li>
+</ol>
+<p>O aviso <code>CS0642</code> aponta a coluna 15 da linha 2: o <code>;</code>. Toda vez que vir esse aviso, apague o ponto e vírgula.</p>
+
+<hr>
+
+<h2>Formas diferentes + qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Laço</th><th>Testa a condição</th><th>Quando usar</th></tr>
+<tr><td><code>while (cond) { … }</code></td><td>Antes de cada volta (pode rodar 0 vezes)</td><td>Quando o número de voltas depende do que acontece: "até juntar R$ 1.000", "enquanto houver itens".</td></tr>
+<tr><td><code>do { … } while (cond);</code></td><td>Depois de cada volta (roda pelo menos 1 vez)</td><td>Menus e perguntas que precisam aparecer antes do teste. Aula <a href="do-while.html">do while</a>.</td></tr>
+<tr><td><code>for (int i = 0; i &lt; n; i++) { … }</code></td><td>Antes de cada volta</td><td>Quando você sabe quantas voltas: de 1 a 10, cada posição de um array. Aula <a href="for.html">for</a>.</td></tr>
+<tr><td><code>foreach (var x in lista) { … }</code></td><td>(não tem condição)</td><td>Passar por todos os itens de uma coleção. Aula <a href="foreach.html">foreach</a>.</td></tr>
+<tr><td><code>while (true) { … break; … }</code></td><td>Dentro, com <code>break</code></td><td>Quando a decisão de sair fica no meio do corpo.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>O programa não termina (laço infinito)</strong>
+<p><strong>O que significa:</strong> a condição nunca fica <code>false</code>. Causas comuns: esqueceu o passo (<code>i++</code>), o passo vai para o lado errado (<code>i--</code> numa condição <code>i &lt;= 5</code>), ou há um <code>;</code> depois do <code>while (…)</code>.</p>
+<p><strong>Como consertar:</strong> aperte <kbd>Ctrl</kbd>+<kbd>C</kbd>. Depois confira as três peças: o contador começa certo? A condição é a certa? O passo existe, está <strong>dentro</strong> das chaves e leva a condição a ficar falsa?</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS0642: Instrução empty possivelmente incorreta</code></strong>
+<p><strong>O que significa:</strong> há um <code>;</code> logo depois do <code>)</code> do <code>while</code>. O laço tem corpo vazio e, quase sempre, nunca termina.</p>
+<p><strong>Como consertar:</strong> apague o <code>;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0029: Não é possível converter implicitamente tipo "int" em "bool"</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat intcond.cs
+int vidas = 3;
+while (vidas)
+{
+    vidas--;
+}
+$ dotnet run intcond.cs
+/home/ana/cs/intcond.cs(2,8): error CS0029: Não é possível converter implicitamente tipo "int" em "bool"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> como no <code>if</code>, a condição do <code>while</code> tem de ser <code>bool</code>. Um número sozinho não serve.</p>
+<p><strong>Como consertar:</strong> <code>while (vidas &gt; 0)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0165: Uso de variável local não atribuída "i"</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat semvalor.cs
+int i;
+while (i &lt;= 3)
+{
+    Console.WriteLine(i);
+    i++;
+}
+$ dotnet run semvalor.cs
+/home/ana/cs/semvalor.cs(2,8): error CS0165: Uso de variável local não atribuída "i"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o contador foi declarado sem valor inicial, e a condição tenta lê-lo. Em C, isso compilaria (no máximo com um aviso) e o contador começaria com um valor qualquer, o "lixo" da memória; o C# recusa.</p>
+<p><strong>Como consertar:</strong> <code>int i = 1;</code> (ou o valor de início que você quiser).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0103: O nome "quadrado" não existe no contexto atual</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat dentro.cs
+int i = 1;
+while (i &lt;= 3)
+{
+    int quadrado = i * i;
+    i++;
+}
+Console.WriteLine(quadrado);
+$ dotnet run dentro.cs
+/home/ana/cs/dentro.cs(7,19): error CS0103: O nome "quadrado" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> uma variável criada dentro das chaves do laço só existe lá dentro (e é criada de novo a cada volta).</p>
+<p><strong>Como consertar:</strong> se você precisa do valor depois do laço, declare a variável <strong>antes</strong> dele: <code>int quadrado = 0;</code>, e dentro do laço só faça <code>quadrado = i * i;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>O laço dá uma volta a mais ou a menos</strong>
+<p><strong>O que significa:</strong> o famoso erro "por um" (em inglês, <em>off-by-one</em>): <code>&lt;</code> no lugar de <code>&lt;=</code>, ou o contador começando em 0 em vez de 1. <code>i = 1; while (i &lt; 5)</code> dá só 4 voltas.</p>
+<p><strong>Como consertar:</strong> faça a tabela "volta por volta" da seção 1 para os primeiros e os últimos valores.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>O que faz</th></tr>
+<tr><td><code>while (cond) { … }</code></td><td>Repete o bloco enquanto <code>cond</code> for <code>true</code>. Testa antes de cada volta.</td></tr>
+<tr><td><code>int i = 1; while (i &lt;= n) { …; i++; }</code></td><td>Conta de 1 a n.</td></tr>
+<tr><td><code>int i = n; while (i &gt;= 1) { …; i--; }</code></td><td>Conta de n até 1.</td></tr>
+<tr><td><code>soma += x;</code> dentro do laço</td><td>Acumula (com <code>soma</code> criada antes, valendo 0).</td></tr>
+<tr><td><code>while (true) { … if (…) { break; } }</code></td><td>Repete até um <code>break</code>.</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>Interrompe o programa no terminal.</td></tr>
+<tr><td><code>timeout 15 dotnet run x.cs</code></td><td>Roda com prazo de 15 segundos (código 124 se estourar).</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Enquanto</h3>
+<p>Complete com a palavra do laço:</p>
+<div class="ex-code">int i = 1; <input data-answer="while" aria-label="palavra"> (i &lt;= 3) { Console.WriteLine(i); i++; }</div>
+</div>
+
+<div class="exercise">
+<h3>2. Quantas voltas?</h3>
+<p>Quantas vezes o corpo deste laço roda? <code>int i = 0; while (i &lt; 4) { i++; }</code></p>
+<div class="ex-code">Voltas: <input data-answer="4" aria-label="número"></div>
+</div>
+
+<div class="exercise">
+<h3>3. O passo</h3>
+<p>Complete o passo para a contagem regressiva terminar:</p>
+<div class="ex-code">int s = 3; while (s &gt;= 1) { Console.WriteLine(s); s<input data-answer="--" aria-label="operador" size="3">; }</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. O que acontece com <code>int i = 1; while (i &lt;= 5) { Console.WriteLine(i); }</code>?</p>
+<label><input type="radio" name="q4"> Mostra 1, 2, 3, 4, 5</label>
+<label><input type="radio" name="q4"> Não compila</label>
+<label><input type="radio" name="q4"> Laço infinito: mostra <code>1</code> sem parar, porque falta o <code>i++</code></label>
+<label><input type="radio" name="q4"> Não mostra nada</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Com <code>int n = 10;</code>, quantas vezes roda <code>while (n &lt; 5) { n++; }</code>?</p>
+<label><input type="radio" name="q5"> 5</label>
+<label><input type="radio" name="q5"> Nenhuma: a condição já começa <code>false</code></label>
+<label><input type="radio" name="q5"> 1</label>
+<label><input type="radio" name="q5"> Infinitas</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. O que quer dizer o código de saída <code>124</code> depois de <code>timeout 15 dotnet run x.cs</code>?</p>
+<label><input type="radio" name="q6"> O prazo de 15 segundos acabou e o <code>timeout</code> encerrou o programa</label>
+<label><input type="radio" name="q6"> O programa terminou bem</label>
+<label><input type="radio" name="q6"> Erro de compilação</label>
+<label><input type="radio" name="q6"> O programa deu uma exceção</label>
+</div>
+
+<h3>Missão final: a poupança da Ana</h3>
+
+<div class="trycs" data-goal="out:Meta atingida em 7 meses: R$ 1.050\,00,src:while\s*\(,semaviso">
+<p class="try-task"><strong>Missão:</strong> a Ana guarda R$ 150 por mês e quer chegar a R$ 1.000. Escreva um <code>while</code> que, <strong>enquanto</strong> o guardado for menor que a meta, some o valor do mês ao guardado e conte mais um mês. (Cuidado: se esquecer o <code>guardado += porMes;</code>, o laço fica infinito e você vai ter que recarregar a página.) A saída deve ser:</p>
+<pre class="out">Meta atingida em 7 meses: R$ 1.050,00</pre>
+<pre class="script">decimal guardado = 0m;
+decimal porMes = 150m;
+decimal meta = 1000m;
+int meses = 0;
+
+// escreva o while aqui
+
+Console.WriteLine($"Meta atingida em {meses} meses: R$ {guardado:N2}");
+</pre>
+<pre class="solucao">decimal guardado = 0m;
+decimal porMes = 150m;
+decimal meta = 1000m;
+int meses = 0;
+
+while (guardado &lt; meta)
+{
+    guardado += porMes;
+    meses++;
+}
+
+Console.WriteLine($"Meta atingida em {meses} meses: R$ {guardado:N2}");
+</pre>
+</div>
+
+<p>Depois, mude o <code>porMes</code> para <code>275m</code>: em quantos meses ela chega lá? E se a meta for <code>0m</code>? (Zero meses: o laço não roda nenhuma vez.)</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>while (condição) { … }</code> repete o bloco <strong>enquanto</strong> a condição for <code>true</code>. A condição é testada antes de cada volta, então o laço pode rodar 0 vezes.</li>
+  <li>Laço com contador: <strong>início</strong> antes (<code>int i = 1;</code>), <strong>condição</strong> nos parênteses, <strong>passo</strong> no fim do corpo (<code>i++</code>).</li>
+  <li>Para acumular, crie o acumulador <strong>antes</strong> do laço, valendo 0, e some dentro dele.</li>
+  <li>O <code>while</code> é o laço certo quando o número de voltas depende do que acontece dentro dele.</li>
+  <li>Sem o passo, ou com <code>;</code> depois do <code>while (…)</code> (<code>CS0642</code>), o laço é infinito. Pare com <kbd>Ctrl</kbd>+<kbd>C</kbd>; teste com <code>timeout</code> (código 124).</li>
+  <li>A condição tem de ser <code>bool</code> (<code>CS0029</code>), o contador precisa de valor inicial (<code>CS0165</code>) e variáveis criadas no corpo não existem depois dele (<code>CS0103</code>).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
