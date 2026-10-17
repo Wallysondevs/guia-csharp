@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Erros do Compilador — os CS mais comuns, a mensagem real e o conserto | Guia C#</title>
+<meta name="description" content="Referência dos erros e avisos do compilador C# (Roslyn, dotnet 10): CS0103, CS1002, CS0029, CS0165, CS0161, CS1061, CS0246, CS0120, CS8602 e mais de 80 outros, cada um com o código que provoca, a mensagem real em português do Brasil, a versão em inglês para pesquisar, o que significa, como consertar e a aula do guia que ensina o assunto.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Erros do Compilador</span></h1>
+
+<p class="intro">Quando o código tem um erro, o compilador do C# não cria o programa e diz o que achou, com um código como <code>CS0103</code>. Esta página junta os erros e avisos que você mais vai ver, cada um com um código pequeno que o provoca, a <strong>mensagem real</strong>, o que ela quer dizer, como consertar e a aula que ensina o assunto. Todos foram provocados de verdade.</p>
+
+<div class="note">
+<strong>Como usar esta página</strong>
+<ul>
+  <li>Procure pelo <strong>código</strong> (<kbd>Ctrl</kbd>+<kbd>F</kbd> e <code>CS0103</code>): ele é o mesmo em qualquer língua e em qualquer computador. Ou procure um pedaço da mensagem.</li>
+  <li>As mensagens estão como saem na máquina da Ana: <code>dotnet</code> 10.0.112 (C# 14) num Ubuntu em português, pasta <code>~/cs/erros</code>, com <code>dotnet run arquivo.cs</code>. Os nomes entre aspas (<code>"idad"</code>) mudam conforme o seu código; o resto é igual.</li>
+  <li>Em fóruns e no site da Microsoft, a mensagem aparece em inglês. Para os erros mais comuns, a página mostra também o texto em inglês.</li>
+  <li>O <strong>editor do guia</strong> usa o mesmo compilador (Roslyn) e mostra o mesmo código e a mesma mensagem.</li>
+</ul>
+</div>
+
+<p>Atalhos: <a href="#ler">Ler uma mensagem</a> · <a href="#top">Os 10 mais comuns</a> · <a href="#sintaxe">Sintaxe</a> · <a href="#nomes">Nomes e escopo</a> · <a href="#tipos">Tipos e conversões</a> · <a href="#var">var, const e literais</a> · <a href="#metodos">Métodos e retorno</a> · <a href="#decisoes">Decisões e laços</a> · <a href="#classes">Classes e objetos</a> · <a href="#heranca">Herança e interfaces</a> · <a href="#arrays">Arrays e coleções</a> · <a href="#null">null</a> · <a href="#async">async</a> · <a href="#avisos">Avisos</a> · <a href="#projeto">Erros de projeto e do dotnet</a> · <a href="#experimente">Experimente</a></p>
+
+<hr>
+
+<h2 id="ler">Como ler uma mensagem do compilador</h2>
+<pre class="file" data-file="cs0103.cs">int idade = 29;
+Console.WriteLine(idad);
+</pre>
+<pre class="term" data-cwd="~/cs/erros">$ dotnet run cs0103.cs
+/home/ana/cs/erros/cs0103.cs(2,19): error CS0103: O nome "idad" não existe no contexto atual
+/home/ana/cs/erros/cs0103.cs(1,5): warning CS0219: A variável "idade" é atribuída, mas seu valor nunca é usado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Pedaço</th><th>O que quer dizer</th></tr>
+<tr><td><code>/home/ana/cs/erros/cs0103.cs</code></td><td>o arquivo, com o caminho completo</td></tr>
+<tr><td><code>(2,19)</code></td><td><strong>(linha, coluna)</strong>: linha 2, coluna 19. Os editores de código pulam direto para lá.</td></tr>
+<tr><td><code>error</code></td><td>o tipo: <code>error</code> (erro) impede o programa de ser criado; <code>warning</code> (aviso) deixa criar, mas aponta algo suspeito</td></tr>
+<tr><td><code>CS0103</code></td><td>o código do erro: "CS" de C Sharp e um número. É o que você procura</td></tr>
+<tr><td><code>O nome "idad" não existe no contexto atual</code></td><td>a mensagem</td></tr>
+<tr><td><code>Ocorreu uma falha no build…</code></td><td>o <code>dotnet</code> avisando que, por causa dos erros, não rodou nada</td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>Três regras para qualquer erro</strong>
+<ol>
+  <li><strong>Conserte o primeiro erro primeiro.</strong> Um erro de sintaxe costuma provocar outros em cascata, e eles somem junto.</li>
+  <li><strong>Olhe a linha apontada e a de cima.</strong> Um <code>;</code> esquecido aparece como erro no fim da linha, mas às vezes o compilador só percebe na seguinte.</li>
+  <li><strong>Os avisos importam.</strong> O <code>CS8602</code> (possível <code>null</code>) é o aviso de uma <code>NullReferenceException</code> que vai acontecer. Aula: <a href="avisos.html">Avisos do Compilador</a>.</li>
+</ol>
+</div>
+
+<h2 id="top">Os 10 mais comuns</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Em português</th><th>Em inglês (para pesquisar)</th><th>Causa mais comum</th></tr>
+<tr><td><a href="#cs0103"><code>CS0103</code></a></td><td>O nome "idad" não existe no contexto atual</td><td>The name 'idad' does not exist in the current context</td><td>erro de digitação, ou variável de outro bloco</td></tr>
+<tr><td><a href="#cs1002"><code>CS1002</code></a></td><td>; esperado</td><td>; expected</td><td>faltou o <code>;</code></td></tr>
+<tr><td><a href="#cs0029"><code>CS0029</code></a></td><td>Não é possível converter implicitamente tipo "string" em "int"</td><td>Cannot implicitly convert type 'string' to 'int'</td><td>texto onde se espera número, ou o contrário</td></tr>
+<tr><td><a href="#cs0266"><code>CS0266</code></a></td><td>Não é possível converter implicitamente tipo "double" em "int". Existe uma conversão explícita (há uma conversão ausente?)</td><td>Cannot implicitly convert type 'double' to 'int'. An explicit conversion exists (are you missing a cast?)</td><td><code>double</code> num <code>int</code> sem cast</td></tr>
+<tr><td><a href="#cs0165"><code>CS0165</code></a></td><td>Uso de variável local não atribuída "total"</td><td>Use of unassigned local variable 'total'</td><td>variável declarada sem valor</td></tr>
+<tr><td><a href="#cs0161"><code>CS0161</code></a></td><td>"Maior(int, int)": nem todos os caminhos de código retornam um valor</td><td>'Maior(int, int)': not all code paths return a value</td><td>faltou o <code>return</code> no fim</td></tr>
+<tr><td><a href="#cs1061"><code>CS1061</code></a></td><td>‘string’ não contém uma definição para "Tamanho" e não foi possível encontrar nenhum método de extensão…</td><td>'string' does not contain a definition for 'Tamanho' and no accessible extension method…</td><td>método ou propriedade com o nome errado</td></tr>
+<tr><td><a href="#cs0246"><code>CS0246</code></a></td><td>O nome do tipo ou do namespace "Lista&lt;&gt;" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?)</td><td>The type or namespace name 'Lista&lt;&gt;' could not be found (are you missing a using directive or an assembly reference?)</td><td>faltou um <code>using</code>, ou o nome está errado</td></tr>
+<tr><td><a href="#cs1503"><code>CS1503</code></a></td><td>Argumento 1: não é possível converter de "string" para "int"</td><td>Argument 1: cannot convert from 'string' to 'int'</td><td>argumento do tipo errado</td></tr>
+<tr><td><a href="#cs8602"><code>CS8602</code></a></td><td>Desreferência de uma referência possivelmente nula.</td><td>Dereference of a possibly null reference.</td><td>usar <code>.</code> num valor que pode ser <code>null</code> (é um aviso)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="sintaxe">Sintaxe: o código não está bem escrito</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Exemplo que provoca</th><th>Mensagem real</th><th>O que significa e como consertar</th><th>Aula</th></tr>
+<tr id="cs1002"><td><code>CS1002</code></td><td><code>Console.WriteLine("Olá")</code> (sem <code>;</code>)</td><td><code>error CS1002: ; esperado</code></td><td>Toda instrução termina com <code>;</code>. A coluna apontada é o fim da linha sem ele.</td><td><a href="sintaxe.html">Sintaxe</a></td></tr>
+<tr><td><code>CS1003</code></td><td><code>int preco = 10</code> (sem <code>;</code>) e, na linha de baixo, <code>Console.WriteLine(preco);</code></td><td><code>error CS1003: Erro de sintaxe, "," esperado</code></td><td>Também é o <code>;</code> que faltou! Numa declaração, o compilador acha que vem outra variável (<code>int a = 1, b = 2;</code>) e pede uma vírgula. Leia a mensagem e a linha: o conserto é o <code>;</code>.</td><td><a href="sintaxe.html">Sintaxe</a></td></tr>
+<tr><td><code>CS1513</code></td><td>um <code>{</code> sem o <code>}</code></td><td><code>error CS1513: } esperada</code></td><td>O arquivo acabou com uma chave aberta. Conte as chaves; a formatação automática do editor mostra qual ficou sem par.</td><td><a href="sintaxe.html">Sintaxe</a></td></tr>
+<tr><td><code>CS1026</code></td><td><code>Console.WriteLine((2 + 3);</code></td><td><code>error CS1026: ) esperado</code></td><td>Parêntese aberto e não fechado.</td><td><a href="sintaxe.html">Sintaxe</a></td></tr>
+<tr><td><code>CS1010</code></td><td><code>Console.WriteLine("Olá, mundo!);</code></td><td><code>error CS1010: Newline em constante</code><br><code>error CS1026: ) esperado</code><br><code>error CS1002: ; esperado</code></td><td>Faltou fechar as aspas: o texto "vazou" até o fim da linha, e os outros erros vêm daí.</td><td><a href="strings.html">Strings</a></td></tr>
+<tr><td><code>CS1012</code></td><td><code>char c = 'ab';</code></td><td><code>error CS1012: Número excessivo de caracteres no literal de caractere</code></td><td>Aspas simples são para um caractere só. Texto vai em aspas duplas.</td><td><a href="char-bool.html">char e bool</a></td></tr>
+<tr><td><code>CS1011</code></td><td><code>char c = '';</code></td><td><code>error CS1011: Literal de caractere vazio</code></td><td>Um <code>char</code> não pode ser vazio. Para "nenhum caractere", use uma <code>string</code> vazia (<code>""</code>).</td><td><a href="char-bool.html">char e bool</a></td></tr>
+<tr><td><code>CS1001</code></td><td><code>double base = 4;</code></td><td><code>error CS1001: Identificador esperado</code><br><code>error CS1003: Erro de sintaxe, "," esperado</code></td><td><code>base</code> é palavra reservada. Troque o nome (ou use <code>@base</code>). Lista em <a href="ref-palavras-chave.html">Palavras-chave</a>.</td><td><a href="identificadores.html">Nomes e Convenções</a></td></tr>
+<tr><td><code>CS1525</code></td><td><code>if (nota &gt;= 0 &amp;&amp; &lt;= 10)</code></td><td><code>error CS1525: Termo de expressão inválido "&lt;="</code></td><td>Cada lado do <code>&amp;&amp;</code> precisa ser uma comparação completa: <code>nota &gt;= 0 &amp;&amp; nota &lt;= 10</code>.</td><td><a href="operadores-logicos.html">Operadores Lógicos</a></td></tr>
+<tr><td><code>CS0201</code></td><td><code>x == 5;</code> sozinho na linha</td><td><code>error CS0201: Somente as expressões de atribuição, chamada, incremento, diminuição, espera e novo objeto podem ser utilizadas como uma instrução</code></td><td>Uma comparação sozinha não faz nada. Queria guardar? <code>x = 5;</code>. Queria testar? <code>if (x == 5)</code>.</td><td><a href="operadores-comparacao.html">Comparação</a></td></tr>
+<tr><td><code>CS0131</code></td><td><code>5 = x;</code></td><td><code>error CS0131: O lado esquerdo de uma atribuição deve ser uma variável, uma propriedade ou um indexador</code></td><td>À esquerda do <code>=</code> tem de haver uma variável (ou propriedade). Escreva <code>x = 5;</code>.</td><td><a href="operadores-atribuicao.html">Atribuição</a></td></tr>
+<tr><td><code>CS8803</code></td><td>uma <code>class</code> antes do <code>Console.WriteLine</code></td><td><code>error CS8803: As instruções de nível superior precisam preceder as declarações de namespace e de tipo.</code></td><td>Em <code>Program.cs</code>, as instruções vêm primeiro; classes, records e enums vão no fim do arquivo (ou em outro arquivo).</td><td><a href="top-level.html">Program.cs e o Main</a></td></tr>
+<tr><td><code>CS0116</code></td><td><code>public int x = 5;</code> nas instruções de nível superior</td><td><code>error CS0116: Um namespace não pode conter diretamente membros, como campos, métodos ou instruções</code></td><td><code>public</code>, <code>private</code> e <code>static</code> são para membros de classes, não para variáveis locais.</td><td><a href="modificadores-acesso.html">public, private e internal</a></td></tr>
+<tr><td><code>CS8361</code></td><td><code>$"{idade &gt;= 18 ? "maior" : "menor"}"</code></td><td><code>error CS8361: Uma expressão condicional não pode ser usada diretamente em uma interpolação de cadeia de caracteres porque ‘:’ encerra a interpolação. Use parênteses na expressão condicional.</code> (junto com <code>CS8076</code> e dois <code>CS1003</code>, consequências do mesmo problema)</td><td>Dentro de <code>{ }</code>, o <code>:</code> começa um formato. Ponha o ternário entre parênteses: <code>{(idade &gt;= 18 ? "maior" : "menor")}</code>.</td><td><a href="interpolacao.html">Interpolação</a></td></tr>
+<tr><td><code>CS0650</code></td><td><code>int v[] = new int[3];</code> (como em C)</td><td><code>error CS0650: Declarador de matriz incorreto: para declarar uma matriz gerenciada, o especificador de classificação antecede o identificador de variável. Para declarar um campo de buffer de tamanho fixo, use a palavra-chave fixed antes do tipo de campo.</code></td><td>No C#, os colchetes vão no tipo: <code>int[] v = new int[3];</code></td><td><a href="arrays.html">Arrays</a></td></tr>
+<tr><td><code>CS0270</code></td><td><code>int[3] v;</code></td><td><code>error CS0270: O tamanho de matriz não pode ser especificado em uma declaração de variável (tente inicializar com uma expressão 'new')</code></td><td>O tamanho vai no <code>new</code>, não no tipo: <code>int[] v = new int[3];</code></td><td><a href="arrays.html">Arrays</a></td></tr>
+</table>
+</div>
+
+<h2 id="nomes">Nomes e escopo</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Exemplo que provoca</th><th>Mensagem real</th><th>O que significa e como consertar</th><th>Aula</th></tr>
+<tr id="cs0103"><td><code>CS0103</code></td><td><code>Console.WriteLine(idad);</code> com <code>int idade</code></td><td><code>error CS0103: O nome "idad" não existe no contexto atual</code></td><td>Nome que não existe: confira a grafia (maiúsculas contam: <code>Idade</code> ≠ <code>idade</code>).</td><td><a href="variaveis.html">Variáveis</a></td></tr>
+<tr><td><code>CS0103</code></td><td>usar fora do bloco uma variável declarada dentro de um <code>if</code></td><td><code>error CS0103: O nome "dentro" não existe no contexto atual</code></td><td>A variável só existe dentro das <code>{ }</code> em que nasceu. Declare antes do <code>if</code>.</td><td><a href="escopo.html">Escopo</a></td></tr>
+<tr><td><code>CS0841</code></td><td>usar a variável antes da linha que a declara</td><td><code>error CS0841: Não é possível usar a variável local "total" antes de declará-la</code></td><td>Declare antes de usar.</td><td><a href="variaveis.html">Variáveis</a></td></tr>
+<tr><td><code>CS0128</code></td><td><code>int total = 0;</code> duas vezes</td><td><code>error CS0128: Uma variável de local ou função denominada 'total' já está definida neste escopo</code></td><td>Declare uma vez; depois, só atribua: <code>total = 5;</code></td><td><a href="variaveis.html">Variáveis</a></td></tr>
+<tr><td><code>CS0136</code></td><td><code>int i = 10;</code> e depois <code>for (int i = 0; …)</code></td><td><code>error CS0136: Um local ou um parâmetro denominado "i" não pode ser declarado neste escopo porque esse nome é usado em um escopo delimitador de local para definir um local ou parâmetro</code></td><td>Um bloco de dentro não pode reaproveitar um nome do bloco de fora. Use outro nome.</td><td><a href="escopo.html">Escopo</a></td></tr>
+<tr id="cs0246"><td><code>CS0246</code></td><td><code>Lista&lt;int&gt; numeros = new();</code></td><td><code>error CS0246: O nome do tipo ou do namespace "Lista&lt;&gt;" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?)</code></td><td>O tipo não existe com esse nome: é <code>List</code>.</td><td><a href="list.html">List&lt;T&gt;</a></td></tr>
+<tr><td><code>CS0246</code></td><td><code>StringBuilder sb = new();</code> sem <code>using</code></td><td><code>error CS0246: O nome do tipo ou do namespace "StringBuilder" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?)</code></td><td>O tipo existe, mas num namespace que não foi trazido: ponha <code>using System.Text;</code> no topo.</td><td><a href="namespaces.html">Namespaces e using</a></td></tr>
+<tr><td><code>CS0234</code></td><td><code>using System.Textos;</code></td><td><code>error CS0234: O nome de tipo ou namespace "Textos" não existe no namespace "System" (você está sem uma referência de assembly?)</code></td><td>Esse namespace não existe (é <code>System.Text</code>), ou falta instalar o pacote.</td><td><a href="nuget.html">Pacotes NuGet</a></td></tr>
+<tr><td><code>CS0117</code></td><td><code>Console.Writeline("oi");</code></td><td><code>error CS0117: "Console" não contém uma definição para "Writeline"</code></td><td>O nome está quase certo: é <code>WriteLine</code>, com <code>L</code> maiúsculo.</td><td><a href="saida.html">Saída</a></td></tr>
+<tr id="cs1061"><td><code>CS1061</code></td><td><code>nome.Tamanho</code> com <code>string nome</code></td><td><code>error CS1061: ‘string’ não contém uma definição para "Tamanho" e não foi possível encontrar nenhum método de extensão "Tamanho" que aceite um primeiro argumento do tipo ‘string’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)</code></td><td>O tipo não tem esse membro: é <code>nome.Length</code>. A dica do fim (<code>diretiva ou referência de assembly</code>) aparece em todo CS1061 e quase nunca é o problema.</td><td><a href="metodos-string.html">Métodos de String</a></td></tr>
+<tr><td><code>CS0119</code></td><td><code>int n = Math;</code></td><td><code>error CS0119: "Math" é um tipo, que não é válido no contexto fornecido</code></td><td>Usou um tipo onde se espera um valor. Faltou o membro: <code>Math.PI</code>, <code>Math.Max(a, b)</code>.</td><td><a href="tipos-dados.html">Tipos de Dados</a></td></tr>
+</table>
+</div>
+
+<h2 id="tipos">Tipos e conversões</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Exemplo que provoca</th><th>Mensagem real</th><th>O que significa e como consertar</th><th>Aula</th></tr>
+<tr id="cs0029"><td><code>CS0029</code></td><td><code>int idade = "29";</code></td><td><code>error CS0029: Não é possível converter implicitamente tipo "string" em "int"</code></td><td>Texto não vira número sozinho. Converta: <code>int.Parse("29")</code>, ou <code>int.TryParse</code> com o que o usuário digita.</td><td><a href="parse.html">Parse e TryParse</a></td></tr>
+<tr><td><code>CS0029</code></td><td><code>if (x)</code> com <code>int x</code></td><td><code>error CS0029: Não é possível converter implicitamente tipo "int" em "bool"</code></td><td>O <code>if</code> quer um <code>bool</code>. Escreva a comparação: <code>if (x != 0)</code>. (Em C, <code>if (x)</code> valia.)</td><td><a href="if-else.html">if e else</a></td></tr>
+<tr><td><code>CS0029</code></td><td><code>string s = 'a';</code></td><td><code>error CS0029: Não é possível converter implicitamente tipo "char" em "string"</code></td><td><code>'a'</code> é <code>char</code>. Use aspas duplas: <code>"a"</code>.</td><td><a href="char-bool.html">char e bool</a></td></tr>
+<tr id="cs0266"><td><code>CS0266</code></td><td><code>int nota = media;</code> com <code>double media</code></td><td><code>error CS0266: Não é possível converter implicitamente tipo "double" em "int". Existe uma conversão explícita (há uma conversão ausente?)</code></td><td>A conversão pode perder a parte decimal, então o C# exige que você diga: <code>(int)media</code> (corta) ou <code>(int)Math.Round(media)</code> (arredonda).</td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
+<tr><td><code>CS0029</code></td><td><code>List&lt;int&gt; l = v;</code> com <code>int[] v</code></td><td><code>error CS0029: Não é possível converter implicitamente tipo "int[]" em "System.Collections.Generic.List&lt;int&gt;"</code></td><td>Um array não é uma <code>List</code>. Crie uma: <code>List&lt;int&gt; l = [.. v];</code> ou <code>v.ToList()</code>.</td><td><a href="list.html">List&lt;T&gt;</a></td></tr>
+<tr><td><code>CS0029</code></td><td><code>List&lt;int&gt; l = new List&lt;string&gt;();</code></td><td><code>error CS0029: Não é possível converter implicitamente tipo "System.Collections.Generic.List&lt;string&gt;" em "System.Collections.Generic.List&lt;int&gt;"</code></td><td>Os tipos de dentro dos <code>&lt; &gt;</code> têm de bater.</td><td><a href="generics.html">Generics</a></td></tr>
+<tr><td><code>CS0030</code></td><td><code>(int)texto</code> com <code>string texto</code></td><td><code>error CS0030: Não é possível converter tipo "string" em "int"</code></td><td>O cast não converte texto em número. Use <code>int.Parse(texto)</code>.</td><td><a href="parse.html">Parse e TryParse</a></td></tr>
+<tr><td><code>CS0019</code></td><td><code>a &gt; b</code> com <code>string a</code> e <code>int b</code></td><td><code>error CS0019: O operador "&gt;" não pode ser aplicado a operandos dos tipos "string" e "int"</code></td><td>O operador não existe para esses tipos. Converta um deles antes.</td><td><a href="operadores-comparacao.html">Comparação</a></td></tr>
+<tr><td><code>CS0019</code></td><td><code>preco * taxa</code> com <code>decimal</code> e <code>double</code></td><td><code>error CS0019: O operador "*" não pode ser aplicado a operandos dos tipos "decimal" e "double"</code></td><td><code>decimal</code> e <code>double</code> não se misturam. Use <code>0.1m</code> (tudo <code>decimal</code>) ou <code>(decimal)taxa</code>.</td><td><a href="decimais.html">float, double e decimal</a></td></tr>
+<tr><td><code>CS0023</code></td><td><code>!x</code> com <code>int x</code></td><td><code>error CS0023: O operador "!" não pode ser aplicado ao operando do tipo "int"</code></td><td>O <code>!</code> é só para <code>bool</code>. Escreva <code>x == 0</code>.</td><td><a href="operadores-logicos.html">Operadores Lógicos</a></td></tr>
+<tr><td><code>CS0037</code></td><td><code>int idade = null;</code></td><td><code>error CS0037: Não é possível converter o valor nulo em 'int' porque ele não é um tipo de valor não anulável</code></td><td>Um <code>int</code> sempre tem valor. Para "sem valor", use <code>int?</code>.</td><td><a href="null.html">null</a></td></tr>
+<tr><td><code>CS0173</code></td><td><code>var x = ok ? 1 : "um";</code></td><td><code>error CS0173: Tipo de expressão condicional não pode ser determinado porque não há conversão implícita entre "int" e "string"</code></td><td>Os dois lados do ternário precisam ser do mesmo tipo (ou conversíveis).</td><td><a href="ternario.html">Operador Ternário</a></td></tr>
+</table>
+</div>
+
+<h2 id="var"><code>var</code>, <code>const</code> e literais</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Exemplo que provoca</th><th>Mensagem real</th><th>O que significa e como consertar</th><th>Aula</th></tr>
+<tr id="cs0165"><td><code>CS0165</code></td><td><code>int total;</code> e depois <code>Console.WriteLine(total);</code></td><td><code>error CS0165: Uso de variável local não atribuída "total"</code></td><td>A variável foi declarada, mas nunca recebeu valor. Dê um valor inicial: <code>int total = 0;</code></td><td><a href="variaveis.html">Variáveis</a></td></tr>
+<tr><td><code>CS0165</code></td><td>o valor só é dado dentro de um <code>if</code></td><td><code>error CS0165: Uso de variável local não atribuída "nota"</code></td><td>Se o <code>if</code> for falso, a variável fica sem valor. Dê um valor antes, ou um <code>else</code>.</td><td><a href="if-else.html">if e else</a></td></tr>
+<tr><td><code>CS0818</code></td><td><code>var x;</code></td><td><code>error CS0818: Variáveis de tipo implícito devem ser inicializadas</code></td><td>O <code>var</code> descobre o tipo pelo valor; sem valor, não há o que descobrir.</td><td><a href="var.html">var</a></td></tr>
+<tr><td><code>CS0815</code></td><td><code>var nada = null;</code></td><td><code>error CS0815: Não é possível atribuir &lt;nulo&gt; a uma variável de tipo implícito</code></td><td><code>null</code> não tem tipo. Escreva o tipo: <code>string? nada = null;</code></td><td><a href="var.html">var</a></td></tr>
+<tr><td><code>CS8917</code></td><td><code>var f = x =&gt; x * 2;</code></td><td><code>error CS8917: O tipo de representante não pôde ser inferido.</code></td><td>O compilador não sabe o tipo do <code>x</code>. Escreva-o: <code>var f = (int x) =&gt; x * 2;</code> ou <code>Func&lt;int, int&gt; f = x =&gt; x * 2;</code></td><td><a href="lambdas.html">Lambdas</a></td></tr>
+<tr><td><code>CS9176</code></td><td><code>var vazia = [];</code></td><td><code>error CS9176: Não há um tipo de destino para a expressão de coleção.</code></td><td>Os colchetes não dizem o tipo da coleção: <code>List&lt;int&gt; vazia = [];</code></td><td><a href="list.html">List&lt;T&gt;</a></td></tr>
+<tr><td><code>CS0133</code></td><td><code>const int dobro = n * 2;</code> com <code>int n</code></td><td><code>error CS0133: A expressão que está sendo atribuída a "dobro" deve ser constante</code></td><td>Um <code>const</code> precisa ser calculável na compilação. Use uma variável comum (ou <code>readonly</code> num campo).</td><td><a href="constantes.html">Constantes</a></td></tr>
+<tr><td><code>CS0664</code></td><td><code>decimal preco = 15.90;</code></td><td><code>error CS0664: Literal do tipo double não pode ser convertido implicitamente no tipo "decimal"; use um sufixo "M" para criar um literal desse tipo</code></td><td><code>15.90</code> é <code>double</code>. Escreva <code>15.90m</code>. (Com <code>float</code>, o sufixo é <code>f</code>.)</td><td><a href="decimais.html">float, double e decimal</a></td></tr>
+<tr><td><code>CS0020</code></td><td><code>10 / 0</code></td><td><code>error CS0020: Divisão por zero constante</code></td><td>O compilador viu a divisão por zero. Com uma variável, o erro só aparece ao rodar (<code>DivideByZeroException</code>).</td><td><a href="operadores-aritmeticos.html">Operadores Aritméticos</a></td></tr>
+<tr><td><code>CS0221</code></td><td><code>byte b = (byte)300;</code></td><td><code>error CS0221: O valor de constante "300" não pode ser convertido em "byte" (use a sintaxe "unchecked" para substituir)</code></td><td>A constante não cabe no tipo. Veja <a href="ref-tipos.html#erros">Tipos e Limites</a>.</td><td><a href="conversao-tipos.html">Conversão de Tipos</a></td></tr>
+</table>
+</div>
+
+<h2 id="metodos">Métodos, parâmetros e retorno</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Exemplo que provoca</th><th>Mensagem real</th><th>O que significa e como consertar</th><th>Aula</th></tr>
+<tr id="cs0161"><td><code>CS0161</code></td><td><code>int Maior(…)</code> que só tem <code>return</code> dentro do <code>if</code></td><td><code>error CS0161: "Maior(int, int)": nem todos os caminhos de código retornam um valor</code></td><td>Se o <code>if</code> for falso, a função chega ao fim sem devolver nada. Ponha um <code>return</code> no fim (ou um <code>else</code>).</td><td><a href="retorno.html">Valor de Retorno</a></td></tr>
+<tr><td><code>CS0127</code></td><td><code>return 5;</code> num método <code>void</code></td><td><code>error CS0127: Como "Mostrar()" retorna void, uma palavra-chave return não deve ser seguida por uma expressão de objeto</code></td><td>Um <code>void</code> não devolve nada. Tire o valor, ou troque o <code>void</code> pelo tipo.</td><td><a href="retorno.html">Valor de Retorno</a></td></tr>
+<tr><td><code>CS0126</code></td><td><code>return;</code> num método <code>int</code></td><td><code>error CS0126: Um objeto de tipo conversível em "int" é necessário</code></td><td>O método prometeu um <code>int</code>: devolva um.</td><td><a href="retorno.html">Valor de Retorno</a></td></tr>
+<tr><td><code>CS1501</code></td><td><code>Soma(1, 2, 3)</code> com <code>Soma(int a, int b)</code></td><td><code>error CS1501: Nenhuma sobrecarga para o método "Soma" leva 3 argumentos</code></td><td>Número errado de argumentos.</td><td><a href="parametros.html">Parâmetros</a></td></tr>
+<tr><td><code>CS7036</code></td><td><code>Soma(1)</code> com <code>Soma(int a, int b)</code></td><td><code>error CS7036: Não há nenhum argumento fornecido que corresponda ao parâmetro necessário 'b' de 'Soma(int, int)'</code></td><td>Faltou um argumento obrigatório. Passe-o, ou dê um valor padrão ao parâmetro (<code>int b = 0</code>).</td><td><a href="parametros-opcionais.html">Parâmetros Opcionais</a></td></tr>
+<tr id="cs1503"><td><code>CS1503</code></td><td><code>Dobro("4")</code> com <code>Dobro(int n)</code></td><td><code>error CS1503: Argumento 1: não é possível converter de "string" para "int"</code></td><td>O argumento é de outro tipo. Passe <code>4</code>, ou converta.</td><td><a href="parametros.html">Parâmetros</a></td></tr>
+<tr><td><code>CS1620</code></td><td><code>Dobrar(n)</code> com <code>Dobrar(ref int x)</code></td><td><code>error CS1620: Argumento 1 não deve ser transmitido com a palavra-chave "ref"</code></td><td>O parâmetro é <code>ref</code>: a chamada também leva <code>ref</code>: <code>Dobrar(ref n)</code>.</td><td><a href="ref-out-in.html">ref, out e in</a></td></tr>
+<tr><td><code>CS0177</code></td><td>um método com <code>out int valor</code> que não dá valor a ele</td><td><code>error CS0177: O parâmetro out "valor" deve ser atribuído antes que o controle saia do método atual</code></td><td>Todo parâmetro <code>out</code> tem de receber um valor antes de o método terminar.</td><td><a href="ref-out-in.html">ref, out e in</a></td></tr>
+<tr><td><code>CS0206</code></td><td><code>Dobrar(ref p.Idade)</code> com uma propriedade</td><td><code>error CS0206: Talvez uma propriedade ou um indexador sem retorno de ref não pode ser usado como um valor out ou ref</code></td><td>Propriedades não vão por <code>ref</code>. Copie para uma variável, passe a variável e guarde de volta.</td><td><a href="ref-out-in.html">ref, out e in</a></td></tr>
+<tr><td><code>CS0111</code></td><td>dois <code>Somar(int, int)</code> na mesma classe</td><td><code>error CS0111: Tipo "Calc" já define um membro chamado "Somar" com os mesmos tipos de parâmetro</code></td><td>Sobrecarga exige parâmetros de tipos diferentes; só mudar o nome dos parâmetros não basta.</td><td><a href="sobrecarga.html">Sobrecarga</a></td></tr>
+<tr><td><code>CS0121</code></td><td><code>Util.Mostrar(null)</code> com <code>Mostrar(string?)</code> e <code>Mostrar(int[]?)</code></td><td><code>error CS0121: A chamada é ambígua entre os seguintes métodos ou propriedades: "Util.Mostrar(string?)" e "Util.Mostrar(int[]?)"</code></td><td>As duas versões servem, e o compilador não escolhe. Diga o tipo: <code>Mostrar((string?)null)</code>.</td><td><a href="sobrecarga.html">Sobrecarga</a></td></tr>
+<tr><td><code>CS0428</code></td><td><code>string maiusc = nome.ToUpper;</code></td><td><code>error CS0428: Não é possível converter o grupo de métodos "ToUpper" no tipo "string" não delegado. Você pretendia invocar o método?</code></td><td>Faltaram os parênteses: <code>nome.ToUpper()</code>. Sem eles, é o método em si, não o resultado.</td><td><a href="metodos.html">Métodos</a></td></tr>
+</table>
+</div>
+
+<h2 id="decisoes">Decisões, laços e exceções</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Exemplo que provoca</th><th>Mensagem real</th><th>O que significa e como consertar</th><th>Aula</th></tr>
+<tr><td><code>CS0163</code></td><td>um <code>case</code> sem <code>break</code> antes do próximo</td><td><code>error CS0163: Controle não pode passar através de um rótulo case ("case 1:") para outro</code></td><td>No C#, um <code>case</code> não "cai" no seguinte: termine cada um com <code>break</code> (ou <code>return</code>).</td><td><a href="switch.html">switch</a></td></tr>
+<tr><td><code>CS0152</code></td><td>dois <code>case 1:</code></td><td><code>error CS0152: A instrução switch contém vários casos com o valor de rótulo "1"</code></td><td>Cada <code>case</code> com um valor diferente.</td><td><a href="switch.html">switch</a></td></tr>
+<tr><td><code>CS9135</code></td><td><code>case x:</code> com uma variável</td><td><code>error CS9135: Um valor constante do tipo 'int' é esperado</code></td><td>O <code>case</code> quer um valor fixo. Para comparar com variável, use <code>case var v when v == x:</code> ou um <code>if</code>.</td><td><a href="switch.html">switch</a></td></tr>
+<tr><td><code>CS8120</code></td><td><code>case object:</code> antes de <code>case int:</code></td><td><code>error CS8120: O caso do comutador não está acessível. Ele já foi manipulado por um caso anterior ou não é possível fazer a correspondência.</code></td><td>O primeiro <code>case</code> já pega tudo; o segundo nunca roda. Ponha o mais específico primeiro.</td><td><a href="pattern-matching.html">Pattern Matching</a></td></tr>
+<tr><td><code>CS8509</code> (aviso)</td><td><code>n switch { 1 =&gt; "um", 2 =&gt; "dois" }</code></td><td><code>warning CS8509: A expressão switch não manipula todos os valores possíveis do tipo de entrada (ela não é exaustiva). Por exemplo, o padrão '0' não é coberto.</code></td><td>A expressão <code>switch</code> não cobre todos os valores; se nenhum casar, o programa lança exceção. Acrescente <code>_ =&gt; "outro"</code>.</td><td><a href="switch-expressoes.html">Expressões switch</a></td></tr>
+<tr><td><code>CS0139</code></td><td><code>break;</code> dentro de um <code>if</code>, fora de laço</td><td><code>error CS0139: Nenhum loop delimitador a partir do qual quebrar ou continuar</code></td><td><code>break</code> e <code>continue</code> só existem dentro de laços (e o <code>break</code>, no <code>switch</code>). Para sair de um método, <code>return</code>.</td><td><a href="break-continue.html">break e continue</a></td></tr>
+<tr><td><code>CS0160</code></td><td><code>catch (IOException)</code> antes de <code>catch (FileNotFoundException)</code></td><td><code>error CS0160: Cláusula catch anterior já captura todas as exceções desta ou de um super tipo ("IOException")</code></td><td>O primeiro <code>catch</code> já pega o segundo tipo (é a mãe dele). Ponha o mais específico primeiro. Veja <a href="ref-excecoes.html#hierarquia">a família das exceções</a>.</td><td><a href="try-catch.html">try e catch</a></td></tr>
+</table>
+</div>
+
+<h2 id="classes">Classes, objetos e propriedades</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Exemplo que provoca</th><th>Mensagem real</th><th>O que significa e como consertar</th><th>Aula</th></tr>
+<tr><td><code>CS0120</code></td><td><code>Conta.Saldo</code> (pela classe, e não por um objeto)</td><td><code>error CS0120: Uma referência de objeto é necessária para o campo, o método ou a propriedade "Conta.Saldo" não estática</code></td><td><code>Saldo</code> pertence a cada conta. Use o objeto: <code>c.Saldo</code>.</td><td><a href="classes-objetos.html">Classes e Objetos</a></td></tr>
+<tr><td><code>CS0120</code></td><td>um <code>static void Main</code> usando um campo que não é <code>static</code></td><td><code>error CS0120: Uma referência de objeto é necessária para o campo, o método ou a propriedade "Programa.contador" não estática</code></td><td>Um método <code>static</code> não tem objeto. Crie um objeto, ou marque o campo como <code>static</code>.</td><td><a href="static.html">static</a></td></tr>
+<tr><td><code>CS0122</code></td><td><code>c._saldo = 100;</code> com <code>private decimal _saldo</code></td><td><code>error CS0122: "Conta._saldo" é inacessível devido ao seu nível de proteção</code></td><td>Membro <code>private</code> só é visto dentro da classe. Use um método público (<code>Depositar</code>).</td><td><a href="encapsulamento.html">Encapsulamento</a></td></tr>
+<tr><td><code>CS0200</code></td><td><code>p.Nome = "Bia";</code> com <code>Nome { get; }</code></td><td><code>error CS0200: A propriedade ou o indexador "Pessoa.Nome" não pode ser atribuído, pois é somente leitura</code></td><td>A propriedade é só de leitura. Dê o valor no construtor, ou acrescente <code>set</code>/<code>init</code>.</td><td><a href="propriedades.html">Propriedades</a></td></tr>
+<tr><td><code>CS0272</code></td><td><code>t.Feita = true;</code> com <code>{ get; private set; }</code></td><td><code>error CS0272: A propriedade ou o indexador "Tarefa.Feita" não pode ser usado neste contexto porque o acessador set é inacessível</code></td><td>Só a classe muda. Chame o método que ela oferece (<code>t.Concluir()</code>). Cenário no <a href="projeto-tarefas.html#versao1">projeto Tarefas</a>.</td><td><a href="encapsulamento.html">Encapsulamento</a></td></tr>
+<tr><td><code>CS8852</code></td><td>mudar uma propriedade de um record posicional</td><td><code>error CS8852: A propriedade somente de inicialização ou o indexador 'Produto.Quantidade' só pode ser atribuído em um inicializador de objeto, …</code></td><td>Use <code>with</code>: <code>p = p with { Quantidade = 11 };</code>. Cenário no <a href="projeto-estoque.html#versao1">projeto Estoque</a>.</td><td><a href="records.html">Records</a></td></tr>
+<tr><td><code>CS0102</code></td><td>dois campos <code>Nome</code> na mesma classe</td><td><code>error CS0102: O tipo "Pessoa" já contém uma definição para "Nome"</code></td><td>Cada membro com um nome.</td><td><a href="campos.html">Campos</a></td></tr>
+<tr><td><code>CS0236</code></td><td>um campo calculado a partir de outro campo</td><td><code>error CS0236: Um inicializador de campo não pode referenciar o campo, o método ou a propriedade não estática "Conta.saldo"</code></td><td>O valor inicial de um campo não pode usar outro campo. Calcule no construtor, ou use uma propriedade (<code>decimal Dobro =&gt; saldo * 2;</code>).</td><td><a href="campos.html">Campos</a></td></tr>
+<tr><td><code>CS0170</code></td><td>ler o campo de uma struct que não recebeu valor</td><td><code>error CS0170: Uso de campo possivelmente não atribuído "X"</code></td><td>Crie a struct com <code>new Ponto()</code> ou dê valor aos campos antes.</td><td><a href="structs.html">Structs</a></td></tr>
+<tr><td><code>CS1612</code></td><td><code>pontos[0].X = 5;</code> numa <code>List</code> de struct</td><td><code>error CS1612: Não é possível modificar o valor de retorno "List&lt;Ponto&gt;.this[int]" porque ele não é uma variável</code></td><td>A lista devolve uma <strong>cópia</strong> da struct; mudar a cópia não adianta. Copie, mude e guarde: <code>var p = pontos[0]; p.X = 5; pontos[0] = p;</code></td><td><a href="valor-referencia.html">Valor × Referência</a></td></tr>
+<tr><td><code>CS0311</code></td><td><code>Caixa&lt;Coisa&gt;</code> com <code>where T : IComparable&lt;T&gt;</code></td><td><code>error CS0311: O tipo "Coisa" não pode ser usado como parâmetro de tipo "T" no tipo ou método genérico "Caixa&lt;T&gt;". Não há conversão de referência implícita de "Coisa" em "System.IComparable&lt;Coisa&gt;".</code></td><td>O tipo não cumpre a restrição do genérico.</td><td><a href="restricoes-genericas.html">Restrições (where)</a></td></tr>
+</table>
+</div>
+
+<h2 id="heranca">Herança e interfaces</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Exemplo que provoca</th><th>Mensagem real</th><th>O que significa e como consertar</th><th>Aula</th></tr>
+<tr><td><code>CS0535</code></td><td><code>class Quadrado : IForma { }</code> sem o <code>Area()</code></td><td><code>error CS0535: "Quadrado" não implementa membro de interface "IForma.Area()"</code></td><td>Quem assina a interface tem de escrever todos os membros dela.</td><td><a href="interfaces.html">Interfaces</a></td></tr>
+<tr><td><code>CS0534</code></td><td><code>class Circulo : Forma { }</code> sem o <code>override</code> do método abstrato</td><td><code>error CS0534: "Circulo" não implementa membro abstrato herdado "Forma.Area()"</code></td><td>Escreva <code>public override double Area() =&gt; …</code>.</td><td><a href="abstratas.html">Classes Abstratas</a></td></tr>
+<tr><td><code>CS0144</code></td><td><code>new Forma()</code> com <code>abstract class Forma</code></td><td><code>error CS0144: Não é possível criar uma instância do tipo abstrato ou da interface 'Forma'</code></td><td>Classe abstrata não se instancia: crie uma filha (<code>new Circulo()</code>).</td><td><a href="abstratas.html">Classes Abstratas</a></td></tr>
+<tr><td><code>CS0506</code></td><td><code>override</code> de um método que não é <code>virtual</code></td><td><code>error CS0506: "Gato.Falar()": não é possível substituir o membro herdado "Animal.Falar()" porque ele não está marcado como virtual, abstract ou override</code></td><td>Marque o método da mãe como <code>virtual</code> (ou <code>abstract</code>).</td><td><a href="virtual-override.html">virtual e override</a></td></tr>
+<tr><td><code>CS0108</code> (aviso)</td><td>um campo <code>Nome</code> na mãe e outro na filha</td><td><code>warning CS0108: "Gato.Nome" oculta o membro herdado "Animal.Nome". Use a nova palavra-chave se foi pretendido ocultar.</code></td><td>A filha esconde o membro da mãe, quase sempre sem querer. Tire o da filha, ou escreva <code>new</code> se for de propósito.</td><td><a href="heranca.html">Herança</a></td></tr>
+</table>
+</div>
+
+<h2 id="arrays">Arrays e coleções</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Exemplo que provoca</th><th>Mensagem real</th><th>O que significa e como consertar</th><th>Aula</th></tr>
+<tr><td><code>CS0847</code></td><td><code>new int[3] { 1, 2 }</code></td><td><code>error CS0847: Inicializador de matriz de comprimento "3" é esperado</code></td><td>O tamanho e a quantidade de valores não batem. Tire o tamanho: <code>int[] v = [1, 2];</code></td><td><a href="arrays.html">Arrays</a></td></tr>
+<tr><td><code>CS0021</code></td><td><code>n[0]</code> com <code>int n</code></td><td><code>error CS0021: Não é possível aplicar a indexação com [] a uma expressão do tipo "int"</code></td><td>Colchetes só em arrays, listas, strings e coleções.</td><td><a href="arrays.html">Arrays</a></td></tr>
+<tr><td><code>CS1061</code></td><td><code>lista.Length</code> numa <code>List</code></td><td><code>error CS1061: ‘List&lt;int&gt;’ não contém uma definição para "Length" …</code></td><td>Na <code>List</code>, é <code>Count</code>. Mais casos em <a href="ref-colecoes.html#erros">Coleções</a>.</td><td><a href="list.html">List&lt;T&gt;</a></td></tr>
+</table>
+</div>
+
+<h2 id="null">null e referências anuláveis (avisos)</h2>
+<p>Com <code>&lt;Nullable&gt;enable&lt;/Nullable&gt;</code> (o padrão dos projetos novos e dos arquivos rodados com <code>dotnet run arquivo.cs</code>), o compilador avisa onde um <code>null</code> pode causar <code>NullReferenceException</code>. São avisos: o programa roda, mas o risco é real. Aula: <a href="referencias-anulaveis.html">Referências Anuláveis</a>.</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Exemplo que provoca</th><th>Mensagem real</th><th>O que significa e como consertar</th></tr>
+<tr id="cs8602"><td><code>CS8602</code></td><td><code>apelido.Length</code> com <code>string? apelido</code></td><td><code>warning CS8602: Desreferência de uma referência possivelmente nula.</code></td><td>Pode ser <code>null</code>. Confira (<code>if (apelido is not null)</code>) ou use <code>apelido?.Length</code>.</td></tr>
+<tr><td><code>CS8600</code></td><td><code>string nome = Console.ReadLine();</code></td><td><code>warning CS8600: Conversão de literal nula ou possível valor nulo em tipo não anulável.</code></td><td>O <code>ReadLine</code> devolve <code>string?</code>. Use <code>Console.ReadLine() ?? ""</code>, ou declare <code>string?</code>.</td></tr>
+<tr><td><code>CS8600</code></td><td><code>string nome = null;</code></td><td><code>warning CS8600: Conversão de literal nula ou possível valor nulo em tipo não anulável.</code></td><td>Se pode ser <code>null</code>, declare <code>string?</code>.</td></tr>
+<tr><td><code>CS8625</code></td><td><code>Saudar(null)</code> com <code>Saudar(string nome)</code></td><td><code>warning CS8625: Não é possível converter um literal nulo em um tipo de referência não anulável.</code></td><td>O parâmetro não aceita <code>null</code>. Passe um texto, ou declare <code>string? nome</code> (e trate o <code>null</code> dentro).</td></tr>
+<tr><td><code>CS8618</code></td><td>uma propriedade <code>string Nome { get; set; }</code> sem valor inicial</td><td><code>warning CS8618: O propriedade não anulável 'Nome' precisa conter um valor não nulo ao sair do construtor. Considere adicionar o modificador "obrigatório" ou declarar o propriedade como anulável.</code></td><td>A propriedade começa <code>null</code>. Dê um valor (<code>= "";</code>), use <code>required</code>, ou um construtor que a preencha.</td></tr>
+</table>
+</div>
+
+<h2 id="async"><code>async</code> e <code>await</code></h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Exemplo que provoca</th><th>Mensagem real</th><th>O que significa e como consertar</th><th>Aula</th></tr>
+<tr><td><code>CS4033</code></td><td><code>await</code> num método sem <code>async</code></td><td><code>error CS4033: O operador 'await' só pode ser usado em um método assíncrono. Considere marcar esse método com o modificador 'async' e alterar seu tipo de retorno para 'Task'.</code></td><td>Marque o método como <code>async</code> e devolva <code>Task</code>: <code>static async Task Esperar()</code>.</td><td><a href="async-await.html">async e await</a></td></tr>
+<tr><td><code>CS0029</code></td><td><code>int n = Calcular();</code> com <code>Task&lt;int&gt; Calcular()</code></td><td><code>error CS0029: Não é possível converter implicitamente tipo "System.Threading.Tasks.Task&lt;int&gt;" em "int"</code></td><td>Faltou o <code>await</code>: <code>int n = await Calcular();</code></td><td><a href="tasks.html">Task</a></td></tr>
+</table>
+</div>
+
+<h2 id="avisos">Avisos comuns</h2>
+<p>Aviso (<code>warning</code>) não impede o programa de rodar, mas quase sempre aponta um defeito. Aula: <a href="avisos.html">Avisos do Compilador</a>.</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Exemplo que provoca</th><th>Mensagem real</th><th>O que significa e como consertar</th></tr>
+<tr><td><code>CS0168</code></td><td><code>int x;</code> e nada mais</td><td><code>warning CS0168: A variável "x" está declarada, mas nunca é usada</code></td><td>Sobra de código: apague a variável.</td></tr>
+<tr><td><code>CS0219</code></td><td><code>int x = 5;</code> e nada mais</td><td><code>warning CS0219: A variável "x" é atribuída, mas seu valor nunca é usado</code></td><td>Idem; às vezes é um erro de digitação no nome em outro lugar.</td></tr>
+<tr><td><code>CS0162</code></td><td>uma linha depois do <code>return</code></td><td><code>warning CS0162: Código inacessível detectado</code></td><td>Essa linha nunca roda. Apague-a, ou mova o <code>return</code>.</td></tr>
+<tr><td><code>CS0642</code></td><td><code>if (x &gt; 3);</code> (com <code>;</code>)</td><td><code>warning CS0642: Instrução empty possivelmente incorreta</code></td><td>O <code>;</code> terminou o <code>if</code> ali mesmo, e o bloco de baixo roda <strong>sempre</strong>. Tire o <code>;</code>.</td></tr>
+<tr><td><code>CS0665</code></td><td><code>if (pronto = true)</code></td><td><code>warning CS0665: Atribuição em expressão condicional é sempre constante. Deseja usar == em vez de = ?</code></td><td><code>=</code> guarda, <code>==</code> compara. Com <code>bool</code> compila, e o <code>if</code> é sempre verdadeiro. Escreva <code>if (pronto)</code>.</td></tr>
+<tr><td><code>CS1717</code></td><td><code>x = x;</code></td><td><code>warning CS1717: Atribuição feita à mesma variável. Você pretendia atribuir outro elemento?</code></td><td>Não faz nada. Em geral era <code>this.x = x;</code> num construtor.</td></tr>
+<tr><td><code>CS1718</code></td><td><code>nan == nan</code> com a mesma variável</td><td><code>warning CS1718: Comparação feita com a mesma variável. Você pretendia comparar com outro elemento?</code></td><td>Comparar algo consigo mesmo é quase sempre engano.</td></tr>
+</table>
+</div>
+
+<h2 id="projeto">Erros de projeto e do <code>dotnet</code></h2>
+<p>Estes não são do código de um arquivo, mas de como o programa está organizado, ou do próprio comando <code>dotnet</code>. Para provocá-los, a Ana criou um projeto de teste (<code>dotnet new console -o Erros</code>), apagou o <code>Program.cs</code> e foi trocando os arquivos:</p>
+<pre class="term" data-cwd="~/projetos/Erros">$ rm Program.cs
+$ echo 'class Ajudante { }' &gt; Ajudante.cs
+$ dotnet run
+CSC : error CS5001: Programa não contém um método "Main" estático adequado para um ponto de entrada [/home/ana/projetos/Erros/Erros.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.
+$ rm Ajudante.cs
+$ echo 'Console.WriteLine("um");' &gt; Um.cs
+$ echo 'Console.WriteLine("dois");' &gt; Dois.cs
+$ dotnet run
+/home/ana/projetos/Erros/Um.cs(1,1): error CS8802: Apenas uma unidade de compilação pode ter instruções de nível superior. [/home/ana/projetos/Erros/Erros.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.
+$ cd ~
+$ mkdir -p vazia &amp;&amp; cd vazia
+$ dotnet run
+Não foi possível localizar um projeto para executar. Verifique se existe um projeto em /home/ana/vazia ou passe o caminho para o projeto usando --project.
+$ dotnet run ola.cs
+Não foi possível localizar um projeto para executar. Verifique se existe um projeto em /home/ana/vazia ou passe o caminho para o projeto usando --project.</pre>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Mensagem</th><th>O que significa e como consertar</th><th>Aula</th></tr>
+<tr><td><code>CSC : error CS5001: Programa não contém um método "Main" estático adequado para um ponto de entrada</code></td><td>Num projeto, nenhum arquivo tem instruções de nível superior nem um <code>static void Main</code>. Ponha as instruções num <code>Program.cs</code>.</td><td><a href="top-level.html">Program.cs e o Main</a></td></tr>
+<tr><td><code>error CS8802: Apenas uma unidade de compilação pode ter instruções de nível superior.</code></td><td>Dois <code>.cs</code> do mesmo projeto têm código solto. Deixe as instruções num arquivo só; nos outros, só classes.</td><td><a href="top-level.html">Program.cs e o Main</a></td></tr>
+<tr><td><code>Não foi possível localizar um projeto para executar. Verifique se existe um projeto em /home/ana/vazia ou passe o caminho para o projeto usando --project.</code></td><td>Aparece em dois casos: <code>dotnet run</code> sem nome de arquivo numa pasta sem <code>.csproj</code>, e <code>dotnet run ola.cs</code> quando o <code>ola.cs</code> não existe nessa pasta (o <code>dotnet</code> não acha o arquivo e procura um projeto). Entre na pasta certa (<code>cd</code>) e confira o nome com <code>ls</code>.</td><td><a href="dotnet-run.html">Rodar com dotnet run</a></td></tr>
+</table>
+</div>
+
+<h2 id="experimente">Experimente</h2>
+<div class="trycs" data-goal="compila,out:Maior: 9">
+<p class="try-task"><strong>Missão:</strong> este programa tem três erros. Na primeira vez, o compilador só mostra o de sintaxe (<code>CS1002</code>, na linha 3): enquanto o código não está bem escrito, ele nem chega a conferir o resto. Conserte e rode de novo: aparecem os outros dois (<code>CS0103</code> e <code>CS0161</code>). Conserte um de cada vez até sair <code>Maior: 9</code>.</p>
+<pre class="script">int a = 4;
+int b = 9;
+Console.WriteLine("Comparando...")
+Console.WriteLine($"Maior: {Maior(a, B)}");
+
+static int Maior(int x, int y)
+{
+    if (x &gt; y)
+    {
+        return x;
+    }
+}
+</pre>
+<pre class="solucao">int a = 4;
+int b = 9;
+Console.WriteLine("Comparando...");
+Console.WriteLine($"Maior: {Maior(a, b)}");
+
+static int Maior(int x, int y)
+{
+    if (x &gt; y)
+    {
+        return x;
+    }
+    return y;
+}
+</pre>
+</div>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> provoque erros de propósito e veja as mensagens. Apague um <code>;</code>, troque <code>WriteLine</code> por <code>Writeline</code>, ponha <code>"7"</code> no lugar do <code>7</code>, tire o <code>m</code> do preço…</p>
+<pre class="script">int quantidade = 7;
+decimal preco = 2.50m;
+decimal total = quantidade * preco;
+Console.WriteLine($"Total: {total:C}");
+</pre>
+</div>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma mensagem tem arquivo, <code>(linha,coluna)</code>, <code>error</code> ou <code>warning</code>, o código <code>CSxxxx</code> e o texto. Procure pelo código.</li>
+  <li>Conserte o primeiro erro primeiro e olhe também a linha de cima.</li>
+  <li>Os campeões: <code>CS0103</code> (nome não existe), <code>CS1002</code> (falta <code>;</code>), <code>CS0029</code>/<code>CS0266</code> (conversão), <code>CS0165</code> (sem valor), <code>CS0161</code> (falta <code>return</code>), <code>CS1061</code> (membro não existe), <code>CS0246</code> (tipo não achado ou falta <code>using</code>).</li>
+  <li>Avisos de <code>null</code> (<code>CS8600</code>, <code>CS8602</code>, <code>CS8618</code>) são exceções esperando para acontecer.</li>
+  <li>As mensagens do compilador saem em português; as exceções, ao rodar, em inglês (veja <a href="ref-excecoes.html">Exceções</a>).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
