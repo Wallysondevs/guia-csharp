@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# .NET: SDK, Runtime e CLR — o que roda por baixo do C# | Guia C#</title>
+<meta name="description" content="O que é o .NET para quem está começando: SDK × Runtime, o CLR, a IL, o compilador JIT, a biblioteca de classes e o coletor de lixo. Abrindo a pasta /usr/lib/dotnet, o que tem dentro do ola.dll, o JIT gerando código x64 de verdade, dotnet --list-sdks e --list-runtimes, e os erros No .NET SDKs were found e You must install or update .NET, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">.NET: SDK, Runtime e CLR</span></h1>
+
+<p class="intro">O C# é a linguagem; o <strong>.NET</strong> é a plataforma que transforma o seu código em programa e o faz rodar. Quem procura "instalar C#" acaba instalando ".NET SDK", e nos tutoriais aparecem siglas como CLR, IL e JIT. Nesta aula você abre o .NET instalado no computador da Ana, vê o que tem dentro do arquivo que o compilador cria e assiste o .NET transformando o seu código em instruções do processador.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A diferença entre o <strong>SDK</strong> (para quem programa) e o <strong>Runtime</strong> (para quem só roda programas).</li>
+  <li>O que fazem o <strong>Roslyn</strong> (o compilador), a <strong>IL</strong> (a linguagem intermediária), o <strong>CLR</strong> (o motor) e o <strong>JIT</strong> (o tradutor de última hora).</li>
+  <li>O que é a <strong>biblioteca de classes</strong> e de onde vem o <code>Console</code>.</li>
+  <li>Como ver o que está instalado com <code>dotnet --list-sdks</code> e <code>dotnet --list-runtimes</code>.</li>
+  <li>O que são os arquivos <code>.dll</code>, <code>.pdb</code> e <code>.runtimeconfig.json</code> que o build cria.</li>
+  <li>A diferença entre .NET, .NET Core, .NET Framework e Mono.</li>
+</ul>
+</div>
+
+<p>Todas as saídas desta aula vêm da máquina da Ana: Ubuntu 26.04 com o pacote <code>dotnet-sdk-10.0</code> do próprio Ubuntu. Se você ainda não instalou o .NET, pode ler esta aula do mesmo jeito; a instalação vem logo depois, em <a href="instalar-linux.html">Instalar no Linux</a>.</p>
+
+<hr>
+
+<h2>A ideia: a receita em língua universal</h2>
+<p>Imagine uma rede de restaurantes com cozinhas no Brasil, no Japão e na Alemanha. A chef escreve as receitas em português, mas os cozinheiros de cada país falam línguas diferentes. Em vez de escrever três versões, a rede faz assim:</p>
+
+<ol class="passo">
+  <li>Um <strong>tradutor oficial</strong> passa a receita do português para uma <strong>língua universal</strong> da rede, simples e exata, que todo cozinheiro da rede aprendeu.</li>
+  <li>Em cada país, o <strong>cozinheiro</strong> lê a receita universal e, na hora de cozinhar, vai traduzindo cada passo para o jeito da cozinha dele, com os fogões e panelas que ele tem.</li>
+  <li>Os ingredientes básicos (farinha, sal, ovos) já estão na <strong>despensa</strong> de toda cozinha da rede: a receita só diz "use farinha", sem explicar como fazer farinha.</li>
+</ol>
+
+<p>O .NET funciona exatamente assim:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>No restaurante</th><th>No .NET</th><th>Nome técnico</th></tr>
+<tr><td>A receita em português</td><td>O seu código C#</td><td>código-fonte (<code>ola.cs</code>)</td></tr>
+<tr><td>O tradutor oficial</td><td>O compilador de C#</td><td><strong>Roslyn</strong></td></tr>
+<tr><td>A receita na língua universal</td><td>O programa traduzido, guardado num arquivo <code>.dll</code></td><td><strong>IL</strong> (<em>Intermediate Language</em>, linguagem intermediária)</td></tr>
+<tr><td>O cozinheiro de cada país</td><td>O motor que roda o programa naquele computador</td><td><strong>CLR</strong> (<em>Common Language Runtime</em>)</td></tr>
+<tr><td>Traduzir cada passo na hora de cozinhar</td><td>Transformar a IL em instruções do processador enquanto o programa roda</td><td><strong>JIT</strong> (<em>just-in-time</em>, "bem na hora")</td></tr>
+<tr><td>A despensa com os ingredientes básicos</td><td>Milhares de classes prontas: <code>Console</code>, <code>Math</code>, <code>List</code>, <code>File</code>…</td><td><strong>biblioteca de classes</strong> (BCL)</td></tr>
+<tr><td>Limpar a mesa quando o cliente vai embora</td><td>Recolher a memória que o programa não usa mais</td><td><strong>coletor de lixo</strong> (GC, <em>garbage collector</em>)</td></tr>
+</table>
+</div>
+
+<p>A grande vantagem: o mesmo arquivo <code>.dll</code> roda no Linux, no Windows e no macOS, em processadores Intel, AMD ou ARM. Quem se adapta a cada computador é o CLR, não o seu programa.</p>
+
+<hr>
+
+<h2>SDK e Runtime: as duas caixas do .NET</h2>
+<p>O .NET vem em dois tamanhos, para dois tipos de pessoa:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th><strong>Runtime</strong> ("tempo de execução")</th><th><strong>SDK</strong> (<em>Software Development Kit</em>, "kit de desenvolvimento")</th></tr>
+<tr><td>Para quem</td><td>Quem só quer <strong>rodar</strong> programas prontos</td><td>Quem <strong>escreve</strong> programas: você</td></tr>
+<tr><td>Tem dentro</td><td>O CLR, o JIT, o coletor de lixo e a biblioteca de classes</td><td><strong>Tudo do Runtime</strong>, mais o compilador (Roslyn), o MSBuild (que organiza o build), os modelos de projeto e o comando <code>dotnet run</code>, <code>dotnet new</code>, <code>dotnet build</code>…</td></tr>
+<tr><td>Pacote no Ubuntu</td><td><code>dotnet-runtime-10.0</code></td><td><code>dotnet-sdk-10.0</code></td></tr>
+<tr><td>Número da versão</td><td><code>10.0.12</code></td><td><code>10.0.112</code></td></tr>
+</table>
+</div>
+
+<p>Para seguir o guia, instale o <strong>SDK</strong>: ele já traz o Runtime junto. O comando <code>dotnet</code> mostra as duas coisas separadas:</p>
+
+<pre class="term">$ dotnet --list-sdks                            « os SDKs instalados
+10.0.112 [/usr/lib/dotnet/sdk]
+$ dotnet --list-runtimes                        « os Runtimes instalados
+Microsoft.AspNetCore.App 10.0.12 [/usr/lib/dotnet/shared/Microsoft.AspNetCore.App]
+Microsoft.NETCore.App 10.0.12 [/usr/lib/dotnet/shared/Microsoft.NETCore.App]</pre>
+
+<dl class="anatomy">
+  <dt>10.0.112</dt><dd>A versão do <strong>SDK</strong>. Os dois primeiros números (<code>10.0</code>) dizem a versão do .NET. O terceiro (<code>112</code>) tem duas partes: o <code>1</code> é a "faixa" de recursos do SDK e o <code>12</code> é a 12.ª correção. A aula <a href="versoes.html">Versões do C# e do .NET</a> explica a numeração.</dd>
+  <dt>Microsoft.NETCore.App 10.0.12</dt><dd>O Runtime básico, versão <code>10.0.12</code>: tudo o que um programa de terminal precisa. É o que este guia usa.</dd>
+  <dt>Microsoft.AspNetCore.App 10.0.12</dt><dd>Um runtime extra, para sites e serviços na internet (ASP.NET Core). O SDK do Ubuntu o instala junto.</dd>
+  <dt>[/usr/lib/dotnet/…]</dt><dd>A pasta onde cada um está. No Ubuntu, o .NET mora em <code>/usr/lib/dotnet</code>.</dd>
+</dl>
+
+<hr>
+
+<h2>Abrindo o .NET da Ana</h2>
+<p>Vamos olhar a pasta do .NET por dentro. O <code>ls</code> lista o que há nela, e o <code>du -sh</code> mostra o tamanho:</p>
+
+<pre class="term">$ ls /usr/lib/dotnet
+dnx
+dotnet                                          « o comando dotnet
+host
+library-packs
+LICENSE.txt
+metadata
+packs
+sdk                                             « o SDK: compilador, MSBuild, comandos
+sdk-manifests
+shared                                          « os Runtimes
+templates                                       « os modelos do dotnet new
+ThirdPartyNotices.txt
+$ du -sh /usr/lib/dotnet
+545M	/usr/lib/dotnet
+$ du -sh /usr/lib/dotnet/sdk; du -sh /usr/lib/dotnet/shared; du -sh /usr/lib/dotnet/packs
+340M	/usr/lib/dotnet/sdk
+96M	/usr/lib/dotnet/shared
+98M	/usr/lib/dotnet/packs</pre>
+
+<p>O .NET inteiro ocupa 545 MB, e a maior parte (340 MB) é o SDK: as ferramentas de quem programa. Os Runtimes, que é o que um programa precisa para rodar, ficam em <code>shared</code>, com menos de 100 MB. A pasta <code>packs</code> guarda as "plantas" da biblioteca que o compilador consulta para saber quais classes existem.</p>
+
+<h3>O compilador e o MSBuild, dentro do SDK</h3>
+<pre class="term">$ ls /usr/lib/dotnet/sdk/10.0.112 | grep -i -E "^(MSBuild.dll|dotnet.dll|Roslyn)$"
+dotnet.dll                                      « os comandos run, new, build…
+MSBuild.dll                                     « o "mestre de obras" do build
+Roslyn                                          « a pasta do compilador de C#
+$ ls /usr/lib/dotnet/sdk/10.0.112/Roslyn/bincore | head
+cs
+csc                                             « csc = C Sharp Compiler
+csc.deps.json
+csc.dll
+csc.runtimeconfig.json
+de
+es
+fr
+it
+ja</pre>
+
+<p>O compilador de C# se chama <code>csc</code> (<em>C Sharp Compiler</em>), e o projeto que o criou se chama <strong>Roslyn</strong>. Repare num detalhe curioso: o <code>csc.dll</code> também é um programa .NET, escrito em C#. O compilador de C# é escrito em C#. As pastas <code>cs</code>, <code>de</code>, <code>es</code>, <code>fr</code>… guardam as mensagens de erro traduzidas (<code>cs</code>, aqui, é tcheco). É de uma pasta dessas, a <code>pt-BR</code>, que vêm as mensagens em português que você vê no terminal da Ana. Você nunca precisa chamar o <code>csc</code> diretamente: o <code>dotnet run</code> e o MSBuild fazem isso por você.</p>
+
+<h3>O Runtime e a biblioteca de classes</h3>
+<pre class="term">$ cd /usr/lib/dotnet/shared/Microsoft.NETCore.App/10.0.12
+$ ls *.dll | wc -l
+172                                             « 172 bibliotecas prontas
+$ du -h System.Console.dll System.Private.CoreLib.dll libcoreclr.so libclrjit.so
+184K	System.Console.dll                      « onde mora o Console
+14M	System.Private.CoreLib.dll              « o coração da biblioteca: int, string, Math…
+6,9M	libcoreclr.so                           « o CLR, o motor
+3,2M	libclrjit.so                            « o JIT, o tradutor de última hora</pre>
+
+<p>Aqui está a "despensa" do restaurante: 172 arquivos <code>.dll</code>, cada um com uma parte da biblioteca de classes. Quando você escreve <code>Console.WriteLine</code>, o código do <code>WriteLine</code> vem do <code>System.Console.dll</code>; ele não fica dentro do seu programa. Os arquivos <code>.so</code> são programas do Linux de verdade, em código de máquina: o <code>libcoreclr.so</code> é o CLR e o <code>libclrjit.so</code> é o JIT.</p>
+
+<p>Um programa consegue perguntar ao .NET quem ele é. Rode e compare com o terminal da Ana:</p>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> rode e veja a versão do .NET, o sistema e o processador. Se aparecer algo diferente da saída da Ana logo abaixo, não é erro: o programa mostra o .NET e o computador <strong>onde ele está rodando</strong>, e aqui ele roda dentro do seu navegador, não no Ubuntu da Ana.</p>
+<pre class="script" data-file="info.cs">using System.Runtime.InteropServices;
+
+Console.WriteLine($".NET: {RuntimeInformation.FrameworkDescription}");
+Console.WriteLine($"Sistema: {RuntimeInformation.OSDescription}");
+Console.WriteLine($"Processador: {RuntimeInformation.ProcessArchitecture}");
+Console.WriteLine($"O Console vem de: {typeof(Console).Assembly.GetName().Name}");
+</pre>
+</div>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run info.cs
+.NET: .NET 10.0.12                              « o Runtime, não o SDK
+Sistema: Ubuntu 26.04.1 LTS
+Processador: X64                                « Intel/AMD de 64 bits
+O Console vem de: System.Console                « o System.Console.dll da despensa</pre>
+
+<p>Não se preocupe com o <code>using</code> nem com o <code>typeof</code>: eles aparecem nas aulas <a href="namespaces.html">Namespaces e using</a> e <a href="reflexao.html">Reflexão</a>. O importante aqui é que o programa mostrou <code>.NET 10.0.12</code>, a versão do <strong>Runtime</strong>: quem roda o programa é o Runtime; o SDK só ajudou a construí-lo.</p>
+
+<hr>
+
+<h2>Do <code>.cs</code> ao programa: o caminho completo</h2>
+<p>Quando a Ana digita <code>dotnet run ola.cs</code>, acontecem estas etapas, nesta ordem:</p>
+
+<ol class="passo">
+  <li><strong>O SDK prepara o build.</strong> O MSBuild descobre o que precisa ser compilado e com quais bibliotecas.</li>
+  <li><strong>O Roslyn compila.</strong> Ele lê o <code>ola.cs</code>, confere tudo (tipos, nomes, ponto e vírgula) e, se não houver erro, escreve a IL num arquivo <code>ola.dll</code>. Se houver erro, para aqui, e nada roda.</li>
+  <li><strong>O CLR carrega o programa.</strong> Ele abre o <code>ola.dll</code> e as bibliotecas que ele usa (como o <code>System.Console.dll</code>).</li>
+  <li><strong>O JIT traduz.</strong> Na primeira vez que cada método é chamado, o JIT transforma a IL dele em instruções do processador (x64, no computador da Ana) e guarda o resultado na memória.</li>
+  <li><strong>O processador executa</strong> essas instruções, e o texto aparece na tela.</li>
+</ol>
+
+<p>O <code>dotnet run</code> esconde os arquivos que cria. O comando <code>dotnet build</code> faz só as etapas 1 e 2, e diz onde guardou o resultado:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet build ola.cs
+  Determinando os projetos a serem restaurados...
+  Todos os projetos estão atualizados para restauração.
+  ola -> /home/ana/.local/share/dotnet/runfile/ola-d3e0b993ea942ae2aa43a2c132f9667a87cb5c1410a99c454aae33ed39b33823/bin/debug/ola.dll</pre>
+
+<p>O <code>ola.dll</code> foi parar numa pasta escondida, dentro de <code>~/.local/share/dotnet/runfile</code>, com um nome comprido (o nome do arquivo mais um código que identifica a pasta onde ele está). Vamos entrar nela:</p>
+
+<pre class="term">$ cd ~/.local/share/dotnet/runfile/ola-*/bin/debug
+$ ls -l
+total 108
+-rwxr-xr-x 1 ana ana 78904 out 17 12:37 ola                     « um "lançador" para Linux
+-rw-rw-r-- 1 ana ana   381 out 17 12:37 ola.deps.json           « a lista de bibliotecas usadas
+-rw-rw-r-- 1 ana ana  4608 out 17 12:37 ola.dll                 « o seu programa, em IL
+-rw-rw-r-- 1 ana ana 10872 out 17 12:37 ola.pdb                 « informações para depurar
+-rw-rw-r-- 1 ana ana  2000 out 17 12:37 ola.runtimeconfig.json  « qual Runtime usar</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Arquivo</th><th>O que é</th></tr>
+<tr><td><code>ola.dll</code></td><td>O <strong>programa de verdade</strong>: a IL que o Roslyn gerou, mais a descrição de tudo o que há nele (os "metadados"). Só 4608 bytes, porque o <code>Console</code> e o resto da biblioteca ficam no Runtime. O nome <code>.dll</code> (<em>dynamic-link library</em>) vem do Windows e é usado em todos os sistemas.</td></tr>
+<tr><td><code>ola</code></td><td>O <strong>apphost</strong>, um lançador: um programa pequeno do Linux que acha o Runtime e manda ele rodar o <code>ola.dll</code>. No Windows, ele se chama <code>ola.exe</code>.</td></tr>
+<tr><td><code>ola.runtimeconfig.json</code></td><td>Um bilhete para o lançador: "este programa precisa do <code>Microsoft.NETCore.App</code>, versão 10.0 ou mais nova".</td></tr>
+<tr><td><code>ola.deps.json</code></td><td>A lista de bibliotecas extras de que o programa depende (aqui, nenhuma).</td></tr>
+<tr><td><code>ola.pdb</code></td><td>O "mapa" que liga cada pedaço da IL à linha do <code>ola.cs</code>. É por causa dele que uma exceção diz <code>line 2</code> (aula <a href="depuracao.html">Depuração</a>).</td></tr>
+</table>
+</div>
+
+<p>O comando <code>file</code> do Linux diz que tipo de arquivo cada um é:</p>
+
+<pre class="term">$ file ola ola.dll
+ola:     ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, for GNU/Linux 3.2.0, BuildID[sha1]=622d7093dbcd55b2ef4ff850254d90f54a4213c7, stripped
+ola.dll: PE32 executable for MS Windows 4.00 (console), Intel i386 Mono/.Net assembly, 3 sections
+$ head -c 2 ola.dll; echo
+MZ                                              « a assinatura dos programas do Windows</pre>
+
+<p>O <code>ola</code> é um programa do Linux (<code>ELF</code>, para processador <code>x86-64</code>). Já o <code>ola.dll</code> o <code>file</code> chama de "executável do Windows", com a etiqueta <code>Mono/.Net assembly</code>: ele usa o mesmo formato de arquivo dos programas do Windows (que começam com as letras <code>MZ</code>, as iniciais de um engenheiro da Microsoft dos anos 1980), mas por dentro não tem instruções de processador nenhum, só IL. Por isso o mesmo <code>ola.dll</code> roda em qualquer sistema. Um arquivo assim, com IL e metadados, se chama <strong>assembly</strong> no mundo .NET.</p>
+
+<p>Dá para rodar o programa pronto de dois jeitos, sem compilar de novo:</p>
+
+<pre class="term">$ ./ola                                         « pelo lançador
+Olá, mundo!
+$ dotnet ola.dll                                « entregando o .dll direto ao dotnet
+Olá, mundo!</pre>
+
+<hr>
+
+<h2>Por dentro: a IL e o JIT</h2>
+<p>Vamos seguir um método pequeno do código-fonte até o processador. Este programa tem um método <code>Somar</code>, que soma dois números (os métodos têm aula própria, <a href="metodos.html">Métodos</a>; por enquanto, leia <code>Somar(2, 3)</code> como "some 2 e 3"):</p>
+
+<pre class="file" data-file="soma.cs">Console.WriteLine(Conta.Somar(2, 3));
+
+static class Conta
+{
+    public static int Somar(int a, int b) => a + b;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run soma.cs
+5</pre>
+
+<h3>1. O que o Roslyn escreveu: a IL</h3>
+<p>Dentro do <code>soma.dll</code>, o método <code>Somar</code> virou só <strong>quatro bytes</strong> de IL: <code>02 03 58 2A</code> (lidos com um programa de reflexão, assunto da aula <a href="reflexao.html">Reflexão</a>). Cada byte é uma instrução da "língua universal":</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Byte</th><th>Instrução de IL</th><th>O que faz</th></tr>
+<tr><td><code>02</code></td><td><code>ldarg.0</code></td><td>"Pegue o argumento 0" (o <code>a</code>) e ponha numa pilha de trabalho</td></tr>
+<tr><td><code>03</code></td><td><code>ldarg.1</code></td><td>"Pegue o argumento 1" (o <code>b</code>) e ponha na pilha</td></tr>
+<tr><td><code>58</code></td><td><code>add</code></td><td>Tire os dois de cima da pilha, some e ponha o resultado de volta</td></tr>
+<tr><td><code>2A</code></td><td><code>ret</code></td><td>Devolva o que está na pilha</td></tr>
+</table>
+</div>
+
+<p>Repare que a IL não fala de nenhum processador: ela não sabe se vai rodar num Intel, num ARM do celular ou num Mac. É o "passo a passo universal" da receita.</p>
+
+<h3>2. O que o JIT fez: código de máquina</h3>
+<p>O .NET tem uma chave de diagnóstico, a variável <code>DOTNET_JitDisasm</code>, que pede ao JIT para mostrar o que ele gerou para um método. A Ana pediu o <code>Somar</code> (o <code>-c Release</code> pede a versão "de entrega", sem os extras de depuração, para a listagem ficar menor):</p>
+
+<pre class="term" data-cwd="~/cs">$ DOTNET_JitDisasm=Somar dotnet run soma.cs -c Release
+; Assembly listing for method Conta:Somar(int,int):int (Tier0)
+; Emitting BLENDED_CODE for generic X64 + VEX on Unix
+; Tier0 code
+; rbp based frame
+; partially interruptible
+; compiling with minopt
+
+G_M000_IG01:                ;; offset=0x0000
+       push     rbp
+       sub      rsp, 16
+       lea      rbp, [rsp+0x10]
+       mov      dword ptr [rbp-0x04], edi       « guarda o a
+       mov      dword ptr [rbp-0x08], esi       « guarda o b
+
+G_M000_IG02:                ;; offset=0x0010
+       mov      eax, dword ptr [rbp-0x04]       « pega o a
+       add      eax, dword ptr [rbp-0x08]       « soma o b: aqui está o a + b
+
+G_M000_IG03:                ;; offset=0x0016
+       add      rsp, 16
+       pop      rbp
+       ret                                      « devolve o resultado
+
+; Total bytes of code 28
+
+5                                               « só agora o Somar roda e o resultado aparece</pre>
+
+<p>Isso é <strong>código de máquina x64</strong> de verdade, escrito na forma legível (<em>assembly</em>): as instruções que o processador Intel/AMD da Ana executou. Os 4 bytes de IL viraram 28 bytes de instruções do processador. Você não precisa entender cada linha; repare só no <code>add</code>, que é o <code>a + b</code> do seu código, e em três detalhes da primeira parte:</p>
+
+<ul>
+  <li><code>Tier0</code>: "nível 0". Na primeira vez, o JIT traduz <strong>rápido</strong>, sem caprichar, para o programa começar logo. Se o método for chamado muitas vezes, o .NET o traduz de novo, agora caprichando (o "nível 1"). Isso se chama <strong>compilação em camadas</strong>.</li>
+  <li><code>X64</code> e <code>on Unix</code>: o JIT gerou código para o processador e o sistema desta máquina. No Mac com chip M, a mesma IL viraria código ARM64.</li>
+  <li>A listagem aparece <strong>antes</strong> do <code>5</code>: o JIT traduz o <code>Somar</code> na primeira vez que ele é chamado, um instante antes de rodar. Só depois a conta é feita e o <code>5</code> chega à tela.</li>
+</ul>
+
+<div class="trycs" data-goal="out:30">
+<p class="try-task"><strong>Missão:</strong> use o mesmo <code>Somar</code> para mostrar a soma de <code>10</code> e <code>20</code>. Mude só os números da primeira linha e rode: a saída deve ser <code>30</code>.</p>
+<pre class="script" data-file="soma.cs">Console.WriteLine(Conta.Somar(2, 3));
+
+static class Conta
+{
+    public static int Somar(int a, int b) => a + b;
+}
+</pre>
+<pre class="solucao">Console.WriteLine(Conta.Somar(10, 20));
+
+static class Conta
+{
+    public static int Somar(int a, int b) => a + b;
+}
+</pre>
+</div>
+
+<div class="note">
+<strong>E o coletor de lixo?</strong>
+<p>Enquanto o programa roda, ele cria textos, listas e objetos na memória. O CLR acompanha tudo isso e, de tempos em tempos, o <strong>coletor de lixo</strong> passa recolhendo o que ninguém usa mais, para a memória não acabar. Você não precisa fazer nada; é por isso que o C# é chamado de linguagem <strong>gerenciada</strong>. A aula <a href="memoria.html">Memória e Coletor de Lixo</a> mostra o coletor trabalhando.</p>
+</div>
+
+<hr>
+
+<h2>Muitos nomes, um .NET só</h2>
+<p>O .NET mudou de nome algumas vezes, e a internet está cheia de material de todas as épocas. Este é o mapa:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Nome</th><th>Época</th><th>Roda em</th><th>Situação hoje</th></tr>
+<tr><td><strong>.NET Framework</strong> (1.0 a 4.8.1)</td><td>2002 em diante</td><td>Só Windows</td><td>Ainda vem no Windows e roda muito programa antigo, mas não ganha novidades. Fica parado no C# 7.3.</td></tr>
+<tr><td><strong>Mono</strong></td><td>2004 em diante</td><td>Linux, macOS, Android, iPhone</td><td>A versão livre que levou o C# para fora do Windows. Ainda vive dentro do Unity e de partes do .NET para celular.</td></tr>
+<tr><td><strong>.NET Core</strong> (1.0 a 3.1)</td><td>2016 a 2019</td><td>Linux, Windows, macOS</td><td>O .NET novo, livre e multiplataforma. Todas as versões já saíram de suporte.</td></tr>
+<tr><td><strong>.NET</strong> (5, 6, 7, 8, 9, 10…)</td><td>2020 em diante</td><td>Linux, Windows, macOS</td><td>A continuação do .NET Core, sem o "Core" no nome (o 4 foi pulado para não confundir com o .NET Framework 4). <strong>É este que o guia usa</strong>: o .NET 10.</td></tr>
+</table>
+</div>
+
+<p><strong>Qual usar?</strong> Para programas novos, sempre o .NET atual (hoje, o .NET 10). O .NET Framework só faz sentido para manter um programa antigo do Windows que já usa ele. Quando um tutorial disser "crie um projeto .NET Framework", ou mostrar um caminho como <code>C:\Windows\Microsoft.NET\Framework</code>, ele é dessa época antiga.</p>
+
+<h3>Quem faz o seu .NET</h3>
+<p>O código do .NET é aberto, então outras empresas podem compilá-lo. O .NET da Ana não foi baixado do site da Microsoft: foi a <strong>Canonical</strong>, a empresa do Ubuntu, que o compilou a partir do código-fonte e o colocou no repositório do Ubuntu. Por isso as versões são um pouco diferentes: no mesmo mês, o site da Microsoft tinha o SDK <code>10.0.402</code> com o Runtime <code>10.0.13</code>, e o Ubuntu, o SDK <code>10.0.112</code> com o Runtime <code>10.0.12</code>. Os dois são o mesmo .NET 10 e o mesmo C# 14; a aula <a href="versoes.html">Versões</a> explica os números e a aula <a href="instalar-linux.html">Instalar no Linux</a> mostra as duas formas de instalar.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>Só o Runtime, sem o SDK: <code>No .NET SDKs were found.</code></strong>
+<p>Para ver o que acontece num computador que só tem o Runtime, a Ana copiou só as peças do Runtime para uma pasta <code>~/rt</code> e tentou usar o <code>dotnet</code> de lá:</p>
+<pre class="term">$ ls ~/rt ~/rt/shared
+/home/ana/rt:
+dotnet
+host
+shared
+
+/home/ana/rt/shared:
+Microsoft.NETCore.App                           « só o Runtime; nada de sdk
+$ ~/rt/dotnet run ola.cs
+The command could not be loaded, possibly because:
+  * You intended to execute a .NET application:
+      The application 'run' does not exist or is not a managed .dll or .exe.
+  * You intended to execute a .NET SDK command:
+      No .NET SDKs were found.
+
+Download a .NET SDK:
+https://aka.ms/dotnet/download
+
+Learn about SDK resolution:
+https://aka.ms/dotnet/sdk-not-found
+$ echo $?
+155</pre>
+<p><strong>O que significa:</strong> esta mensagem sai em inglês, porque vem do "anfitrião" do .NET, a parte mais básica, que não tem tradução. Ela diz: "não consegui carregar o comando, talvez porque você quis rodar um aplicativo chamado <code>run</code> (que não existe) ou um comando do SDK, mas <strong>nenhum SDK foi encontrado</strong>". O Runtime sabe <strong>rodar</strong> programas prontos (o <code>~/rt/dotnet ola.dll</code> funciona), mas o <code>run</code>, o <code>build</code> e o <code>new</code> moram no SDK.</p>
+<p><strong>Como consertar:</strong> instale o SDK, e não só o Runtime: no Ubuntu, <code>sudo apt install dotnet-sdk-10.0</code> (aula <a href="instalar-linux.html">Instalar no Linux</a>).</p>
+</div>
+
+<div class="cenario">
+<strong>Programa feito para outra versão: <code>You must install or update .NET to run this application.</code></strong>
+<p>A Ana editou o <code>ola.runtimeconfig.json</code> de uma cópia do programa para dizer que ele precisa do .NET 11, que ela não tem, e tentou rodar:</p>
+<pre class="term">$ grep version ~/ola-pronto/ola.runtimeconfig.json
+      "version": "11.0.0"
+$ dotnet ~/ola-pronto/ola.dll
+You must install or update .NET to run this application.
+
+App: /home/ana/ola-pronto/ola.dll
+Architecture: x64
+Framework: 'Microsoft.NETCore.App', version '11.0.0' (x64)    « o que o programa pede
+.NET location: /usr/lib/dotnet/
+
+The following frameworks were found:
+  10.0.12 at [/usr/lib/dotnet/shared/Microsoft.NETCore.App]   « o que a Ana tem
+
+Learn more:
+https://aka.ms/dotnet/app-launch-failed
+
+To install missing framework, download:
+https://aka.ms/dotnet-core-applaunch?framework=Microsoft.NETCore.App&amp;framework_version=11.0.0&amp;arch=x64&amp;rid=ubuntu.26.04-x64&amp;os=ubuntu.26.04
+$ echo $?
+150</pre>
+<p><strong>O que significa:</strong> "você precisa instalar ou atualizar o .NET para rodar este aplicativo". O programa pede o Runtime 11.0, e só existe o 10.0.12. Um programa feito para uma versão roda nas correções mais novas da mesma versão (um programa do 10.0.0 roda no 10.0.12), mas não "desce" para uma versão mais velha. Isso acontece de verdade quando alguém manda um programa compilado para um .NET mais novo que o seu.</p>
+<p><strong>Como consertar:</strong> instale o Runtime que a mensagem pede (o endereço do fim já leva à página certa) ou peça um programa compilado para a sua versão.</p>
+</div>
+
+<div class="cenario">
+<strong>Instalou o ".NET Framework" pensando que era o .NET</strong>
+<p><strong>O que acontece:</strong> no Windows, sites antigos e alguns programas pedem o ".NET Framework 4.8". Ele não serve para este guia: não tem o comando <code>dotnet</code> nem o C# 14. No Linux e no macOS, ele nem existe.</p>
+<p><strong>Como consertar:</strong> instale o <strong>.NET SDK 10</strong> (aula <a href="instalar-windows-mac.html">Instalar no Windows e macOS</a>). Os dois podem ficar instalados juntos no Windows sem problema.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Termo</th><th>O que é</th></tr>
+<tr><td>.NET</td><td>A plataforma: compilador, Runtime, biblioteca e ferramentas</td></tr>
+<tr><td>SDK</td><td>O kit de quem programa: tudo do Runtime + compilador + comandos <code>dotnet run/new/build</code></td></tr>
+<tr><td>Runtime</td><td>O necessário para rodar programas prontos: CLR, JIT, coletor de lixo e biblioteca</td></tr>
+<tr><td>Roslyn (<code>csc</code>)</td><td>O compilador de C#: transforma <code>.cs</code> em IL</td></tr>
+<tr><td>MSBuild</td><td>Organiza o build: decide o que compilar, com quais opções e bibliotecas</td></tr>
+<tr><td>IL</td><td>A linguagem intermediária que fica dentro dos <code>.dll</code></td></tr>
+<tr><td>Assembly</td><td>Um arquivo <code>.dll</code> (ou <code>.exe</code>) com IL e metadados</td></tr>
+<tr><td>CLR</td><td>O motor que carrega e roda os assemblies (<code>libcoreclr.so</code>)</td></tr>
+<tr><td>JIT</td><td>Traduz IL para código de máquina enquanto o programa roda (<code>libclrjit.so</code>)</td></tr>
+<tr><td>BCL (biblioteca de classes)</td><td>As classes prontas: <code>Console</code>, <code>Math</code>, <code>List</code>, <code>File</code>…</td></tr>
+<tr><td>GC (coletor de lixo)</td><td>Recolhe a memória que o programa não usa mais</td></tr>
+</table>
+</div>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando</th><th>Para quê</th></tr>
+<tr><td><code>dotnet --list-sdks</code></td><td>Lista os SDKs instalados</td></tr>
+<tr><td><code>dotnet --list-runtimes</code></td><td>Lista os Runtimes instalados</td></tr>
+<tr><td><code>dotnet --version</code></td><td>Mostra a versão do SDK em uso</td></tr>
+<tr><td><code>dotnet build ola.cs</code></td><td>Compila sem rodar e diz onde ficou o <code>.dll</code></td></tr>
+<tr><td><code>dotnet arquivo.dll</code></td><td>Roda um programa pronto (só precisa do Runtime)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. A linguagem intermediária</h3>
+<p>Qual é a sigla da linguagem intermediária que o compilador escreve dentro do <code>.dll</code>?</p>
+<div class="ex-code"><input data-answer="IL" aria-label="sigla"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Listar os Runtimes</h3>
+<p>Complete o comando que mostra os Runtimes instalados:</p>
+<div class="ex-code">dotnet <input data-answer="--list-runtimes" aria-label="opção"></div>
+</div>
+
+<div class="exercise">
+<h3>3. O pacote certo</h3>
+<p>Complete o nome do pacote do Ubuntu que tem tudo o que o guia precisa (o kit de quem programa):</p>
+<div class="ex-code">sudo apt install dotnet-<input data-answer="sdk" aria-label="parte do nome">-10.0</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Quem transforma a IL em instruções do processador, enquanto o programa roda?</p>
+<label><input type="radio" name="q4"> O Roslyn</label>
+<label><input type="radio" name="q4"> O JIT</label>
+<label><input type="radio" name="q4"> O MSBuild</label>
+<label><input type="radio" name="q4"> O <code>ola.pdb</code></label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Um colega só quer rodar o programa que a Ana fez, sem programar. O que ele precisa instalar, no mínimo?</p>
+<label><input type="radio" name="q5"> O SDK inteiro</label>
+<label><input type="radio" name="q5"> O Roslyn</label>
+<label><input type="radio" name="q5"> O Runtime</label>
+<label><input type="radio" name="q5"> O .NET Framework 4.8</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que o mesmo <code>ola.dll</code> roda no Linux, no Windows e no Mac?</p>
+<label><input type="radio" name="q6"> Porque ele tem IL, e o CLR de cada sistema a traduz para o processador daquela máquina.</label>
+<label><input type="radio" name="q6"> Porque ele tem código de máquina para os três processadores.</label>
+<label><input type="radio" name="q6"> Porque o <code>.dll</code> é um arquivo de texto.</label>
+<label><input type="radio" name="q6"> Não roda: é preciso compilar um <code>.dll</code> para cada sistema.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">7. O <code>dotnet run ola.cs</code> respondeu <code>No .NET SDKs were found.</code> O que falta?</p>
+<label><input type="radio" name="q7"> O arquivo <code>ola.cs</code></label>
+<label><input type="radio" name="q7"> O <code>;</code> no fim da linha</label>
+<label><input type="radio" name="q7"> O .NET Framework</label>
+<label><input type="radio" name="q7"> O SDK: só o Runtime está instalado</label>
+</div>
+
+<h3>Missão final: o caminho do código</h3>
+<div class="trycs" data-goal="outre:1\. Roslyn: \.cs vira IL\n2\. CLR: carrega o \.dll\n3\. JIT: IL vira código de máquina\n">
+<p class="try-task"><strong>Missão:</strong> o programa mostra as etapas do caminho do código, mas a Ana trocou a ordem. Ponha as três linhas na ordem certa (Roslyn, CLR, JIT) e rode.</p>
+<pre class="script" data-file="caminho.cs">Console.WriteLine("3. JIT: IL vira código de máquina");
+Console.WriteLine("1. Roslyn: .cs vira IL");
+Console.WriteLine("2. CLR: carrega o .dll");
+</pre>
+<pre class="solucao">Console.WriteLine("1. Roslyn: .cs vira IL");
+Console.WriteLine("2. CLR: carrega o .dll");
+Console.WriteLine("3. JIT: IL vira código de máquina");
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>O <strong>.NET</strong> é a plataforma por baixo do C#. O <strong>SDK</strong> é para quem programa (compilador e comandos); o <strong>Runtime</strong> é para quem só roda programas. O SDK já traz o Runtime.</li>
+  <li>O caminho: o <strong>Roslyn</strong> compila o <code>.cs</code> para <strong>IL</strong> num <code>.dll</code>; o <strong>CLR</strong> carrega o <code>.dll</code>; o <strong>JIT</strong> traduz a IL para o processador na hora de rodar.</li>
+  <li>O <code>Console</code> e as outras classes prontas vêm da <strong>biblioteca de classes</strong>, nos 172 <code>.dll</code> do Runtime. O <strong>coletor de lixo</strong> cuida da memória.</li>
+  <li><code>dotnet --list-sdks</code> e <code>dotnet --list-runtimes</code> mostram o que está instalado. No Ubuntu, tudo fica em <code>/usr/lib/dotnet</code>.</li>
+  <li>.NET Framework (só Windows, antigo), Mono, .NET Core e .NET 5 a 10 são a mesma família; o guia usa o <strong>.NET 10</strong>.</li>
+  <li>Próximo passo: entender os números das versões, em <a href="versoes.html">Versões do C# e do .NET</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
