@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Operadores ??, ?. e ??= — lidar com null em uma linha | Guia C#</title>
+<meta name="description" content="Os operadores de null do C# para quem nunca programou: ?? (valor reserva), ?. e ?[] (acesso condicional), ??= (atribuir se estiver em branco), a atribuição condicional nula do C# 14, a armadilha da precedência e os erros reais CS0019, CS0023, CS0266, CS9260 e NullReferenceException, com saídas do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Operadores ??, ?. e ??=</span></h1>
+
+<p class="intro">Na aula <a href="null.html">null e Tipos Anuláveis</a>, cada <code>null</code> pedia um <code>if</code>: "tem valor? então usa; não tem? então faz outra coisa". Isso aparece tanto em C# que a linguagem ganhou três operadores só para isso. O <code>??</code> dá um <strong>valor reserva</strong>, o <code>?.</code> <strong>só continua se houver algo</strong> e o <code>??=</code> <strong>preenche o que está em branco</strong>. Com eles, um <code>if</code> de quatro linhas vira meia linha.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O <code>??</code> ("ou então"): <code>apelido ?? nome</code>.</li>
+  <li>O <code>?.</code> e o <code>?[]</code> ("se existir"): <code>nome?.Length</code>, <code>notas?[0]</code>, e por que o resultado vira anulável.</li>
+  <li>A dupla mais usada do C#: <code>nome?.Length ?? 0</code>.</li>
+  <li>O <code>??=</code> ("se estiver em branco, preencha"): <code>cidade ??= "Recife"</code>.</li>
+  <li>A <strong>atribuição condicional nula</strong> do <span class="versao">C# 14</span>: <code>estoque?[0] = 10</code>.</li>
+  <li>A armadilha da precedência: <code>50 + bonus ?? 0</code> dá 0!</li>
+  <li>Os erros reais: <code>CS0019</code>, <code>CS0023</code>, <code>CS0266</code>, <code>CS9260</code> e a <code>NullReferenceException</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com <code>dotnet run arquivo.cs</code> na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), com o .NET 10 SDK (C# 14), na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código: o plano B</h2>
+<p>A Ana vai buscar a Bia na escola. Ela combina: "se a sua mãe não puder, <strong>então</strong> eu vou". Isso é o <code>??</code>: use o primeiro, <strong>ou então</strong> o reserva.</p>
+<p>Na portaria, o porteiro só chama a criança <strong>se</strong> ela estiver lá; se não estiver, ele não sai procurando pelo prédio, só responde "não está". Isso é o <code>?.</code>: siga em frente <strong>só se existir</strong>; se não existir, a resposta é <code>null</code>, sem quebrar nada.</p>
+<p>E na lista de presença, a professora escreve "faltou" <strong>só nos campos em branco</strong>; quem já tem algo escrito fica como está. Isso é o <code>??=</code>.</p>
+
+<hr>
+
+<h2 id="coalescencia"><code>??</code>: o valor reserva</h2>
+<p>O operador <code>??</code> (o nome oficial é "operador de coalescência nula") olha o valor da esquerda. Se ele <strong>não</strong> for <code>null</code>, o resultado é ele. Se for <code>null</code>, o resultado é o valor da direita:</p>
+
+<pre class="file" data-file="coalesc.cs">int? bonus = null;
+int pontos = 50 + (bonus ?? 0);
+Console.WriteLine($"Pontos: {pontos}");
+
+string? apelido = null;
+string nome = "Ana";
+Console.WriteLine($"Olá, {apelido ?? nome}!");
+
+int? a = null;
+int? b = null;
+int c = 7;
+Console.WriteLine(a ?? b ?? c);
+</pre>
+
+<pre class="term">$ dotnet run coalesc.cs
+Pontos: 50         « bonus é null: valeu o 0
+Olá, Ana!          « apelido é null: valeu o nome
+7                  « a e b são null: valeu o c</pre>
+
+<dl class="anatomy">
+  <dt>bonus ?? 0</dt><dd>Leia "<code>bonus</code>, ou então 0". Como <code>bonus</code> é <code>null</code>, vale 0. Se valesse 5, valeria 5. Repare: o resultado é um <code>int</code> comum, sem <code>?</code>, porque o reserva (0) nunca é <code>null</code>. Por isso a soma cabe em <code>int pontos</code>.</dd>
+  <dt>(bonus ?? 0)</dt><dd>Os parênteses são importantes aqui. Sem eles, a conta sai errada; veja <a href="#precedencia">a armadilha</a> mais abaixo.</dd>
+  <dt>apelido ?? nome</dt><dd>Funciona com textos também: se a Ana tiver apelido, usa o apelido; se não, o nome.</dd>
+  <dt>a ?? b ?? c</dt><dd>Uma corrente de reservas: o primeiro que não for <code>null</code> ganha. Lê-se da esquerda para a direita: "<code>a</code>, ou então <code>b</code>, ou então <code>c</code>".</dd>
+</dl>
+
+<p>O <code>??</code> é o atalho de duas coisas que você já conhece. As três linhas abaixo dão o mesmo resultado:</p>
+
+<pre class="file" data-file="trecho">int x1 = bonus.HasValue ? bonus.Value : 0;   // com o ternário
+int x2 = bonus.GetValueOrDefault(0);         // com o método
+int x3 = bonus ?? 0;                         // com o ??
+</pre>
+
+<p>A primeira usa o <a href="ternario.html">operador ternário</a>, a segunda é da aula anterior. A terceira é a que você vai ver em quase todo código C#, porque também funciona com <code>string</code> (que não tem <code>GetValueOrDefault</code>).</p>
+
+<h3>Um uso de todo dia: <code>Console.ReadLine()</code></h3>
+<p>O <a href="readline.html"><code>Console.ReadLine()</code></a> devolve <code>string?</code>: quando não há mais nada para ler (por exemplo, quando a entrada vem de um arquivo vazio), ele devolve <code>null</code>. Com o <code>??</code>, o programa sempre tem um texto:</p>
+
+<pre class="file" data-file="leitura.cs">Console.Write("Seu nome: ");
+string nome = Console.ReadLine() ?? "visitante";
+Console.WriteLine($"Olá, {nome}!");
+</pre>
+
+<pre class="term">$ echo Ana | dotnet run leitura.cs
+Seu nome: Olá, Ana!
+$ dotnet run leitura.cs &lt; /dev/null       « /dev/null: uma entrada vazia
+Seu nome: Olá, visitante!</pre>
+
+<p>Sem o <code>?? "visitante"</code>, o compilador avisa que <code>ReadLine()</code> pode devolver <code>null</code> e você está guardando isso numa <code>string</code> que não aceita nulo:</p>
+
+<pre class="term">$ dotnet run leitura0.cs &lt; /dev/null
+/home/ana/cs/leitura0.cs(2,15): warning CS8600: Conversão de literal nula ou possível valor nulo em tipo não anulável.
+Seu nome: Olá, !</pre>
+
+<p>Esse aviso é explicado com calma em <a href="referencias-anulaveis.html">Referências Anuláveis</a>.</p>
+
+<div class="trycs" data-goal="out:Chamada: Bia,semaviso,src:\?\?">
+<p class="try-task"><strong>Missão:</strong> rode e veja os avisos (<code>CS8600</code>: um possível <code>null</code> numa <code>string</code>; <code>CS0219</code>: o <code>nome</code> nunca é usado) e a chamada em branco. A Bia não tem apelido, então a chamada deve usar o <code>nome</code> como reserva. Conserte a linha 3 com <code>??</code>, para mostrar <code>Chamada: Bia</code> sem nenhum aviso.</p>
+<pre class="script" data-file="chamada.cs">string? apelido = null;
+string nome = "Bia";
+string chamada = apelido;
+Console.WriteLine($"Chamada: {chamada}");
+</pre>
+<pre class="solucao" data-file="chamada.cs">string? apelido = null;
+string nome = "Bia";
+string chamada = apelido ?? nome;
+Console.WriteLine($"Chamada: {chamada}");
+</pre>
+</div>
+
+<hr>
+
+<h2 id="condicional"><code>?.</code>: só continua se existir</h2>
+<p>Na aula anterior, <code>nome.Length</code> com <code>nome</code> valendo <code>null</code> derrubou o programa com <code>NullReferenceException</code>. O <code>?.</code> (o "operador condicional nulo") resolve: se a esquerda for <code>null</code>, ele <strong>não tenta</strong> o que vem depois e o resultado inteiro é <code>null</code>. Se não for, funciona como o ponto comum:</p>
+
+<pre class="file" data-file="cond.cs">string? nome = null;
+Console.WriteLine($"[{nome?.ToUpper()}]");
+Console.WriteLine($"[{nome?.Length}]");
+Console.WriteLine(nome?.Length ?? 0);
+nome = "ana";
+Console.WriteLine($"[{nome?.ToUpper()}]");
+Console.WriteLine($"[{nome?.Length}]");
+</pre>
+
+<pre class="term">$ dotnet run cond.cs
+[]                 « nome é null: nada de ToUpper, o resultado é null
+[]                 « nem de Length
+0                  « null ?? 0 = 0
+[ANA]              « agora nome existe: ?. funciona como o ponto
+[3]</pre>
+
+<dl class="anatomy">
+  <dt>nome?.ToUpper()</dt><dd>Leia "se <code>nome</code> existir, <code>ToUpper()</code>". Com <code>null</code>, o <a href="metodos-string.html">método</a> nem é chamado.</dd>
+  <dt>nome?.Length</dt><dd>O tamanho do texto, se existir. Atenção ao tipo: <code>Length</code> é um <code>int</code>, mas <code>nome?.Length</code> é um <strong><code>int?</code></strong>, porque pode dar <code>null</code>. Guardar isso num <code>int</code> é o erro <code>CS0266</code>.</dd>
+  <dt>nome?.Length ?? 0</dt><dd>A dupla mais famosa: "o tamanho do nome, se existir; senão, 0". O <code>?.</code> evita a quebra, e o <code>??</code> troca o <code>null</code> por um número. O resultado é um <code>int</code> comum.</dd>
+</dl>
+
+<h3><code>?[]</code>: o mesmo para índices</h3>
+<p>Um array também pode ser <code>null</code> (um <code>int[]?</code> é "um array, ou nenhum array"). Para pegar uma posição só se o array existir, use <code>?[]</code>:</p>
+
+<pre class="file" data-file="trecho">int[]? notas = null;
+Console.WriteLine($"[{notas?[0]}]");     // []
+Console.WriteLine(notas?.Length ?? 0);   // 0
+notas = new int[] { 8, 9 };
+Console.WriteLine($"[{notas?[0]}]");     // [8]
+</pre>
+
+<p>O <code>?[]</code> protege só contra o array ser <code>null</code>. Ele <strong>não</strong> protege contra um índice que não existe: <code>notas?[5]</code> num array de 2 posições continua dando <code>IndexOutOfRangeException</code> (veja <a href="arrays.html">Arrays</a>).</p>
+
+<h3>Uma corrente para no primeiro <code>null</code></h3>
+<p>Quando você escreve <code>nome?.Trim().ToUpper()</code>, o <code>?.</code> protege a corrente <strong>inteira</strong>: se <code>nome</code> for <code>null</code>, nem o <code>Trim()</code> nem o <code>ToUpper()</code> rodam. Não precisa de <code>?.</code> em cada ponto.</p>
+
+<pre class="file" data-file="cadeia.cs">string? nome = "  bia  ";
+Console.WriteLine($"[{nome?.Trim().ToUpper()}]");
+nome = null;
+Console.WriteLine($"[{nome?.Trim().ToUpper()}]");
+Console.WriteLine(nome?.Trim().Length ?? 0);
+</pre>
+
+<pre class="term">$ dotnet run cadeia.cs
+[BIA]
+[]                 « parou no nome: Trim e ToUpper nem rodaram
+0</pre>
+
+<div class="trycs" data-goal="out:(sem nome) tem 0 letras,out:CAIO tem 4 letras,exit:0,src:\?\.">
+<p class="try-task"><strong>Missão:</strong> rode e veja o programa quebrar no segundo nome, que é <code>null</code> (código de saída 134). Use <code>?.</code> e <code>??</code> na linha do <code>WriteLine</code> para que o nome em branco apareça como <code>(sem nome) tem 0 letras</code> e o programa vá até o fim.</p>
+<pre class="script" data-file="letras.cs">string?[] nomes = { "ana", null, "caio" };
+foreach (string? n in nomes)
+    Console.WriteLine($"{n.ToUpper()} tem {n.Length} letras");
+</pre>
+<pre class="solucao" data-file="letras.cs">string?[] nomes = { "ana", null, "caio" };
+foreach (string? n in nomes)
+    Console.WriteLine($"{n?.ToUpper() ?? "(sem nome)"} tem {n?.Length ?? 0} letras");
+</pre>
+</div>
+
+<hr>
+
+<h2 id="atribuicao"><code>??=</code>: preencha se estiver em branco</h2>
+<p>O <code>??=</code> é para variáveis: "se esta variável for <code>null</code>, ponha este valor nela; se já tiver algo, deixe como está".</p>
+
+<pre class="file" data-file="igual.cs">string? cidade = null;
+cidade ??= "Recife";
+Console.WriteLine(cidade);
+cidade ??= "Natal";
+Console.WriteLine(cidade);
+int? estoque = null;
+estoque ??= 10;
+Console.WriteLine(estoque);
+</pre>
+
+<pre class="term">$ dotnet run igual.cs
+Recife             « estava em branco: recebeu "Recife"
+Recife             « já tinha valor: o "Natal" foi ignorado
+10</pre>
+
+<dl class="anatomy">
+  <dt>cidade ??= "Recife";</dt><dd>É o atalho de <code>cidade = cidade ?? "Recife";</code>, ou de <code>if (cidade is null) cidade = "Recife";</code>. Assim como o <code>+=</code> dos <a href="operadores-atribuicao.html">operadores de atribuição</a>, ele lê e grava a mesma variável.</dd>
+  <dt>cidade ??= "Natal";</dt><dd>Não muda nada: a cidade já era "Recife". O <code>??=</code> nunca apaga um valor que já existe.</dd>
+</dl>
+
+<p>O uso típico é dar um valor padrão a algo que talvez já tenha sido preenchido antes, por exemplo uma configuração que o usuário pode ou não ter informado.</p>
+
+<hr>
+
+<h2 id="csharp14">Atribuição condicional nula <span class="versao">C# 14</span></h2>
+<p>Até o C# 13, o <code>?.</code> e o <code>?[]</code> só serviam para <strong>ler</strong>. No C# 14, eles também podem ficar do lado <strong>esquerdo</strong> de um <code>=</code>: "se existir, grave; se não existir, não faça nada".</p>
+
+<pre class="file" data-file="estoque.cs">int[]? estoque = null;
+estoque?[0] = 10;
+Console.WriteLine("Nada quebrou.");
+estoque = new int[3];
+estoque?[0] = 10;
+Console.WriteLine($"[{estoque?[0]}]");
+</pre>
+
+<pre class="term">$ dotnet run estoque.cs
+Nada quebrou.      « estoque era null: a gravação foi pulada
+[10]               « agora o array existe: gravou</pre>
+
+<p>Sem o <code>?</code>, a primeira gravação derruba o programa (e o compilador avisa antes, com o <code>CS8602</code>):</p>
+
+<pre class="term">$ dotnet run semq.cs; echo "código: $?"
+/home/ana/cs/semq.cs(2,1): warning CS8602: Desreferência de uma referência possivelmente nula.
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/semq.cs:line 2
+código: 134</pre>
+
+<p>Em versões antigas da linguagem, a atribuição condicional não existe. Dá para ver isso pedindo ao compilador o C# 13 com a linha <code>#:property LangVersion=13</code> no topo do arquivo (as linhas <code>#:</code> são configurações do <code>dotnet run arquivo.cs</code>):</p>
+
+<pre class="term">$ dotnet run atrib13.cs
+/home/ana/cs/atrib13.cs(3,11): error CS9260: O recurso "atribuição condicional nula" não está disponível no C# 13.0. Use a versão da linguagem 14.0 ou superior.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O uso mais comum dessa novidade é com objetos, como <code>cliente?.Nome = "Ana";</code>. Você vai criar seus próprios objetos a partir de <a href="classes-objetos.html">Classes e Objetos</a>.</p>
+
+<hr>
+
+<h2 id="precedencia">A armadilha da precedência</h2>
+<p>O <code>??</code> tem <strong>baixa</strong> <a href="precedencia.html">precedência</a>: o C# faz as contas (<code>+</code>, <code>-</code>, <code>*</code>…) antes dele. Veja o que acontece sem parênteses:</p>
+
+<pre class="file" data-file="prec.cs">int? bonus = null;
+int pontos = 50 + bonus ?? 0;
+Console.WriteLine($"Pontos: {pontos}");
+int certo = 50 + (bonus ?? 0);
+Console.WriteLine($"Certo: {certo}");
+</pre>
+
+<pre class="term">$ dotnet run prec.cs
+Pontos: 0          « os 50 pontos sumiram!
+Certo: 50</pre>
+
+<p>Compilou sem erro e sem aviso, e o resultado está errado. O C# leu a linha 2 como <code>(50 + bonus) ?? 0</code>: primeiro <code>50 + null</code>, que dá <code>null</code> (conta com <code>null</code> dá <code>null</code>, como você viu na <a href="null.html">aula anterior</a>), e depois <code>null ?? 0</code>, que dá 0. Regra prática: <strong>sempre ponha o <code>??</code> entre parênteses</strong> quando ele estiver no meio de uma conta.</p>
+
+<hr>
+
+<h2>Formas diferentes e qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Com <code>if</code></th><th>Com operador</th></tr>
+<tr><td>um valor reserva</td><td><code>if (x is null) r = 0; else r = x.Value;</code></td><td><code>r = x ?? 0;</code></td></tr>
+<tr><td>usar algo só se existir</td><td><code>if (nome is not null) t = nome.Length;</code></td><td><code>t = nome?.Length;</code> (um <code>int?</code>)</td></tr>
+<tr><td>as duas coisas</td><td><code>t = nome is null ? 0 : nome.Length;</code></td><td><code>t = nome?.Length ?? 0;</code></td></tr>
+<tr><td>preencher se estiver em branco</td><td><code>if (c is null) c = "Recife";</code></td><td><code>c ??= "Recife";</code></td></tr>
+<tr><td>gravar só se existir <span class="versao">C# 14</span></td><td><code>if (v is not null) v[0] = 10;</code></td><td><code>v?[0] = 10;</code></td></tr>
+</table>
+</div>
+<p>Use os operadores quando a regra cabe numa frase ("o nome, ou então visitante"). Use o <code>if</code> quando, além de trocar o valor, você precisa <strong>fazer</strong> algo diferente, como mostrar uma mensagem ou pedir o dado de novo.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS0019: <code>??</code> num tipo que nunca é <code>null</code></strong>
+<pre class="term">$ dotnet run e1.cs
+/home/ana/cs/e1.cs(2,9): error CS0019: O operador "??" não pode ser aplicado a operandos dos tipos "int" e "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> <code>int idade = 29; int x = idade ?? 0;</code>. Um <code>int</code> comum nunca é <code>null</code>, então não faz sentido ter reserva. O <code>idade ??= 0;</code> dá o mesmo erro, com <code>"??="</code> na mensagem.</p>
+<p><strong>Como resolver:</strong> se a variável pode ficar em branco, declare-a como <code>int?</code>. Se não pode, apague o <code>?? 0</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0019: reserva de outro tipo</strong>
+<pre class="term">$ dotnet run e5.cs
+/home/ana/cs/e5.cs(2,29): error CS0019: O operador "??" não pode ser aplicado a operandos dos tipos "int?" e "string"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> <code>idade ?? "não informada"</code>, com <code>idade</code> do tipo <code>int?</code>. Os dois lados do <code>??</code> precisam combinar: o resultado é <strong>ou</strong> a idade <strong>ou</strong> o texto, e o C# não sabe se isso é número ou texto.</p>
+<p><strong>Como resolver:</strong> transforme a idade em texto primeiro, com <code>?.ToString()</code>: <code>idade?.ToString() ?? "não informada"</code>. Agora os dois lados são texto.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0266: o resultado do <code>?.</code> é anulável</strong>
+<pre class="term">$ dotnet run e2.cs
+/home/ana/cs/e2.cs(2,15): error CS0266: Não é possível converter implicitamente tipo "int?" em "int". Existe uma conversão explícita (há uma conversão ausente?)
+/home/ana/cs/e2.cs(2,15): warning CS8629: O tipo de valor de nulidade pode ser nulo.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> <code>int tamanho = nome?.Length;</code>. Como <code>nome</code> pode ser <code>null</code>, <code>nome?.Length</code> pode ser <code>null</code>, e é um <code>int?</code>.</p>
+<p><strong>Como resolver:</strong> dê um reserva: <code>int tamanho = nome?.Length ?? 0;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0023: <code>?.</code> num tipo de valor</strong>
+<pre class="term">$ dotnet run e6.cs
+/home/ana/cs/e6.cs(2,24): error CS0023: O operador "?" não pode ser aplicado ao operando do tipo "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> <code>int idade = 29; Console.WriteLine(idade?.ToString());</code>. De novo: um <code>int</code> nunca é <code>null</code>, então não há o que conferir.</p>
+<p><strong>Como resolver:</strong> use o ponto comum, <code>idade.ToString()</code>. O <code>?.</code> só serve para o que pode ser <code>null</code>: <code>int?</code>, <code>string?</code>, arrays e objetos.</p>
+</div>
+
+<div class="cenario">
+<strong>O <code>?.</code> ficou pela metade: <code>NullReferenceException</code></strong>
+<pre class="file" data-file="e3.cs — com erro de propósito">string? nome = null;
+string grito = nome?.ToUpper();
+Console.WriteLine(grito.Length);
+</pre>
+<pre class="term">$ dotnet run e3.cs; echo "código: $?"
+/home/ana/cs/e3.cs(2,16): warning CS8600: Conversão de literal nula ou possível valor nulo em tipo não anulável.
+/home/ana/cs/e3.cs(3,19): warning CS8602: Desreferência de uma referência possivelmente nula.
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/e3.cs:line 3
+código: 134</pre>
+<p><strong>O que aconteceu:</strong> o <code>?.</code> da linha 2 evitou a quebra ali, mas o resultado (<code>null</code>) foi guardado em <code>grito</code>. Na linha 3, o ponto comum em <code>grito.Length</code> quebrou. O <code>?.</code> não faz o <code>null</code> desaparecer: ele só o <strong>passa adiante</strong>. Os dois avisos apontaram as duas linhas.</p>
+<p><strong>Como resolver:</strong> troque o <code>null</code> por um valor na hora de guardar, com <code>??</code>: <code>string grito = nome?.ToUpper() ?? "";</code>. Ou continue usando <code>?.</code> e <code>??</code> até o fim: <code>grito?.Length ?? 0</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Sem erro, mas com o resultado errado: a precedência</strong>
+<pre class="term">$ dotnet run prec.cs
+Pontos: 0
+Certo: 50</pre>
+<p><strong>O que aconteceu:</strong> <code>50 + bonus ?? 0</code> é lido como <code>(50 + bonus) ?? 0</code>.</p>
+<p><strong>Como resolver:</strong> <code>50 + (bonus ?? 0)</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Lê-se</th><th>Resultado</th></tr>
+<tr><td><code>a ?? b</code></td><td>"<code>a</code>, ou então <code>b</code>"</td><td><code>a</code> se não for <code>null</code>; senão, <code>b</code></td></tr>
+<tr><td><code>a ?? b ?? c</code></td><td>"o primeiro que existir"</td><td>o primeiro que não for <code>null</code></td></tr>
+<tr><td><code>x?.Membro</code></td><td>"se <code>x</code> existir, <code>Membro</code>"</td><td><code>null</code> se <code>x</code> for <code>null</code>; o resultado é anulável (<code>int?</code>…)</td></tr>
+<tr><td><code>x?[i]</code></td><td>"se <code>x</code> existir, a posição <code>i</code>"</td><td><code>null</code> se o array for <code>null</code></td></tr>
+<tr><td><code>x?.Membro ?? padrão</code></td><td>"o membro, ou então o padrão"</td><td>nunca <code>null</code></td></tr>
+<tr><td><code>x ??= v;</code></td><td>"se <code>x</code> estiver em branco, ponha <code>v</code>"</td><td>o mesmo que <code>x = x ?? v;</code></td></tr>
+<tr><td><code>x?[i] = v;</code>, <code>x?.Membro = v;</code></td><td>"se <code>x</code> existir, grave" <span class="versao">C# 14</span></td><td>nada acontece se <code>x</code> for <code>null</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missão final: o cadastro incompleto</h2>
+<div class="trycs" data-goal="out:Apelido: Aninha,out:Idade: não informada,out:Notas: 0,exit:0,src:\?\?=">
+<p class="try-task"><strong>Missão:</strong> o cadastro da Ana chegou todo em branco, e o programa quebra na última linha. Conserte usando os três operadores da aula:</p>
+<ol>
+  <li>com <code>??=</code>, dê ao <code>apelido</code> o valor <code>"Aninha"</code> se ele estiver em branco;</li>
+  <li>mostre a idade, ou <code>não informada</code> (dica: <code>idade?.ToString() ?? "não informada"</code>);</li>
+  <li>mostre a quantidade de notas, ou 0 se não houver array (<code>?.</code> e <code>??</code>).</li>
+</ol>
+<pre class="script" data-file="cadastro.cs">string? apelido = null;
+int? idade = null;
+int[]? notas = null;
+
+Console.WriteLine($"Apelido: {apelido}");
+Console.WriteLine($"Idade: {idade}");
+Console.WriteLine($"Notas: {notas.Length}");
+</pre>
+<pre class="solucao" data-file="cadastro.cs">string? apelido = null;
+int? idade = null;
+int[]? notas = null;
+
+apelido ??= "Aninha";
+Console.WriteLine($"Apelido: {apelido}");
+Console.WriteLine($"Idade: {idade?.ToString() ?? "não informada"}");
+Console.WriteLine($"Notas: {notas?.Length ?? 0}");
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Valor reserva</h3>
+<p>Complete para que <code>cor</code> seja <code>favorita</code> ou, se ela estiver em branco, <code>"azul"</code>:</p>
+<div class="ex-code">string cor = favorita <input data-answer="??" aria-label="operador"> "azul";</div>
+</div>
+
+<div class="exercise">
+<h3>2. Tamanho seguro</h3>
+<p>Complete para pegar o tamanho de <code>nome</code> sem quebrar quando ele for <code>null</code> (o resultado pode ser <code>int?</code>):</p>
+<div class="ex-code">int? tamanho = nome<input data-answer="?.Length" aria-label="acesso">;</div>
+</div>
+
+<div class="exercise">
+<h3>3. Preencher o branco</h3>
+<p>Complete para que <code>cidade</code> receba <code>"Recife"</code> só se estiver em branco:</p>
+<div class="ex-code">cidade <input data-answer="??=" aria-label="operador"> "Recife";</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Com <code>int? bonus = null;</code>, quanto vale <code>10 + bonus ?? 5</code>?</p>
+<label><input type="radio" name="q4"> 15</label>
+<label><input type="radio" name="q4"> 5</label>
+<label><input type="radio" name="q4"> 10</label>
+<label><input type="radio" name="q4"> <code>null</code></label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Qual é o tipo de <code>nome?.Length</code>, sendo <code>nome</code> um <code>string?</code>?</p>
+<label><input type="radio" name="q5"> <code>int</code></label>
+<label><input type="radio" name="q5"> <code>string?</code></label>
+<label><input type="radio" name="q5"> <code>int?</code></label>
+<label><input type="radio" name="q5"> <code>bool</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Depois de <code>string? c = "Natal"; c ??= "Recife";</code>, quanto vale <code>c</code>?</p>
+<label><input type="radio" name="q6"> <code>"Natal"</code></label>
+<label><input type="radio" name="q6"> <code>"Recife"</code></label>
+<label><input type="radio" name="q6"> <code>"NatalRecife"</code></label>
+<label><input type="radio" name="q6"> <code>null</code></label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>a ?? b</code>: <code>a</code>, ou então <code>b</code>. Encadeia: <code>a ?? b ?? c</code>.</li>
+  <li><code>x?.Membro</code> e <code>x?[i]</code>: só continuam se <code>x</code> existir; senão, dão <code>null</code>. O resultado é anulável (<code>nome?.Length</code> é <code>int?</code>). A corrente para no primeiro <code>null</code>.</li>
+  <li><code>nome?.Length ?? 0</code>: a dupla que nunca quebra e nunca dá <code>null</code>.</li>
+  <li><code>x ??= v</code>: preenche só se estiver em branco; nunca apaga um valor que já existe.</li>
+  <li><span class="versao">C# 14</span> <code>x?[i] = v</code> e <code>x?.Membro = v</code>: gravam só se <code>x</code> existir (antes, <code>CS9260</code>).</li>
+  <li>O <code>??</code> tem precedência baixa: <code>50 + (bonus ?? 0)</code>, sempre com parênteses.</li>
+  <li>Esses operadores só servem para o que pode ser <code>null</code>; num <code>int</code> comum dão <code>CS0019</code> ou <code>CS0023</code>.</li>
+  <li>Próxima aula: <a href="referencias-anulaveis.html">Referências Anuláveis</a>, o sistema que gera os avisos <code>CS8600</code> e <code>CS8602</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
