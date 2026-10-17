@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Lambdas — métodos sem nome: p =&gt; p * 0.7m | Guia C#</title>
+<meta name="description" content="Lambdas em C# para quem nunca programou: o método sem nome p =&gt; p * 0.7m, todas as formas (sem parâmetro, dois, com tipo, com bloco e return), o tipo natural com var, parâmetros padrão e descarte, a captura de variáveis (e a armadilha do for), lambdas com List (ForEach, Find, Sort, RemoveAll) e os erros reais CS8917, CS1643, CS1593, CS1662 e CS8820 do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Lambdas</span></h1>
+
+<p class="intro">Na aula de <a href="delegates.html">Delegates</a>, cada regra de preço da lojinha da Ana virou um método com nome: <code>PrecoNormal</code>, <code>BlackFriday</code>. Para uma regra de uma linha, usada num lugar só, isso é muita cerimônia. Uma <strong>lambda</strong> é um método <strong>sem nome</strong>, escrito direto onde vai ser usado: <code>p =&gt; p * 0.7m</code> quer dizer "dado <code>p</code>, devolva <code>p * 0.7m</code>". As lambdas estão em todo o C# moderno, e o <a href="linq.html">LINQ</a> é feito praticamente só delas.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma lambda e como ela substitui um método com nome.</li>
+  <li>Todas as formas: sem parâmetro, um, dois, com tipo, com bloco e <code>return</code>.</li>
+  <li>Guardar uma lambda em <code>var</code> (o "tipo natural"), parâmetros com valor padrão e o descarte <code>_</code>.</li>
+  <li>Como uma lambda <strong>captura</strong> variáveis de fora, e a armadilha do <code>for</code>.</li>
+  <li>Lambdas com listas: <code>ForEach</code>, <code>Find</code>, <code>Exists</code>, <code>Sort</code>, <code>RemoveAll</code>.</li>
+  <li>Os erros reais: <code>CS8917</code>, <code>CS1643</code>, <code>CS1593</code>, <code>CS1662</code>, <code>CS0201</code> e <code>CS8820</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas rodaram com o <strong>.NET 10</strong> (C# 14) na máquina da Ana, na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: o bilhete no lugar do manual</h2>
+<p>A Ana vai sair mais cedo e deixa o caixa com o Bruno. Ela poderia escrever um <strong>manual</strong>, com capa e título ("Procedimento Black Friday"), e dizer "siga o manual". Mas a regra é curta, então ela deixa um <strong>bilhete</strong>: "preço vezes 0,7". O bilhete não tem título: tem só a instrução.</p>
+
+<p>O método com nome é o manual. A lambda é o bilhete: só os <strong>parâmetros</strong>, uma <strong>seta</strong> e o que fazer. Ela vale em qualquer lugar onde se espera um <a href="delegates.html">delegate</a>.</p>
+
+<hr>
+
+<h2>1. Método com nome × lambda</h2>
+
+<pre class="file" data-file="metodo-lambda.cs">RegraDePreco comMetodo = BlackFriday;
+RegraDePreco comLambda = p =&gt; p * 0.7m;
+
+Console.WriteLine($"Método: {comMetodo(50m):C}");
+Console.WriteLine($"Lambda: {comLambda(50m):C}");
+Console.WriteLine($"Direto: {Aplicar(50m, p =&gt; p - 5m):C}");
+
+decimal Aplicar(decimal preco, RegraDePreco regra) =&gt; regra(preco);
+
+static decimal BlackFriday(decimal preco) =&gt; preco * 0.7m;
+
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+
+<pre class="term">$ dotnet run metodo-lambda.cs
+Método: R$ 35,00
+Lambda: R$ 35,00
+Direto: R$ 45,00</pre>
+
+<p>As duas primeiras linhas fazem a mesma coisa. Compare as peças:</p>
+
+<pre class="syntax">static decimal BlackFriday(decimal preco) =&gt; preco * 0.7m;   « manual: nome, tipos e corpo
+
+               p =&gt; p * 0.7m                               « bilhete: só o que importa</pre>
+
+<dl class="anatomy">
+  <dt>p</dt><dd>O <strong>parâmetro</strong>. Não precisa do tipo: o compilador olha para a variável (<code>RegraDePreco</code>) e deduz que <code>p</code> é um <code>decimal</code>. O nome é livre; <code>p</code>, <code>preco</code> ou <code>x</code> dão no mesmo.</dd>
+  <dt>=&gt;</dt><dd>A <strong>seta</strong> (sinal de igual + sinal de maior). Lê-se "vai para" ou "resulta em". É o mesmo <code>=&gt;</code> dos métodos de uma linha.</dd>
+  <dt>p * 0.7m</dt><dd>O <strong>corpo</strong>. Se for uma expressão só, o valor dela é devolvido automaticamente, sem <code>return</code>. O tipo de retorno (<code>decimal</code>) também vem do delegate.</dd>
+</dl>
+
+<p>A terceira linha mostra o maior ganho: a lambda <code>p =&gt; p - 5m</code> foi escrita <strong>direto no argumento</strong> de <code>Aplicar</code>, sem existir em nenhum outro lugar do programa. O nome "lambda" vem da letra grega λ, usada pelos matemáticos para escrever funções sem nome.</p>
+
+<div class="trycs" data-goal="outre:R\$\s7\,90 -&gt; R\$\s12\,90,outre:R\$\s30\,00 -&gt; R\$\s35\,00">
+<p class="try-task"><strong>Missão:</strong> o frete da lojinha custa R$ 5,00 por produto. Troque a lambda <code>p =&gt; p</code> por uma que some <code>5m</code> ao preço. A última linha deve ser <code>R$ 7,90 -&gt; R$ 12,90</code>.</p>
+<pre class="script">decimal[] precos = [12.50m, 30m, 7.90m];
+
+MostrarPrecos(precos, p =&gt; p);
+
+void MostrarPrecos(decimal[] lista, RegraDePreco regra)
+{
+    foreach (decimal p in lista)
+    {
+        Console.WriteLine($"{p:C} -&gt; {regra(p):C}");
+    }
+}
+
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+<pre class="solucao">decimal[] precos = [12.50m, 30m, 7.90m];
+
+MostrarPrecos(precos, p =&gt; p + 5m);
+
+void MostrarPrecos(decimal[] lista, RegraDePreco regra)
+{
+    foreach (decimal p in lista)
+    {
+        Console.WriteLine($"{p:C} -&gt; {regra(p):C}");
+    }
+}
+
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Todas as formas</h2>
+<p>Uma lambda se adapta ao delegate onde ela é guardada: sem parâmetros, com um, com dois, curta ou com várias linhas.</p>
+
+<pre class="file" data-file="formas.cs">Saudacao ola = () =&gt; Console.WriteLine("Bem-vindo à lojinha!");
+RegraDePreco metade = p =&gt; p / 2;
+RegraDePreco frete = (p) =&gt; p + 8m;
+RegraDePreco arredondar = (decimal p) =&gt; Math.Round(p);
+Conta total = (preco, qtd) =&gt; preco * qtd;
+Conta comTaxa = (preco, qtd) =&gt;
+{
+    decimal bruto = preco * qtd;
+    decimal taxa = bruto * 0.05m;
+    return bruto + taxa;
+};
+
+ola();
+Console.WriteLine(metade(9m));
+Console.WriteLine(frete(20m));
+Console.WriteLine(arredondar(4.6m));
+Console.WriteLine(total(2.5m, 4));
+Console.WriteLine(comTaxa(10m, 3));
+
+delegate void Saudacao();
+delegate decimal RegraDePreco(decimal preco);
+delegate decimal Conta(decimal preco, int quantidade);
+</pre>
+
+<pre class="term">$ dotnet run formas.cs
+Bem-vindo à lojinha!
+4,5
+28
+5
+10,0
+31,50</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Exemplo</th><th>Regra</th></tr>
+<tr><td>Sem parâmetros</td><td><code>() =&gt; Console.WriteLine("…")</code></td><td>Os parênteses vazios são obrigatórios. O delegate <code>Saudacao</code> é <code>void</code>, então a lambda não devolve nada.</td></tr>
+<tr><td>Um parâmetro</td><td><code>p =&gt; p / 2</code></td><td>Os parênteses são opcionais.</td></tr>
+<tr><td>Um parâmetro, com parênteses</td><td><code>(p) =&gt; p + 8m</code></td><td>O mesmo que o anterior.</td></tr>
+<tr><td>Com o tipo escrito</td><td><code>(decimal p) =&gt; Math.Round(p)</code></td><td>Com tipo, os parênteses são obrigatórios. Se um parâmetro tem tipo, todos precisam ter.</td></tr>
+<tr><td>Dois ou mais</td><td><code>(preco, qtd) =&gt; preco * qtd</code></td><td>Parênteses obrigatórios, separados por vírgula. <code>preco</code> vira <code>decimal</code> e <code>qtd</code> vira <code>int</code>, na ordem do delegate <code>Conta</code>.</td></tr>
+<tr><td>Corpo com bloco</td><td><code>(preco, qtd) =&gt; { …; return bruto + taxa; }</code></td><td>Com chaves, é um bloco normal: cada instrução termina com <code>;</code> e é preciso <code>return</code> (se o delegate devolve algo). Repare no <code>;</code> depois da <code>}</code>: ele fecha a linha <code>Conta comTaxa = …</code>.</td></tr>
+</table>
+</div>
+
+<p>Os números da saída: <code>9m / 2</code> dá <code>4,5</code>; <code>Math.Round(4.6m)</code> dá <code>5</code>; <code>2.5m * 4</code> dá <code>10,0</code> (o <code>decimal</code> guarda as casas da conta: uma casa no <code>2.5</code>, uma casa no resultado); e <code>10 × 3 + 5%</code> dá <code>31,50</code>.</p>
+
+<div class="tip">
+<strong>Expressão ou bloco?</strong>
+<p>Se a lambda cabe numa expressão, escreva sem chaves: <code>p =&gt; p * 0.7m</code>. Se precisa de várias linhas, use o bloco com <code>return</code>. Se o bloco passou de 3 ou 4 linhas, ele merece virar um <a href="metodos.html">método</a> com nome: o nome explica o que o código faz, e o método pode ser testado sozinho.</p>
+</div>
+
+<hr>
+
+<h2>3. Lambda em <code>var</code>: o tipo natural <span class="versao">C# 10</span></h2>
+<p>Até agora, cada lambda foi guardada numa variável de um tipo delegate declarado por nós. Desde o C# 10, se a lambda tem os <strong>tipos dos parâmetros escritos</strong>, ela pode ir para uma variável <code>var</code>, e o compilador escolhe um delegate pronto do .NET:</p>
+
+<pre class="file" data-file="natural.cs">var dobro = (int x) =&gt; x * 2;
+var saudar = (string nome = "cliente") =&gt; $"Olá, {nome}!";
+var porcento = decimal (int n) =&gt; n / 100m;
+
+Console.WriteLine(dobro(21));
+Console.WriteLine(dobro.GetType());
+Console.WriteLine(saudar());
+Console.WriteLine(saudar("Bruno"));
+Console.WriteLine(porcento(15));
+</pre>
+
+<pre class="term">$ dotnet run natural.cs
+42
+System.Func`2[System.Int32,System.Int32]   « Func&lt;int, int&gt;: recebe int, devolve int
+Olá, cliente!
+Olá, Bruno!
+0,15</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que mostra</th></tr>
+<tr><td><code>var dobro = (int x) =&gt; x * 2;</code></td><td>Com o tipo do parâmetro, o compilador sabe tudo e escolhe o tipo <code>Func&lt;int, int&gt;</code>. O <code>Func</code> é o delegate pronto do .NET para "recebe algo, devolve algo" (aula <a href="func-action.html">Func, Action e Predicate</a>). O <code>`2</code> que o <code>GetType()</code> mostra quer dizer "com 2 tipos entre <code>&lt;</code> e <code>&gt;</code>".</td></tr>
+<tr><td><code>(string nome = "cliente") =&gt; …</code></td><td>Parâmetro com <strong>valor padrão</strong> <span class="versao">C# 12</span>, como num método (veja <a href="parametros-opcionais.html">Parâmetros Opcionais</a>). Sem argumento, vale <code>"cliente"</code>.</td></tr>
+<tr><td><code>decimal (int n) =&gt; n / 100m</code></td><td>O <strong>tipo de retorno</strong> escrito antes dos parênteses <span class="versao">C# 10</span>. Raro, mas útil quando o compilador não consegue adivinhar o retorno.</td></tr>
+</table>
+</div>
+
+<p>Sem o tipo do parâmetro, não dá: <code>var dobro = x =&gt; x * 2;</code> dá o erro <code>CS8917</code>, porque <code>x</code> poderia ser um <code>int</code>, um <code>decimal</code>, um <code>double</code>… (veja <a href="#errado">Quando dá errado</a>).</p>
+
+<h3>Parâmetros que você não usa: <code>_</code> <span class="versao">C# 9</span></h3>
+<p>Às vezes o delegate exige parâmetros que a lambda não usa. Em vez de inventar nomes, use o <strong>descarte</strong> <code>_</code> (sublinhado): <code>(_, _) =&gt; 0m</code> é uma lambda de dois parâmetros que ignora os dois e devolve zero. Isso aparece bastante em <a href="eventos.html">eventos</a>.</p>
+
+<div class="note">
+<strong>Novidade do C# 14: <code>out</code> e <code>ref</code> sem escrever o tipo</strong> <span class="versao">C# 14</span>
+<p>Se o delegate tem um parâmetro <code>out</code> (veja <a href="ref-out-in.html">ref, out e in</a>), até o C# 13 a lambda precisava escrever todos os tipos: <code>(string texto, out decimal valor) =&gt; …</code>. No C# 14, basta o modificador: com <code>delegate bool Leitor(string texto, out decimal valor);</code>, a lambda <code>Leitor ler = (texto, out valor) =&gt; decimal.TryParse(texto, out valor);</code> compila no .NET 10, e <code>ler("12,90", out decimal preco)</code> devolve <code>true</code> com <code>preco</code> valendo <code>12,90</code>.</p>
+</div>
+
+<hr>
+
+<h2>4. A lambda enxerga as variáveis de fora (captura)</h2>
+<p>Uma lambda pode usar as variáveis do lugar onde foi escrita. Isso se chama <strong>capturar</strong> a variável. O detalhe importante: ela captura a <strong>variável</strong>, não uma cópia do valor. Se a variável muda depois, a lambda vê o valor novo:</p>
+
+<pre class="file" data-file="captura.cs">decimal desconto = 0.10m;
+RegraDePreco promocao = p =&gt; p - p * desconto;
+
+Console.WriteLine(promocao(100m));
+desconto = 0.50m;
+Console.WriteLine(promocao(100m));
+
+int vendas = 0;
+Aviso registrar = produto =&gt;
+{
+    vendas++;
+    Console.WriteLine($"Venda {vendas}: {produto}");
+};
+registrar("Caderno");
+registrar("Lápis");
+Console.WriteLine($"Total de vendas: {vendas}");
+
+delegate decimal RegraDePreco(decimal preco);
+delegate void Aviso(string produto);
+</pre>
+
+<pre class="term">$ dotnet run captura.cs
+90,00            « desconto = 10%
+50,00            « a MESMA lambda, agora com desconto = 50%
+Venda 1: Caderno
+Venda 2: Lápis
+Total de vendas: 2</pre>
+
+<ul>
+  <li>A lambda <code>promocao</code> foi criada uma vez só, mas a segunda chamada já usou <code>0.50m</code>: ela lê o <code>desconto</code> <strong>na hora de rodar</strong>.</li>
+  <li>A lambda <code>registrar</code> <strong>muda</strong> a variável <code>vendas</code> lá de fora, e a mudança fica: no fim, <code>vendas</code> vale 2. Isso é permitido em C# (em Java, por exemplo, não é).</li>
+</ul>
+
+<p>Uma lambda com as variáveis que ela capturou forma um <strong>fechamento</strong> (<em>closure</em>, em inglês): a variável continua viva enquanto a lambda existir, mesmo que o método onde ela nasceu já tenha terminado.</p>
+
+<h3>A armadilha do <code>for</code></h3>
+<p>Como a lambda captura a variável e não o valor, um <code>for</code> pode surpreender. O programa abaixo guarda três lambdas numa lista e só depois roda todas:</p>
+
+<pre class="file" data-file="laco.cs">List&lt;Tarefa&gt; comFor = [];
+for (int i = 0; i &lt; 3; i++)
+{
+    comFor.Add(() =&gt; Console.Write($"{i} "));
+}
+foreach (Tarefa t in comFor) t();
+Console.WriteLine("« for");
+
+List&lt;Tarefa&gt; comForeach = [];
+foreach (int n in new[] { 0, 1, 2 })
+{
+    comForeach.Add(() =&gt; Console.Write($"{n} "));
+}
+foreach (Tarefa t in comForeach) t();
+Console.WriteLine("« foreach");
+
+List&lt;Tarefa&gt; consertado = [];
+for (int i = 0; i &lt; 3; i++)
+{
+    int copia = i;
+    consertado.Add(() =&gt; Console.Write($"{copia} "));
+}
+foreach (Tarefa t in consertado) t();
+Console.WriteLine("« for com cópia");
+
+delegate void Tarefa();
+</pre>
+
+<pre class="term">$ dotnet run laco.cs
+3 3 3 « for
+0 1 2 « foreach
+0 1 2 « for com cópia</pre>
+
+<ul>
+  <li><strong>No <code>for</code></strong>, existe <strong>uma</strong> variável <code>i</code> para o laço inteiro. As três lambdas capturam a mesma. Quando elas finalmente rodam, o laço já acabou e <code>i</code> vale 3 (foi o valor que fez o <code>i &lt; 3</code> falhar).</li>
+  <li><strong>No <code>foreach</code></strong>, cada volta tem uma variável <code>n</code> nova <span class="versao">C# 5</span>. Cada lambda captura a sua.</li>
+  <li><strong>O conserto do <code>for</code></strong>: crie uma variável dentro do bloco (<code>int copia = i;</code>). Ela nasce de novo a cada volta, e cada lambda fica com a sua cópia.</li>
+</ul>
+
+<hr>
+
+<h2>5. Lambdas com listas</h2>
+<p>É com coleções que as lambdas aparecem mais. A <a href="list.html"><code>List&lt;T&gt;</code></a> tem vários métodos que recebem uma lambda dizendo o que fazer com cada elemento:</p>
+
+<pre class="file" data-file="listas.cs">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", 18.90m),
+    new("Lápis", 2.50m),
+    new("Mochila", 129.90m),
+    new("Borracha", 1.75m),
+];
+
+produtos.ForEach(p =&gt; Console.WriteLine($"{p.Nome}: {p.Preco:C}"));
+
+Produto? caro = produtos.Find(p =&gt; p.Preco &gt; 100m);
+Console.WriteLine($"Find: {caro?.Nome}");
+
+bool temBarato = produtos.Exists(p =&gt; p.Preco &lt; 2m);
+Console.WriteLine($"Exists: {temBarato}");
+
+produtos.Sort((a, b) =&gt; a.Preco.CompareTo(b.Preco));
+Console.WriteLine($"Sort: {string.Join(", ", produtos.ConvertAll(p =&gt; p.Nome))}");
+
+int removidos = produtos.RemoveAll(p =&gt; p.Preco &lt; 3m);
+Console.WriteLine($"RemoveAll: {removidos} removidos, sobrou {produtos.Count}");
+
+record Produto(string Nome, decimal Preco);
+</pre>
+
+<pre class="term">$ dotnet run listas.cs
+Caderno: R$ 18,90
+Lápis: R$ 2,50
+Mochila: R$ 129,90
+Borracha: R$ 1,75
+Find: Mochila
+Exists: True
+Sort: Borracha, Lápis, Caderno, Mochila
+RemoveAll: 2 removidos, sobrou 2</pre>
+
+<p>O <code>record Produto(string Nome, decimal Preco);</code> no fim cria um tipo com as propriedades <code>Nome</code> e <code>Preco</code> (veja <a href="records.html">Records</a>). Cada <code>new("Caderno", 18.90m)</code> cria um produto.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>A lambda recebe…</th><th>…e devolve</th><th>O método faz</th></tr>
+<tr><td><code>ForEach(p =&gt; …)</code></td><td>cada elemento</td><td>nada</td><td>Executa a lambda para cada um, na ordem.</td></tr>
+<tr><td><code>Find(p =&gt; …)</code></td><td>cada elemento</td><td><code>true</code>/<code>false</code></td><td>Devolve o <strong>primeiro</strong> que deu <code>true</code>, ou <code>null</code> se nenhum deu (por isso o <code>Produto?</code> e o <code>caro?.Nome</code>).</td></tr>
+<tr><td><code>Exists(p =&gt; …)</code></td><td>cada elemento</td><td><code>true</code>/<code>false</code></td><td>Diz se <strong>algum</strong> deu <code>true</code>.</td></tr>
+<tr><td><code>Sort((a, b) =&gt; …)</code></td><td>dois elementos</td><td>negativo, zero ou positivo</td><td>Ordena a própria lista. <code>a.Preco.CompareTo(b.Preco)</code> devolve negativo se <code>a</code> é mais barato: ordem crescente. Veja <a href="comparacao.html">IComparable e IComparer</a>.</td></tr>
+<tr><td><code>ConvertAll(p =&gt; …)</code></td><td>cada elemento</td><td>o novo valor</td><td>Cria uma lista nova com os resultados (aqui, só os nomes).</td></tr>
+<tr><td><code>RemoveAll(p =&gt; …)</code></td><td>cada elemento</td><td><code>true</code>/<code>false</code></td><td>Remove os que deram <code>true</code> e devolve quantos removeu.</td></tr>
+</table>
+</div>
+
+<p>O <a href="linq.html">LINQ</a> leva essa ideia muito mais longe, com <code>Where</code>, <code>Select</code>, <code>OrderBy</code> e outros, todos recebendo lambdas.</p>
+
+<hr>
+
+<h2>Método com nome ou lambda: qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>A regra é curta (uma expressão) e usada num lugar só</td><td>Lambda: <code>produtos.Find(p =&gt; p.Preco &gt; 100m)</code></td></tr>
+<tr><td>A regra tem várias linhas, ou é usada em vários lugares</td><td>Método com nome, passado sem parênteses: <code>produtos.Sort(CompararPorPreco)</code></td></tr>
+<tr><td>A regra precisa de um nome para o código ficar claro</td><td>Método com nome, ou uma variável com bom nome: <code>RegraDePreco blackFriday = p =&gt; p * 0.7m;</code></td></tr>
+<tr><td>Você quer garantir que a lambda não captura nada</td><td>Lambda <code>static</code> <span class="versao">C# 9</span>: <code>static p =&gt; p * 0.7m</code>. Se ela usar uma variável de fora, dá <code>CS8820</code>.</td></tr>
+</table>
+</div>
+
+<div class="note">
+<strong>A forma antiga: <code>delegate (…) { … }</code></strong>
+<p>Antes das lambdas (C# 3, de 2007), escrevia-se um <strong>método anônimo</strong>: <code>RegraDePreco r = delegate (decimal p) { return p * 0.7m; };</code>. Ainda compila, e você vai encontrar em código antigo, mas hoje se usa a lambda.</p>
+</div>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS8917: lambda em <code>var</code> sem o tipo do parâmetro</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="natural-erro.cs">var dobro = x =&gt; x * 2;
+Console.WriteLine(dobro(21));
+</pre>
+<pre class="term">$ dotnet run natural-erro.cs
+/home/ana/cs/natural-erro.cs(1,13): error CS8917: O tipo de representante não pôde ser inferido.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> "o tipo do delegate (o 'representante', na tradução) não pôde ser deduzido". Com <code>var</code>, não há nenhum tipo do lado esquerdo para dizer o que é <code>x</code>.</p>
+<p><strong>Como consertar:</strong> escreva o tipo do parâmetro (<code>var dobro = (int x) =&gt; x * 2;</code>) ou o tipo da variável (<code>Func&lt;int, int&gt; dobro = x =&gt; x * 2;</code>).</p>
+</div>
+
+<div class="cenario">
+<strong>CS1643: o bloco nem sempre devolve um valor</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="caminhos.cs">RegraDePreco promo = p =&gt;
+{
+    if (p &gt; 100m)
+    {
+        return p * 0.8m;
+    }
+};
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+<pre class="term">$ dotnet run caminhos.cs
+/home/ana/cs/caminhos.cs(1,24): error CS1643: Nem todos os caminhos de código retornam um valor em expressão lambda do tipo "RegraDePreco"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> se <code>p</code> for 100 ou menos, a lambda chega ao fim sem <code>return</code>, e o delegate prometeu devolver um <code>decimal</code>.</p>
+<p><strong>Como consertar:</strong> devolva algo em todos os caminhos: um <code>return p;</code> depois do <code>if</code>. Ou, numa expressão só: <code>p =&gt; p &gt; 100m ? p * 0.8m : p</code> (veja <a href="ternario.html">Operador Ternário</a>).</p>
+</div>
+
+<div class="cenario">
+<strong>CS0201 + CS1643: esqueceu o <code>return</code> no bloco</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="semreturn.cs">RegraDePreco promo = p =&gt; { p * 0.8m; };
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+<pre class="term">$ dotnet run semreturn.cs
+/home/ana/cs/semreturn.cs(1,29): error CS0201: Somente as expressões de atribuição, chamada, incremento, diminuição, espera e novo objeto podem ser utilizadas como uma instrução
+/home/ana/cs/semreturn.cs(1,24): error CS1643: Nem todos os caminhos de código retornam um valor em expressão lambda do tipo "RegraDePreco"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> com chaves, a lambda é um bloco comum, e uma conta solta (<code>p * 0.8m;</code>) não é uma instrução que faça alguma coisa (<code>CS0201</code>). Sem <code>return</code>, também falta o valor devolvido (<code>CS1643</code>).</p>
+<p><strong>Como consertar:</strong> <code>p =&gt; { return p * 0.8m; }</code>, ou melhor ainda, sem chaves: <code>p =&gt; p * 0.8m</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS1593: número de parâmetros diferente do delegate</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="parametros.cs">RegraDePreco promo = (p, q) =&gt; p * 0.8m;
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+<pre class="term">$ dotnet run parametros.cs
+/home/ana/cs/parametros.cs(1,29): error CS1593: Delegado "RegraDePreco" não obtém 2 argumentos
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> a lambda tem 2 parâmetros, mas o delegate <code>RegraDePreco</code> recebe só 1.</p>
+<p><strong>Como consertar:</strong> a lambda precisa ter o mesmo número de parâmetros do delegate: <code>p =&gt; p * 0.8m</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0029 + CS1662: a lambda devolve o tipo errado</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="tipo.cs">RegraDePreco gratis = p =&gt; "grátis";
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+<pre class="term">$ dotnet run tipo.cs
+/home/ana/cs/tipo.cs(1,28): error CS0029: Não é possível converter implicitamente tipo "string" em "decimal"
+/home/ana/cs/tipo.cs(1,28): error CS1662: Não é possível converter expressão lambda para o tipo delegate pretendido porque alguns dos tipos de retorno no bloco não são implicitamente conversíveis para o tipo de retorno delegate
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> o delegate promete devolver <code>decimal</code>, e a lambda devolve um texto. O primeiro erro diz qual conversão falhou; o segundo, que por isso a lambda não serve para esse delegate.</p>
+<p><strong>Como consertar:</strong> devolva o tipo certo (<code>p =&gt; 0m</code> para "grátis"). Se você queria um texto, o delegate é que tem de ser outro.</p>
+</div>
+
+<div class="cenario">
+<strong>CS8820: lambda <code>static</code> usando variável de fora</strong>
+<p><em>Este código tem um erro de propósito.</em></p>
+<pre class="file" data-file="estatica.cs">decimal desconto = 0.1m;
+RegraDePreco promo = static p =&gt; p - p * desconto;
+Console.WriteLine(promo(10m));
+delegate decimal RegraDePreco(decimal preco);
+</pre>
+<pre class="term">$ dotnet run estatica.cs
+/home/ana/cs/estatica.cs(2,42): error CS8820: Uma função anônima estática não pode conter uma referência a 'desconto'.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que quer dizer:</strong> o <code>static</code> promete que a lambda não captura nada, e ela captura <code>desconto</code>.</p>
+<p><strong>Como consertar:</strong> tire o <code>static</code>, ou passe o desconto por parâmetro, ou use uma <a href="constantes.html">constante</a> (<code>const decimal Desconto = 0.1m;</code>), que pode ser usada numa lambda estática.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Exemplo</th><th>Equivale a um método…</th></tr>
+<tr><td><code>() =&gt; expr</code></td><td><code>() =&gt; 42</code></td><td>sem parâmetros que devolve <code>42</code></td></tr>
+<tr><td><code>x =&gt; expr</code></td><td><code>p =&gt; p * 0.7m</code></td><td>de um parâmetro</td></tr>
+<tr><td><code>(a, b) =&gt; expr</code></td><td><code>(preco, qtd) =&gt; preco * qtd</code></td><td>de dois parâmetros</td></tr>
+<tr><td><code>(tipo a) =&gt; expr</code></td><td><code>(int x) =&gt; x * 2</code></td><td>com o tipo escrito (permite <code>var</code>)</td></tr>
+<tr><td><code>(a, b) =&gt; { …; return r; }</code></td><td><code>(p, q) =&gt; { var t = p * q; return t; }</code></td><td>com várias instruções</td></tr>
+<tr><td><code>tipo (…) =&gt; expr</code></td><td><code>decimal (int n) =&gt; n / 100m</code></td><td>com o retorno escrito <span class="versao">C# 10</span></td></tr>
+<tr><td><code>(a = valor) =&gt; …</code></td><td><code>(string nome = "cliente") =&gt; …</code></td><td>com parâmetro opcional <span class="versao">C# 12</span></td></tr>
+<tr><td><code>(_, _) =&gt; expr</code></td><td><code>(_, _) =&gt; 0m</code></td><td>que ignora os parâmetros <span class="versao">C# 9</span></td></tr>
+<tr><td><code>static x =&gt; expr</code></td><td><code>static p =&gt; p * 2</code></td><td>que não captura nada <span class="versao">C# 9</span></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O dobro</h3>
+<p>Complete a lambda que recebe <code>p</code> e devolve o dobro:</p>
+<div class="ex-code">RegraDePreco dobro = <input data-answer="p =&gt; p * 2;|p =&gt; p * 2|p =&gt; 2 * p;|p =&gt; 2 * p|p=&gt;p*2;|p=&gt;p*2|(p) =&gt; p * 2;|(p) =&gt; p * 2" aria-label="lambda"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Sem parâmetros</h3>
+<p>Complete a lambda de uma <code>Saudacao</code> (sem parâmetros, <code>void</code>) que mostra <code>Oi</code>:</p>
+<div class="ex-code">Saudacao oi = <input data-answer="() =&gt; Console.WriteLine(&quot;Oi&quot;);|() =&gt; Console.WriteLine(&quot;Oi&quot;)" aria-label="lambda"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Achar na lista</h3>
+<p>Complete para achar o primeiro produto que custa menos de <code>5m</code>:</p>
+<div class="ex-code">Produto? barato = produtos.Find(<input data-answer="p =&gt; p.Preco &lt; 5m|p =&gt; p.Preco &lt; 5|x =&gt; x.Preco &lt; 5m|p=&gt;p.Preco&lt;5m" aria-label="lambda">);</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Qual destas linhas <strong>não</strong> compila?</p>
+<label><input type="radio" name="q4"> <code>var f = (int x) =&gt; x + 1;</code></label>
+<label><input type="radio" name="q4"> <code>var f = x =&gt; x + 1;</code></label>
+<label><input type="radio" name="q4"> <code>Func&lt;int, int&gt; f = x =&gt; x + 1;</code></label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. <code>decimal taxa = 1m; RegraDePreco r = p =&gt; p + taxa; taxa = 2m; Console.WriteLine(r(10m));</code> mostra…</p>
+<label><input type="radio" name="q5"> <code>11</code>: a lambda guardou o valor de <code>taxa</code> quando foi criada.</label>
+<label><input type="radio" name="q5"> Erro: <code>taxa</code> não pode mudar.</label>
+<label><input type="radio" name="q5"> <code>12</code>: a lambda captura a variável e lê o valor na hora de rodar.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Três lambdas criadas num <code>for (int i = 0; i &lt; 3; i++)</code> mostram <code>i</code>. Rodando depois do laço, elas mostram…</p>
+<label><input type="radio" name="q6"> <code>3 3 3</code>, porque todas capturam a mesma variável <code>i</code>.</label>
+<label><input type="radio" name="q6"> <code>0 1 2</code>.</label>
+<label><input type="radio" name="q6"> <code>2 2 2</code>.</label>
+</div>
+
+<div class="trycs" data-goal="outre:^Caderno: R\$\s18\,90\nLápis: R\$\s2\,50\nBorracha: R\$\s1\,75\n$,src:RemoveAll\(,src:Sort\(">
+<p class="try-task"><strong>Missão final:</strong> usando só lambdas (sem <code>for</code> nem <code>foreach</code>), tire da lista os produtos de mais de R$ 100,00 com <code>RemoveAll</code>, ordene do <strong>mais caro para o mais barato</strong> com <code>Sort</code> e mostre com o <code>ForEach</code> que já existe. A saída deve ser exatamente <code>Caderno: R$ 18,90</code>, <code>Lápis: R$ 2,50</code> e <code>Borracha: R$ 1,75</code>, nessa ordem. Dica: para inverter a ordem, troque <code>a</code> e <code>b</code> de lugar no <code>CompareTo</code>.</p>
+<pre class="script">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", 18.90m),
+    new("Lápis", 2.50m),
+    new("Mochila", 129.90m),
+    new("Borracha", 1.75m),
+];
+
+produtos.ForEach(p =&gt; Console.WriteLine($"{p.Nome}: {p.Preco:C}"));
+
+record Produto(string Nome, decimal Preco);
+</pre>
+<pre class="solucao">List&lt;Produto&gt; produtos =
+[
+    new("Caderno", 18.90m),
+    new("Lápis", 2.50m),
+    new("Mochila", 129.90m),
+    new("Borracha", 1.75m),
+];
+
+produtos.RemoveAll(p =&gt; p.Preco &gt; 100m);
+produtos.Sort((a, b) =&gt; b.Preco.CompareTo(a.Preco));
+produtos.ForEach(p =&gt; Console.WriteLine($"{p.Nome}: {p.Preco:C}"));
+
+record Produto(string Nome, decimal Preco);
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma lambda é um método sem nome: <code>parâmetros =&gt; corpo</code>. Ela vale onde se espera um <a href="delegates.html">delegate</a>.</li>
+  <li>Os tipos dos parâmetros e o retorno vêm do delegate. Formas: <code>() =&gt; …</code>, <code>p =&gt; …</code>, <code>(a, b) =&gt; …</code>, <code>(decimal p) =&gt; …</code> e o bloco <code>{ …; return …; }</code>.</li>
+  <li>Com os tipos escritos, a lambda vai para <code>var</code> e vira um <code>Func</code> ou <code>Action</code>; sem eles, <code>CS8917</code>.</li>
+  <li>A lambda <strong>captura a variável</strong>, não o valor: vê as mudanças e pode mudá-la. No <code>for</code>, crie uma cópia dentro do bloco.</li>
+  <li><code>List&lt;T&gt;</code>: <code>ForEach</code>, <code>Find</code>, <code>Exists</code>, <code>Sort</code>, <code>ConvertAll</code>, <code>RemoveAll</code> recebem lambdas.</li>
+  <li>Erros comuns: caminho sem <code>return</code> (<code>CS1643</code>), parâmetros a mais (<code>CS1593</code>), retorno de outro tipo (<code>CS1662</code>), <code>static</code> com captura (<code>CS8820</code>).</li>
+</ul>
+
+<p>Próxima aula: <a href="func-action.html">Func, Action e Predicate</a>, os delegates prontos do .NET, para você não precisar declarar um tipo a cada lambda.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
