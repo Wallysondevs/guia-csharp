@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Reflexão — Type, GetProperties, GetMethod, Invoke e atributos | Guia C#</title>
+<meta name="description" content="Reflexão em C# para iniciantes: typeof e GetType, listar propriedades com GetProperties e GetValue, achar e chamar métodos pelo nome com GetMethod e Invoke, criar objetos com Activator, ler atributos para validar dados, campos privados, o custo da reflexão, os avisos IL2075 e IL2026 e as exceções TargetParameterCountException e TargetInvocationException reais.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Reflexão</span></h1>
+
+<p class="intro">Normalmente, o programa usa as classes que você escreveu sem "saber" nada sobre elas: chama <code>produto.Nome</code> porque você escreveu <code>produto.Nome</code>. Com a <strong>reflexão</strong> (em inglês, <em>reflection</em>), o programa <strong>se olha no espelho</strong> enquanto roda: pergunta "de que tipo é este objeto?", "que propriedades ele tem?", "existe um método chamado <code>Somar</code>?", e pode até chamar esse método a partir de um texto. É assim que funcionam por dentro o <code>System.Text.Json</code>, os testes do xUnit e muitas outras bibliotecas.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é um <code>Type</code> e como obtê-lo com <code>typeof</code> e <code>GetType()</code>.</li>
+  <li>Listar as propriedades de qualquer objeto e ler os valores (<code>GetProperties</code>, <code>GetValue</code>).</li>
+  <li>Achar um método pelo nome e chamá-lo (<code>GetMethod</code>, <code>Invoke</code>), e criar um objeto a partir do nome da classe.</li>
+  <li>Ler <a href="atributos.html">atributos</a> para montar um validador de cadastro.</li>
+  <li>Por que a reflexão abre até campos <code>private</code>, por que ela é lenta e o que são os avisos <code>IL2075</code> e <code>IL2026</code>.</li>
+  <li>As exceções <code>NullReferenceException</code>, <code>TargetParameterCountException</code> e <code>TargetInvocationException</code>.</li>
+</ul>
+</div>
+
+<p>Esta aula usa <a href="classes-objetos.html">classes</a>, <a href="propriedades.html">propriedades</a>, <a href="atributos.html">atributos</a> e os operadores <a href="operadores-null.html"><code>?.</code> e <code>??</code></a>. Os exemplos rodaram com <code>dotnet run</code> no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código</h2>
+<p>Quando o C# compila o seu programa, ele não guarda só as instruções. Guarda também uma <strong>ficha</strong> de cada tipo: o nome da classe, as propriedades (com nome e tipo), os métodos (com os parâmetros), os atributos. Essa ficha se chama <strong>metadados</strong> ("dados sobre os dados").</p>
+<p>Pense na ficha cadastral de um produto na lojinha da Ana: ela não é o produto, mas descreve tudo sobre ele. A reflexão é o jeito de o programa <strong>ler essas fichas</strong> enquanto roda. Com ela, dá para escrever um único método que mostra <strong>qualquer</strong> objeto na tela, sem saber de antemão de que classe ele é.</p>
+
+<hr>
+
+<h2>1. <code>Type</code>: a ficha de um tipo</h2>
+<p>A ficha é um objeto da classe <code>Type</code> (tipo). Há dois jeitos de pegá-la: <code>typeof(Classe)</code>, quando você sabe o nome da classe ao escrever o código, e <code>objeto.GetType()</code>, quando você tem um objeto e quer saber o que ele é <strong>de verdade</strong>.</p>
+
+<pre class="file" data-file="espelho.cs">Produto caderno = new("Caderno", 15.90m, 12);
+
+Type tipo = caderno.GetType();
+Console.WriteLine(tipo.Name);
+Console.WriteLine(tipo.FullName);
+Console.WriteLine(tipo == typeof(Produto));
+Console.WriteLine(tipo.BaseType);
+Console.WriteLine(typeof(int).FullName);
+Console.WriteLine(typeof(List&lt;string&gt;).Name);
+Console.WriteLine(42.GetType().Name);
+object coisa = "Ana";
+Console.WriteLine(coisa.GetType().Name);
+
+record Produto(string Nome, decimal Preco, int Estoque);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run espelho.cs
+Produto
+Produto
+True
+System.Object
+System.Int32
+List`1
+Int32
+String</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>Saída</th><th>Por quê</th></tr>
+<tr><td><code>caderno.GetType()</code></td><td>—</td><td>Pede a ficha do objeto. Todo objeto tem esse método, porque ele vem de <a href="object.html"><code>object</code></a>.</td></tr>
+<tr><td><code>tipo.Name</code> / <code>tipo.FullName</code></td><td><code>Produto</code></td><td>O nome curto e o nome com o <a href="namespaces.html">namespace</a>. Um record solto no arquivo não tem namespace, então os dois são iguais.</td></tr>
+<tr><td><code>tipo == typeof(Produto)</code></td><td><code>True</code></td><td>Existe <strong>uma</strong> ficha por tipo; as duas formas devolvem o mesmo objeto <code>Type</code>.</td></tr>
+<tr><td><code>tipo.BaseType</code></td><td><code>System.Object</code></td><td>De quem o tipo herda (veja <a href="heranca.html">herança</a>).</td></tr>
+<tr><td><code>typeof(int).FullName</code></td><td><code>System.Int32</code></td><td><code>int</code> é o apelido em C# do tipo <code>System.Int32</code> do .NET.</td></tr>
+<tr><td><code>typeof(List&lt;string&gt;).Name</code></td><td><code>List`1</code></td><td>O nome "de verdade" de um <a href="generics.html">tipo genérico</a>: <code>List</code>, uma crase e o número de parâmetros de tipo.</td></tr>
+<tr><td><code>coisa.GetType().Name</code></td><td><code>String</code></td><td>A variável é <code>object</code>, mas o objeto <strong>dentro</strong> dela é um texto. <code>GetType()</code> sempre conta o tipo real.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>2. Listar as propriedades de qualquer objeto</h2>
+<p>A ficha sabe quais propriedades o tipo tem. <code>GetProperties()</code> devolve uma lista de <code>PropertyInfo</code> ("informação de propriedade"), e cada uma sabe o próprio nome, o tipo e como <strong>ler o valor</strong> num objeto. Com isso, a Ana escreve um <code>Mostrar</code> que funciona para produtos, clientes e qualquer outra classe:</p>
+
+<pre class="file" data-file="mostrar.cs">using System.Reflection;
+
+Mostrar(new Produto("Caderno", 15.90m, 12));
+Mostrar(new Cliente { Nome = "Ana", Cidade = "Recife", Idade = 29 });
+
+void Mostrar(object obj)
+{
+    Type tipo = obj.GetType();
+    Console.WriteLine($"--- {tipo.Name} ---");
+    foreach (PropertyInfo p in tipo.GetProperties())
+    {
+        object? valor = p.GetValue(obj);
+        Console.WriteLine($"{p.Name} ({p.PropertyType.Name}) = {valor}");
+    }
+}
+
+record Produto(string Nome, decimal Preco, int Estoque);
+
+class Cliente
+{
+    public string Nome { get; set; } = "";
+    public string Cidade { get; set; } = "";
+    public int Idade { get; set; }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run mostrar.cs
+/home/ana/cs/mostrar.cs(10,32): warning IL2075: 'this' argument does not satisfy 'DynamicallyAccessedMemberTypes.PublicProperties' in call to 'System.Type.GetProperties()'. The return value of method 'System.Object.GetType()' does not have matching annotations. The source value must declare at least the same requirements as those declared on the target location it is assigned to.
+--- Produto ---
+Nome (String) = Caderno
+Preco (Decimal) = 15,90
+Estoque (Int32) = 12
+--- Cliente ---
+Nome (String) = Ana
+Cidade (String) = Recife
+Idade (Int32) = 29</pre>
+
+<dl class="anatomy">
+  <dt>using System.Reflection;</dt><dd>A pasta das classes de reflexão: <code>PropertyInfo</code>, <code>MethodInfo</code>, <code>FieldInfo</code>…</dd>
+  <dt>tipo.GetProperties()</dt><dd>As propriedades <strong>públicas</strong> do tipo, na ordem em que foram declaradas.</dd>
+  <dt>p.Name</dt><dd>O nome da propriedade, como texto: <code>"Preco"</code>.</dd>
+  <dt>p.PropertyType.Name</dt><dd>O tipo dela (que também é um <code>Type</code>): <code>Decimal</code>.</dd>
+  <dt>p.GetValue(obj)</dt><dd>"Leia esta propriedade <strong>neste</strong> objeto." Devolve <code>object?</code>, porque a reflexão não sabe o tipo na hora de compilar.</dd>
+</dl>
+
+<p>O programa funcionou, mas o <code>dotnet</code> deu um aviso em inglês, o <code>IL2075</code>. Ele não é do compilador C#, e sim de um <strong>analisador</strong> que pensa no futuro: um programa pode ser publicado "enxugado" (<em>trimming</em>), com o que não é usado arrancado para ficar menor. Num programa assim, o analisador não consegue garantir que as propriedades de "um objeto qualquer" (<code>obj.GetType()</code>) vão continuar lá. Veja a seção 6.</p>
+
+<div class="note">
+<strong>No editor do guia</strong>
+<p>O editor desta página compila com o mesmo compilador, mas <strong>não roda esses analisadores</strong>: o aviso <code>IL2075</code> não aparece na caixa, e o resultado do programa é igual ao do <code>dotnet</code>. Conferido com o testador do guia em todos os exemplos desta aula.</p>
+</div>
+
+<div class="trycs" data-goal="out:Nome = Caneta,out:Preco = 2\,50,out:Cor = azul,src:GetProperties\s*\(">
+<p class="try-task"><strong>Missão:</strong> complete o <code>Mostrar</code> para listar cada propriedade no formato <code>Nome = Caneta</code>, usando <code>GetProperties()</code> e <code>GetValue</code>.</p>
+<pre class="script">using System.Reflection;
+
+Mostrar(new Caneta("Caneta", 2.50m, "azul"));
+
+void Mostrar(object obj)
+{
+    Type tipo = obj.GetType();
+    Console.WriteLine($"Um objeto do tipo {tipo.Name}");
+    // percorra tipo.GetProperties() e mostre "Nome = valor"
+}
+
+record Caneta(string Nome, decimal Preco, string Cor);
+</pre>
+<pre class="solucao">using System.Reflection;
+
+Mostrar(new Caneta("Caneta", 2.50m, "azul"));
+
+void Mostrar(object obj)
+{
+    Type tipo = obj.GetType();
+    Console.WriteLine($"Um objeto do tipo {tipo.Name}");
+    foreach (PropertyInfo p in tipo.GetProperties())
+    {
+        Console.WriteLine($"{p.Name} = {p.GetValue(obj)}");
+    }
+}
+
+record Caneta(string Nome, decimal Preco, string Cor);
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Achar e chamar um método pelo nome</h2>
+<p>A ficha também lista os métodos. E o mais curioso: dá para <strong>chamar</strong> um método cujo nome só se conhece enquanto o programa roda, por exemplo um nome digitado pelo usuário ou lido de um arquivo.</p>
+
+<pre class="file" data-file="metodos.cs">using System.Reflection;
+
+Calculadora calc = new();
+Type tipo = typeof(Calculadora);
+
+foreach (MethodInfo m in tipo.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+{
+    string parametros = string.Join(", ", m.GetParameters().Select(p =&gt; $"{p.ParameterType.Name} {p.Name}"));
+    Console.WriteLine($"{m.ReturnType.Name} {m.Name}({parametros})");
+}
+
+string? escolha = "Multiplicar";
+MethodInfo? metodo = tipo.GetMethod(escolha);
+object? resultado = metodo?.Invoke(calc, [6, 7]);
+Console.WriteLine($"{escolha}(6, 7) = {resultado}");
+
+class Calculadora
+{
+    public int Somar(int a, int b) =&gt; a + b;
+    public int Multiplicar(int a, int b) =&gt; a * b;
+    public string Descrever() =&gt; "Calculadora da Ana";
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run metodos.cs
+Int32 Somar(Int32 a, Int32 b)
+Int32 Multiplicar(Int32 a, Int32 b)
+String Descrever()
+Multiplicar(6, 7) = 42</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Trecho</th><th>O que faz</th></tr>
+<tr><td><code>GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)</code></td><td>Os <code>BindingFlags</code> ("opções de busca") filtram a lista: métodos públicos, de instância (não <code>static</code>) e declarados <strong>nesta</strong> classe. Sem o <code>DeclaredOnly</code>, viriam também os herdados de <code>object</code>: <code>ToString</code>, <code>Equals</code>, <code>GetHashCode</code>, <code>GetType</code>.</td></tr>
+<tr><td><code>m.GetParameters()</code></td><td>Os parâmetros do método, cada um com nome e tipo.</td></tr>
+<tr><td><code>tipo.GetMethod(escolha)</code></td><td>Procura um método público com esse nome. Se não existir, devolve <code>null</code>.</td></tr>
+<tr><td><code>metodo?.Invoke(calc, [6, 7])</code></td><td><strong>Chama</strong> o método no objeto <code>calc</code>, com os argumentos num array de <code>object</code>. O resultado vem como <code>object?</code>. O <code>?.</code> evita o erro se o método não existir.</td></tr>
+</table>
+</div>
+
+<h3>Criar um objeto a partir do nome</h3>
+<p><code>Type.GetType("Nome")</code> procura um tipo pelo nome, e <code>Activator.CreateInstance</code> ("ativador, criar instância") faz um <code>new</code> nele:</p>
+
+<pre class="file" data-file="criar.cs">Type? tipo = Type.GetType("Caderno");
+Console.WriteLine(tipo?.Name ?? "não achei");
+object? obj = Activator.CreateInstance(tipo!);
+Console.WriteLine(obj);
+Console.WriteLine(Type.GetType("Lapis")?.Name ?? "não achei");
+class Caderno { public override string ToString() =&gt; "um caderno novo"; }
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run criar.cs
+Caderno
+um caderno novo
+não achei</pre>
+
+<p>Para um tipo que está dentro de um namespace, o nome completo é necessário: <code>Type.GetType("Loja.Caderno")</code>. Esse é o truque por trás de "plugins": o nome da classe vem de um arquivo de configuração, e o programa cria o objeto sem que o código mencione a classe.</p>
+
+<hr>
+
+<h2>4. Ler atributos: um validador de cadastro</h2>
+<p>Na aula de <a href="atributos.html">atributos</a>, você viu que uma etiqueta só faz efeito quando alguém a lê. Agora você é esse alguém. A Ana cria duas etiquetas, <code>[Obrigatorio]</code> e <code>[Faixa(min, max)]</code>, cola nas propriedades do <code>Cadastro</code>, e um <code>Validar</code> confere tudo lendo as etiquetas:</p>
+
+<pre class="file" data-file="validar.cs">using System.Reflection;
+
+Cadastro bom = new() { Nome = "Ana", Email = "ana@email.com", Idade = 29 };
+Cadastro ruim = new() { Nome = "", Email = null, Idade = 200 };
+
+Validar(bom);
+Validar(ruim);
+
+void Validar(object obj)
+{
+    Console.WriteLine($"Validando {obj.GetType().Name}...");
+    int problemas = 0;
+    foreach (PropertyInfo p in typeof(Cadastro).GetProperties())
+    {
+        object? valor = p.GetValue(obj);
+        if (p.GetCustomAttribute&lt;ObrigatorioAttribute&gt;() is not null
+            &amp;&amp; (valor is null || valor is ""))
+        {
+            Console.WriteLine($"  {p.Name}: obrigatório");
+            problemas++;
+        }
+        if (p.GetCustomAttribute&lt;FaixaAttribute&gt;() is { } faixa
+            &amp;&amp; valor is int n &amp;&amp; (n &lt; faixa.Minimo || n &gt; faixa.Maximo))
+        {
+            Console.WriteLine($"  {p.Name}: {n} fora de {faixa.Minimo} a {faixa.Maximo}");
+            problemas++;
+        }
+    }
+    Console.WriteLine(problemas == 0 ? "  tudo certo" : $"  {problemas} problema(s)");
+}
+
+[AttributeUsage(AttributeTargets.Property)]
+class ObrigatorioAttribute : Attribute { }
+
+[AttributeUsage(AttributeTargets.Property)]
+class FaixaAttribute(int minimo, int maximo) : Attribute
+{
+    public int Minimo { get; } = minimo;
+    public int Maximo { get; } = maximo;
+}
+
+class Cadastro
+{
+    [Obrigatorio] public string Nome { get; set; } = "";
+    [Obrigatorio] public string? Email { get; set; }
+    [Faixa(0, 130)] public int Idade { get; set; }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run validar.cs
+Validando Cadastro...
+  tudo certo
+Validando Cadastro...
+  Nome: obrigatório
+  Email: obrigatório
+  Idade: 200 fora de 0 a 130
+  3 problema(s)</pre>
+
+<dl class="anatomy">
+  <dt>p.GetCustomAttribute&lt;ObrigatorioAttribute&gt;()</dt><dd>"Esta propriedade tem a etiqueta <code>[Obrigatorio]</code>?" Devolve o atributo ou <code>null</code>.</dd>
+  <dt>valor is null || valor is ""</dt><dd>Obrigatório e vazio: um problema.</dd>
+  <dt>is { } faixa</dt><dd>Um <a href="pattern-matching.html">padrão de propriedade</a> vazio: "não é nulo, e chame-o de <code>faixa</code>". Assim dá para ler <code>faixa.Minimo</code> e <code>faixa.Maximo</code>.</dd>
+</dl>
+
+<p>Repare na divisão de trabalho: o <code>Cadastro</code> só <strong>declara</strong> as regras, com etiquetas, e o <code>Validar</code> as <strong>aplica</strong>. Se amanhã a Ana criar uma classe <code>Fornecedor</code>, basta etiquetar as propriedades. É exatamente assim que funcionam os <code>[Required]</code> e <code>[Range]</code> do ASP.NET.</p>
+
+<hr>
+
+<h2>5. A reflexão abre até o que é <code>private</code></h2>
+<p>Com os <code>BindingFlags</code> certos, a reflexão enxerga e altera campos <strong>privados</strong>:</p>
+
+<pre class="file" data-file="privado.cs">using System.Reflection;
+
+Conta conta = new();
+Console.WriteLine(conta);
+
+FieldInfo? campo = typeof(Conta).GetField("_saldo", BindingFlags.NonPublic | BindingFlags.Instance);
+campo?.SetValue(conta, 1_000_000m);
+Console.WriteLine(conta);
+
+class Conta
+{
+    private decimal _saldo = 50m;
+    public override string ToString() =&gt; $"Saldo: {_saldo:N2}";
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run privado.cs
+Saldo: 50,00
+Saldo: 1.000.000,00</pre>
+
+<div class="warning">
+<strong><code>private</code> não é cadeado</strong>
+<p>O <code>private</code> protege o código de <strong>erros de quem programa</strong>, não de alguém mal-intencionado: qualquer código rodando no mesmo programa pode, com reflexão, mexer no que quiser. Nunca guarde uma senha num campo <code>private</code> achando que está segura. E não use esse truque no dia a dia: ele passa por cima do <a href="encapsulamento.html">encapsulamento</a>, e o seu programa quebra quando o autor da classe renomear o campo (o nome <code>"_saldo"</code> é só um texto, o compilador não confere). O uso legítimo é em ferramentas e testes.</p>
+</div>
+
+<hr>
+
+<h2>6. O preço da reflexão</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Custo</th><th>O que acontece</th></tr>
+<tr><td><strong>Sem ajuda do compilador</strong></td><td>Os nomes são textos: <code>GetMethod("Multplicar")</code> (com erro de digitação) compila e só falha ao rodar. O <code>nameof(Calculadora.Multiplicar)</code> ajuda: ele é conferido pelo compilador.</td></tr>
+<tr><td><strong>Lentidão</strong></td><td>Procurar um método e chamá-lo por <code>Invoke</code> custa bem mais que uma chamada normal (cada argumento vira <code>object</code>, há conferências a cada chamada). Num laço de milhões de voltas, faz diferença.</td></tr>
+<tr><td><strong>Programas enxugados</strong></td><td>Ao publicar com <em>trimming</em> ou Native AOT (veja <a href="publicar.html">Publicar o Programa</a>), o que o compilador não vê sendo usado pode ser removido, e a reflexão pode não achar o que procura. Os avisos <code>IL2075</code> e <code>IL2026</code> avisam desses pontos.</td></tr>
+</table>
+</div>
+
+<div class="note">
+<strong>Por que o <code>dotnet run arquivo.cs</code> mostra o <code>IL2075</code>?</strong>
+<p>Os programas de um arquivo só do .NET 10 (<code>dotnet run arquivo.cs</code>) já vêm preparados para serem publicados com <strong>Native AOT</strong>, e por isso os analisadores de <em>trimming</em> ficam ligados. O programa roda normalmente; o aviso é sobre uma <strong>futura</strong> publicação enxugada. Se o seu programa usa reflexão de propósito e você não pretende publicá-lo assim, desligue o modo AOT com uma linha no topo do arquivo: <code>#:property PublishAot=false</code>. Conferido no laboratório: com ela, o <code>mostrar.cs</code> roda sem o aviso. Num projeto (<code>dotnet new console</code>), o AOT vem desligado e o aviso não aparece.</p>
+</div>
+
+<p>Por isso, a regra prática: <strong>use reflexão quando não existe outro jeito</strong>, como em ferramentas genéricas (mostrar, salvar, validar <strong>qualquer</strong> objeto). Se você sabe o tipo, use o tipo: <code>produto.Nome</code> é mais rápido, mais seguro e o compilador confere. Muitas bibliotecas modernas trocaram a reflexão por <strong>geradores de código</strong>, que escrevem o código "normal" na hora de compilar (o <code>System.Text.Json</code> tem um, que a aula <a href="json.html">JSON</a> menciona).</p>
+
+<hr>
+
+<h2>Qual usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Use</th></tr>
+<tr><td>A ficha de uma classe que você conhece pelo nome no código</td><td><code>typeof(Produto)</code></td></tr>
+<tr><td>Saber o tipo real de um objeto</td><td><code>obj.GetType()</code> (para só <strong>testar</strong> o tipo, prefira <a href="pattern-matching.html"><code>obj is Produto p</code></a>)</td></tr>
+<tr><td>O nome de algo, conferido pelo compilador</td><td><code>nameof(Produto.Preco)</code>, não reflexão</td></tr>
+<tr><td>Percorrer as propriedades de um objeto qualquer</td><td><code>GetProperties()</code> + <code>GetValue</code></td></tr>
+<tr><td>Chamar um método cujo nome vem de fora</td><td><code>GetMethod(nome)?.Invoke(obj, args)</code>, ou, melhor, um <code>Dictionary&lt;string, Func&lt;…&gt;&gt;</code> (veja <a href="func-action.html">Func e Action</a>)</td></tr>
+<tr><td>Regras declaradas com etiquetas</td><td>Atributos + <code>GetCustomAttribute</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<h3>O método não existe: <code>NullReferenceException</code></h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="semmetodo.cs">Calculadora calc = new();
+var metodo = typeof(Calculadora).GetMethod("Dividir");
+Console.WriteLine(metodo.Invoke(calc, [6, 0]));
+class Calculadora
+{
+    public int Somar(int a, int b) =&gt; a + b;
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run semmetodo.cs
+/home/ana/cs/semmetodo.cs(3,19): warning CS8602: Desreferência de uma referência possivelmente nula.
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/semmetodo.cs:line 3</pre>
+<p><strong>O que quer dizer:</strong> não há método <code>Dividir</code>, então o <code>GetMethod</code> devolveu <code>null</code>, e chamar <code>.Invoke</code> em <code>null</code> quebrou. O compilador até avisou (<code>CS8602</code>): o <code>GetMethod</code> devolve <code>MethodInfo?</code>, que pode ser nulo. <strong>Como consertar:</strong> confira antes: <code>if (metodo is null) { Console.WriteLine("Operação desconhecida"); return; }</code>, ou use <code>metodo?.Invoke(…)</code>. Não cale o aviso com <code>!</code> sem ter certeza de que o método existe.</p>
+</div>
+
+<div class="cenario">
+<h3>Número errado de argumentos: <code>TargetParameterCountException</code></h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="parametros.cs">Calculadora calc = new();
+var metodo = typeof(Calculadora).GetMethod("Somar")!;
+Console.WriteLine(metodo.Invoke(calc, [6]));
+class Calculadora
+{
+    public int Somar(int a, int b) =&gt; a + b;
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run parametros.cs
+Unhandled exception. System.Reflection.TargetParameterCountException: Parameter count mismatch.
+   at System.Reflection.MethodBaseInvoker.ThrowTargetParameterCountException()
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/parametros.cs:line 3</pre>
+<p><strong>O que quer dizer:</strong> "a quantidade de parâmetros não bate". <code>Somar</code> pede dois números e recebeu um. Numa chamada normal, <code>calc.Somar(6)</code> seria o erro de compilação <code>CS7036</code>; com reflexão, o compilador não confere nada, e o erro só aparece ao rodar. <strong>Como consertar:</strong> passe todos os argumentos, na ordem e com os tipos certos (confira com <code>metodo.GetParameters()</code>).</p>
+</div>
+
+<div class="cenario">
+<h3>A exceção "embrulhada": <code>TargetInvocationException</code></h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="invocar.cs">Calculadora calc = new();
+var metodo = typeof(Calculadora).GetMethod("Dividir")!;
+Console.WriteLine(metodo.Invoke(calc, [6, 0]));
+class Calculadora
+{
+    public int Dividir(int a, int b) =&gt; a / b;
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run invocar.cs
+Unhandled exception. System.Reflection.TargetInvocationException: Exception has been thrown by the target of an invocation.
+ ---&gt; System.DivideByZeroException: Attempted to divide by zero.
+   at Calculadora.Dividir(Int32 a, Int32 b) in /home/ana/cs/invocar.cs:line 6
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   --- End of inner exception stack trace ---
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   at System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/invocar.cs:line 3</pre>
+<p><strong>O que quer dizer:</strong> "o alvo da chamada lançou uma exceção". O método <code>Dividir</code> rodou e dividiu por zero; o <code>Invoke</code> pegou essa <code>DivideByZeroException</code> e a <strong>embrulhou</strong> numa <code>TargetInvocationException</code>. A exceção de verdade é a de dentro, depois do <code>---&gt;</code>: é ela que diz o problema e a linha (6). <strong>Como consertar:</strong> o problema está no método chamado, não na reflexão. Num <a href="try-catch.html"><code>try/catch</code></a>, a exceção original fica em <code>ex.InnerException</code>.</p>
+<p>No editor do guia, o rastro dessas duas exceções vem mais curto: as linhas <code>at System.Reflection…</code> de dentro do .NET não aparecem, e na <code>TargetInvocationException</code> some também a linha <code>at Calculadora.Dividir(…) … line 6</code> da exceção de dentro. O tipo das exceções, as mensagens e a linha 3 do <code>Program.&lt;Main&gt;$</code> são as mesmas. Quando precisar saber a linha exata dentro do método chamado, rode com <code>dotnet run</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Para…</th><th>Use</th><th>Devolve</th></tr>
+<tr><td>A ficha de um tipo conhecido</td><td><code>typeof(T)</code></td><td><code>Type</code></td></tr>
+<tr><td>A ficha do tipo real de um objeto</td><td><code>obj.GetType()</code></td><td><code>Type</code></td></tr>
+<tr><td>Um tipo pelo nome</td><td><code>Type.GetType("Ns.Nome")</code></td><td><code>Type?</code></td></tr>
+<tr><td>Nome, nome completo, base</td><td><code>t.Name</code>, <code>t.FullName</code>, <code>t.BaseType</code></td><td>textos / <code>Type</code></td></tr>
+<tr><td>Propriedades públicas</td><td><code>t.GetProperties()</code></td><td><code>PropertyInfo[]</code></td></tr>
+<tr><td>Ler / gravar uma propriedade</td><td><code>p.GetValue(obj)</code> / <code>p.SetValue(obj, v)</code></td><td><code>object?</code></td></tr>
+<tr><td>Métodos</td><td><code>t.GetMethods(flags)</code>, <code>t.GetMethod("Nome")</code></td><td><code>MethodInfo[]</code> / <code>MethodInfo?</code></td></tr>
+<tr><td>Chamar</td><td><code>m.Invoke(obj, [args])</code> (<code>null</code> no lugar de <code>obj</code> para <code>static</code>)</td><td><code>object?</code></td></tr>
+<tr><td>Campo (inclusive privado)</td><td><code>t.GetField("_x", BindingFlags.NonPublic | BindingFlags.Instance)</code></td><td><code>FieldInfo?</code></td></tr>
+<tr><td>Criar um objeto</td><td><code>Activator.CreateInstance(t)</code></td><td><code>object?</code></td></tr>
+<tr><td>Atributo</td><td><code>x.GetCustomAttribute&lt;A&gt;()</code></td><td><code>A?</code></td></tr>
+<tr><td>Filtros</td><td><code>BindingFlags.Public</code>, <code>NonPublic</code>, <code>Instance</code>, <code>Static</code>, <code>DeclaredOnly</code></td><td>—</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<p>1. Complete para obter a ficha do tipo de um objeto:</p>
+<div class="ex-code">Type t = produto.<input data-answer="GetType()">;</div>
+</div>
+
+<div class="exercise">
+<p>2. Que método lista as propriedades públicas de um <code>Type</code>?</p>
+<div class="ex-code">foreach (var p in t.<input data-answer="GetProperties()">)</div>
+</div>
+
+<div class="exercise">
+<p>3. Que método do <code>MethodInfo</code> chama o método?</p>
+<div class="ex-code">metodo.<input data-answer="Invoke">(calc, [6, 7]);</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. <code>object x = 42; Console.WriteLine(x.GetType().Name);</code> mostra:</p>
+<label><input type="radio" name="q4"> <code>Object</code></label>
+<label><input type="radio" name="q4"> <code>Int32</code></label>
+<label><input type="radio" name="q4"> <code>int</code></label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. <code>typeof(Calc).GetMethod("Somr")</code> (com erro de digitação) faz o quê?</p>
+<label><input type="radio" name="q5"> Não compila.</label>
+<label><input type="radio" name="q5"> Lança uma exceção na hora.</label>
+<label><input type="radio" name="q5"> Compila e devolve <code>null</code>; o erro só aparece se você usar o resultado.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Um método chamado com <code>Invoke</code> lançou <code>DivideByZeroException</code>. Que exceção chega a quem chamou o <code>Invoke</code>?</p>
+<label><input type="radio" name="q6"> <code>TargetInvocationException</code>, com a original em <code>InnerException</code>.</label>
+<label><input type="radio" name="q6"> A própria <code>DivideByZeroException</code>, sem mudança.</label>
+<label><input type="radio" name="q6"> Nenhuma: o <code>Invoke</code> devolve <code>null</code>.</label>
+</div>
+
+<div class="trycs" data-goal="out:Nome: obrigatório,out:Email: obrigatório,out:1 problema(s),src:\[\s*Obrigatorio\s*\]">
+<p class="try-task"><strong>Missão final:</strong> o validador já está pronto, mas o <code>Fornecedor</code> não tem etiquetas, então tudo passa. Cole <code>[Obrigatorio]</code> em <code>Nome</code> e em <code>Email</code> (o <code>Telefone</code> é opcional). Os dois fornecedores de teste devem dar <code>Nome: obrigatório</code> e <code>Email: obrigatório</code>, com <code>1 problema(s)</code> cada.</p>
+<pre class="script">using System.Reflection;
+
+Validar(new Fornecedor { Nome = "", Email = "papelaria@email.com" });
+Validar(new Fornecedor { Nome = "Gráfica Sol", Email = null });
+
+void Validar(Fornecedor f)
+{
+    int problemas = 0;
+    foreach (PropertyInfo p in typeof(Fornecedor).GetProperties())
+    {
+        object? valor = p.GetValue(f);
+        if (p.GetCustomAttribute&lt;ObrigatorioAttribute&gt;() is not null &amp;&amp; (valor is null || valor is ""))
+        {
+            Console.WriteLine($"{p.Name}: obrigatório");
+            problemas++;
+        }
+    }
+    Console.WriteLine(problemas == 0 ? "tudo certo" : $"{problemas} problema(s)");
+}
+
+[AttributeUsage(AttributeTargets.Property)]
+class ObrigatorioAttribute : Attribute { }
+
+class Fornecedor
+{
+    public string Nome { get; set; } = "";
+    public string? Email { get; set; }
+    public string? Telefone { get; set; }
+}
+</pre>
+<pre class="solucao">using System.Reflection;
+
+Validar(new Fornecedor { Nome = "", Email = "papelaria@email.com" });
+Validar(new Fornecedor { Nome = "Gráfica Sol", Email = null });
+
+void Validar(Fornecedor f)
+{
+    int problemas = 0;
+    foreach (PropertyInfo p in typeof(Fornecedor).GetProperties())
+    {
+        object? valor = p.GetValue(f);
+        if (p.GetCustomAttribute&lt;ObrigatorioAttribute&gt;() is not null &amp;&amp; (valor is null || valor is ""))
+        {
+            Console.WriteLine($"{p.Name}: obrigatório");
+            problemas++;
+        }
+    }
+    Console.WriteLine(problemas == 0 ? "tudo certo" : $"{problemas} problema(s)");
+}
+
+[AttributeUsage(AttributeTargets.Property)]
+class ObrigatorioAttribute : Attribute { }
+
+class Fornecedor
+{
+    [Obrigatorio] public string Nome { get; set; } = "";
+    [Obrigatorio] public string? Email { get; set; }
+    public string? Telefone { get; set; }
+}
+</pre>
+</div>
+
+<p>A solução, na máquina da Ana:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run fornecedor.cs
+Nome: obrigatório
+1 problema(s)
+Email: obrigatório
+1 problema(s)</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><strong>Reflexão</strong> é o programa lendo, enquanto roda, as fichas (metadados) dos seus tipos. A ficha é um <code>Type</code>: <code>typeof(T)</code> ou <code>obj.GetType()</code>, que sempre conta o tipo real.</li>
+  <li><code>GetProperties()</code> e <code>GetValue(obj)</code> percorrem as propriedades de qualquer objeto; <code>GetMethod("Nome")</code> e <code>Invoke(obj, args)</code> chamam um método pelo nome; <code>Activator.CreateInstance</code> cria objetos.</li>
+  <li><code>GetCustomAttribute&lt;A&gt;()</code> lê atributos: é assim que validadores, serializadores e frameworks de teste funcionam.</li>
+  <li>Os erros de reflexão só aparecem ao rodar: <code>null</code> quando o nome não existe, <code>TargetParameterCountException</code> com argumentos errados, <code>TargetInvocationException</code> embrulhando a exceção do método chamado.</li>
+  <li>Reflexão é lenta, ignora o <code>private</code> e atrapalha programas enxugados (avisos <code>IL2075</code>/<code>IL2026</code>, que o <code>dotnet run arquivo.cs</code> mostra e o editor não). Use quando não houver outro jeito; se você conhece o tipo, use o tipo.</li>
+</ul>
+
+<p>Próxima aula: <a href="regex.html">Expressões Regulares (Regex)</a>, para procurar e validar padrões dentro de textos.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
