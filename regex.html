@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Regex — Regex.IsMatch, Match, Matches, Replace, Split e grupos | Guia C#</title>
+<meta name="description" content="Expressões regulares em C# para iniciantes: os blocos \d, \w, [A-Z], +, {5}, ^ e $, strings @ para não dobrar barras (erro CS1009), Regex.IsMatch, Match e Matches, grupos numerados e com nome, Replace com $1, Split, IgnoreCase, guloso × preguiçoso, [GeneratedRegex] e a RegexParseException real, com missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Expressões Regulares (Regex)</span></h1>
+
+<p class="intro">Uma <strong>expressão regular</strong> (em inglês <em>regular expression</em>, apelidada de <strong>regex</strong>) é um texto que descreve um <strong>formato</strong>: "cinco dígitos, um hífen e mais três dígitos" é o formato de um CEP. Com ela, o C# responde perguntas como "este texto tem cara de CEP?", "onde estão os preços neste recibo?" e "troque todos os espaços repetidos por um só". Tudo isso mora na classe <code>Regex</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Os blocos de uma regex: <code>\d</code>, <code>\w</code>, <code>[A-Z]</code>, <code>+</code>, <code>{5}</code>, <code>^</code>, <code>$</code>, <code>( )</code>…</li>
+  <li>Por que em C# se escreve a regex com <code>@"…"</code> (e o erro <code>CS1009</code> sem ele).</li>
+  <li><code>Regex.IsMatch</code>, e por que ele precisa de <code>^</code> e <code>$</code> para validar o texto <strong>inteiro</strong>.</li>
+  <li><code>Match</code> e <code>Matches</code> para achar pedaços, e <strong>grupos</strong> (numerados e com nome) para separar as partes.</li>
+  <li><code>Regex.Replace</code> (com <code>$1</code>), <code>Regex.Split</code>, <code>RegexOptions.IgnoreCase</code> e o <code>[GeneratedRegex]</code>.</li>
+  <li>As armadilhas: o <code>.*</code> guloso, o <code>\d</code> que aceita algarismos árabes e a <code>RegexParseException</code>.</li>
+</ul>
+</div>
+
+<p>Esta aula usa os <a href="metodos-string.html">métodos de string</a>, os <a href="escapes.html">escapes e strings literais (<code>@</code>)</a> e o <code>foreach</code>. Os exemplos rodaram com <code>dotnet run</code> no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código</h2>
+<p>Quando a Ana olha para <code>01310-100</code>, ela reconhece um CEP sem pensar: "são 5 números, um tracinho, 3 números". Se alguém escrever <code>1310-100</code>, ela estranha: falta um número. Ela não decorou todos os CEPs do Brasil; ela conhece o <strong>molde</strong>.</p>
+<p>Uma regex é esse molde escrito numa linguagem que o computador entende. O molde do CEP fica assim:</p>
+
+<dl class="anatomy">
+  <dt>^</dt><dd>"Aqui começa o texto." Nada pode vir antes.</dd>
+  <dt>\d</dt><dd>Um dígito (de <em>digit</em>): qualquer caractere de <code>0</code> a <code>9</code>.</dd>
+  <dt>{5}</dt><dd>O item anterior, <strong>exatamente 5 vezes</strong>.</dd>
+  <dt>-</dt><dd>Um hífen de verdade. Letras e símbolos comuns representam eles mesmos.</dd>
+  <dt>\d{3}</dt><dd>Mais três dígitos.</dd>
+  <dt>$</dt><dd>"Aqui termina o texto." Nada pode vir depois.</dd>
+</dl>
+
+<p>Juntando: <code>^\d{5}-\d{3}$</code>. A regex é uma linguagem pequena e própria, que existe também no <code>grep</code> do Linux, no JavaScript, no Python e no Java. O que você aprender aqui vale em quase todo lugar, com pequenas diferenças.</p>
+
+<hr>
+
+<h2>1. A primeira regex: <code>Regex.IsMatch</code></h2>
+<p>A classe <code>Regex</code> fica em <code>System.Text.RegularExpressions</code>. O método <code>IsMatch</code> ("casa?") responde <code>true</code> ou <code>false</code>. Compare a regex <strong>sem</strong> e <strong>com</strong> <code>^</code> e <code>$</code>:</p>
+
+<pre class="file" data-file="cep.cs">using System.Text.RegularExpressions;
+
+string[] ceps = ["01310-100", "1310-100", "50030-23O", "Meu CEP é 50030-230, ok?"];
+foreach (var cep in ceps)
+{
+    bool qualquerLugar = Regex.IsMatch(cep, @"\d{5}-\d{3}");
+    bool inteiro = Regex.IsMatch(cep, @"^\d{5}-\d{3}$");
+    Console.WriteLine($"{cep,-26} contém: {qualquerLugar,-5}  é um CEP: {inteiro}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run cep.cs
+01310-100                  contém: True   é um CEP: True
+1310-100                   contém: False  é um CEP: False
+50030-23O                  contém: False  é um CEP: False
+Meu CEP é 50030-230, ok?   contém: True   é um CEP: False</pre>
+
+<dl class="anatomy">
+  <dt>using System.Text.RegularExpressions;</dt><dd>A pasta da classe <code>Regex</code>.</dd>
+  <dt>Regex.IsMatch(cep, …)</dt><dd>Primeiro o <strong>texto</strong> a examinar, depois a <strong>regex</strong>.</dd>
+  <dt>@"\d{5}-\d{3}"</dt><dd>A regex, numa <a href="escapes.html">string literal</a> (<code>@</code>): a barra <code>\</code> fica como está (seção 2).</dd>
+  <dt>{cep,-26}</dt><dd>Só formatação: alinha o texto em 26 colunas, para a tabela ficar bonita.</dd>
+</dl>
+
+<p>A última linha é a lição mais importante desta aula: <code>IsMatch</code> procura o molde <strong>em qualquer lugar</strong> do texto. "Meu CEP é 50030-230, ok?" <strong>contém</strong> um CEP, então a regex sem âncoras disse <code>True</code>. Para <strong>validar</strong> um campo (o texto inteiro tem de ser um CEP), use <code>^</code> no começo e <code>$</code> no fim. E repare no <code>50030-23O</code>: o último caractere é a letra O, não o zero, e o <code>\d</code> não deixou passar.</p>
+
+<div class="warning">
+<strong>Quem vem do Java, atenção</strong>
+<p>O <code>matches</code> do Java confere o texto inteiro sozinho. O <code>Regex.IsMatch</code> do C# <strong>não</strong>: ele faz o papel do <code>find</code>. Sem <code>^</code> e <code>$</code>, a validação deixa passar lixo antes e depois.</p>
+</div>
+
+<div class="trycs" data-goal="out:01310-100: True,out:CEP 01310-100: False,out:01310-1000: False,src:\^">
+<p class="try-task"><strong>Missão:</strong> o validador está aceitando <code>CEP 01310-100</code> e <code>01310-1000</code>, que não são CEPs. Acrescente as âncoras <code>^</code> e <code>$</code> à regex para que só o primeiro e o último sejam aceitos.</p>
+<pre class="script">using System.Text.RegularExpressions;
+
+string[] testes = ["01310-100", "CEP 01310-100", "01310-1000", "50030-230"];
+foreach (var t in testes)
+{
+    Console.WriteLine($"{t}: {Regex.IsMatch(t, @"\d{5}-\d{3}")}");
+}
+</pre>
+<pre class="solucao">using System.Text.RegularExpressions;
+
+string[] testes = ["01310-100", "CEP 01310-100", "01310-1000", "50030-230"];
+foreach (var t in testes)
+{
+    Console.WriteLine($"{t}: {Regex.IsMatch(t, @"^\d{5}-\d{3}$")}");
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Por que <code>@"…"</code>: a barra invertida</h2>
+<p>Numa string comum do C#, a barra invertida já tem um trabalho: <code>"\n"</code> é uma quebra de linha, <code>"\t"</code> é uma tabulação. Mas <code>\d</code> não é um escape que o C# conheça, e o compilador reclama:</p>
+
+<pre class="file" data-file="barra.cs">using System.Text.RegularExpressions;
+Console.WriteLine(Regex.IsMatch("123", "\d+"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run barra.cs
+/home/ana/cs/barra.cs(2,41): error CS1009: Sequência de escape não reconhecida
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Há duas saídas: dobrar a barra (<code>"\\d+"</code>: o C# transforma <code>\\</code> numa barra só, e a regex recebe <code>\d+</code>) ou usar uma <strong>string literal</strong>, com <code>@</code> na frente, em que a barra é só uma barra. Com regex, use sempre <code>@"…"</code>: fica igual ao que você vê em qualquer tutorial de regex.</p>
+
+<pre class="file" data-file="barras.cs">using System.Text.RegularExpressions;
+Console.WriteLine(Regex.IsMatch("123", "\\d+"));
+Console.WriteLine(Regex.IsMatch("123", @"\d+"));
+Console.WriteLine(Regex.IsMatch("١٢٣", @"^\d+$"));
+Console.WriteLine(Regex.IsMatch("١٢٣", @"^[0-9]+$"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run barras.cs
+True
+True
+True
+False</pre>
+
+<p>As duas primeiras linhas são a mesma regex escrita de dois jeitos. As duas últimas mostram uma surpresa: <code>١٢٣</code> são os algarismos 1, 2 e 3 do árabe, e o <code>\d</code> do .NET os aceita, porque segue o Unicode (todos os dígitos de todas as escritas). Se você vai converter o texto com <code>int.Parse</code> ou precisa <strong>só</strong> de 0 a 9 (CEP, CPF, telefone), escreva <code>[0-9]</code>.</p>
+
+<hr>
+
+<h2>3. Os blocos de uma regex</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Bloco</th><th>Casa com</th><th>Exemplo</th></tr>
+<tr><td><code>abc</code></td><td>Exatamente esses caracteres</td><td><code>R\$</code> casa com <code>R$</code> (o <code>$</code> precisa de <code>\</code>)</td></tr>
+<tr><td><code>\d</code></td><td>Um dígito (inclusive de outras escritas)</td><td><code>\d\d</code> casa com <code>42</code></td></tr>
+<tr><td><code>\w</code></td><td>Uma letra (com acento), dígito ou <code>_</code></td><td><code>\w+</code> casa com <code>feijão</code></td></tr>
+<tr><td><code>\s</code></td><td>Um espaço, tabulação ou quebra de linha</td><td><code>\s+</code> casa com <code>"   "</code></td></tr>
+<tr><td><code>.</code></td><td>Qualquer caractere, menos a quebra de linha</td><td><code>c.sa</code> casa com <code>casa</code> e <code>cosa</code></td></tr>
+<tr><td><code>[abc]</code></td><td>Um dos caracteres da lista</td><td><code>[aeiou]</code> é uma vogal</td></tr>
+<tr><td><code>[a-z]</code>, <code>[0-9]</code></td><td>Um caractere da faixa</td><td><code>[A-Z]</code> é uma maiúscula sem acento</td></tr>
+<tr><td><code>[^abc]</code></td><td>Qualquer um que <strong>não</strong> esteja na lista</td><td><code>[^0-9]</code> é um não dígito</td></tr>
+<tr><td><code>\D</code>, <code>\W</code>, <code>\S</code></td><td>O contrário de <code>\d</code>, <code>\w</code>, <code>\s</code></td><td><code>\D</code> é um não dígito</td></tr>
+<tr><td><code>+</code></td><td>O anterior, 1 ou mais vezes</td><td><code>\d+</code> casa com <code>7</code> e <code>2026</code></td></tr>
+<tr><td><code>*</code></td><td>O anterior, 0 ou mais vezes</td><td><code>a*</code> casa até com o vazio</td></tr>
+<tr><td><code>?</code></td><td>O anterior é opcional (0 ou 1 vez)</td><td><code>-?\d+</code> aceita <code>-5</code> e <code>5</code></td></tr>
+<tr><td><code>{n}</code>, <code>{n,m}</code>, <code>{n,}</code></td><td>Exatamente n; de n a m; n ou mais</td><td><code>\d{4,5}</code>: 4 ou 5 dígitos</td></tr>
+<tr><td><code>^</code> e <code>$</code></td><td>Começo e fim do texto</td><td><code>^\d+$</code>: só dígitos</td></tr>
+<tr><td><code>\b</code></td><td>Uma borda de palavra</td><td><code>\bsol\b</code> não casa dentro de <code>solta</code></td></tr>
+<tr><td><code>a|b</code></td><td>Uma coisa <strong>ou</strong> outra</td><td><code>gato|cão</code></td></tr>
+<tr><td><code>( )</code></td><td>Agrupa e <strong>captura</strong> (seção 5)</td><td><code>(ab)+</code> casa com <code>ababab</code></td></tr>
+<tr><td><code>\.</code>, <code>\(</code>, <code>\$</code>…</td><td>O símbolo de verdade</td><td><code>\.</code> é um ponto, não "qualquer caractere"</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>4. Achar pedaços: <code>Match</code> e <code>Matches</code></h2>
+<p>Validar é só metade da história. A outra metade é <strong>procurar</strong>: achar todos os preços de um recibo, todos os e-mails de um texto. <code>Regex.Match</code> devolve o <strong>primeiro</strong> pedaço encontrado; <code>Regex.Matches</code> devolve <strong>todos</strong>.</p>
+
+<pre class="file" data-file="recibo.cs">using System.Text.RegularExpressions;
+
+string recibo = "Caderno R$ 15,90; caneta R$ 2,50 (x3); mochila R$ 129,00";
+
+MatchCollection precos = Regex.Matches(recibo, @"R\$ \d+,\d{2}");
+Console.WriteLine($"Achei {precos.Count} preços:");
+foreach (Match m in precos)
+{
+    Console.WriteLine($"  {m.Value} (na posição {m.Index})");
+}
+
+Match primeiro = Regex.Match(recibo, @"\d+,\d{2}");
+Console.WriteLine($"Primeiro número: {primeiro.Value}");
+Match nada = Regex.Match(recibo, @"US\$");
+Console.WriteLine($"Achou dólar? {nada.Success}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run recibo.cs
+Achei 3 preços:
+  R$ 15,90 (na posição 8)
+  R$ 2,50 (na posição 25)
+  R$ 129,00 (na posição 47)
+Primeiro número: 15,90
+Achou dólar? False</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Trecho</th><th>O que é</th></tr>
+<tr><td><code>R\$ \d+,\d{2}</code></td><td>"R", um cifrão de verdade (<code>\$</code>, porque <code>$</code> sozinho é "fim do texto"), um espaço, um ou mais dígitos, uma vírgula e dois dígitos.</td></tr>
+<tr><td><code>Regex.Matches(…)</code></td><td>Uma <code>MatchCollection</code>: a coleção de todos os achados, que se percorre com <code>foreach</code>.</td></tr>
+<tr><td><code>m.Value</code></td><td>O pedaço de texto encontrado.</td></tr>
+<tr><td><code>m.Index</code></td><td>Onde ele começa (contando do 0, como num array).</td></tr>
+<tr><td><code>Regex.Match(…)</code></td><td>Só o primeiro achado, um <code>Match</code>.</td></tr>
+<tr><td><code>nada.Success</code></td><td>Quando não acha nada, o <code>Match</code> <strong>não</strong> é <code>null</code>: ele vem com <code>Success</code> valendo <code>false</code> e <code>Value</code> vazio.</td></tr>
+</table>
+</div>
+
+<div class="trycs" data-goal="out:Total de itens: 26,src:Matches\s*\(">
+<p class="try-task"><strong>Missão:</strong> o pedido chegou como texto. Use <code>Regex.Matches</code> com <code>@"\d+"</code> para achar todos os números, some-os com <code>int.Parse(m.Value)</code> e mostre <code>Total de itens: 26</code>.</p>
+<pre class="script">using System.Text.RegularExpressions;
+
+string pedido = "3 cadernos, 12 canetas, 1 mochila e 10 borrachas";
+int total = 0;
+// percorra os números do pedido e some
+Console.WriteLine($"Total de itens: {total}");
+</pre>
+<pre class="solucao">using System.Text.RegularExpressions;
+
+string pedido = "3 cadernos, 12 canetas, 1 mochila e 10 borrachas";
+int total = 0;
+foreach (Match m in Regex.Matches(pedido, @"\d+"))
+{
+    total += int.Parse(m.Value);
+}
+Console.WriteLine($"Total de itens: {total}");
+</pre>
+</div>
+
+<hr>
+
+<h2>5. Grupos: separar as partes</h2>
+<p>Os parênteses <code>( )</code> fazem duas coisas: agrupam (como na matemática) e <strong>capturam</strong> o pedaço que casou lá dentro, para você usar depois. Num telefone <code>(81) 99999-0001</code>, dá para pegar o DDD separado do número:</p>
+
+<pre class="file" data-file="telefones.cs">using System.Text.RegularExpressions;
+
+string agenda = "Ana (81) 99999-0001, Bruno (11) 98888-0002, Carla 3333-4444";
+
+foreach (Match m in Regex.Matches(agenda, @"\((\d{2})\) (\d{4,5})-(\d{4})"))
+{
+    Console.WriteLine($"Completo: {m.Value} | DDD: {m.Groups[1].Value} | número: {m.Groups[2].Value}-{m.Groups[3].Value}");
+}
+
+foreach (Match m in Regex.Matches(agenda, @"(?&lt;nome&gt;[A-Z][a-z]+) \((?&lt;ddd&gt;\d{2})\)"))
+{
+    Console.WriteLine($"{m.Groups["nome"].Value} mora no DDD {m.Groups["ddd"].Value}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run telefones.cs
+Completo: (81) 99999-0001 | DDD: 81 | número: 99999-0001
+Completo: (11) 98888-0002 | DDD: 11 | número: 98888-0002
+Ana mora no DDD 81
+Bruno mora no DDD 11</pre>
+
+<dl class="anatomy">
+  <dt>\(</dt><dd>Um parêntese <strong>de verdade</strong>, o do telefone (com barra, porque <code>(</code> sozinho abre um grupo).</dd>
+  <dt>(\d{2})</dt><dd>O <strong>grupo 1</strong>: dois dígitos, o DDD.</dd>
+  <dt>\) </dt><dd>O parêntese de verdade que fecha, e um espaço.</dd>
+  <dt>(\d{4,5})</dt><dd>O grupo 2: 4 ou 5 dígitos.</dd>
+  <dt>-(\d{4})</dt><dd>Um hífen e o grupo 3.</dd>
+  <dt>(?&lt;ddd&gt;\d{2})</dt><dd>Um <strong>grupo com nome</strong>: o mesmo que um grupo numerado, mas lido com <code>m.Groups["ddd"]</code>, bem mais fácil de entender depois.</dd>
+</dl>
+
+<p>Os grupos são contados pelos parênteses que <strong>abrem</strong>, da esquerda para a direita. O <code>m.Groups[0]</code> é sempre o achado inteiro (o mesmo que <code>m.Value</code>). A Carla não apareceu: o telefone dela não tem DDD entre parênteses, então o molde não casou.</p>
+
+<hr>
+
+<h2>6. Trocar e dividir: <code>Replace</code> e <code>Split</code></h2>
+
+<pre class="file" data-file="trocar.cs">using System.Text.RegularExpressions;
+
+string bagunca = "Lista   de    compras:  arroz,feijão ,  café";
+Console.WriteLine(Regex.Replace(bagunca, @"\s+", " "));
+
+string[] itens = Regex.Split("arroz,feijão ,  café;açúcar", @"\s*[,;]\s*");
+Console.WriteLine(string.Join(" | ", itens));
+
+string data = "Entrega em 25/12/2026 e troca até 10/01/2027.";
+Console.WriteLine(Regex.Replace(data, @"(\d{2})/(\d{2})/(\d{4})", "$3-$2-$1"));
+
+string cpf = "CPF 123.456.789-09";
+Console.WriteLine(Regex.Replace(cpf, @"\d{3}\.\d{3}\.(\d{3})-(\d{2})", "***.***.$1-$2"));
+
+Console.WriteLine(Regex.Replace("ana maria silva", @"\b[a-z]", m =&gt; m.Value.ToUpper()));
+
+Console.WriteLine(Regex.IsMatch("CAFÉ", "café", RegexOptions.IgnoreCase));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run trocar.cs
+Lista de compras: arroz,feijão , café
+arroz | feijão | café | açúcar
+Entrega em 2026-12-25 e troca até 2027-01-10.
+CPF ***.***.789-09
+Ana Maria Silva
+True</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que faz</th></tr>
+<tr><td><code>Regex.Replace(bagunca, @"\s+", " ")</code></td><td>Troca cada sequência de espaços por <strong>um</strong> espaço. O <code>string.Replace</code> comum não sabe fazer isso, porque só troca um texto fixo.</td></tr>
+<tr><td><code>Regex.Split(…, @"\s*[,;]\s*")</code></td><td>Divide nas vírgulas <strong>ou</strong> pontos e vírgulas, engolindo os espaços em volta.</td></tr>
+<tr><td><code>"$3-$2-$1"</code></td><td>No texto de troca, <code>$1</code>, <code>$2</code>, <code>$3</code> são os grupos. A data brasileira virou o formato ano-mês-dia. (Com grupos com nome: <code>${ano}</code>.)</td></tr>
+<tr><td><code>"***.***.$1-$2"</code></td><td>Esconde o começo do CPF e mantém o final: só o formato, não confere se o CPF é válido.</td></tr>
+<tr><td><code>m =&gt; m.Value.ToUpper()</code></td><td>No lugar do texto de troca, uma <a href="lambdas.html">lambda</a> que recebe cada achado e devolve o que pôr no lugar. Aqui, a primeira letra de cada palavra em maiúscula.</td></tr>
+<tr><td><code>RegexOptions.IgnoreCase</code></td><td>Ignora maiúsculas e minúsculas: <code>café</code> casa com <code>CAFÉ</code>.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>7. Reutilizar a regex: o objeto <code>Regex</code> e o <code>[GeneratedRegex]</code></h2>
+<p>Os métodos estáticos (<code>Regex.IsMatch(texto, molde)</code>) são práticos: o .NET guarda as últimas regex usadas e não as reprocessa toda vez. Quando a mesma regex é usada muitas vezes, o costume é criá-la uma vez só e guardar:</p>
+
+<pre class="file" data-file="trecho">static readonly Regex Cep = new(@"^\d{5}-\d{3}$");
+// depois: Cep.IsMatch(texto)
+</pre>
+
+<p>Desde o .NET 7, existe um jeito ainda melhor: o atributo <code>[GeneratedRegex]</code>. Um <strong>gerador de código</strong> lê a regex na hora de compilar e escreve um código C# especializado para ela (mais rápido, e um erro na regex vira erro de compilação). Desde o C# 13 ele também funciona em <strong>propriedades</strong> <code>partial</code>:</p>
+
+<pre class="file" data-file="gerada.cs">using System.Text.RegularExpressions;
+
+string[] testes = ["01310-100", "abc"];
+foreach (var t in testes)
+    Console.WriteLine($"{t}: {Validador.Cep.IsMatch(t)} {Validador.CepAntigo().IsMatch(t)}");
+
+static partial class Validador
+{
+    [GeneratedRegex(@"^\d{5}-\d{3}$")]
+    public static partial Regex Cep { get; }
+
+    [GeneratedRegex(@"^\d{5}-\d{3}$")]
+    public static partial Regex CepAntigo();
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run gerada.cs
+01310-100: True True
+abc: False False</pre>
+
+<p>Você só escreve a "metade de cima" (<code>partial</code>, sem corpo); o gerador escreve a outra metade, com a regex já transformada em código. A forma com método (<code>CepAntigo()</code>) é a do .NET 7 e 8, e você vai vê-la muito.</p>
+
+<div class="warning">
+<strong>O <code>[GeneratedRegex]</code> não roda no editor do guia</strong>
+<p>O editor desta página usa o compilador C# de verdade, mas <strong>não roda geradores de código</strong>. Lá, o <code>gerada.cs</code> não compila: a "metade de baixo" nunca é escrita, e aparecem os erros <code>CS9248: A propriedade parcial "Validador.Cep" precisa ter uma parte de implementação</code> e <code>CS8795</code> para o método. No <code>dotnet run</code> e em projetos, funciona normalmente. Por isso os exercícios desta página usam os métodos estáticos.</p>
+</div>
+
+<hr>
+
+<h2>Qual usar?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Use</th></tr>
+<tr><td>Saber se o texto contém um texto fixo</td><td><code>texto.Contains("x")</code>, sem regex</td></tr>
+<tr><td>Validar o formato de um campo inteiro</td><td><code>Regex.IsMatch(texto, @"^…$")</code></td></tr>
+<tr><td>Achar o primeiro pedaço</td><td><code>Regex.Match</code> + <code>.Success</code></td></tr>
+<tr><td>Achar todos os pedaços</td><td><code>Regex.Matches</code></td></tr>
+<tr><td>Separar as partes de cada achado</td><td>Grupos <code>( )</code>, de preferência com nome <code>(?&lt;nome&gt;…)</code></td></tr>
+<tr><td>Trocar um padrão</td><td><code>Regex.Replace</code> (com <code>$1</code> ou uma lambda)</td></tr>
+<tr><td>Dividir num separador variável</td><td><code>Regex.Split</code> (separador fixo: <code>texto.Split(',')</code>)</td></tr>
+<tr><td>A mesma regex muitas vezes, num projeto</td><td><code>[GeneratedRegex]</code></td></tr>
+<tr><td>Validar um CPF ou um e-mail <strong>de verdade</strong></td><td>Regex só para o formato; os dígitos verificadores do CPF são uma conta, e o e-mail só se confirma enviando uma mensagem</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<h3><code>error CS1009</code>: a barra numa string comum</h3>
+<p>Escrever <code>"\d+"</code> sem <code>@</code> dá <code>error CS1009: Sequência de escape não reconhecida</code> (seção 2). <strong>Como consertar:</strong> <code>@"\d+"</code>.</p>
+</div>
+
+<div class="cenario">
+<h3>Regex quebrada: <code>RegexParseException</code></h3>
+<div class="warning"><strong>Este código tem um erro de propósito.</strong></div>
+<pre class="file" data-file="quebrada.cs">using System.Text.RegularExpressions;
+Console.WriteLine(Regex.IsMatch("(81) 9999", @"(\d{2}"));
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run quebrada.cs
+Unhandled exception. System.Text.RegularExpressions.RegexParseException: Invalid pattern '(\d{2}' at offset 6. Not enough )'s.
+   at System.Text.RegularExpressions.RegexParser.ScanRegex()
+   at System.Text.RegularExpressions.RegexParser.Parse(String pattern, RegexOptions options, CultureInfo culture)
+   at System.Text.RegularExpressions.Regex..ctor(String pattern, CultureInfo culture)
+   at System.Text.RegularExpressions.RegexCache.GetOrAdd(String pattern)
+   at System.Text.RegularExpressions.Regex.IsMatch(String input, String pattern)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/quebrada.cs:line 2</pre>
+<p><strong>O que quer dizer:</strong> "regex inválida na posição 6: faltam <code>)</code>". O programa compilou (para o C#, a regex é só um texto), e o erro apareceu ao rodar. O <code>(</code> abriu um grupo que nunca foi fechado; a intenção era um parêntese de verdade. <strong>Como consertar:</strong> <code>@"\(\d{2}\)"</code>. A <code>RegexParseException</code> é um tipo de <code>ArgumentException</code>; se a regex vem do usuário, use <a href="try-catch.html"><code>try/catch</code></a>. (Com <code>[GeneratedRegex]</code>, no <code>dotnet</code>, o erro aparece já na compilação: <code>error SYSLIB1042: O regex especificado é inválido.</code>)</p>
+</div>
+
+<div class="cenario">
+<h3>O <code>.*</code> guloso pegou demais</h3>
+<pre class="file" data-file="guloso.cs">using System.Text.RegularExpressions;
+string html = "&lt;b&gt;Ana&lt;/b&gt; e &lt;b&gt;Bruno&lt;/b&gt;";
+Console.WriteLine(Regex.Match(html, "&lt;b&gt;.*&lt;/b&gt;").Value);
+Console.WriteLine(Regex.Match(html, "&lt;b&gt;.*?&lt;/b&gt;").Value);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run guloso.cs
+&lt;b&gt;Ana&lt;/b&gt; e &lt;b&gt;Bruno&lt;/b&gt;
+&lt;b&gt;Ana&lt;/b&gt;</pre>
+<p><strong>O que quer dizer:</strong> a Ana queria só o primeiro nome em negrito, mas o <code>.*</code> é <strong>guloso</strong>: pega o máximo possível e só para no <strong>último</strong> <code>&lt;/b&gt;</code>. <strong>Como consertar:</strong> o <code>?</code> depois do <code>*</code> (ou do <code>+</code>) o torna <strong>preguiçoso</strong>: <code>.*?</code> pega o mínimo e para no primeiro <code>&lt;/b&gt;</code>. (Para HTML de verdade, use uma biblioteca de HTML; regex serve para casos simples.)</p>
+</div>
+
+<div class="cenario">
+<h3>A validação deixou passar lixo</h3>
+<p><code>Regex.IsMatch("CEP 01310-100", @"\d{5}-\d{3}")</code> deu <code>True</code>. <strong>O que quer dizer:</strong> sem âncoras, o <code>IsMatch</code> procura em qualquer lugar (seção 1). <strong>Como consertar:</strong> <code>@"^\d{5}-\d{3}$"</code>. E lembre do <code>\d</code> que aceita <code>١٢٣</code>: para "só 0 a 9", use <code>[0-9]</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>Exemplo</th><th>Devolve</th></tr>
+<tr><td><code>Regex.IsMatch</code></td><td><code>Regex.IsMatch(t, @"^\d+$")</code></td><td><code>bool</code></td></tr>
+<tr><td><code>Regex.Match</code></td><td><code>Regex.Match(t, @"\d+")</code></td><td><code>Match</code> (<code>.Success</code>, <code>.Value</code>, <code>.Index</code>, <code>.Groups</code>)</td></tr>
+<tr><td><code>Regex.Matches</code></td><td><code>foreach (Match m in Regex.Matches(t, @"\d+"))</code></td><td><code>MatchCollection</code></td></tr>
+<tr><td><code>Regex.Replace</code></td><td><code>Regex.Replace(t, @"(\d+)", "[$1]")</code></td><td><code>string</code></td></tr>
+<tr><td><code>Regex.Replace</code> com lambda</td><td><code>Regex.Replace(t, @"\w+", m =&gt; m.Value.ToUpper())</code></td><td><code>string</code></td></tr>
+<tr><td><code>Regex.Split</code></td><td><code>Regex.Split(t, @"\s*,\s*")</code></td><td><code>string[]</code></td></tr>
+<tr><td>Opções</td><td><code>RegexOptions.IgnoreCase</code>, <code>Multiline</code> (<code>^</code>/<code>$</code> por linha)</td><td>—</td></tr>
+<tr><td>Grupo numerado / com nome</td><td><code>m.Groups[1].Value</code> / <code>m.Groups["ddd"].Value</code></td><td><code>string</code></td></tr>
+<tr><td>Objeto reutilizável</td><td><code>static readonly Regex R = new(@"…");</code></td><td><code>Regex</code></td></tr>
+<tr><td>Gerada na compilação</td><td><code>[GeneratedRegex(@"…")] static partial Regex R { get; }</code></td><td><code>Regex</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<p>1. Complete a regex que aceita <strong>só</strong> um texto de 3 dígitos (nada antes, nada depois):</p>
+<div class="ex-code">Regex.IsMatch(t, @"<input data-answer="^\d{3}$|^[0-9]{3}$">")</div>
+</div>
+
+<div class="exercise">
+<p>2. No texto de troca do <code>Regex.Replace</code>, como se escreve "o grupo 2"?</p>
+<div class="ex-code">Resposta: <input data-answer="$2"></div>
+</div>
+
+<div class="exercise">
+<p>3. Que caractere se põe antes das aspas para a barra <code>\</code> não ser um escape do C#?</p>
+<div class="ex-code">Regex.IsMatch(t, <input data-answer="@">"\d+")</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. <code>Regex.IsMatch("abc123xyz", @"\d+")</code> dá:</p>
+<label><input type="radio" name="q4"> <code>False</code>, porque o texto tem letras.</label>
+<label><input type="radio" name="q4"> <code>True</code>, porque <code>IsMatch</code> procura em qualquer lugar do texto.</label>
+<label><input type="radio" name="q4"> Erro de compilação.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Em <code>"&lt;i&gt;a&lt;/i&gt; e &lt;i&gt;b&lt;/i&gt;"</code>, qual regex pega só <code>&lt;i&gt;a&lt;/i&gt;</code>?</p>
+<label><input type="radio" name="q5"> <code>&lt;i&gt;.*&lt;/i&gt;</code></label>
+<label><input type="radio" name="q5"> <code>&lt;i&gt;.+&lt;/i&gt;</code></label>
+<label><input type="radio" name="q5"> <code>&lt;i&gt;.*?&lt;/i&gt;</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. <code>Regex.Match(texto, "x")</code> não achou nada. O que ele devolve?</p>
+<label><input type="radio" name="q6"> Um <code>Match</code> com <code>Success</code> igual a <code>false</code>.</label>
+<label><input type="radio" name="q6"> <code>null</code>.</label>
+<label><input type="radio" name="q6"> Lança uma exceção.</label>
+</div>
+
+<div class="trycs" data-goal="out:Ana (81) ****-0001\, Bruno (11) ****-0002\, Carla (21) ****-4444,src:Regex\.Replace">
+<p class="try-task"><strong>Missão final:</strong> antes de mostrar a agenda na tela da loja, a Ana quer esconder o meio dos telefones, mantendo o DDD e os 4 últimos dígitos: <code>(81) ****-0001</code>. Use <code>Regex.Replace</code> com dois grupos, um para o DDD e outro para o final, e <code>$1</code> e <code>$2</code> no texto de troca.</p>
+<pre class="script">using System.Text.RegularExpressions;
+
+string agenda = "Ana (81) 99999-0001, Bruno (11) 98888-0002, Carla (21) 3333-4444";
+string protegida = agenda; // troque por um Regex.Replace
+Console.WriteLine(protegida);
+</pre>
+<pre class="solucao">using System.Text.RegularExpressions;
+
+string agenda = "Ana (81) 99999-0001, Bruno (11) 98888-0002, Carla (21) 3333-4444";
+string protegida = Regex.Replace(agenda, @"\((\d{2})\) \d{4,5}-(\d{4})", "($1) ****-$2");
+Console.WriteLine(protegida);
+</pre>
+</div>
+
+<p>A solução, na máquina da Ana. O <code>\d{4,5}</code> pegou tanto os celulares (5 dígitos) quanto o fixo da Carla (4):</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run mascara.cs
+Ana (81) ****-0001, Bruno (11) ****-0002, Carla (21) ****-4444</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma <strong>regex</strong> é um molde de texto: <code>\d</code> dígito, <code>\w</code> letra, <code>\s</code> espaço, <code>[a-z]</code> faixa, <code>+ * ? {n,m}</code> repetições, <code>^ $</code> começo e fim, <code>( )</code> grupos, <code>\.</code> o símbolo de verdade.</li>
+  <li>Em C#, escreva a regex com <code>@"…"</code> (sem ele, <code>"\d"</code> dá <code>CS1009</code>) e use as classes de <code>System.Text.RegularExpressions</code>.</li>
+  <li><code>Regex.IsMatch</code> procura em <strong>qualquer lugar</strong>: para validar o texto inteiro, use <code>^…$</code>. Para só 0 a 9, <code>[0-9]</code> (o <code>\d</code> aceita dígitos de outras escritas).</li>
+  <li><code>Match</code> (primeiro, com <code>Success</code>) e <code>Matches</code> (todos) acham pedaços; <code>Groups[1]</code> ou <code>Groups["nome"]</code> separam as partes.</li>
+  <li><code>Regex.Replace</code> troca (com <code>$1</code> ou uma lambda) e <code>Regex.Split</code> divide. <code>.*</code> é guloso; <code>.*?</code> é preguiçoso.</li>
+  <li>Regex errada é <code>RegexParseException</code> ao rodar. <code>[GeneratedRegex]</code> transforma a regex em código na compilação (no <code>dotnet</code>; o editor do guia não roda geradores).</li>
+</ul>
+
+<p>Próxima aula: <a href="span.html">Span&lt;T&gt;</a>, para olhar pedaços de arrays e textos sem copiar nada.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
