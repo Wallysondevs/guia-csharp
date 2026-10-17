@@ -96,7 +96,7 @@ async function rodar(m) {
   filaEntradas = (m.entradas || []).slice();
   interativo = !!m.interativo;
   try {
-    const codigo = await ex.Executor.Rodar(new Uint8Array(m.dll), new Uint8Array(m.pdb), m.args || [], m.pasta, m.nomes || [], m.conteudos || [], m.stdin === undefined ? null : m.stdin, m.arquivoUnico || "");
+    const codigo = await ex.Executor.Rodar(new Uint8Array(m.dll), new Uint8Array(m.pdb), m.args || [], m.pasta, m.nomes || [], m.conteudos || [], m.stdin === undefined ? null : m.stdin, m.arquivoUnico || "", m.chaves || "");
     enviar({ ev: "fim", id: m.id, exit: codigo });
   } catch (e) {
     const so = estouroDePilha(erroNativo, inicio);

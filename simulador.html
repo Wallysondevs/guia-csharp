@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# O Editor do Guia — como usar as caixas Experimente | Guia C#</title>
+<meta name="description" content="Como usar o editor Experimente do Guia C#: Rodar, o download do compilador na primeira vez, erros e avisos do compilador, entrada pelo teclado (Console.ReadLine), argumentos, abas, missões, Restaurar e Ver solução. O que funciona igual ao dotnet do seu computador e o que é diferente no navegador.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">O Editor do Guia</span></h1>
+
+<p class="intro">Em toda aula há caixas <strong>Experimente</strong>: um pequeno editor de código com um botão <strong>Rodar</strong>. Elas não são uma imitação: cada clique <strong>compila de verdade</strong> o seu código com o compilador C# oficial, o mesmo que o comando <code>dotnet</code> usa, e roda o programa no <strong>.NET 10</strong>, tudo dentro do navegador. Nesta aula você vai conhecer cada parte da caixa, entender o que aparece no terminal dela, digitar a entrada do programa, usar as abas e as missões, e saber em que o editor é diferente do <code>dotnet</code> instalado no seu computador.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>As partes da caixa: abas, editor, Argumentos, Rodar, terminal, Restaurar e Ver solução.</li>
+  <li>O que acontece na primeira vez que você clica em Rodar (o download do compilador).</li>
+  <li>Como ler os erros e avisos do compilador na caixa.</li>
+  <li>Como o programa recebe o que você digita (<code>Console.ReadLine</code>), os argumentos e os arquivos das abas.</li>
+  <li>Como funcionam as missões.</li>
+  <li>O que funciona igual e o que é diferente no editor e no seu computador.</li>
+</ul>
+</div>
+
+<hr>
+
+<h2>A ideia: um laboratório portátil</h2>
+<p>Na escola, o laboratório de ciências tem tudo pronto: você chega, faz o experimento e vai embora. O editor do guia é assim. O compilador fica guardado <strong>dentro da página</strong>, e o programa roda num "computador de mentirinha" que só existe enquanto a aba está aberta, com a pasta da Ana (<code>/home/ana/cs</code>). Nada do que você fizer ali toca no seu computador. Se algo der muito errado, recarregue a página.</p>
+
+<p>Por baixo, são duas peças, as mesmas que você instala com o .NET SDK (veja <a href="dotnet.html">.NET: SDK, Runtime e CLR</a>):</p>
+<ul>
+  <li>o <strong>Roslyn</strong>, o compilador do C#: ele lê o seu código, mostra os erros e avisos e gera o programa (um arquivo <code>.dll</code>);</li>
+  <li>o <strong>runtime do .NET 10</strong>, que roda esse programa. No navegador, ele funciona em <strong>WebAssembly</strong>, um formato de programa que os navegadores executam quase tão rápido quanto um programa comum.</li>
+</ul>
+<p>O compilador do editor é <strong>o mesmo</strong> do <code>dotnet</code> 10.0.112 que a Ana usa no Ubuntu, com as mesmas opções do <code>dotnet run arquivo.cs</code>: C# 14, referências anuláveis ligadas (<code>Nullable</code>), os <code>using</code> automáticos (<code>System</code>, <code>System.Collections.Generic</code>, <code>System.IO</code>, <code>System.Linq</code>…) e as mensagens em português.</p>
+
+<hr>
+
+<h2>As partes da caixa</h2>
+<p>Rode esta caixa e acompanhe a explicação abaixo dela:</p>
+
+<div class="trycs">
+<pre class="script">Console.WriteLine("Olá, mundo!");
+Console.WriteLine($"2 + 3 = {2 + 3}");
+Console.WriteLine(3.5);
+</pre>
+</div>
+
+<dl class="anatomy">
+  <dt>Aba</dt><dd>O nome do arquivo que você está editando, como <code>Program.cs</code>. Algumas caixas têm várias abas (veja <a href="#abas">Várias abas</a>).</dd>
+  <dt>Restaurar</dt><dd>Volta ao código original da aula, apagando as suas mudanças. Use sem medo: o original nunca se perde.</dd>
+  <dt>Editor</dt><dd>Clique e digite. Os números à esquerda são os <strong>números das linhas</strong>, os mesmos que as mensagens de erro citam.</dd>
+  <dt>Argumentos</dt><dd>Palavras que o programa recebe em <code>args</code>, como no terminal (veja <a href="#args">Argumentos</a>). Quase sempre fica vazio.</dd>
+  <dt>▶ Rodar</dt><dd>Compila e roda. Enquanto o programa roda, o botão vira <strong>■ Parar</strong>.</dd>
+  <dt>Terminal</dt><dd>Aparece depois de rodar, com o título <code>Terminal — ana@notebook: ~/cs</code>: o comando, as mensagens do compilador, a saída do programa e o código de saída.</dd>
+</dl>
+
+<p>Depois de rodar, o terminal da caixa mostra:</p>
+
+<pre class="file" data-file="o que o editor mostra">ana@notebook:~/cs$ dotnet run Program.cs
+Olá, mundo!
+2 + 3 = 5
+3,5
+[código de saída: 0]</pre>
+
+<p>É o que a Ana veria no terminal dela com <code>dotnet run Program.cs</code> (a aula <a href="dotnet-run.html">Rodar com dotnet run</a> explica esse comando). Repare no <code>3,5</code> com vírgula: o editor usa a <strong>cultura pt-BR</strong>, como o computador da Ana (a aula <a href="cultura.html">Cultura</a> mostra como mudar). O <code>[código de saída: 0]</code> é o número que o programa devolve ao terminar: <code>0</code> quer dizer "terminou bem". No terminal de verdade ele fica escondido, e você o vê com <code>echo $?</code>; o editor mostra sempre.</p>
+
+<h3>A primeira vez: o download do compilador</h3>
+<p>Na <strong>primeira</strong> vez que você clica em Rodar, o navegador baixa o compilador e o .NET: cerca de <strong>17 MB</strong>. Aparece uma barra com a mensagem <code>Baixando o compilador C# e o .NET (≈ 17 MB, só na primeira vez)…</code> e a porcentagem, depois <code>Preparando o compilador…</code> (alguns segundos). Depois disso:</p>
+<ul>
+  <li>o navegador guarda tudo: nas outras caixas, nas outras aulas e nas próximas visitas não há download;</li>
+  <li>cada compilação leva uma fração de segundo (a primeira de cada página, um pouco mais);</li>
+  <li>se a internet cair no meio do download, aparece <code>Não consegui carregar o compilador: …</code> seguido de "Confira a internet e clique em Rodar de novo".</li>
+</ul>
+<p>Se você usa o celular com plano de dados, prefira o Wi-Fi na primeira vez.</p>
+
+<h3>Atalhos do editor</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tecla</th><th>O que faz</th></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd> (Mac: <kbd>Cmd</kbd>+<kbd>Enter</kbd>)</td><td>Roda o código, sem tirar a mão do teclado.</td></tr>
+<tr><td><kbd>Tab</kbd></td><td>Insere o recuo (4 espaços). Com várias linhas selecionadas, recua todas.</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>Tab</kbd></td><td>Tira um nível de recuo.</td></tr>
+<tr><td><kbd>Enter</kbd></td><td>Pula a linha mantendo o recuo; depois de <code>{</code>, <code>(</code> ou <code>[</code>, recua mais um nível. Um <code>}</code> sozinho na linha volta um nível.</td></tr>
+<tr><td><kbd>Esc</kbd></td><td>Sai do editor (para quem navega pelo teclado: depois, <kbd>Tab</kbd> vai para o próximo botão).</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Erros e avisos do compilador</h2>
+<p>Quando o compilador reclama, as mensagens aparecem no terminal da caixa e o programa <strong>não roda</strong> (não existe programa para rodar). A caixa abaixo tem um erro:</p>
+
+<div class="trycs" data-file="erro.cs" data-goal="out:Idade: 29">
+<p class="try-task"><strong>Missão:</strong> rode e leia a mensagem: ela diz a linha e a coluna do problema. Conserte (um número não tem aspas) e rode de novo.</p>
+<pre class="script">int idade = "29";
+Console.WriteLine($"Idade: {idade}");
+</pre>
+<pre class="solucao">int idade = 29;
+Console.WriteLine($"Idade: {idade}");
+</pre>
+</div>
+
+<pre class="file" data-file="o que o editor mostra">ana@notebook:~/cs$ dotnet run erro.cs
+/home/ana/cs/erro.cs(1,13): error CS0029: Não é possível converter implicitamente tipo "string" em "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.
+[código de saída: 1]</pre>
+
+<p>A mensagem diz: no arquivo <code>/home/ana/cs/erro.cs</code>, linha <code>1</code>, coluna <code>13</code>, um <code>error</code> ("erro") de código <code>CS0029</code>: não dá para guardar um texto (<code>string</code>) numa variável de número inteiro (<code>int</code>). A última linha avisa que o "build" (a compilação) falhou, e o <code>[código de saída: 1]</code> diz que deu errado: nada foi rodado. A aula <a href="erros-compilacao.html">Lendo Erros do Compilador</a> ensina a ler essas mensagens.</p>
+
+<div class="tip"><strong>Dica:</strong> o código <code>CS0029</code> é o mesmo em qualquer língua. Para pesquisar na internet, use o código ou a mensagem em inglês (<code>Cannot implicitly convert type 'string' to 'int'</code>).</div>
+
+<p><strong>Avisos</strong> (<code>warning</code>) são diferentes: o programa compila e roda, mas o compilador desconfia de algo. O aviso aparece antes da saída:</p>
+
+<pre class="file" data-file="o que o editor mostra">ana@notebook:~/cs$ dotnet run Program.cs
+/home/ana/cs/Program.cs(1,5): warning CS0168: A variável "y" está declarada, mas nunca é usada
+1,5
+[código de saída: 0]</pre>
+
+<p>A variável <code>y</code> foi criada e nunca usada: não é erro, mas costuma ser esquecimento. A aula <a href="avisos.html">Avisos do Compilador</a> mostra os mais comuns.</p>
+
+<hr>
+
+<h2>A entrada: o programa pergunta, você responde</h2>
+<p>Quando um programa lê o teclado com <code>Console.ReadLine()</code> (aula <a href="readline.html">Ler do Teclado</a>), aparece um <strong>campo para você digitar</strong>, dentro do próprio terminal, logo depois da pergunta. Digite e tecle <kbd>Enter</kbd>. Rode e experimente:</p>
+
+<div class="trycs">
+<pre class="script">Console.Write("Como você se chama? ");
+string? nome = Console.ReadLine();
+Console.Write("Quantos anos você tem? ");
+if (int.TryParse(Console.ReadLine(), out int idade))
+    Console.WriteLine($"Olá, {nome}! Daqui a 10 anos você terá {idade + 10}.");
+else
+    Console.WriteLine("Isso não é um número.");
+</pre>
+</div>
+
+<pre class="file" data-file="o que o editor mostra (digitando Ana e 29)">ana@notebook:~/cs$ dotnet run Program.cs
+Como você se chama? Ana
+Quantos anos você tem? 29
+Olá, Ana! Daqui a 10 anos você terá 39.
+[código de saída: 0]</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>No campo de entrada</th><th>O que acontece</th></tr>
+<tr><td><kbd>Enter</kbd></td><td>Envia a linha para o programa (o <code>ReadLine()</code> devolve o texto, sem o Enter).</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>"Fim da entrada": o <code>ReadLine()</code> devolve <code>null</code>, como no terminal do Linux.</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>Interrompe o programa (o mesmo que o botão Parar).</td></tr>
+</table>
+</div>
+
+<div class="note"><strong>Como o editor faz isso:</strong> o navegador não deixa um programa WebAssembly parar no meio e esperar o teclado. Então, quando o programa pede uma linha que você ainda não digitou, o editor o encerra, mostra o campo e, quando você tecla Enter, <strong>roda o programa de novo desde o começo</strong>, entregando as linhas que você já digitou. Você não percebe: a saída é a mesma. Os números do <code>Random</code> também se repetem nessas novas rodadas (o editor usa a mesma "semente"), então um jogo de adivinhação continua com o mesmo número secreto. Só o que depende do relógio (<code>DateTime.Now</code>, tempo medido) pode mudar entre uma linha e outra.</div>
+
+<p>Algumas caixas já trazem a entrada pronta, num campo <strong>Entrada</strong> abaixo do editor (uma linha por Enter). Nelas o programa lê dali e não pergunta nada; você pode mudar o texto do campo e rodar de novo.</p>
+
+<h3 id="args">Argumentos</h3>
+<p>O campo <strong>Argumentos</strong> é o que vem depois do nome do arquivo no terminal. Cada palavra vira um item de <code>args</code>; para um argumento com espaço, use aspas, como no terminal (aula <a href="args.html">Argumentos da Linha de Comando</a>). Escreva <code>Ana 'Maria Clara'</code> no campo e rode:</p>
+
+<div class="trycs" data-args="Ana 'Maria Clara'">
+<pre class="script">Console.WriteLine($"Recebi {args.Length} argumento(s):");
+foreach (string a in args)
+    Console.WriteLine($"- {a}");
+</pre>
+</div>
+
+<pre class="file" data-file="o que o editor mostra">ana@notebook:~/cs$ dotnet run Program.cs Ana 'Maria Clara'
+Recebi 2 argumento(s):
+- Ana
+- Maria Clara
+[código de saída: 0]</pre>
+
+<hr>
+
+<h2 id="abas">Várias abas: vários arquivos</h2>
+<p>Algumas caixas têm mais de uma aba. Os arquivos que <strong>não</strong> são <code>.cs</code> (como <code>frutas.txt</code>) ficam na pasta em que o programa roda, e ele pode abri-los com <code>File.ReadAllLines</code> (aula <a href="arquivos.html">Arquivos</a>). Mude o arquivo de dados e rode de novo:</p>
+
+<div class="trycs">
+<pre class="script" data-file="Program.cs">string[] frutas = File.ReadAllLines("frutas.txt");
+Console.WriteLine($"{frutas.Length} frutas:");
+foreach (string f in frutas)
+    Console.WriteLine($"- {f}");
+</pre>
+<pre class="script" data-file="frutas.txt">maçã
+banana
+uva
+</pre>
+</div>
+
+<p>Quando há <strong>dois ou mais arquivos <code>.cs</code></strong>, eles são compilados juntos, como num projeto (aula <a href="projetos-console.html">Projetos</a>). O terminal mostra então a pasta de um projeto e o comando <code>dotnet run</code>, sem o nome do arquivo:</p>
+
+<div class="trycs">
+<pre class="script" data-file="Program.cs">var conta = new Conta("Ana");
+conta.Depositar(150m);
+Console.WriteLine($"{conta.Dono}: {conta.Saldo:C}");
+</pre>
+<pre class="script" data-file="Conta.cs">class Conta(string dono)
+{
+    public string Dono { get; } = dono;
+    public decimal Saldo { get; private set; }
+    public void Depositar(decimal valor) =&gt; Saldo += valor;
+}
+</pre>
+</div>
+
+<pre class="file" data-file="o que o editor mostra">ana@notebook:~/projetos/Exemplo$ dotnet run
+Ana: R$ 150,00
+[código de saída: 0]</pre>
+
+<p>Os erros de um projeto terminam com o nome do arquivo de projeto entre colchetes, como no terminal: <code>/home/ana/projetos/Exemplo/Conta.cs(5,12): error CS0103: … [/home/ana/projetos/Exemplo/Exemplo.csproj]</code>.</p>
+
+<hr>
+
+<h2>Missões, Restaurar e Ver solução</h2>
+<p>Uma caixa com <strong>Missão</strong> tem uma tarefa escrita acima do editor e confere o resultado sozinha. Abaixo da caixa aparece <code>Missão em andamento…</code>, com uma pista do que falta, e, quando você acerta, <code>✔ Missão cumprida!</code>. A missão olha o que o seu programa mostra, se ele compila, os avisos, o código de saída ou o próprio código, conforme a tarefa.</p>
+<ul>
+  <li><strong>Ver solução</strong> troca o seu código por uma solução (o editor pergunta antes). Tente sozinho primeiro: errar e consertar é como se aprende.</li>
+  <li><strong>Restaurar</strong> volta ao código original da aula.</li>
+</ul>
+
+<div class="trycs" data-goal="out:Total: R$ 7\,50">
+<p class="try-task"><strong>Missão:</strong> o programa soma o preço de 3 pães de R$ 2,50, mas mostra o total errado. Conserte a conta.</p>
+<pre class="script">decimal preco = 2.50m;
+int quantidade = 3;
+decimal total = preco + quantidade;
+Console.WriteLine($"Total: {total:C}");
+</pre>
+<pre class="solucao">decimal preco = 2.50m;
+int quantidade = 3;
+decimal total = preco * quantidade;
+Console.WriteLine($"Total: {total:C}");
+</pre>
+</div>
+
+<h3>Parar um programa</h3>
+<p>Um programa que nunca termina (um laço infinito, por exemplo) não trava a página: clique em <strong>■ Parar</strong>. Se ele passar de 15 segundos sem terminar nem pedir entrada, o editor para sozinho e avisa: <code>(o editor parou o programa: ele rodou mais de 15 segundos sem terminar — laço infinito?)</code>.</p>
+
+<hr>
+
+<h2>Quando o programa quebra: exceções</h2>
+<p>Um erro que só aparece com o programa rodando é uma <strong>exceção</strong> (aula <a href="excecoes.html">Exceções</a>). O editor mostra a mesma mensagem do .NET no Linux, em inglês, com a linha do problema, e o código de saída <strong>134</strong>:</p>
+
+<div class="trycs" data-goal="exit:134">
+<p class="try-task"><strong>Missão:</strong> o array tem 3 notas (posições 0, 1 e 2). Peça a posição 3 e veja a exceção.</p>
+<pre class="script">int[] notas = { 7, 8, 10 };
+Console.WriteLine(notas[2]);
+</pre>
+<pre class="solucao">int[] notas = { 7, 8, 10 };
+Console.WriteLine(notas[3]);
+</pre>
+</div>
+
+<pre class="file" data-file="o que o editor mostra">ana@notebook:~/cs$ dotnet run Program.cs
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/Program.cs:line 2
+[código de saída: 134]</pre>
+
+<p>Leia assim: "exceção não tratada" (<code>Unhandled exception</code>) do tipo <code>IndexOutOfRangeException</code>, "o índice estava fora dos limites do array", na linha <code>2</code> do <code>Program.cs</code>. As mensagens do compilador saem em português, mas as das exceções saem em inglês, como no Linux.</p>
+
+<hr>
+
+<h2>O que funciona no editor</h2>
+<ul>
+  <li>Todo o C# 14 e a biblioteca do .NET 10: <code>string</code>, coleções, LINQ, <code>record</code>, <code>Regex</code> (inclusive <code>[GeneratedRegex]</code>), <code>System.Text.Json</code>, <code>DateTime</code>, <code>decimal</code>, <code>BigInteger</code>…</li>
+  <li>Cultura pt-BR (<code>3,5</code>, <code>R$ 1.234,50</code>, datas em português) e o fuso de São Paulo.</li>
+  <li>Os avisos dos analisadores do .NET, como no <code>dotnet run</code> (por exemplo, os avisos <code>IL2026</code> do JSON num arquivo só).</li>
+  <li><code>Console.ReadLine</code>, <code>args</code>, arquivos (<code>File</code>, <code>StreamWriter</code>, <code>Directory</code>) numa pasta só da caixa, <code>Environment.Exit</code>.</li>
+  <li><code>async</code>/<code>await</code>, <code>Task.Delay</code>, <code>Task.WhenAll</code>, <code>Thread.Sleep</code>, cancelamento.</li>
+  <li><code>Console.ForegroundColor</code>: as cores aparecem no terminal da caixa.</li>
+</ul>
+
+<h2>O que não funciona (só no seu computador)</h2>
+<ul>
+  <li><strong>Threads de verdade:</strong> o navegador roda o programa numa linha de execução só. <code>new Thread(…).Start()</code> dá <code>PlatformNotSupportedException</code>, e esperar uma tarefa que ainda não terminou com <code>.Result</code> ou <code>.Wait()</code> também falha. Use <code>await</code>, que funciona.</li>
+  <li><strong>Outros programas e a internet:</strong> <code>Process.Start</code> dá <code>PlatformNotSupportedException</code>. O <code>HttpClient</code> só consegue falar com os poucos sites que liberam o acesso a partir de outras páginas; nos outros, o navegador bloqueia e aparece uma <code>HttpRequestException</code>.</li>
+  <li><strong>Pacotes NuGet</strong> (<code>#:package</code>, <code>dotnet add package</code>): o editor não baixa pacotes.</li>
+  <li>O depurador, os testes (<code>dotnet test</code>) e o <code>dotnet publish</code>: rode no seu computador (aulas <a href="depuracao.html">Depuração</a>, <a href="testes.html">Testes</a>, <a href="publicar.html">Publicar</a>).</li>
+</ul>
+
+<h2>O que é diferente no editor × no seu computador</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>No seu computador (Linux)</th><th>No editor</th></tr>
+<tr><td>Velocidade</td><td>rápido</td><td>bem mais lento em contas pesadas (o .NET do navegador interpreta o programa); para o guia, não faz diferença</td></tr>
+<tr><td>Números de <code>Random</code>, data e hora</td><td>mudam a cada execução</td><td>também mudam (e se repetem dentro de uma mesma rodada com entrada digitada)</td></tr>
+<tr><td><code>Environment.ProcessorCount</code>, <code>Environment.Is64BitProcess</code>, <code>IntPtr.Size</code></td><td>os do computador (ex.: 8, <code>True</code>, 8)</td><td>1, <code>False</code>, 4</td></tr>
+<tr><td><code>Environment.UserName</code>, <code>Environment.MachineName</code></td><td><code>ana</code>, <code>notebook</code></td><td><code>Browser</code>, <code>localhost</code></td></tr>
+<tr><td>Converter um <code>object</code> para o tipo errado (<code>(long)(object)5</code>)</td><td><code>Unable to cast object of type 'System.Int32' to type 'System.Int64'.</code></td><td><code>Specified cast is not valid.</code> (mesma exceção, <code>InvalidCastException</code>)</td></tr>
+<tr><td>Linhas internas do .NET no rastro de uma exceção</td><td>poucas</td><td>às vezes outras ou mais (o tipo da exceção, a mensagem e as linhas do <strong>seu</strong> código são iguais)</td></tr>
+<tr><td>O mesmo aviso, rodando de novo sem mudar o arquivo</td><td>não aparece de novo (o <code>dotnet</code> reaproveita a compilação)</td><td>aparece sempre</td></tr>
+<tr><td><code>Console.ReadKey()</code></td><td>lê uma tecla</td><td>lê a primeira letra da linha que você digita e tecla Enter</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<p><strong>Cenário:</strong> o programa pede o nome, mas a caixa tem o campo <strong>Entrada</strong> vazio, e o <code>ReadLine()</code> devolve <code>null</code>.</p>
+<pre class="file" data-file="Program.cs">Console.Write("Nome: ");
+string? nome = Console.ReadLine();
+Console.WriteLine(nome.Length);</pre>
+<pre class="file" data-file="o que o editor mostra">ana@notebook:~/cs$ dotnet run Program.cs
+/home/ana/cs/Program.cs(3,19): warning CS8602: Desreferência de uma referência possivelmente nula.
+Nome: Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/Program.cs:line 3
+[código de saída: 134]</pre>
+<p><strong>O que significa:</strong> sem nada para ler, o <code>ReadLine()</code> devolveu <code>null</code> ("nada"), e o programa tentou usar o <code>.Length</code> desse nada. O próprio compilador já tinha avisado (<code>CS8602</code>).</p>
+<p><strong>Como consertar:</strong> escreva a entrada no campo <strong>Entrada</strong>, e no código trate o <code>null</code>: <code>string nome = Console.ReadLine() ?? "";</code> (aula <a href="operadores-null.html">Operadores ??, ?. e ??=</a>).</p>
+</div>
+
+<div class="cenario">
+<p><strong>Cenário:</strong> o código usa uma thread.</p>
+<pre class="file" data-file="Program.cs">var t = new Thread(() =&gt; Console.WriteLine("Oi da thread!"));
+t.Start();
+t.Join();</pre>
+<pre class="file" data-file="o que o editor mostra">ana@notebook:~/cs$ dotnet run Program.cs
+Unhandled exception. System.PlatformNotSupportedException: Operation is not supported on this platform.
+   at System.Threading.Thread.ThrowIfNoThreadStart()
+   at System.Threading.Thread.Start(Boolean captureContext)
+   at System.Threading.Thread.Start()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/Program.cs:line 2
+[código de saída: 134]</pre>
+<p><strong>O que significa:</strong> "operação não suportada nesta plataforma": o navegador não tem threads de verdade. No seu computador, o mesmo código mostra <code>Oi da thread!</code>.</p>
+<p><strong>Como consertar:</strong> nas aulas de <a href="threads.html">Threads</a> e <a href="lock.html">lock</a>, rode os exemplos no terminal do seu computador; no editor, prefira <code>async</code>/<code>await</code>.</p>
+</div>
+
+<div class="cenario">
+<p><strong>Cenário:</strong> a barra de download para em <code>Não consegui carregar o compilador</code>.</p>
+<p><strong>O que significa:</strong> a internet caiu ou o navegador bloqueou o download.</p>
+<p><strong>Como consertar:</strong> confira a conexão e clique em Rodar de novo. O editor precisa de um navegador atual (Chrome, Edge, Firefox ou Safari dos últimos anos).</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na caixa</th><th>Para quê</th></tr>
+<tr><td>▶ Rodar / ■ Parar</td><td>Compila e roda / interrompe o programa (<kbd>Ctrl</kbd>+<kbd>Enter</kbd> roda).</td></tr>
+<tr><td>Abas</td><td>Os arquivos da caixa. Os <code>.cs</code> são compilados juntos; os outros ficam na pasta do programa.</td></tr>
+<tr><td>Argumentos</td><td>O que chega em <code>args</code>.</td></tr>
+<tr><td>Entrada (em algumas caixas)</td><td>O que o <code>Console.ReadLine()</code> lê, uma linha por Enter.</td></tr>
+<tr><td>Campo no terminal</td><td>Onde você digita quando o programa pergunta (<kbd>Enter</kbd> envia, <kbd>Ctrl</kbd>+<kbd>D</kbd> encerra a entrada).</td></tr>
+<tr><td>Restaurar / Ver solução</td><td>Volta ao original / mostra uma solução da missão.</td></tr>
+<tr><td><code>[código de saída: N]</code></td><td>0 = terminou bem; 1 = não compilou; 134 = exceção não tratada; outro número = o seu <code>Environment.Exit(N)</code> ou <code>return N;</code>.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="mc" data-answer="b">
+<p><strong>1.</strong> Você clicou em Rodar e o terminal mostrou <code>error CS0103</code> e <code>[código de saída: 1]</code>. O que aconteceu?</p>
+<ol type="a">
+  <li>O programa rodou e terminou com erro.</li>
+  <li>O código não compilou, então nada foi rodado.</li>
+  <li>O editor está sem internet.</li>
+</ol>
+</div>
+
+<div class="mc" data-answer="c">
+<p><strong>2.</strong> Um programa sem campo <strong>Entrada</strong> chama <code>Console.ReadLine()</code>. O que o editor faz?</p>
+<ol type="a">
+  <li>Dá um erro, porque o navegador não tem teclado.</li>
+  <li>Devolve sempre <code>null</code>.</li>
+  <li>Mostra um campo no terminal para você digitar a linha.</li>
+</ol>
+</div>
+
+<div class="mc" data-answer="a">
+<p><strong>3.</strong> O que quer dizer <code>[código de saída: 134]</code>?</p>
+<ol type="a">
+  <li>O programa terminou com uma exceção não tratada.</li>
+  <li>O programa terminou bem.</li>
+  <li>O compilador achou 134 erros.</li>
+</ol>
+</div>
+
+<div class="exercise">
+<p><strong>4.</strong> Complete: no campo Argumentos, para que <code>args[0]</code> seja <code>Maria Clara</code> (com o espaço), escreva o nome entre <input data-answer="aspas|'aspas'|&quot;aspas&quot;" size="8">.</p>
+</div>
+
+<h3>Missão final: o código de saída</h3>
+<div class="trycs" data-goal="exit:3,out:Arquivo não encontrado.">
+<p class="try-task"><strong>Missão:</strong> quando o arquivo <code>notas.txt</code> não existe, o programa deve mostrar <code>Arquivo não encontrado.</code> e terminar com o código 3 (<code>Environment.Exit(3)</code>).</p>
+<pre class="script">if (!File.Exists("notas.txt"))
+{
+    Console.WriteLine("Arquivo não encontrado.");
+}
+Console.WriteLine(File.ReadAllText("notas.txt"));
+</pre>
+<pre class="solucao">if (!File.Exists("notas.txt"))
+{
+    Console.WriteLine("Arquivo não encontrado.");
+    Environment.Exit(3);
+}
+Console.WriteLine(File.ReadAllText("notas.txt"));
+</pre>
+</div>
+
+<p>No terminal da Ana, o código aparece com <code>echo $?</code>:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run saida.cs
+Arquivo não encontrado.
+$ echo $?
+3</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>As caixas Experimente compilam C# de verdade com o <strong>Roslyn</strong> (o compilador do <code>dotnet</code> 10, C# 14) e rodam o programa no <strong>.NET 10 em WebAssembly</strong>, no navegador.</li>
+  <li>Na primeira vez, o navegador baixa uns 17 MB; depois, fica guardado.</li>
+  <li>O terminal da caixa mostra o comando, os erros e avisos (em português, com o código <code>CSxxxx</code>), a saída e o <code>[código de saída: N]</code>.</li>
+  <li><code>Console.ReadLine()</code>: você digita no terminal da caixa (Enter envia, <kbd>Ctrl</kbd>+<kbd>D</kbd> encerra, <kbd>Ctrl</kbd>+<kbd>C</kbd> para). Argumentos e abas funcionam como no terminal.</li>
+  <li>Missões conferem o resultado; Restaurar volta ao original; Ver solução mostra uma solução.</li>
+  <li>Diferenças: threads, internet, outros programas e pacotes NuGet só no seu computador; algumas mensagens e linhas internas de exceções podem mudar um pouco; o editor é mais lento em contas pesadas.</li>
+  <li>Próximo passo: o seu primeiro programa, linha por linha, em <a href="primeiro-programa.html">Olá, Mundo</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>

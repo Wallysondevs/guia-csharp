@@ -70,7 +70,7 @@ function rodar(c, arquivos, opts) {
     const w = new Worker(path.join(__dirname, "cs-executor-node.mjs"), {
       workerData: { pacote: pacoteSab, pasta: PASTA, dll: c.dll, pdb: c.pdb, args: opts.args || [], dir: c.onde.pasta,
         nomes: dados.map((a) => a.nome), conteudos: dados.map((a) => a.codigo), stdin: opts.stdin === undefined ? null : opts.stdin,
-        arquivoUnico: c.onde.projeto ? "" : c.onde.pasta + "/" + (arquivos.find((a) => ehFonte(a.nome)) || arquivos[0]).nome },
+        chaves: c.runtime || "", arquivoUnico: c.onde.projeto ? "" : c.onde.pasta + "/" + (arquivos.find((a) => ehFonte(a.nome)) || arquivos[0]).nome },
       stdout: true, stderr: true,
     });
     const r = { saida: "", eventos: [], exit: null, tempoEsgotado: false, estourou: false, leuSemEntrada: false };

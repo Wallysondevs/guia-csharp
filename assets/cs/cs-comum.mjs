@@ -61,7 +61,8 @@ export function configurar(dotnet, mapa, opcoes) {
     .withConfig(globalThis.location && /dbg=1/.test(globalThis.location.search) ? { diagnosticTracing: true } : {});
 }
 
-const TIPOS_MONO = { string: "System.String", int: "System.Int32", long: "System.Int64", bool: "System.Boolean", double: "System.Double", single: "System.Single", float: "System.Single", decimal: "System.Decimal", char: "System.Char", object: "System.Object", byte: "System.Byte", sbyte: "System.SByte", short: "System.Int16", ushort: "System.UInt16", uint: "System.UInt32", ulong: "System.UInt64", intptr: "System.IntPtr" };
+// como o CoreCLR escreve no relatório: primitivos sem o namespace (Int32), os outros com (System.String)
+const TIPOS_MONO = { string: "System.String", int: "Int32", long: "Int64", bool: "Boolean", double: "Double", single: "Single", float: "Single", decimal: "System.Decimal", char: "Char", object: "System.Object", byte: "Byte", sbyte: "SByte", short: "Int16", ushort: "UInt16", uint: "UInt32", ulong: "UInt64", intptr: "IntPtr" };
 function tipoClr(t) {
   t = t.trim();
   const m = /^([^\[]+)((?:\[\])*)$/.exec(t);

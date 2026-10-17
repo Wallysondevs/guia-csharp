@@ -64,7 +64,8 @@ function rodar(arquivos, opts) {
   let i = 0;
   while (i < linhas.length && (/^(?:.*?\(\d+,\d+\): |CSC : )?(error|warning) [A-Z]+\d+: /.test(linhas[i]) || (falhou && (linhas[i] === "" || /^Ocorreu uma falha no build/.test(linhas[i]))))) diag.push(linhas[i++]);
   const saida = falhou ? "" : linhas.slice(i).join("\n");
-  return { compilou: !falhou, diag: diag.join("\n") + (diag.length ? "\n" : ""), saida, saidaTotal: total, exit: falhou ? null : exit, exitTotal: exit, versao: (m[3] || "?").trim(), comando: cmd };
+  while (diag.length && diag[diag.length - 1] === "") diag.pop();
+  return { compilou: !falhou, diag: diag.join("\n") + (diag.length ? "\n" : ""), saida, saidaTotal: total, exit: falhou ? 1 : exit, exitTotal: exit, versao: (m[3] || "?").trim(), comando: cmd };
 }
 
 // Diferenças linha a linha (LCS simples).  "- " = editor, "+ " = dotnet do laboratório

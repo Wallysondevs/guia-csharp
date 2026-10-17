@@ -41,19 +41,24 @@ public static partial class Executor
     ];
     [JSImport("inicio", "motor")] static partial void Inicio(string quadro);
     internal static string? entrada;
+    static string? quadroInicio;
+    // como o CoreCLR escreve os tipos no relatório de estouro de pilha: Int32 (primitivos), System.String (os outros)
+    static string NomeEstouro(Type t) => t.IsPrimitive ? t.Name : SemArgsGenericos(t.FullName ?? t.Name);
 
     [JSExport]
-    public static async Task<int> Rodar(byte[] dll, byte[] pdb, string[] args, string pasta, string[] nomes, string[] conteudos, string? stdin, string arquivoUnico)
+    public static async Task<int> Rodar(byte[] dll, byte[] pdb, string[] args, string pasta, string[] nomes, string[] conteudos, string? stdin, string arquivoUnico, string chaves)
     {
+        var ch = chaves.Split(',');
         // dotnet run arquivo.cs liga o PublishAot: as mesmas chaves do .runtimeconfig.json que o SDK gera
         // (ex.: o JsonSerializer sem contexto lança "Reflection-based serialization has been disabled…")
+        if (ch.Contains("aot")) foreach (var (k, v) in ChavesAot) AppContext.SetSwitch(k, v);
         if (arquivoUnico.Length > 0)
         {
-            foreach (var (k, v) in ChavesAot) AppContext.SetSwitch(k, v);
             AppContext.SetData("EntryPointFilePath", arquivoUnico);
             AppContext.SetData("EntryPointFileDirectoryPath", Path.GetDirectoryName(arquivoUnico));
         }
-        var pt = new CultureInfo("pt-BR");
+        // #:property InvariantGlobalization=true: cultura invariante (aproximação do modo invariante do .NET)
+        var pt = ch.Contains("invariante") ? CultureInfo.InvariantCulture : new CultureInfo("pt-BR");
         CultureInfo.DefaultThreadCurrentCulture = pt; CultureInfo.DefaultThreadCurrentUICulture = pt;
         CultureInfo.CurrentCulture = pt; CultureInfo.CurrentUICulture = pt;
         Directory.CreateDirectory(pasta);
@@ -105,7 +110,8 @@ public static partial class Executor
                 }
             }
             // para o JavaScript completar a mensagem de estouro de pilha (o Mono corta a pilha em 1000 quadros)
-            Inicio((alvo.DeclaringType?.FullName ?? "Program").Replace('+', '.') + "." + alvo.Name + "(" + string.Join(", ", alvo.GetParameters().Select(p => p.ParameterType.FullName)) + ")");
+            quadroInicio = "   at " + (alvo.DeclaringType?.FullName ?? "Program").Replace('+', '.') + "." + alvo.Name + "(" + string.Join(", ", alvo.GetParameters().Select(p => NomeEstouro(p.ParameterType))) + ")";
+            Inicio(quadroInicio[6..]);
             object?[]? parametros = alvo.GetParameters().Length == 1 ? [args] : null;
             object? r = alvo.Invoke(null, BindingFlags.DoNotWrapExceptions, null, parametros, null);
             int codigo = 0;
@@ -128,12 +134,41 @@ public static partial class Executor
         }
     }
 
+    // "Stack overflow." / "Repeated N times:" / o bloco repetido / o resto da pilha (nomes completos, sem arquivo)
+    static string Estouro(Exception ex)
+    {
+        var q = new List<string>();
+        foreach (var f in new StackTrace(ex, false).GetFrames() ?? [])
+        {
+            var m = f.GetMethod();
+            if (m == null) continue;
+            var tn = (m.DeclaringType?.FullName ?? "").Replace('+', '.');
+            if (tn.StartsWith("Motor.") || tn.StartsWith("System.Reflection.") || tn.StartsWith("System.RuntimeMethodHandle")) continue;
+            q.Add("   at " + SemArgsGenericos(tn) + "." + m.Name + "(" + string.Join(", ", m.GetParameters().Select(p => NomeEstouro(p.ParameterType))) + ")");
+        }
+        // o Mono corta a pilha em ~1000 quadros: o Main (de onde tudo começou) fica de fora
+        if (quadroInicio != null && (q.Count == 0 || q[^1] != quadroInicio)) q.Add(quadroInicio);
+        if (entrada != null) q.Add(entrada.Replace("String[] args", "System.String[]"));
+        var sb = new StringBuilder("Stack overflow.\n");
+        for (int i = 0; i < q.Count;)
+        {
+            int j = i; while (j < q.Count && q[j] == q[i]) j++;
+            if (j - i > 1) sb.Append("Repeated ").Append(j - i).Append(" times:\n--------------------------------\n").Append(q[i]).Append("\n--------------------------------\n");
+            else sb.Append(q[i]).Append('\n');
+            i = j;
+        }
+        return sb.ToString();
+    }
+
     internal static bool Relatar(Saida saida, Exception ex, bool doMain = true)
     {
         try
         {
             saida.Descarregar();
-            saida.Escrever(2, "Unhandled exception. " + FormatarExcecao(ex, doMain) + "\n");
+            // como o .NET do Linux: estouro de pilha e falta de memória têm mensagens próprias (sem "Unhandled exception.")
+            if (ex is StackOverflowException) saida.Escrever(2, Estouro(ex));
+            else if (ex is OutOfMemoryException && ex.GetType() == typeof(OutOfMemoryException)) saida.Escrever(2, "Out of memory.\n");
+            else saida.Escrever(2, "Unhandled exception. " + FormatarExcecao(ex, doMain) + "\n");
             saida.Descarregar();
         }
         catch { }

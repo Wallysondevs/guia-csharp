@@ -541,7 +541,7 @@
           } else if (m.ev === "falha") { finalizar(s, null, "(o .NET do navegador falhou: " + String(m.msg).split("\n")[0] + ")"); console.error("csharpsim:", m.msg); }
         };
         var dados = s.arqs.filter(function (a) { return !ehFonte(a.nome); });
-        ex.w.postMessage({ op: "rodar", dll: s.dll, pdb: s.pdb, args: s.args, pasta: s.onde.pasta, nomes: dados.map(function (a) { return a.nome; }), conteudos: dados.map(function (a) { return a.codigo; }), stdin: s.stdin, arquivoUnico: s.onde.projeto ? "" : s.onde.pasta + "/" + (s.arqs.filter(function (a) { return ehFonte(a.nome); })[0] || s.arqs[0]).nome, entradas: s.entradas, interativo: s.stdin === null, semente: s.semente });
+        ex.w.postMessage({ op: "rodar", dll: s.dll, pdb: s.pdb, args: s.args, pasta: s.onde.pasta, nomes: dados.map(function (a) { return a.nome; }), conteudos: dados.map(function (a) { return a.codigo; }), stdin: s.stdin, chaves: s.runtime || "", arquivoUnico: s.onde.projeto ? "" : s.onde.pasta + "/" + (s.arqs.filter(function (a) { return ehFonte(a.nome); })[0] || s.arqs[0]).nome, entradas: s.entradas, interativo: s.stdin === null, semente: s.semente });
       }, function (e) { finalizar(s, null, "(não consegui iniciar o .NET: " + ((e && e.message) || e) + ")"); });
     }
 
@@ -572,7 +572,7 @@
             out.appendChild(el("div", { "class": cls }, escHtml(l) || "<br>"));
           });
           if (!r.ok) { finalizar(s, null, null); return; }
-          s.dll = m.dll; s.pdb = m.pdb;
+          s.dll = m.dll; s.pdb = m.pdb; s.runtime = r.runtime;
           s.saidaArea = el("div", { "class": "tcs-programa" });
           out.appendChild(s.saidaArea);
           s.relogio = setInterval(function () {

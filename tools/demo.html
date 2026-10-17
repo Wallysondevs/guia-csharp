@@ -138,7 +138,21 @@ Console.WriteLine("Fim");
 </pre>
 </div>
 
-<h2>11. Laço infinito (Parar)</h2>
+<h2>11. Cores do Console e exceção com linha</h2>
+<div class="trycs" data-goal="out:verde,exit:134">
+<pre class="script">Console.ForegroundColor = ConsoleColor.Green;
+Console.WriteLine("verde");
+Console.ResetColor();
+</pre>
+<pre class="solucao">Console.ForegroundColor = ConsoleColor.Green;
+Console.WriteLine("verde");
+Console.ResetColor();
+int[] v = new int[1];
+Console.WriteLine(v[1]);
+</pre>
+</div>
+
+<h2>12. Laço infinito (Parar)</h2>
 <div class="trycs">
 <pre class="script">long i = 0;
 while (true) { i++; if (i % 100_000_000 == 0) Console.WriteLine(i); }

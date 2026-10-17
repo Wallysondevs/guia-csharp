@@ -21,7 +21,7 @@ rt.setModuleImports("motor", {
 });
 const ex = (await rt.getAssemblyExports("Motor.dll")).Motor;
 try {
-  const codigo = await ex.Executor.Rodar(d.dll, d.pdb, d.args, d.dir, d.nomes, d.conteudos, d.stdin, d.arquivoUnico || "");
+  const codigo = await ex.Executor.Rodar(d.dll, d.pdb, d.args, d.dir, d.nomes, d.conteudos, d.stdin, d.arquivoUnico || "", d.chaves || "");
   parentPort.postMessage({ ev: "fim", exit: codigo });
 } catch (e) {
   // Environment.Exit(n): o runtime encerra com ExitStatus { status: n }
