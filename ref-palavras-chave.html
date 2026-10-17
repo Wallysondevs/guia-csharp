@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Palavras-chave — as 77 reservadas e as contextuais | Guia C#</title>
+<meta name="description" content="Referência das palavras-chave do C# 14: as 77 reservadas (que não podem ser nome de variável) e as contextuais (var, record, async, field, extension…), cada uma com o que faz, um exemplo, a versão em que apareceu e a aula do guia que ensina. Com o erro CS1001 real e o @ para usar uma palavra reservada como nome.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Palavras-chave</span></h1>
+
+<p class="intro">Palavras-chave são as palavras que o próprio C# usa: <code>if</code>, <code>class</code>, <code>int</code>, <code>return</code>… Esta página lista <strong>todas</strong>, cada uma com o que faz, um exemplo curto e a aula que ensina. Elas são de dois tipos: as <strong>reservadas</strong>, que nunca podem ser nome de variável, e as <strong>contextuais</strong>, que só são especiais em certos lugares do código.</p>
+
+<p>As duas listas foram conferidas no compilador do laboratório (o <code>dotnet</code> 10.0.112, C# 14): cada palavra foi usada como nome de variável (<code>int palavra = 1;</code>), e as reservadas são exatamente as que deram erro.</p>
+
+<p>Atalhos: <a href="#reservadas">Reservadas</a> · <a href="#tipos">Tipos</a> · <a href="#valores">Valores</a> · <a href="#controle">Decisões e laços</a> · <a href="#excecoes">Exceções</a> · <a href="#declarar">Declarar tipos</a> · <a href="#modificadores">Modificadores</a> · <a href="#metodos">Métodos e objetos</a> · <a href="#operadores">Operadores-palavra</a> · <a href="#avancadas">Avançadas</a> · <a href="#contextuais">Contextuais</a> · <a href="#erro">Quando dá errado</a> · <a href="#experimente">Experimente</a></p>
+
+<hr>
+
+<h2 id="reservadas">As palavras reservadas</h2>
+<p>São 77, todas em minúsculas. Nenhuma pode ser nome de variável, método ou classe (a não ser com <code>@</code> na frente, veja <a href="#erro">Quando dá errado</a>):</p>
+
+<pre class="file">abstract  as        base      bool      break     byte      case      catch
+char      checked   class     const     continue  decimal   default   delegate
+do        double    else      enum      event     explicit  extern    false
+finally   fixed     float     for       foreach   goto      if        implicit
+in        int       interface internal  is        lock      long      namespace
+new       null      object    operator  out       override  params    private
+protected public    readonly  ref       return    sbyte     sealed    short
+sizeof    stackalloc static   string    struct    switch    this      throw
+true      try       typeof    uint      ulong     unchecked unsafe    ushort
+using     virtual   void      volatile  while</pre>
+
+<p>Como o C# diferencia maiúsculas de minúsculas, <code>Class</code>, <code>INT</code> e <code>If</code> <strong>não</strong> são palavras-chave. Compilam, mas confundem quem lê: não use.</p>
+
+<h3 id="tipos">Tipos</h3>
+<p>Cada uma é um apelido para um tipo do .NET: <code>int</code> é o mesmo que <code>System.Int32</code>. Os tamanhos e limites estão em <a href="ref-tipos.html">Tipos e Limites</a>.</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Palavra</th><th>O que é</th><th>Exemplo</th><th>Aula</th></tr>
+<tr><td><code>bool</code></td><td>verdadeiro ou falso (<code>System.Boolean</code>)</td><td><code>bool aberto = true;</code></td><td><a href="char-bool.html">char e bool</a></td></tr>
+<tr><td><code>char</code></td><td>um caractere (<code>System.Char</code>)</td><td><code>char letra = 'A';</code></td><td><a href="char-bool.html">char e bool</a></td></tr>
+<tr><td><code>byte</code>, <code>sbyte</code></td><td>inteiro de 8 bits, sem e com sinal</td><td><code>byte idade = 29;</code></td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>short</code>, <code>ushort</code></td><td>inteiro de 16 bits, com e sem sinal</td><td><code>short ano = 2026;</code></td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>int</code>, <code>uint</code></td><td>inteiro de 32 bits, com e sem sinal (o <code>int</code> é o padrão)</td><td><code>int estoque = 40;</code></td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>long</code>, <code>ulong</code></td><td>inteiro de 64 bits, com e sem sinal</td><td><code>long populacao = 213_000_000;</code></td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>float</code>, <code>double</code></td><td>número com vírgula de 32 e 64 bits (o <code>double</code> é o padrão)</td><td><code>double altura = 1.65;</code></td><td><a href="decimais.html">float, double e decimal</a></td></tr>
+<tr><td><code>decimal</code></td><td>número com vírgula exato, de 128 bits: para dinheiro</td><td><code>decimal preco = 15.90m;</code></td><td><a href="decimais.html">float, double e decimal</a></td></tr>
+<tr><td><code>string</code></td><td>texto (<code>System.String</code>)</td><td><code>string nome = "Ana";</code></td><td><a href="strings.html">Strings</a></td></tr>
+<tr><td><code>object</code></td><td>o tipo de onde todos os outros descendem (<code>System.Object</code>)</td><td><code>object qualquer = 42;</code></td><td><a href="object.html">A Classe object</a></td></tr>
+<tr><td><code>void</code></td><td>"nada": o método não devolve valor</td><td><code>static void Saudar() { … }</code></td><td><a href="metodos.html">Métodos</a></td></tr>
+</table>
+</div>
+
+<h3 id="valores">Valores</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Palavra</th><th>O que é</th><th>Exemplo</th><th>Aula</th></tr>
+<tr><td><code>true</code>, <code>false</code></td><td>os dois valores do <code>bool</code></td><td><code>bool pago = false;</code></td><td><a href="char-bool.html">char e bool</a></td></tr>
+<tr><td><code>null</code></td><td>"nenhum objeto"; também "sem valor" num <code>int?</code></td><td><code>string? apelido = null;</code></td><td><a href="null.html">null</a></td></tr>
+<tr><td><code>default</code></td><td>o valor padrão de um tipo (<code>0</code>, <code>false</code>, <code>null</code>); também o "senão" do <code>switch</code></td><td><code>int zero = default;</code></td><td><a href="switch.html">switch</a></td></tr>
+</table>
+</div>
+
+<h3 id="controle">Decisões e laços</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Palavra</th><th>O que faz</th><th>Exemplo</th><th>Aula</th></tr>
+<tr><td><code>if</code>, <code>else</code></td><td>executa um bloco se a condição for verdadeira; senão, o outro</td><td><code>if (nota &gt;= 7) { … } else { … }</code></td><td><a href="if-else.html">if e else</a></td></tr>
+<tr><td><code>switch</code>, <code>case</code></td><td>escolhe um caminho pelo valor; também a expressão <code>x switch { … }</code></td><td><code>switch (opcao) { case "1": … break; }</code></td><td><a href="switch.html">switch</a>, <a href="switch-expressoes.html">Expressões switch</a></td></tr>
+<tr><td><code>while</code></td><td>repete enquanto a condição for verdadeira</td><td><code>while (saldo &gt; 0) { … }</code></td><td><a href="while.html">while</a></td></tr>
+<tr><td><code>do</code></td><td>repete, testando no fim (roda pelo menos uma vez)</td><td><code>do { … } while (resposta != "s");</code></td><td><a href="do-while.html">do while</a></td></tr>
+<tr><td><code>for</code></td><td>repete com contador</td><td><code>for (int i = 0; i &lt; 10; i++) { … }</code></td><td><a href="for.html">for</a></td></tr>
+<tr><td><code>foreach</code>, <code>in</code></td><td>passa por cada item de uma coleção</td><td><code>foreach (string item in compras) { … }</code></td><td><a href="foreach.html">foreach</a></td></tr>
+<tr><td><code>break</code></td><td>sai do laço ou do <code>case</code></td><td><code>if (achou) break;</code></td><td><a href="break-continue.html">break e continue</a></td></tr>
+<tr><td><code>continue</code></td><td>pula para a próxima volta do laço</td><td><code>if (nota &lt; 0) continue;</code></td><td><a href="break-continue.html">break e continue</a></td></tr>
+<tr><td><code>goto</code></td><td>pula para um rótulo ou para outro <code>case</code> (<code>goto case 2;</code>). Quase nunca é a melhor ideia</td><td><code>goto case "1";</code></td><td><a href="switch.html">switch</a></td></tr>
+<tr><td><code>return</code></td><td>termina o método e, se for o caso, devolve o valor</td><td><code>return a + b;</code></td><td><a href="retorno.html">Valor de Retorno</a></td></tr>
+</table>
+</div>
+
+<h3 id="excecoes">Exceções e estouro</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Palavra</th><th>O que faz</th><th>Exemplo</th><th>Aula</th></tr>
+<tr><td><code>try</code>, <code>catch</code></td><td>tenta um bloco e trata a exceção, se vier</td><td><code>try { … } catch (FormatException) { … }</code></td><td><a href="try-catch.html">try e catch</a></td></tr>
+<tr><td><code>finally</code></td><td>bloco que roda sempre, com ou sem exceção</td><td><code>finally { Console.WriteLine("fim"); }</code></td><td><a href="finally.html">finally</a></td></tr>
+<tr><td><code>throw</code></td><td>lança uma exceção</td><td><code>throw new ArgumentException("vazio");</code></td><td><a href="throw.html">throw</a></td></tr>
+<tr><td><code>checked</code></td><td>faz a conta de inteiros lançar <code>OverflowException</code> quando estoura</td><td><code>checked(int.MaxValue + x)</code></td><td><a href="inteiros.html">Inteiros</a></td></tr>
+<tr><td><code>unchecked</code></td><td>deixa a conta estourar e "dar a volta" sem erro (é o padrão)</td><td><code>unchecked(int.MaxValue + 1)</code></td><td><a href="inteiros.html">Inteiros</a></td></tr>
+</table>
+</div>
+
+<h3 id="declarar">Declarar tipos e organizar</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Palavra</th><th>O que declara</th><th>Exemplo</th><th>Aula</th></tr>
+<tr><td><code>class</code></td><td>uma classe (tipo de referência)</td><td><code>class Tarefa { … }</code></td><td><a href="classes-objetos.html">Classes e Objetos</a></td></tr>
+<tr><td><code>struct</code></td><td>uma struct (tipo de valor)</td><td><code>struct Ponto { … }</code></td><td><a href="structs.html">Structs</a></td></tr>
+<tr><td><code>enum</code></td><td>uma lista de constantes com nome</td><td><code>enum Dia { Seg, Ter, Qua }</code></td><td><a href="enums.html">Enums</a></td></tr>
+<tr><td><code>interface</code></td><td>um contrato: o que uma classe promete ter</td><td><code>interface IForma { double Area(); }</code></td><td><a href="interfaces.html">Interfaces</a></td></tr>
+<tr><td><code>delegate</code></td><td>um tipo que guarda um método; também um método anônimo</td><td><code>delegate int Operacao(int a, int b);</code></td><td><a href="delegates.html">Delegates</a></td></tr>
+<tr><td><code>event</code></td><td>um evento, que avisa quem se inscreveu</td><td><code>public event Action? Mudou;</code></td><td><a href="eventos.html">Eventos</a></td></tr>
+<tr><td><code>namespace</code></td><td>um "sobrenome" que agrupa tipos</td><td><code>namespace Lojinha;</code></td><td><a href="namespaces.html">Namespaces e using</a></td></tr>
+<tr><td><code>using</code></td><td>no topo: traz um namespace; num bloco: fecha o recurso no fim</td><td><code>using System.Text;</code> · <code>using var f = File.OpenRead(…);</code></td><td><a href="namespaces.html">Namespaces</a>, <a href="using-dispose.html">using e IDisposable</a></td></tr>
+</table>
+</div>
+
+<h3 id="modificadores">Modificadores</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Palavra</th><th>O que muda</th><th>Exemplo</th><th>Aula</th></tr>
+<tr><td><code>public</code></td><td>qualquer código pode usar</td><td><code>public string Nome { get; }</code></td><td><a href="modificadores-acesso.html">public, private e internal</a></td></tr>
+<tr><td><code>private</code></td><td>só dentro do próprio tipo (o padrão nos membros)</td><td><code>private int _saldo;</code></td><td><a href="modificadores-acesso.html">public, private e internal</a></td></tr>
+<tr><td><code>protected</code></td><td>o próprio tipo e as classes filhas</td><td><code>protected decimal taxa;</code></td><td><a href="heranca.html">Herança</a></td></tr>
+<tr><td><code>internal</code></td><td>só dentro do mesmo projeto (o padrão nas classes)</td><td><code>internal class Ajudante { … }</code></td><td><a href="modificadores-acesso.html">public, private e internal</a></td></tr>
+<tr><td><code>static</code></td><td>pertence ao tipo, não a cada objeto</td><td><code>static int contador;</code></td><td><a href="static.html">static</a></td></tr>
+<tr><td><code>const</code></td><td>constante, decidida na compilação</td><td><code>const int MaxItens = 100;</code></td><td><a href="constantes.html">Constantes</a></td></tr>
+<tr><td><code>readonly</code></td><td>campo que só recebe valor na declaração ou no construtor</td><td><code>private readonly List&lt;int&gt; _notas = [];</code></td><td><a href="readonly.html">readonly e init</a></td></tr>
+<tr><td><code>abstract</code></td><td>classe que não se instancia; método sem corpo, que a filha tem de escrever</td><td><code>abstract class Forma { public abstract double Area(); }</code></td><td><a href="abstratas.html">Classes Abstratas</a></td></tr>
+<tr><td><code>virtual</code></td><td>método que as filhas podem substituir</td><td><code>public virtual string Falar() =&gt; "…";</code></td><td><a href="virtual-override.html">virtual e override</a></td></tr>
+<tr><td><code>override</code></td><td>substitui o método <code>virtual</code> ou <code>abstract</code> da mãe</td><td><code>public override string ToString() =&gt; Nome;</code></td><td><a href="virtual-override.html">virtual e override</a></td></tr>
+<tr><td><code>sealed</code></td><td>classe que não pode ter filhas; <code>override</code> que não pode ser substituído de novo</td><td><code>sealed class Senha { … }</code></td><td><a href="sealed.html">sealed</a></td></tr>
+<tr><td><code>new</code> (modificador)</td><td>esconde, de propósito, um membro de mesmo nome da mãe</td><td><code>public new void Mostrar() { … }</code></td><td><a href="heranca.html">Herança</a></td></tr>
+<tr><td><code>extern</code></td><td>método escrito fora do C# (numa biblioteca do sistema), usado com <code>[DllImport]</code></td><td><code>static extern int getpid();</code></td><td><a href="atributos.html">Atributos</a></td></tr>
+<tr><td><code>volatile</code></td><td>campo lido e escrito por várias threads sem cache</td><td><code>volatile bool parar;</code></td><td><a href="threads.html">Threads</a></td></tr>
+</table>
+</div>
+
+<h3 id="metodos">Métodos, parâmetros e objetos</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Palavra</th><th>O que faz</th><th>Exemplo</th><th>Aula</th></tr>
+<tr><td><code>new</code> (operador)</td><td>cria um objeto</td><td><code>var lista = new List&lt;int&gt;();</code></td><td><a href="classes-objetos.html">Classes e Objetos</a></td></tr>
+<tr><td><code>this</code></td><td>o próprio objeto; também o primeiro parâmetro de um método de extensão</td><td><code>this.nome = nome;</code></td><td><a href="this.html">this</a></td></tr>
+<tr><td><code>base</code></td><td>a classe mãe: chama o construtor ou o método dela</td><td><code>: base(nome)</code> · <code>base.ToString()</code></td><td><a href="base.html">base</a></td></tr>
+<tr><td><code>ref</code></td><td>passa a própria variável, não uma cópia</td><td><code>Dobrar(ref x);</code></td><td><a href="ref-out-in.html">ref, out e in</a></td></tr>
+<tr><td><code>out</code></td><td>parâmetro que o método preenche</td><td><code>int.TryParse(texto, out int n)</code></td><td><a href="ref-out-in.html">ref, out e in</a></td></tr>
+<tr><td><code>in</code> (parâmetro)</td><td>passa por referência, só para leitura</td><td><code>static double Medir(in Ponto p)</code></td><td><a href="ref-out-in.html">ref, out e in</a></td></tr>
+<tr><td><code>params</code></td><td>aceita quantos argumentos vierem</td><td><code>static int Somar(params int[] n)</code></td><td><a href="params.html">params</a></td></tr>
+<tr><td><code>operator</code></td><td>define o que um operador (<code>+</code>, <code>==</code>…) faz com o seu tipo</td><td><code>public static Ponto operator +(Ponto a, Ponto b)</code></td><td><a href="sobrecarga-operadores.html">Sobrecarga de Operadores</a></td></tr>
+<tr><td><code>implicit</code>, <code>explicit</code></td><td>conversão que acontece sozinha, ou só com cast</td><td><code>public static implicit operator decimal(Reais r)</code></td><td><a href="sobrecarga-operadores.html">Sobrecarga de Operadores</a></td></tr>
+<tr><td><code>lock</code></td><td>só uma thread por vez entra no bloco</td><td><code>lock (_trava) { saldo += valor; }</code></td><td><a href="lock.html">Sincronização (lock)</a></td></tr>
+</table>
+</div>
+
+<h3 id="operadores">Operadores que são palavras</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Palavra</th><th>O que faz</th><th>Exemplo</th><th>Aula</th></tr>
+<tr><td><code>is</code></td><td>testa o tipo ou um padrão</td><td><code>if (forma is Circulo c) { … }</code></td><td><a href="pattern-matching.html">Pattern Matching</a></td></tr>
+<tr><td><code>as</code></td><td>converte para um tipo de referência, ou dá <code>null</code> se não der</td><td><code>Circulo? c = forma as Circulo;</code></td><td><a href="polimorfismo.html">Polimorfismo</a></td></tr>
+<tr><td><code>typeof</code></td><td>o objeto <code>Type</code> que descreve um tipo</td><td><code>typeof(int).Name</code> → <code>Int32</code></td><td><a href="reflexao.html">Reflexão</a></td></tr>
+<tr><td><code>sizeof</code></td><td>o tamanho em bytes de um tipo de valor</td><td><code>sizeof(int)</code> → <code>4</code></td><td><a href="ref-tipos.html">Tipos e Limites</a></td></tr>
+</table>
+</div>
+
+<h3 id="avancadas">Avançadas (código inseguro e memória)</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Palavra</th><th>O que faz</th><th>Exemplo</th><th>Aula</th></tr>
+<tr><td><code>unsafe</code></td><td>libera ponteiros num bloco (precisa de <code>&lt;AllowUnsafeBlocks&gt;</code> no <code>.csproj</code>)</td><td><code>unsafe { int* p = &amp;x; }</code></td><td><a href="memoria.html">Memória</a></td></tr>
+<tr><td><code>fixed</code></td><td>prende um objeto na memória enquanto um ponteiro aponta para ele</td><td><code>fixed (char* p = texto) { … }</code></td><td><a href="memoria.html">Memória</a></td></tr>
+<tr><td><code>stackalloc</code></td><td>reserva um bloco na pilha, em geral para um <code>Span</code></td><td><code>Span&lt;int&gt; v = stackalloc int[8];</code></td><td><a href="span.html">Span&lt;T&gt;</a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="contextuais">Palavras-chave contextuais</h2>
+<p>Estas só têm significado especial em certos lugares. Fora deles, são nomes comuns: <code>string var = "ok";</code> e <code>int record = 14;</code> compilam. Por isso o C# pôde ganhar palavras novas (como <code>record</code>, em 2020, e <code>field</code>, em 2025) sem quebrar programas antigos que já usavam esses nomes. Mesmo assim, evite usá-las como nome: confunde quem lê.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Palavra</th><th>Onde é especial e o que faz</th><th>Exemplo</th><th>Desde</th><th>Aula</th></tr>
+<tr><td><code>var</code></td><td>na declaração: "o compilador descobre o tipo"</td><td><code>var total = 0m;</code></td><td>C# 3</td><td><a href="var.html">var</a></td></tr>
+<tr><td><code>get</code>, <code>set</code></td><td>numa propriedade: o leitor e o gravador</td><td><code>public int Idade { get; set; }</code></td><td>C# 1</td><td><a href="propriedades.html">Propriedades</a></td></tr>
+<tr><td><code>value</code></td><td>dentro do <code>set</code>: o valor que está chegando</td><td><code>set =&gt; _idade = value;</code></td><td>C# 1</td><td><a href="propriedades.html">Propriedades</a></td></tr>
+<tr><td><code>field</code></td><td>dentro de um <code>get</code>/<code>set</code>: o campo escondido da propriedade, sem precisar declarar um</td><td><code>set =&gt; field = value.Trim();</code></td><td>C# 14</td><td><a href="propriedades.html">Propriedades</a></td></tr>
+<tr><td><code>init</code></td><td>numa propriedade: só recebe valor na criação do objeto</td><td><code>public string Nome { get; init; }</code></td><td>C# 9</td><td><a href="readonly.html">readonly e init</a></td></tr>
+<tr><td><code>required</code></td><td>numa propriedade: quem cria o objeto <strong>tem</strong> de preencher</td><td><code>public required string Nome { get; init; }</code></td><td>C# 11</td><td><a href="inicializadores.html">Inicializadores e required</a></td></tr>
+<tr><td><code>record</code></td><td>declara um record (classe ou struct de dados)</td><td><code>record Produto(string Nome, decimal Preco);</code></td><td>C# 9</td><td><a href="records.html">Records</a></td></tr>
+<tr><td><code>with</code></td><td>depois de um record ou struct: cópia com algumas mudanças</td><td><code>p with { Preco = 9.90m }</code></td><td>C# 9</td><td><a href="records.html">Records</a></td></tr>
+<tr><td><code>partial</code></td><td>tipo ou método dividido em vários arquivos</td><td><code>partial class Tela { … }</code></td><td>C# 2</td><td><a href="partial.html">Classes Parciais</a></td></tr>
+<tr><td><code>file</code></td><td>antes de um tipo: ele só existe neste arquivo</td><td><code>file class Ajudante { … }</code></td><td>C# 11</td><td><a href="modificadores-acesso.html">public, private e internal</a></td></tr>
+<tr><td><code>async</code>, <code>await</code></td><td>método assíncrono; esperar uma <code>Task</code> sem travar</td><td><code>string t = await File.ReadAllTextAsync("a.txt");</code></td><td>C# 5</td><td><a href="async-await.html">async e await</a></td></tr>
+<tr><td><code>yield</code></td><td>num iterador: <code>yield return</code> entrega um item; <code>yield break</code> encerra</td><td><code>yield return i * i;</code></td><td>C# 2</td><td><a href="yield.html">Iteradores</a></td></tr>
+<tr><td><code>nameof</code></td><td>o nome de uma variável, propriedade ou tipo, como texto</td><td><code>nameof(titulo)</code> → <code>"titulo"</code></td><td>C# 6</td><td><a href="throw.html">throw</a></td></tr>
+<tr><td><code>when</code></td><td>condição extra num <code>catch</code> ou num <code>case</code></td><td><code>catch (IOException e) when (e.HResult == 2)</code></td><td>C# 6</td><td><a href="try-catch.html">try e catch</a></td></tr>
+<tr><td><code>and</code>, <code>or</code>, <code>not</code></td><td>combinam padrões</td><td><code>if (nota is &gt;= 0 and &lt;= 10)</code> · <code>if (x is not null)</code></td><td>C# 9</td><td><a href="pattern-matching.html">Pattern Matching</a></td></tr>
+<tr><td><code>where</code></td><td>restrição de um genérico (e filtro na sintaxe de consulta do LINQ)</td><td><code>class Caixa&lt;T&gt; where T : IComparable&lt;T&gt;</code></td><td>C# 2</td><td><a href="restricoes-genericas.html">Restrições (where)</a></td></tr>
+<tr><td><code>notnull</code>, <code>unmanaged</code></td><td>restrições de genérico: "não anulável"; "tipo de valor sem referências dentro"</td><td><code>where T : notnull</code></td><td>C# 8 / C# 7.3</td><td><a href="restricoes-genericas.html">Restrições (where)</a></td></tr>
+<tr><td><code>allows</code></td><td>restrição que aceita <code>ref struct</code> (como <code>Span&lt;T&gt;</code>) num genérico</td><td><code>where T : allows ref struct</code></td><td>C# 13</td><td><a href="restricoes-genericas.html">Restrições (where)</a></td></tr>
+<tr><td><code>from</code>, <code>select</code>, <code>orderby</code>, <code>ascending</code>, <code>descending</code>, <code>group</code>, <code>by</code>, <code>into</code>, <code>join</code>, <code>on</code>, <code>equals</code>, <code>let</code></td><td>a sintaxe de consulta do LINQ, parecida com SQL</td><td><code>from p in estoque where p.Qtd &lt; 5 orderby p.Nome select p.Nome</code></td><td>C# 3</td><td><a href="linq.html">O que é LINQ</a></td></tr>
+<tr><td><code>add</code>, <code>remove</code></td><td>num evento: o que fazer no <code>+=</code> e no <code>-=</code></td><td><code>add { _lista += value; }</code></td><td>C# 1</td><td><a href="eventos.html">Eventos</a></td></tr>
+<tr><td><code>extension</code></td><td>bloco de membros de extensão para um tipo</td><td><code>extension(string s) { public string Gritar() =&gt; …; }</code></td><td>C# 14</td><td><a href="extensoes.html">Métodos de Extensão</a></td></tr>
+<tr><td><code>global</code></td><td><code>global using</code> (vale para o projeto todo) e <code>global::</code> (a raiz dos namespaces)</td><td><code>global using System.Text;</code></td><td>C# 10 / C# 2</td><td><a href="namespaces.html">Namespaces e using</a></td></tr>
+<tr><td><code>alias</code></td><td><code>extern alias</code>: dois pacotes com nomes iguais</td><td><code>extern alias Antiga;</code></td><td>C# 2</td><td><a href="nuget.html">Pacotes NuGet</a></td></tr>
+<tr><td><code>dynamic</code></td><td>tipo checado só na hora de rodar</td><td><code>dynamic x = 5; x = "texto";</code></td><td>C# 4</td><td><a href="reflexao.html">Reflexão</a></td></tr>
+<tr><td><code>nint</code>, <code>nuint</code></td><td>inteiro do tamanho de um endereço: 64 bits no laboratório, 32 no editor do guia (<code>nint.Size</code> dá <code>8</code> e <code>4</code>)</td><td><code>nint n = 10;</code></td><td>C# 9</td><td><a href="ref-tipos.html">Tipos e Limites</a></td></tr>
+<tr><td><code>scoped</code></td><td>limita até onde uma referência (<code>ref</code>, <code>Span</code>) pode ir</td><td><code>static void Ler(scoped Span&lt;int&gt; v)</code></td><td>C# 11</td><td><a href="span.html">Span&lt;T&gt;</a></td></tr>
+<tr><td><code>managed</code></td><td>convenção de chamada de um ponteiro de função</td><td><code>delegate* managed&lt;int, int&gt; f;</code></td><td>C# 9</td><td><a href="memoria.html">Memória</a></td></tr>
+</table>
+</div>
+
+<div class="note">
+<strong><code>args</code> não é palavra-chave</strong>
+<p>Nas instruções de nível superior, <code>args</code> é só o nome do parâmetro que recebe a linha de comando (aula <a href="args.html">Argumentos da Linha de Comando</a>). O mesmo vale para <code>Main</code>, <code>Console</code> e <code>List</code>: são nomes do .NET, não da linguagem.</p>
+</div>
+
+<p>Duas contextuais em ação: <code>field</code> <span class="versao">C# 14</span> poupa declarar o campo de uma propriedade que limpa o texto, e <code>extension</code> <span class="versao">C# 14</span> acrescenta um método ao <code>string</code>:</p>
+<pre class="file" data-file="novos.cs">Produto p = new() { Nome = "  caderno  " };
+Console.WriteLine($"[{p.Nome}]");
+Console.WriteLine("lojinha".Gritar());
+
+class Produto
+{
+    public string Nome
+    {
+        get =&gt; field;
+        set =&gt; field = value.Trim();
+    } = "";
+}
+
+static class Extensoes
+{
+    extension(string s)
+    {
+        public string Gritar() =&gt; s.ToUpper() + "!";
+    }
+}
+</pre>
+<pre class="term" data-cwd="~/cs/kw">$ dotnet run novos.cs
+[caderno]
+LOJINHA!</pre>
+
+<hr>
+
+<h2 id="erro">Quando dá errado</h2>
+<div class="cenario">
+<strong>CS1001: uma palavra reservada como nome de variável</strong>
+<p>A Ana calculava a área de um triângulo e chamou a variável de <code>base</code>, como na aula de matemática:</p>
+<pre class="file" data-file="triangulo.cs">double base = 4;
+double altura = 3;
+Console.WriteLine($"Área: {base * altura / 2}");
+</pre>
+<pre class="term" data-cwd="~/cs/kw">$ dotnet run triangulo.cs
+/home/ana/cs/kw/triangulo.cs(1,8): error CS1001: Identificador esperado
+/home/ana/cs/kw/triangulo.cs(1,8): error CS1003: Erro de sintaxe, "," esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> "identificador esperado" (em inglês, <code>Identifier expected</code>): depois de <code>double</code>, o compilador esperava um nome, e encontrou <code>base</code>, que é uma palavra da linguagem (a classe mãe, aula <a href="base.html">base</a>). A segunda mensagem é consequência da primeira. Com outras palavras, a cascata pode ser bem maior: <code>int class = 5;</code> deu 13 erros no laboratório, todos por causa da mesma palavra.</p>
+<p><strong>Como consertar:</strong> o melhor é trocar o nome: <code>baseTriangulo</code>, <code>lado</code>. Se o nome tem mesmo de ser aquele (por exemplo, um campo de um JSON chamado <code>"class"</code>), ponha <code>@</code> na frente: <code>@base</code>, <code>@class</code>. O <code>@</code> diz "isto é um nome, não a palavra-chave", e não faz parte do nome.</p>
+<pre class="file" data-file="arroba.cs">int @class = 5;
+string var = "contextual";
+int record = 14;
+Console.WriteLine($"{@class} {var} {record}");
+</pre>
+<pre class="term" data-cwd="~/cs/kw">$ dotnet run arroba.cs
+5 contextual 14</pre>
+</div>
+
+<h2 id="experimente">Experimente</h2>
+<div class="trycs" data-goal="out:Área: 6">
+<p class="try-task"><strong>Missão:</strong> este é o programa do triângulo, com o erro <code>CS1001</code>. Conserte do jeito que preferir (trocando o nome da variável nas duas linhas, ou com <code>@</code>) para a saída ser <code>Área: 6</code>.</p>
+<pre class="script">double base = 4;
+double altura = 3;
+Console.WriteLine($"Área: {base * altura / 2}");
+</pre>
+<pre class="solucao">double lado = 4;
+double altura = 3;
+Console.WriteLine($"Área: {lado * altura / 2}");
+</pre>
+</div>
+
+<h2>Resumo</h2>
+<ul>
+  <li>O C# 14 tem 77 palavras reservadas, todas em minúsculas. Nenhuma pode ser nome, a não ser com <code>@</code> (<code>@class</code>).</li>
+  <li>Usar uma reservada como nome dá <code>CS1001: Identificador esperado</code>, às vezes com uma cascata de outros erros na mesma linha.</li>
+  <li>As contextuais (<code>var</code>, <code>record</code>, <code>async</code>, <code>field</code>…) só são especiais em certos lugares; fora deles, são nomes comuns. É assim que a linguagem ganha palavras novas sem quebrar código antigo.</li>
+  <li>Os tipos (<code>int</code>, <code>string</code>, <code>bool</code>…) são apelidos de tipos do .NET: <code>int</code> = <code>System.Int32</code>.</li>
+  <li><code>args</code>, <code>Main</code> e <code>Console</code> não são palavras-chave.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
