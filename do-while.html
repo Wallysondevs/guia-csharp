@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# do while — repetir pelo menos uma vez | Guia C#</title>
+<meta name="description" content="O laço do while em C# para quem nunca programou: o corpo roda antes do teste (pelo menos uma vez), a diferença para o while, pedir de novo até a entrada ser válida, o menu que repete até o 0, o ; obrigatório no fim (CS1002), a variável criada no corpo que não existe na condição (CS0103) e o do sem while (CS1003), com saídas reais do dotnet 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">do while</span></h1>
+
+<p class="intro">O <a href="while.html">while</a> pergunta <strong>antes</strong> de cada volta. Se a resposta já começa "não", o corpo nunca roda. Mas há situações em que você precisa fazer a coisa <strong>pelo menos uma vez</strong> para depois decidir se repete: mostrar o menu antes de saber se a pessoa quer sair, pedir a senha antes de saber se ela está certa, jogar uma rodada antes de perguntar "jogar de novo?". Para isso existe o <code>do</code> … <code>while</code> ("faça … enquanto"): primeiro faz, depois testa.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como escrever <code>do { … } while (condição);</code> e em que ordem ele roda.</li>
+  <li>A diferença para o <code>while</code>: o <code>do while</code> roda <strong>pelo menos uma vez</strong>.</li>
+  <li>Os dois usos clássicos: <strong>pedir de novo</strong> até a entrada ser válida e o <strong>menu</strong> que repete.</li>
+  <li>O <code>;</code> obrigatório no fim (<code>CS1002</code>) e a variável do corpo que "some" na condição (<code>CS0103</code>).</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana, na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Alguns leem o que a Ana digita, com <code>Console.ReadLine()</code> ("ler linha do console"): ele espera a pessoa digitar e apertar <kbd>Enter</kbd>. A aula <a href="readline.html">Ler do Teclado</a> explica tudo sobre ele.</p>
+
+<hr>
+
+<h2>A ideia: provar a sopa</h2>
+<p>A Ana está fazendo uma sopa. Ela <strong>prova</strong>, e só depois de provar sabe se precisa de mais sal. Se precisar, põe sal e prova <strong>de novo</strong>. Ela não tem como decidir antes da primeira colherada.</p>
+<ol class="passo">
+  <li><strong>Faz</strong> (prova a sopa).</li>
+  <li><strong>Testa</strong> ("está sem sal?").</li>
+  <li>Se sim, <strong>volta</strong> ao passo 1. Se não, termina.</li>
+</ol>
+<p>Compare com o <code>while</code> da louça da aula anterior: lá, o teste vinha <strong>antes</strong> ("tem louça?"), e com a pia vazia ela não lavava nada. Aqui, a primeira prova acontece <strong>sempre</strong>.</p>
+
+<hr>
+
+<h2>1. O primeiro <code>do while</code></h2>
+
+<pre class="file" data-file="tres.cs">int i = 1;
+do
+{
+    Console.WriteLine($"Volta {i}");
+    i++;
+} while (i &lt;= 3);
+Console.WriteLine("Fim!");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tres.cs
+Volta 1
+Volta 2
+Volta 3
+Fim!</pre>
+
+<dl class="anatomy">
+  <dt>do</dt><dd>"Faça": marca o começo do laço. Não tem condição aqui.</dd>
+  <dt>{ … }</dt><dd>O corpo, que roda primeiro, sem pergunta nenhuma.</dd>
+  <dt>while (i &lt;= 3)</dt><dd>A condição vem <strong>depois</strong> do corpo, logo depois da chave de fechamento. Se for <code>true</code>, o programa volta para o <code>do</code>.</dd>
+  <dt>;</dt><dd>O <strong>ponto e vírgula no fim é obrigatório</strong>. É o único laço que termina com <code>;</code> (no <code>while</code> comum, ele seria um erro). A seção 5 mostra o que acontece sem ele.</dd>
+</dl>
+
+<p>Com um contador assim, o <code>do while</code> e o <code>while</code> dão o mesmo resultado. A diferença só aparece quando a condição já começa falsa.</p>
+
+<hr>
+
+<h2>2. A diferença: pelo menos uma vez</h2>
+<p>Os dois laços abaixo têm o mesmo corpo e a mesma condição, com o estoque começando em 0:</p>
+
+<pre class="file" data-file="comparar.cs">int estoque = 0;
+
+while (estoque &gt; 0)
+{
+    Console.WriteLine("while: vendendo uma unidade...");
+    estoque--;
+}
+
+do
+{
+    Console.WriteLine("do while: vendendo uma unidade...");
+    estoque--;
+} while (estoque &gt; 0);
+
+Console.WriteLine($"Estoque final: {estoque}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run comparar.cs
+do while: vendendo uma unidade...      « o while não rodou; o do while rodou uma vez
+Estoque final: -1                      « e vendeu o que não tinha!</pre>
+
+<p>O <code>while</code> testou <code>0 &gt; 0</code>, deu <code>false</code>, e pulou o corpo. O <code>do while</code> rodou o corpo primeiro, vendeu uma unidade que não existia (o estoque foi para −1) e só então testou. A lição vale nos dois sentidos:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th><code>while</code></th><th><code>do while</code></th></tr>
+<tr><td>Quando testa</td><td>Antes de cada volta</td><td>Depois de cada volta</td></tr>
+<tr><td>Mínimo de voltas</td><td>0</td><td>1</td></tr>
+<tr><td>Bom para</td><td>"Se tiver, faça" (vender do estoque, lavar a louça)</td><td>"Faça, depois veja se repete" (menu, pedir de novo, jogar de novo)</td></tr>
+</table>
+</div>
+
+<p>Para vender do estoque, o <code>while</code> é o certo: com estoque zero, não se vende nada. O <code>do while</code> é para quando a <strong>primeira volta é obrigatória</strong>.</p>
+
+<div class="trycs" data-stdin="s\ns\nn" data-goal="out:Fim de jogo depois de 3 rodadas.,src:\bdo\s*\{">
+<p class="try-task"><strong>Missão:</strong> o jogo da Ana pergunta "Jogar de novo?" no fim de cada rodada, mas com o <code>while</code> ele não joga nem a primeira, porque <code>jogarDeNovo</code> começa <code>false</code>. Transforme o laço num <code>do while</code>. As respostas já estão preparadas: <code>s</code>, <code>s</code> e <code>n</code>. A última linha deve ser:</p>
+<pre class="out">Fim de jogo depois de 3 rodadas.</pre>
+<pre class="script">int rodada = 0;
+bool jogarDeNovo = false;
+while (jogarDeNovo)
+{
+    rodada++;
+    Console.WriteLine($"Rodada {rodada}: jogando...");
+    Console.Write("Jogar de novo? (s/n) ");
+    jogarDeNovo = Console.ReadLine() == "s";
+}
+Console.WriteLine($"Fim de jogo depois de {rodada} rodadas.");
+</pre>
+<pre class="solucao">int rodada = 0;
+bool jogarDeNovo = false;
+do
+{
+    rodada++;
+    Console.WriteLine($"Rodada {rodada}: jogando...");
+    Console.Write("Jogar de novo? (s/n) ");
+    jogarDeNovo = Console.ReadLine() == "s";
+} while (jogarDeNovo);
+Console.WriteLine($"Fim de jogo depois de {rodada} rodadas.");
+</pre>
+</div>
+
+<p>Na caixa, o que o programa "lê" vem da entrada preparada e não aparece na saída. No terminal, você veria o que digitou logo depois de cada pergunta, como na próxima seção.</p>
+
+<hr>
+
+<h2>3. Pedir de novo até a entrada ser válida</h2>
+<p>Este é o uso mais comum do <code>do while</code>. A escola da Ana só aceita notas de 0 a 10. O programa <strong>pergunta</strong> (sempre pelo menos uma vez) e, se a resposta não servir, pergunta de novo:</p>
+
+<pre class="file" data-file="nota.cs">int nota;
+bool valida;
+do
+{
+    Console.Write("Digite a nota (0 a 10): ");
+    valida = int.TryParse(Console.ReadLine(), out nota) &amp;&amp; nota &gt;= 0 &amp;&amp; nota &lt;= 10;
+    if (!valida)
+    {
+        Console.WriteLine("Nota inválida, tente de novo.");
+    }
+} while (!valida);
+Console.WriteLine($"Nota registrada: {nota}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run nota.cs
+Digite a nota (0 a 10): 15
+Nota inválida, tente de novo.          « é número, mas passa de 10
+Digite a nota (0 a 10): abc
+Nota inválida, tente de novo.          « nem é número
+Digite a nota (0 a 10): 8
+Nota registrada: 8</pre>
+
+<dl class="anatomy">
+  <dt>int nota; bool valida;</dt><dd>As duas variáveis são declaradas <strong>antes</strong> do <code>do</code>, porque a condição e a última linha precisam delas (a seção 5 mostra por quê).</dd>
+  <dt>int.TryParse(Console.ReadLine(), out nota)</dt><dd>Lê uma linha e tenta transformá-la em <code>int</code> (aula <a href="parse.html">Parse e TryParse</a>). Dá <code>true</code> e guarda o número em <code>nota</code> se conseguir; dá <code>false</code> com <code>"abc"</code>.</dd>
+  <dt>&amp;&amp; nota &gt;= 0 &amp;&amp; nota &lt;= 10</dt><dd>Além de ser número, tem de estar na faixa. Por causa do curto-circuito do <code>&amp;&amp;</code> (aula <a href="operadores-logicos.html">Operadores Lógicos</a>), a faixa só é conferida se o <code>TryParse</code> deu certo.</dd>
+  <dt>while (!valida);</dt><dd>"Repita enquanto <strong>não</strong> for válida". Quando a Ana digita 8, <code>valida</code> vira <code>true</code>, <code>!valida</code> vira <code>false</code>, e o laço termina.</dd>
+</dl>
+
+<p>Com um <code>while</code> comum, você teria de escrever a pergunta e a leitura <strong>duas vezes</strong>: uma antes do laço e outra no fim do corpo. O <code>do while</code> evita essa repetição.</p>
+
+<hr>
+
+<h2>4. O menu que repete</h2>
+<p>O outro uso clássico: mostrar o menu, fazer o que a pessoa pediu e mostrar o menu de novo, até ela escolher "Sair". O menu tem de aparecer pelo menos uma vez, senão ela nem saberia as opções. Este programa junta o <code>do while</code> com o <a href="switch.html">switch</a>:</p>
+
+<pre class="file" data-file="menu.cs">int opcao;
+do
+{
+    Console.WriteLine("1 - Ver saldo");
+    Console.WriteLine("2 - Fazer um Pix");
+    Console.WriteLine("0 - Sair");
+    Console.Write("Escolha: ");
+    int.TryParse(Console.ReadLine(), out opcao);
+    switch (opcao)
+    {
+        case 1:
+            Console.WriteLine("Saldo: R$ 350,00");
+            break;
+        case 2:
+            Console.WriteLine("Pix enviado!");
+            break;
+        case 0:
+            Console.WriteLine("Até logo!");
+            break;
+        default:
+            Console.WriteLine("Opção inválida.");
+            break;
+    }
+} while (opcao != 0);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run menu.cs
+1 - Ver saldo
+2 - Fazer um Pix
+0 - Sair
+Escolha: 1
+Saldo: R$ 350,00
+1 - Ver saldo
+2 - Fazer um Pix
+0 - Sair
+Escolha: 7
+Opção inválida.
+1 - Ver saldo
+2 - Fazer um Pix
+0 - Sair
+Escolha: 0
+Até logo!</pre>
+
+<p>Repare que o <code>break</code> de cada <code>case</code> sai só do <code>switch</code>, não do laço: depois dele, o programa chega ao <code>while (opcao != 0)</code> e decide se mostra o menu de novo. Se a pessoa digitar algo que não é número, o <code>TryParse</code> põe 0 em <code>opcao</code>, e o programa sai; num programa de verdade, você trataria isso com um aviso.</p>
+
+<hr>
+
+<h2>5. Os dois erros típicos do <code>do while</code></h2>
+
+<h3>Esquecer o <code>;</code> do fim</h3>
+
+<pre class="file" data-file="semponto.cs">int i = 1;
+do
+{
+    Console.WriteLine(i);
+    i++;
+} while (i &lt;= 3)
+Console.WriteLine("Fim!");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run semponto.cs
+/home/ana/cs/semponto.cs(6,17): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"<code>;</code> esperado" na linha 6, coluna 17: logo depois do <code>)</code>. No <code>do while</code>, o <code>while (…)</code> é o <strong>fim</strong> da instrução, e toda instrução que não termina com chave termina com <code>;</code>.</p>
+
+<h3>A variável criada no corpo não existe na condição</h3>
+<p>Parece natural criar a variável dentro do <code>do</code>, onde ela é lida:</p>
+
+<pre class="file" data-file="escopo.cs">do
+{
+    Console.Write("Digite um número positivo: ");
+    int.TryParse(Console.ReadLine(), out int n);
+} while (n &lt;= 0);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run escopo.cs
+/home/ana/cs/escopo.cs(5,10): error CS0103: O nome "n" não existe no contexto atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O <code>while (n &lt;= 0)</code> está <strong>fora</strong> das chaves do corpo, e a variável <code>n</code>, criada lá dentro (com o <code>out int n</code>), já sumiu quando a condição é testada. Conserto: declarar antes do <code>do</code>, como no programa da nota:</p>
+
+<pre class="file">int n;
+do
+{
+    Console.Write("Digite um número positivo: ");
+    int.TryParse(Console.ReadLine(), out n);
+} while (n &lt;= 0);
+</pre>
+
+<hr>
+
+<h2>Formas diferentes + qual usar</h2>
+<p>Pedir de novo até a entrada ser válida pode ser escrito de três jeitos. Os três funcionam:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Como fica</th><th>Comentário</th></tr>
+<tr><td><code>do while</code></td><td><code>do { perguntar; ler; } while (!valida);</code></td><td>A pergunta aparece uma vez no código. É a forma natural.</td></tr>
+<tr><td><code>while</code></td><td><code>perguntar; ler; while (!valida) { avisar; perguntar; ler; }</code></td><td>A pergunta e a leitura ficam repetidas.</td></tr>
+<tr><td><code>while (true)</code> + <code>break</code></td><td><code>while (true) { perguntar; ler; if (valida) { break; } avisar; }</code></td><td>Bom quando a saída fica no meio do corpo. Aula <a href="break-continue.html">break e continue</a>.</td></tr>
+</table>
+</div>
+
+<p>Na prática, o <code>do while</code> é o laço menos usado dos quatro (<code>for</code>, <code>foreach</code> e <code>while</code> aparecem muito mais), mas nos casos em que a primeira volta é obrigatória, ele deixa o código mais curto e mais claro.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS1002: ; esperado</code> depois do <code>while (…)</code></strong>
+<p><strong>O que significa:</strong> faltou o ponto e vírgula no fim do <code>do while</code>.</p>
+<p><strong>Como consertar:</strong> <code>} while (condição);</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0103: O nome "n" não existe no contexto atual</code> na condição</strong>
+<p><strong>O que significa:</strong> a variável usada no <code>while (…)</code> foi criada dentro das chaves do <code>do</code>. A condição fica fora delas.</p>
+<p><strong>Como consertar:</strong> declare a variável <strong>antes</strong> do <code>do</code> e, lá dentro, só dê o valor.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1003: Erro de sintaxe, "while" esperado</code></strong>
+<pre class="term" data-cwd="~/cs">$ cat semwhile.cs
+int i = 1;
+do
+{
+    Console.WriteLine(i);
+    i++;
+}
+Console.WriteLine("Fim!");
+$ dotnet run semwhile.cs
+/home/ana/cs/semwhile.cs(6,2): error CS1003: Erro de sintaxe, "while" esperado
+/home/ana/cs/semwhile.cs(6,2): error CS1003: Erro de sintaxe, "(" esperado
+/home/ana/cs/semwhile.cs(7,26): error CS1026: ) esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>do</code> não pode ficar sozinho: depois da chave de fechamento, o compilador espera o <code>while</code>. Os outros dois erros são consequência (ele tentou usar a linha seguinte como condição).</p>
+<p><strong>Como consertar:</strong> <code>} while (condição);</code> logo depois da chave.</p>
+</div>
+
+<div class="cenario">
+<strong>O corpo rodou uma vez quando não devia</strong>
+<p><strong>O que significa:</strong> você usou <code>do while</code> num caso em que a primeira volta <strong>não</strong> é obrigatória, como vender do estoque (seção 2).</p>
+<p><strong>Como consertar:</strong> use <code>while</code>, que testa antes.</p>
+</div>
+
+<div class="cenario">
+<strong>O programa não termina</strong>
+<p><strong>O que significa:</strong> laço infinito: a condição nunca fica <code>false</code>. No <code>do while</code> de entrada, acontece quando a condição está invertida (<code>while (valida)</code> no lugar de <code>while (!valida)</code>), ou quando nada no corpo muda a variável da condição.</p>
+<p><strong>Como consertar:</strong> <kbd>Ctrl</kbd>+<kbd>C</kbd> no terminal, e leia a condição em voz alta: "repita enquanto…". Veja também o <code>timeout</code> na aula <a href="while.html#infinito">while</a>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>O que faz</th></tr>
+<tr><td><code>do { … } while (cond);</code></td><td>Roda o corpo, depois testa; repete enquanto <code>cond</code> for <code>true</code>. Pelo menos uma volta.</td></tr>
+<tr><td><code>do { pedir; } while (!valida);</code></td><td>Pede de novo até a entrada ser válida.</td></tr>
+<tr><td><code>do { menu; } while (opcao != 0);</code></td><td>Menu que repete até "Sair".</td></tr>
+<tr><td>O <code>;</code> do fim</td><td>Obrigatório (<code>CS1002</code> sem ele).</td></tr>
+<tr><td>Variável da condição</td><td>Declarada <strong>antes</strong> do <code>do</code> (<code>CS0103</code> se for dentro).</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Faça</h3>
+<p>Complete com a palavra que começa o laço:</p>
+<div class="ex-code"><input data-answer="do" aria-label="palavra"> { Console.WriteLine(i); i++; } while (i &lt;= 3);</div>
+</div>
+
+<div class="exercise">
+<h3>2. O fim</h3>
+<p>Complete com o caractere que falta no fim:</p>
+<div class="ex-code">do { i++; } while (i &lt; 10)<input data-answer=";" aria-label="caractere" size="2"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Quantas voltas?</h3>
+<p>Quantas vezes o corpo roda? <code>int x = 100; do { x++; } while (x &lt; 5);</code></p>
+<div class="ex-code">Voltas: <input data-answer="1" aria-label="número"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Qual é a diferença entre <code>while</code> e <code>do while</code>?</p>
+<label><input type="radio" name="q4"> O <code>do while</code> é mais rápido</label>
+<label><input type="radio" name="q4"> O <code>do while</code> testa a condição depois do corpo, então roda pelo menos uma vez</label>
+<label><input type="radio" name="q4"> O <code>while</code> não aceita condições com <code>&amp;&amp;</code></label>
+<label><input type="radio" name="q4"> O <code>do while</code> nunca pode ser infinito</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Para qual destas tarefas o <code>do while</code> é a melhor escolha?</p>
+<label><input type="radio" name="q5"> Somar os números de 1 a 100</label>
+<label><input type="radio" name="q5"> Vender do estoque enquanto houver unidades</label>
+<label><input type="radio" name="q5"> Mostrar um menu e repetir até a pessoa escolher "Sair"</label>
+<label><input type="radio" name="q5"> Mostrar cada letra de um nome</label>
+</div>
+
+<h3>Missão final: a nota válida</h3>
+
+<div class="trycs" data-stdin="15\nabc\n8" data-goal="out:Nota registrada: 8,src:\bdo\s*\{,src:\}\s*while\s*\([^)]*\)\s*;,semaviso">
+<p class="try-task"><strong>Missão:</strong> o programa pergunta a nota uma vez só e registra até o 15, que é inválido. Ponha a pergunta, a leitura e o aviso dentro de um <code>do while</code> que repete <strong>enquanto a nota não for válida</strong>. As respostas preparadas são <code>15</code>, <code>abc</code> e <code>8</code>. A saída deve terminar com:</p>
+<pre class="out">Nota registrada: 8</pre>
+<pre class="script">int nota;
+bool valida;
+
+Console.Write("Digite a nota (0 a 10): ");
+valida = int.TryParse(Console.ReadLine(), out nota) &amp;&amp; nota &gt;= 0 &amp;&amp; nota &lt;= 10;
+if (!valida)
+{
+    Console.WriteLine("Nota inválida, tente de novo.");
+}
+
+Console.WriteLine($"Nota registrada: {nota}");
+</pre>
+<pre class="solucao">int nota;
+bool valida;
+do
+{
+    Console.Write("Digite a nota (0 a 10): ");
+    valida = int.TryParse(Console.ReadLine(), out nota) &amp;&amp; nota &gt;= 0 &amp;&amp; nota &lt;= 10;
+    if (!valida)
+    {
+        Console.WriteLine("Nota inválida, tente de novo.");
+    }
+} while (!valida);
+
+Console.WriteLine($"Nota registrada: {nota}");
+</pre>
+</div>
+
+<p>No terminal, com <code>dotnet run</code>, teste também <code>-1</code>, <code>10</code> e <code>0</code>: os limites da faixa.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>do { … } while (condição);</code> roda o corpo <strong>primeiro</strong> e testa <strong>depois</strong>: sempre pelo menos uma volta.</li>
+  <li>Use quando a primeira volta é obrigatória: pedir de novo até a entrada ser válida, menus, "jogar de novo?". Para "se tiver, faça", use <code>while</code>.</li>
+  <li>O <code>;</code> no fim é obrigatório (<code>CS1002</code>), e o <code>do</code> não vive sem o <code>while</code> (<code>CS1003</code>).</li>
+  <li>A condição fica fora das chaves: variáveis usadas nela são declaradas antes do <code>do</code> (<code>CS0103</code>).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
