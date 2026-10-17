@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# ref, out e in — passar a própria variável para um método | Guia C#</title>
+<meta name="description" content="ref, out e in em C# para quem nunca programou: a diferença entre passar uma cópia e passar a própria variável, ref para mudar a variável de quem chamou, out para devolver mais de um resultado (o padrão TryParse), out var e out _, in para só leitura, quando usar cada um e os erros reais do dotnet 10 (CS1620, CS1510, CS0165, CS0177, CS0269, CS8331), com missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">ref, out e in</span></h1>
+
+<p class="intro">Em <a href="parametros.html">Parâmetros</a> você viu que o método recebe uma <strong>cópia</strong> do valor: se ele mudar o parâmetro, a variável de quem chamou não muda. Quase sempre é isso que você quer. Às vezes, porém, o método precisa mexer na <strong>própria variável</strong>, ou entregar mais de um resultado de uma vez. Para isso o C# tem três palavras que vão antes do parâmetro: <code>ref</code>, <code>out</code> e <code>in</code>. Você já usou uma delas sem saber: o <code>out</code> do <code>int.TryParse(texto, out int numero)</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A diferença entre passar uma <strong>cópia</strong> e passar a <strong>própria variável</strong> (por referência).</li>
+  <li><code>ref</code>: o método lê e muda a variável de quem chamou.</li>
+  <li><code>out</code>: o método é obrigado a dar um valor à variável; serve para devolver mais de um resultado.</li>
+  <li>O padrão <code>TryParse</code>: um <code>bool</code> de retorno e um <code>out</code> com o resultado. E as formas <code>out int x</code>, <code>out var x</code> e <code>out _</code>.</li>
+  <li><code>in</code>: passa a variável só para leitura.</li>
+  <li>Quando usar cada um, e quando é melhor um <code>return</code> ou uma tupla.</li>
+  <li>Os erros <code>CS1620</code> (com uma tradução que engana), <code>CS1510</code>, <code>CS0165</code>, <code>CS0177</code>, <code>CS0269</code> e <code>CS8331</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram na máquina fictícia da Ana, na pasta <code>~/cs</code>, com o <strong>.NET 10</strong> e o comando <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: a fotocópia e o caderno original</h2>
+<p>A secretaria da escola precisa anotar a nota de recuperação no boletim da Ana. Há dois jeitos de entregar o boletim:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Jeito</th><th>O que a secretaria recebe</th><th>Se ela escrever no papel…</th><th>Em C#</th></tr>
+<tr><td>Entregar uma fotocópia</td><td>Uma cópia</td><td>O boletim da Ana não muda</td><td>Parâmetro comum (passagem por <strong>valor</strong>)</td></tr>
+<tr><td>Entregar o boletim original</td><td>O próprio boletim</td><td>A nota aparece no boletim da Ana</td><td><code>ref</code> (passagem por <strong>referência</strong>)</td></tr>
+<tr><td>Entregar uma folha em branco: "preencha e me devolva"</td><td>Um lugar vazio para escrever</td><td>Ela <strong>tem</strong> de escrever algo</td><td><code>out</code></td></tr>
+<tr><td>Mostrar o original pelo vidro do balcão</td><td>O próprio boletim, mas sem caneta</td><td>Ela só pode ler</td><td><code>in</code></td></tr>
+</table>
+</div>
+
+<p>Nos três últimos casos, o método não recebe um valor copiado: recebe um <strong>apelido</strong> para a variável de quem chamou. Tudo o que ele faz com o parâmetro acontece direto na variável original.</p>
+
+<hr>
+
+<h2>1. <code>ref</code>: mudar a variável de quem chamou</h2>
+<p>Este é o programa da aula de parâmetros, com uma diferença: a palavra <code>ref</code> em dois lugares.</p>
+
+<pre class="file" data-file="ref1.cs">int pontos = 10;
+Console.WriteLine($"Antes:  pontos = {pontos}");
+Dobrar(ref pontos);
+Console.WriteLine($"Depois: pontos = {pontos}");
+
+void Dobrar(ref int valor)
+{
+    valor = valor * 2;
+    Console.WriteLine($"Dentro: valor  = {valor}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ref1.cs
+Antes:  pontos = 10
+Dentro: valor  = 20
+Depois: pontos = 20                  « sem o ref, continuava 10</pre>
+
+<dl class="anatomy">
+  <dt>void Dobrar(ref int valor)</dt><dd>Na declaração, <code>ref</code> antes do tipo diz: "este parâmetro não é uma cópia; é a própria variável que vier na chamada". <code>valor</code> passa a ser outro nome para <code>pontos</code>.</dd>
+  <dt>Dobrar(ref pontos);</dt><dd>Na chamada, o <code>ref</code> também é <strong>obrigatório</strong>. É um aviso para quem lê: "cuidado, esta linha pode mudar <code>pontos</code>".</dd>
+  <dt>valor = valor * 2;</dt><dd>Como <code>valor</code> é um apelido de <code>pontos</code>, quem vira 20 é o próprio <code>pontos</code>.</dd>
+</dl>
+
+<p>O exemplo clássico de <code>ref</code> é trocar o conteúdo de duas variáveis, algo que um método comum não consegue, porque só teria as cópias:</p>
+
+<pre class="file" data-file="trocar.cs">int a = 3;
+int b = 8;
+Console.WriteLine($"a = {a}, b = {b}");
+Trocar(ref a, ref b);
+Console.WriteLine($"a = {a}, b = {b}");
+
+void Trocar(ref int x, ref int y)
+{
+    int guarda = x;
+    x = y;
+    y = guarda;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run trocar.cs
+a = 3, b = 8
+a = 8, b = 3</pre>
+
+<p>A variável <code>guarda</code> segura o valor de <code>x</code> (3) enquanto <code>x</code> recebe o de <code>y</code> (8); depois <code>y</code> recebe o 3 guardado. Como <code>x</code> e <code>y</code> são apelidos de <code>a</code> e <code>b</code>, a troca acontece nas variáveis do programa.</p>
+
+<h3>Regras do <code>ref</code></h3>
+<p>O <code>ref</code> precisa de uma <strong>variável</strong> que <strong>já tenha valor</strong>, porque o método pode ler o que está lá. E ele é exigido dos dois lados. Os três erros que aparecem quando uma regra é quebrada:</p>
+
+<pre class="file" data-file="semref.cs">int pontos = 10;
+Dobrar(pontos);
+
+void Dobrar(ref int valor)
+{
+    valor = valor * 2;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run semref.cs
+/home/ana/cs/semref.cs(2,8): error CS1620: Argumento 1 não deve ser transmitido com a palavra-chave "ref"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<div class="warning">
+<strong>Atenção: a tradução está errada</strong>
+<p>A mensagem em português diz "<strong>não deve</strong> ser transmitido com a palavra-chave ref", mas o problema é o contrário: faltou o <code>ref</code>. O original em inglês é <em>Argument 1 must be passed with the 'ref' keyword</em>, "o argumento 1 <strong>deve</strong> ser passado com a palavra-chave ref". Quando uma mensagem parecer não fazer sentido, procure o código (<code>CS1620</code>) e leia a versão em inglês. Conserto: <code>Dobrar(ref pontos);</code>.</p>
+</div>
+
+<pre class="file" data-file="reflit.cs">Dobrar(ref 5);
+
+void Dobrar(ref int valor)
+{
+    valor = valor * 2;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run reflit.cs
+/home/ana/cs/reflit.cs(1,12): error CS1510: Um valor ref ou out deve ser uma variável que possa ser atribuída
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O método mudaria o 5 para 10, mas um número escrito no código não é uma variável: não há onde guardar o resultado. Com <code>ref</code> e <code>out</code>, o argumento tem de ser uma variável (ou um elemento de array, como <code>ref notas[0]</code>).</p>
+
+<pre class="file" data-file="refsemvalor.cs">int pontos;
+Dobrar(ref pontos);
+Console.WriteLine(pontos);
+
+void Dobrar(ref int valor)
+{
+    valor = valor * 2;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run refsemvalor.cs
+/home/ana/cs/refsemvalor.cs(2,12): error CS0165: Uso de variável local não atribuída "pontos"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p><code>pontos</code> foi declarada sem valor, e o método ia ler esse valor (<code>valor * 2</code>). Conserto: <code>int pontos = 10;</code>. Se o método só vai <strong>escrever</strong> na variável, sem ler, o certo é <code>out</code>, a próxima seção.</p>
+
+<div class="trycs" data-goal="out:Estoque: 15,src:ref\s+int\s+\w+,src:Repor\s*\(\s*ref\s+estoque">
+<p class="try-task"><strong>Missão:</strong> o método <code>Repor</code> deveria somar 5 ao estoque, mas o programa mostra <code>Estoque: 10</code>. Use <code>ref</code> (na declaração e na chamada) para que ele mude a variável <code>estoque</code> e o programa mostre <code>Estoque: 15</code>.</p>
+<pre class="script">int estoque = 10;
+Repor(estoque);
+Console.WriteLine($"Estoque: {estoque}");
+
+void Repor(int quantidade)
+{
+    quantidade = quantidade + 5;
+}
+</pre>
+<pre class="solucao">int estoque = 10;
+Repor(ref estoque);
+Console.WriteLine($"Estoque: {estoque}");
+
+void Repor(ref int quantidade)
+{
+    quantidade = quantidade + 5;
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. <code>out</code>: "preencha e me devolva"</h2>
+<p>Um método só tem um valor de retorno. E se ele precisar entregar <strong>dois</strong> resultados, como o menor e o maior número de uma lista? Uma saída é o <code>out</code> ("saída"): o parâmetro chega vazio, e o método é <strong>obrigado</strong> a colocar um valor nele antes de terminar.</p>
+
+<pre class="file" data-file="out1.cs">int menor;
+int maior;
+MenorEMaior(new int[] { 7, 3, 9, 5 }, out menor, out maior);
+Console.WriteLine($"Menor: {menor}, maior: {maior}");
+
+void MenorEMaior(int[] numeros, out int min, out int max)
+{
+    min = numeros[0];
+    max = numeros[0];
+    foreach (int n in numeros)
+    {
+        if (n &lt; min) min = n;
+        if (n &gt; max) max = n;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run out1.cs
+Menor: 3, maior: 9</pre>
+
+<dl class="anatomy">
+  <dt>int menor; int maior;</dt><dd>As variáveis foram declaradas <strong>sem valor</strong>. Com <code>ref</code>, isso daria <code>CS0165</code>; com <code>out</code>, pode, porque o método promete preenchê-las.</dd>
+  <dt>out int min, out int max</dt><dd>Dois parâmetros de saída. Dentro do método, eles começam "vazios": o método tem de dar um valor a cada um antes de sair.</dd>
+  <dt>min = numeros[0];</dt><dd>A primeira coisa que o método faz é preencher os dois, com o primeiro número. Depois o <code>foreach</code> procura valores menores e maiores.</dd>
+  <dt>out menor, out maior</dt><dd>Na chamada, o <code>out</code> é obrigatório, como o <code>ref</code>. Quando o método termina, <code>menor</code> vale 3 e <code>maior</code> vale 9.</dd>
+</dl>
+
+<h3>Declarar na própria chamada: <code>out int</code>, <code>out var</code> e <code>out _</code></h3>
+<p>Declarar a variável numa linha e passá-la na outra é comprido. Desde o <span class="versao">C# 7</span>, você pode declarar a variável <strong>dentro</strong> da chamada:</p>
+
+<pre class="file" data-file="outvar.cs">MenorEMaior(new int[] { 7, 3, 9, 5 }, out int menor, out int maior);
+Console.WriteLine($"Menor: {menor}, maior: {maior}");
+
+MenorEMaior(new int[] { 4, 1 }, out var m1, out _);
+Console.WriteLine($"Só o menor: {m1}");
+
+void MenorEMaior(int[] numeros, out int min, out int max)
+{
+    min = numeros[0];
+    max = numeros[0];
+    foreach (int n in numeros)
+    {
+        if (n &lt; min) min = n;
+        if (n &gt; max) max = n;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run outvar.cs
+Menor: 3, maior: 9
+Só o menor: 1</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>O que faz</th></tr>
+<tr><td><code>out menor</code></td><td>Usa uma variável declarada antes</td></tr>
+<tr><td><code>out int menor</code></td><td>Declara a variável ali mesmo; ela continua existindo nas linhas seguintes</td></tr>
+<tr><td><code>out var m1</code></td><td>O mesmo, deixando o compilador descobrir o tipo (<code>int</code>)</td></tr>
+<tr><td><code>out _</code></td><td>"Não quero esse resultado": o <code>_</code> (<strong>descarte</strong>) joga o valor fora</td></tr>
+</table>
+</div>
+
+<h3>O padrão <code>TryParse</code></h3>
+<p>O uso mais famoso do <code>out</code> você já conhece de <a href="parse.html">Parse e TryParse</a>. O <code>int.TryParse</code> devolve <strong>duas</strong> respostas: pelo <code>return</code>, um <code>bool</code> ("deu certo?"); pelo <code>out</code>, o número.</p>
+
+<pre class="file" data-file="tryparse.cs">string[] digitados = { "42", "abc", "7" };
+foreach (string texto in digitados)
+{
+    if (int.TryParse(texto, out int numero))
+    {
+        Console.WriteLine($"\"{texto}\" virou o número {numero}");
+    }
+    else
+    {
+        Console.WriteLine($"\"{texto}\" não é um número");
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tryparse.cs
+"42" virou o número 42
+"abc" não é um número
+"7" virou o número 7</pre>
+
+<p>Agora você consegue escrever um método nesse mesmo estilo. O nome começa com <code>Tentar</code> (em inglês, <code>Try</code>), o retorno diz se deu certo e o <code>out</code> traz o resultado:</p>
+
+<pre class="file" data-file="tentar.cs">Mostrar(10, 2);
+Mostrar(10, 0);
+
+void Mostrar(int a, int b)
+{
+    if (TentarDividir(a, b, out int resultado))
+    {
+        Console.WriteLine($"{a} / {b} = {resultado}");
+    }
+    else
+    {
+        Console.WriteLine($"{a} / {b}: não dá para dividir por zero");
+    }
+}
+
+bool TentarDividir(int a, int b, out int resultado)
+{
+    if (b == 0)
+    {
+        resultado = 0;
+        return false;
+    }
+    resultado = a / b;
+    return true;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tentar.cs
+10 / 2 = 5
+10 / 0: não dá para dividir por zero</pre>
+
+<p>Repare no <code>resultado = 0;</code> antes do <code>return false;</code>. Mesmo quando falha, o método tem de preencher o <code>out</code>. Sem essa linha:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run outnaoatrib.cs
+/home/ana/cs/outnaoatrib.cs(7,9): error CS0177: O parâmetro out "resultado" deve ser atribuído antes que o controle saia do método atual
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p><em>Deve ser atribuído antes que o controle saia do método</em> (<em>must be assigned to before control leaves the current method</em>): o <code>return false;</code> da linha 7 sairia do método com o <code>resultado</code> vazio. É a promessa do <code>out</code>: quem chamou pode usar a variável logo depois, então ela precisa ter algum valor. O <code>int.TryParse</code> faz o mesmo: quando falha, coloca 0 no <code>out</code>.</p>
+
+<hr>
+
+<h2>3. <code>in</code>: só para ler</h2>
+<p>O <code>in</code> <span class="versao">C# 7.2</span> também passa a própria variável (e não uma cópia), mas <strong>proíbe</strong> o método de mudá-la:</p>
+
+<pre class="file" data-file="in1.cs">decimal preco = 12.50m;
+Mostrar(in preco);
+Mostrar(preco);
+
+void Mostrar(in decimal valor)
+{
+    Console.WriteLine(valor.ToString("C"));
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run in1.cs
+R$ 12,50
+R$ 12,50</pre>
+
+<p>Diferente de <code>ref</code> e <code>out</code>, o <code>in</code> na chamada é <strong>opcional</strong>: as duas linhas funcionam. Se o método tentar mudar o parâmetro:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run inmuda.cs                « com valor = valor * 2; dentro do Mostrar
+/home/ana/cs/inmuda.cs(6,5): error CS8331: Não é possível atribuir a variável 'valor' ou usá-lo como o lado direito de uma atribuição ref porque é uma variável somente leitura
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Para que serve, se uma cópia também protege a variável? Para <strong>economizar a cópia</strong> de valores muito grandes, como uma <a href="structs.html">struct</a> com muitos campos: o método lê direto do original, sem copiar nada, e ainda tem a garantia de não estragá-lo. Com <code>int</code>, <code>decimal</code> e outros tipos pequenos não há ganho nenhum, e você raramente vai escrever <code>in</code>. Vale reconhecê-lo quando aparecer em código alheio.</p>
+
+<hr>
+
+<h2>Formas diferentes de devolver mais de um valor</h2>
+<p>O <code>out</code> não é o único jeito de um método entregar dois resultados. Compare com uma <strong>tupla</strong> (aula <a href="tuplas.html">Tuplas</a>), que junta dois valores num só retorno:</p>
+
+<pre class="file" data-file="tupla.cs">var (menor, maior) = MenorEMaior(new int[] { 7, 3, 9, 5 });
+Console.WriteLine($"Menor: {menor}, maior: {maior}");
+
+(int, int) MenorEMaior(int[] numeros)
+{
+    return (numeros.Min(), numeros.Max());
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tupla.cs
+Menor: 3, maior: 9</pre>
+
+<p>E, como os métodos no fim do arquivo são <a href="metodos.html">funções locais</a>, eles enxergam as variáveis do programa e podem mudá-las direto, sem <code>ref</code>:</p>
+
+<pre class="file" data-file="captura.cs">int pontos = 10;
+DobrarPontos();
+Console.WriteLine($"pontos = {pontos}");
+
+void DobrarPontos()
+{
+    pontos = pontos * 2;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run captura.cs
+pontos = 20</pre>
+
+<p>Funciona, mas esconde o que muda: quem lê <code>DobrarPontos();</code> não sabe que <code>pontos</code> foi alterada, e o método só serve para essa variável. Com <code>ref</code>, a chamada mostra o que muda (<code>Dobrar(ref pontos)</code>) e o método serve para qualquer variável. A aula <a href="escopo.html">Escopo</a> volta a esse assunto.</p>
+
+<h3>Qual usar?</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>O método calcula <strong>um</strong> valor novo</td><td><code>return</code>, e quem chamou guarda: <code>pontos = Dobrar(pontos);</code> (<a href="retorno.html">Valor de Retorno</a>)</td></tr>
+<tr><td>O método calcula <strong>vários</strong> valores</td><td>Uma <a href="tuplas.html">tupla</a> (ou um <a href="records.html">record</a>); ou <code>out</code></td></tr>
+<tr><td>"Tente fazer; diga se deu certo e, se deu, o resultado"</td><td><code>bool TentarAlgo(…, out T resultado)</code>, como o <code>TryParse</code></td></tr>
+<tr><td>O método precisa mesmo mudar variáveis de quem chamou (trocar duas, ajustar um contador)</td><td><code>ref</code></td></tr>
+<tr><td>Passar uma struct grande sem copiar, só para leitura</td><td><code>in</code></td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>Regra do guia</strong>
+<p>Prefira <code>return</code>. Use <code>out</code> no padrão <code>Tentar…</code>/<code>Try…</code> e <code>ref</code> quando não houver jeito melhor. Um programa cheio de <code>ref</code> fica difícil de seguir, porque qualquer chamada pode mudar qualquer variável.</p>
+</div>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>comum</th><th><code>ref</code></th><th><code>out</code></th><th><code>in</code></th></tr>
+<tr><td>O método recebe</td><td>uma cópia</td><td>a variável</td><td>a variável</td><td>a variável</td></tr>
+<tr><td>A variável precisa ter valor antes?</td><td>sim</td><td>sim</td><td>não</td><td>sim</td></tr>
+<tr><td>O método pode ler?</td><td>sim</td><td>sim</td><td>só depois de preencher</td><td>sim</td></tr>
+<tr><td>O método pode mudar?</td><td>só a cópia</td><td>sim</td><td>é obrigado</td><td>não</td></tr>
+<tr><td>Palavra na chamada</td><td>nenhuma</td><td>obrigatória</td><td>obrigatória</td><td>opcional</td></tr>
+<tr><td>Argumento pode ser um valor (<code>5</code>)?</td><td>sim</td><td>não</td><td>não</td><td>sim</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS1620: Argumento 1 não deve ser transmitido com a palavra-chave "ref"</code></strong>
+<p><strong>O que significa:</strong> apesar da tradução, faltou o <code>ref</code> (ou o <code>out</code>) na <strong>chamada</strong>. Em inglês: <em>Argument 1 must be passed with the 'ref' keyword</em>.</p>
+<p><strong>Como consertar:</strong> escreva a palavra também na chamada: <code>Dobrar(ref pontos);</code>, <code>int.TryParse(texto, out int n)</code>. Esquecer o <code>out</code> do <code>TryParse</code> dá uma cascata de erros, e o <code>CS1620</code> é o que importa:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run outsemmarca2.cs          « int.TryParse("42", numero);
+/home/ana/cs/outsemmarca2.cs(2,14): error CS1503: Argumento 1: não é possível converter de "string" para "System.ReadOnlySpan&lt;byte&gt;"
+/home/ana/cs/outsemmarca2.cs(2,20): error CS1620: Argumento 2 não deve ser transmitido com a palavra-chave "out"
+/home/ana/cs/outsemmarca2.cs(2,20): error CS0165: Uso de variável local não atribuída "numero"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p>O primeiro erro, com <code>ReadOnlySpan&lt;byte&gt;</code>, assusta, mas é efeito colateral: sem o <code>out</code>, o compilador procurou outra versão do <code>TryParse</code> e não achou nenhuma que servisse. Ponha o <code>out</code> e os três somem.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1510: Um valor ref ou out deve ser uma variável que possa ser atribuída</code></strong>
+<p><strong>O que significa:</strong> você passou um valor (<code>ref 5</code>) ou uma conta (<code>ref (a + 1)</code>) onde o método precisa de uma variável.</p>
+<p><strong>Como consertar:</strong> guarde o valor numa variável e passe a variável: <code>int x = 5; Dobrar(ref x);</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0165: Uso de variável local não atribuída "pontos"</code></strong>
+<p><strong>O que significa:</strong> a variável passada com <code>ref</code> foi declarada sem valor.</p>
+<p><strong>Como consertar:</strong> dê um valor inicial (<code>int pontos = 0;</code>) ou, se o método só preenche a variável, troque <code>ref</code> por <code>out</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0177: O parâmetro out "resultado" deve ser atribuído antes que o controle saia do método atual</code></strong>
+<p><strong>O que significa:</strong> há um caminho (em geral, um <code>return</code> dentro de um <code>if</code>) em que o método sai sem preencher o <code>out</code>.</p>
+<p><strong>Como consertar:</strong> preencha o <code>out</code> em todos os caminhos. Um truque: atribua um valor padrão logo na primeira linha do método (<code>resultado = 0;</code>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0269: Uso do parâmetro out não atribuído "total"</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run outler.cs
+/home/ana/cs/outler.cs(5,13): error CS0269: Uso do parâmetro out não atribuído "total"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o método <code>void Somar(out int total)</code> tenta ler o parâmetro (<code>total = total + 1;</code>) antes de dar um valor a ele. Um <code>out</code> chega vazio: não há o que somar.</p>
+<p><strong>Como consertar:</strong> se o método precisa do valor que já estava lá, o parâmetro é <code>ref</code>, não <code>out</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS8331: Não é possível atribuir a variável 'valor'… porque é uma variável somente leitura</code></strong>
+<p><strong>O que significa:</strong> o parâmetro é <code>in</code>, e o método tentou mudá-lo.</p>
+<p><strong>Como consertar:</strong> use uma variável local para a conta (<code>decimal dobro = valor * 2;</code>) ou, se o método precisa mesmo mudar o original, troque <code>in</code> por <code>ref</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>void M(ref int x)</code> e <code>M(ref v);</code></td><td>Passa a própria variável <code>v</code>; o método lê e muda</td></tr>
+<tr><td><code>void M(out int x)</code> e <code>M(out v);</code></td><td>O método é obrigado a dar valor a <code>v</code>; <code>v</code> pode chegar sem valor</td></tr>
+<tr><td><code>M(out int v)</code>, <code>M(out var v)</code></td><td>Declara a variável na própria chamada</td></tr>
+<tr><td><code>M(out _)</code></td><td>Descarta o resultado</td></tr>
+<tr><td><code>void M(in decimal x)</code> e <code>M(v);</code></td><td>Passa a variável só para leitura (o <code>in</code> na chamada é opcional)</td></tr>
+<tr><td><code>bool TentarAlgo(…, out T r)</code></td><td>Padrão Try: o <code>bool</code> diz se deu certo, o <code>out</code> traz o resultado</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Na chamada</h3>
+<p>O método é <code>void Zerar(ref int x)</code>. Complete a chamada para zerar a variável <code>saldo</code>:</p>
+<div class="ex-code">Zerar(<input data-answer="ref saldo" aria-label="argumento">);</div>
+</div>
+
+<div class="exercise">
+<h3>2. Declarar na chamada</h3>
+<p>Complete para converter o texto e criar a variável <code>idade</code> ali mesmo:</p>
+<div class="ex-code">int.TryParse(texto, <input data-answer="out int idade|out var idade" aria-label="argumento">)</div>
+</div>
+
+<div class="exercise">
+<h3>3. Quanto vale?</h3>
+<p>Com <code>void Somar5(ref int n) { n = n + 5; }</code>, quanto vale <code>x</code> depois de <code>int x = 2; Somar5(ref x); Somar5(ref x);</code>?</p>
+<div class="ex-code"><input data-answer="12" aria-label="valor de x"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Qual das palavras permite passar uma variável declarada <strong>sem valor</strong>, como <code>int r;</code>?</p>
+<label><input type="radio" name="q4"> <code>ref</code></label>
+<label><input type="radio" name="q4"> <code>in</code></label>
+<label><input type="radio" name="q4"> <code>out</code></label>
+<label><input type="radio" name="q4"> nenhuma</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. A mensagem <code>CS1620: Argumento 1 não deve ser transmitido com a palavra-chave "ref"</code> aparece. O que fazer?</p>
+<label><input type="radio" name="q5"> Tirar o <code>ref</code> da chamada</label>
+<label><input type="radio" name="q5"> Pôr o <code>ref</code> na chamada: a tradução está invertida, faltou o <code>ref</code></label>
+<label><input type="radio" name="q5"> Trocar <code>ref</code> por <code>in</code> na declaração</label>
+<label><input type="radio" name="q5"> Declarar a variável sem valor</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Um método <code>bool TentarLer(string t, out int n)</code> tem um <code>return false;</code> dentro de um <code>if</code>, sem preencher <code>n</code> antes. O que acontece?</p>
+<label><input type="radio" name="q6"> Erro <code>CS0177</code>: o <code>out</code> tem de receber valor em todos os caminhos</label>
+<label><input type="radio" name="q6"> <code>n</code> fica com o valor antigo</label>
+<label><input type="radio" name="q6"> <code>n</code> vale 0 automaticamente</label>
+<label><input type="radio" name="q6"> Só um aviso</label>
+</div>
+
+<h3>Missão final: pagar e receber o troco</h3>
+
+<div class="trycs" data-goal="outre:^Pago! Troco: R\$ 12\,50\nDinheiro insuficiente\nPago! Troco: R\$ 0\,00\n$,src:bool\s+TentarPagar\s*\([^)]*out\s+decimal\s+troco">
+<p class="try-task"><strong>Missão:</strong> complete o método <code>TentarPagar</code>, no padrão Try. Se o <code>dinheiro</code> der para pagar o <code>preco</code> (maior ou igual), ele coloca a diferença em <code>troco</code> e devolve <code>true</code>; senão, coloca 0 em <code>troco</code> e devolve <code>false</code>. Do jeito que está, o programa nem compila: dá <code>CS0177</code>, porque o <code>out</code> não foi preenchido. A saída deve ser:</p>
+<pre class="out">Pago! Troco: R$ 12,50
+Dinheiro insuficiente
+Pago! Troco: R$ 0,00</pre>
+<pre class="script">Pagar(50m, 37.50m);
+Pagar(20m, 37.50m);
+Pagar(10m, 10m);
+
+void Pagar(decimal dinheiro, decimal preco)
+{
+    if (TentarPagar(dinheiro, preco, out decimal troco))
+    {
+        Console.WriteLine($"Pago! Troco: {troco:C}");
+    }
+    else
+    {
+        Console.WriteLine("Dinheiro insuficiente");
+    }
+}
+
+bool TentarPagar(decimal dinheiro, decimal preco, out decimal troco)
+{
+    // complete aqui
+    return false;
+}
+</pre>
+<pre class="solucao">Pagar(50m, 37.50m);
+Pagar(20m, 37.50m);
+Pagar(10m, 10m);
+
+void Pagar(decimal dinheiro, decimal preco)
+{
+    if (TentarPagar(dinheiro, preco, out decimal troco))
+    {
+        Console.WriteLine($"Pago! Troco: {troco:C}");
+    }
+    else
+    {
+        Console.WriteLine("Dinheiro insuficiente");
+    }
+}
+
+bool TentarPagar(decimal dinheiro, decimal preco, out decimal troco)
+{
+    if (dinheiro &gt;= preco)
+    {
+        troco = dinheiro - preco;
+        return true;
+    }
+    troco = 0;
+    return false;
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Sem palavra nenhuma, o método recebe uma <strong>cópia</strong>. Com <code>ref</code>, <code>out</code> ou <code>in</code>, recebe a <strong>própria variável</strong> (passagem por referência).</li>
+  <li><code>ref</code>: lê e muda a variável de quem chamou; ela precisa ter valor, e a palavra vai na declaração <strong>e</strong> na chamada.</li>
+  <li><code>out</code>: a variável pode chegar vazia, e o método é obrigado a preenchê-la (<code>CS0177</code>). Dá para declarar na chamada (<code>out int n</code>, <code>out var n</code>) ou descartar (<code>out _</code>). É a base do padrão <code>TryParse</code>.</li>
+  <li><code>in</code>: só leitura, sem cópia; útil para structs grandes, raro no dia a dia.</li>
+  <li>Prefira <code>return</code> (ou uma tupla); use <code>out</code> no padrão Try e <code>ref</code> quando não houver jeito melhor.</li>
+  <li>A mensagem em português do <code>CS1620</code> diz "não deve", mas significa "<strong>deve</strong> ser passado com <code>ref</code>/<code>out</code>": faltou a palavra na chamada.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
