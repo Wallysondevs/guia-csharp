@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Arquivos — File.ReadAllText, WriteAllLines e AppendAllText | Guia C#</title>
+<meta name="description" content="Ler e gravar arquivos de texto em C# para quem nunca programou: File.WriteAllText, ReadAllText, WriteAllLines, ReadAllLines, AppendAllText, ReadLines, Exists, Copy, Move e Delete, UTF-8 e Latin-1, e as exceções FileNotFoundException, DirectoryNotFoundException, IOException e UnauthorizedAccessException, com saídas reais do .NET 10 e missões no editor com arquivos em abas.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Arquivos</span></h1>
+
+<p class="intro">Até aqui, tudo o que seus programas sabiam sumia quando eles terminavam: as variáveis vivem na memória, e a memória é apagada no fim. Um <strong>arquivo</strong> fica no disco e continua lá no dia seguinte. Nesta aula você vai usar a classe <code>File</code> ("arquivo") para gravar a lista de compras da Ana, ler as notas da turma, acrescentar linhas num registro (log) e copiar, mover e apagar arquivos. Também vai conhecer os erros de arquivo mais comuns e como tratá-los.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Gravar um texto com <code>File.WriteAllText</code> e ler de volta com <code>File.ReadAllText</code>.</li>
+  <li>Trabalhar linha por linha com <code>File.WriteAllLines</code>, <code>File.ReadAllLines</code> e <code>File.ReadLines</code>.</li>
+  <li>Acrescentar no fim sem apagar o que havia: <code>File.AppendAllText</code> e <code>File.AppendAllLines</code>.</li>
+  <li>Perguntar e mexer no arquivo: <code>File.Exists</code>, <code>File.Copy</code>, <code>File.Move</code> e <code>File.Delete</code>.</li>
+  <li>O que é UTF-8, por que <code>ã</code> ocupa 2 bytes e como ler um arquivo antigo em Latin-1.</li>
+  <li>As exceções <code>FileNotFoundException</code>, <code>DirectoryNotFoundException</code>, <code>IOException</code> e <code>UnauthorizedAccessException</code>, e o "8.5 que virou 85".</li>
+</ul>
+</div>
+
+<p>Esta aula usa <a href="arrays.html">arrays</a>, <a href="foreach.html">foreach</a> e <a href="try-catch.html">try e catch</a>. Todos os programas foram rodados com <code>dotnet run</code> (aula <a href="dotnet-run.html">Rodar com dotnet run</a>) no .NET 10 da máquina da Ana (usuária <code>ana</code>, computador <code>notebook</code>), dentro da pasta <code>~/cs</code>, que é <code>/home/ana/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: o caderno na gaveta</h2>
+<p>Pense na memória do computador como um <strong>quadro branco</strong>: rápido de escrever, mas alguém apaga tudo no fim da aula. O disco é um <strong>caderno guardado na gaveta</strong>: o que você escreve ali continua lá amanhã. Para usar o caderno você precisa de duas coisas: o <strong>nome</strong> dele (o caminho do arquivo, como <code>compras.txt</code>) e alguém que saiba abrir, ler, escrever e fechar. Em C#, esse alguém é a classe <code>File</code>.</p>
+<p>A classe <code>File</code> fica no namespace <code>System.IO</code> (de <em>input/output</em>, entrada e saída). Você não precisa escrever <code>using System.IO;</code>: no .NET 10, ele já vem incluído nos programas de console (são os <em>usings implícitos</em>, da aula <a href="namespaces.html">Namespaces e using</a>). Todos os métodos desta aula são <a href="static.html">estáticos</a>: você chama direto <code>File.Método(…)</code>, sem criar objeto.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>Tradução</th><th>O que faz</th></tr>
+<tr><td><code>File.WriteAllText(caminho, texto)</code></td><td>escrever todo o texto</td><td>Cria (ou substitui) o arquivo com o texto</td></tr>
+<tr><td><code>File.ReadAllText(caminho)</code></td><td>ler todo o texto</td><td>Devolve o arquivo inteiro numa <code>string</code></td></tr>
+<tr><td><code>File.WriteAllLines(caminho, linhas)</code></td><td>escrever todas as linhas</td><td>Grava cada item numa linha</td></tr>
+<tr><td><code>File.ReadAllLines(caminho)</code></td><td>ler todas as linhas</td><td>Devolve um <code>string[]</code>, uma linha por posição</td></tr>
+<tr><td><code>File.AppendAllText(caminho, texto)</code></td><td>acrescentar texto</td><td>Grava no fim, mantendo o que havia</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>1. Gravar e ler um texto: WriteAllText e ReadAllText</h2>
+<p>A Ana quer guardar a lista de compras num arquivo. Este programa grava a lista, lê o arquivo de volta e mostra o que leu:</p>
+
+<pre class="file" data-file="compras.cs">File.WriteAllText("compras.txt", "pão\nleite\n");
+string texto = File.ReadAllText("compras.txt");
+Console.Write(texto);
+Console.WriteLine($"{texto.Length} caracteres");
+</pre>
+
+<dl class="anatomy">
+  <dt>File.WriteAllText("compras.txt", "pão\nleite\n");</dt><dd>Abre o arquivo <code>compras.txt</code>, grava o texto e fecha. Se o arquivo não existe, ele é <strong>criado</strong>. Se já existe, o conteúdo antigo é <strong>apagado e substituído</strong>. O <code>\n</code> é a quebra de linha (aula <a href="escapes.html">Escapes</a>): o <code>WriteAllText</code> grava exatamente o que você mandar, sem pular linha sozinho.</dd>
+  <dt>string texto = File.ReadAllText("compras.txt");</dt><dd>Abre o arquivo, lê tudo, fecha e devolve o conteúdo numa única <code>string</code>, com as quebras de linha dentro.</dd>
+  <dt>Console.Write(texto);</dt><dd><code>Write</code>, e não <code>WriteLine</code>: o texto já termina com <code>\n</code>. Com <code>WriteLine</code> apareceria uma linha em branco a mais.</dd>
+  <dt>texto.Length</dt><dd>Quantos caracteres a <code>string</code> tem: <code>pão</code> (3) + <code>\n</code> (1) + <code>leite</code> (5) + <code>\n</code> (1) = 10.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run compras.cs
+pão
+leite
+10 caracteres
+$ cat compras.txt               « o arquivo continua lá depois que o programa terminou
+pão
+leite</pre>
+
+<p>O nome <code>"compras.txt"</code> não diz em que pasta o arquivo fica. Um nome assim é um <strong>caminho relativo</strong>: ele é procurado (ou criado) na <strong>pasta atual</strong>, a pasta em que o terminal estava quando a Ana deu o <code>dotnet run</code>. Aqui, <code>/home/ana/cs</code>. A aula <a href="caminhos.html">Pastas e Caminhos</a> mostra como montar caminhos completos.</p>
+
+<div class="warning">
+<strong>WriteAllText apaga o que havia</strong>
+<p>Rodar o programa duas vezes não deixa a lista com 4 itens: a segunda vez <strong>substitui</strong> o arquivo inteiro. Não há "desfazer" nem lixeira. Para acrescentar no fim, use <code>AppendAllText</code> (seção 3).</p>
+</div>
+
+<hr>
+
+<h2>2. Linha por linha: WriteAllLines e ReadAllLines</h2>
+<p>Quase todo arquivo de texto é uma lista de linhas: uma compra por linha, um aluno por linha, um produto por linha. Os métodos <code>…Lines</code> trabalham direto com essas listas, sem você precisar mexer com <code>\n</code>.</p>
+
+<pre class="file" data-file="notas.cs">string[] alunos = ["Ana;8,5", "Bruno;6", "Carla;9,5"];
+File.WriteAllLines("notas.txt", alunos);
+
+string[] linhas = File.ReadAllLines("notas.txt");
+Console.WriteLine($"Linhas: {linhas.Length}");
+foreach (string linha in linhas)
+{
+    string[] partes = linha.Split(';');
+    Console.WriteLine($"{partes[0]} tirou {partes[1]}");
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>["Ana;8,5", "Bruno;6", "Carla;9,5"]</dt><dd>Um array de <code>string</code> escrito com a <em>expressão de coleção</em> <span class="versao">C# 12</span> (aula <a href="arrays.html">Arrays</a>). Cada texto tem o nome e a nota separados por <code>;</code>.</dd>
+  <dt>File.WriteAllLines("notas.txt", alunos);</dt><dd>Grava cada item do array numa linha, com a quebra de linha no fim de <strong>cada uma</strong> (inclusive da última). Aceita um array, uma <code>List&lt;string&gt;</code> ou qualquer sequência de textos.</dd>
+  <dt>File.ReadAllLines("notas.txt")</dt><dd>Lê o arquivo e devolve um <code>string[]</code> com uma linha em cada posição, <strong>já sem</strong> as quebras de linha.</dd>
+  <dt>linha.Split(';')</dt><dd>Corta a linha em cada <code>;</code> (aula <a href="metodos-string.html">Métodos de String</a>): <code>partes[0]</code> é o nome e <code>partes[1]</code> é a nota, ainda como texto.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run notas.cs
+Linhas: 3
+Ana tirou 8,5
+Bruno tirou 6
+Carla tirou 9,5
+$ cat notas.txt
+Ana;8,5
+Bruno;6
+Carla;9,5</pre>
+
+<p>Um detalhe que confunde: o arquivo termina com uma quebra de linha depois de <code>Carla;9,5</code>, mas o <code>ReadAllLines</code> devolve <strong>3</strong> linhas, e não 4. A última quebra só fecha a última linha; ela não abre uma linha vazia. Um arquivo vazio dá um array vazio (<code>Length</code> = 0).</p>
+
+<div class="trycs" data-goal="out:3 itens: pão\, leite\, café,src:AppendAllText">
+<p class="try-task"><strong>Missão:</strong> o programa grava a lista de compras e mostra quantos itens ela tem. Depois do <code>WriteAllText</code>, acrescente <code>café</code> no fim do arquivo com <code>File.AppendAllText("compras.txt", "café\n");</code> e rode de novo: a saída deve ser <code>3 itens: pão, leite, café</code>.</p>
+<pre class="script" data-file="compras.cs">File.WriteAllText("compras.txt", "pão\nleite\n");
+
+string[] itens = File.ReadAllLines("compras.txt");
+Console.WriteLine($"{itens.Length} itens: {string.Join(", ", itens)}");
+</pre>
+<pre class="solucao" data-file="compras.cs">File.WriteAllText("compras.txt", "pão\nleite\n");
+File.AppendAllText("compras.txt", "café\n");
+
+string[] itens = File.ReadAllLines("compras.txt");
+Console.WriteLine($"{itens.Length} itens: {string.Join(", ", itens)}");
+</pre>
+</div>
+
+<p>O <code>string.Join(", ", itens)</code> junta os itens do array num texto só, com <code>", "</code> entre eles (aula <a href="metodos-string.html">Métodos de String</a>).</p>
+
+<hr>
+
+<h2>3. Acrescentar no fim: AppendAllText e AppendAllLines</h2>
+<p>Um <strong>log</strong> (registro) é um arquivo que só cresce: cada vez que algo acontece, o programa escreve uma linha nova no fim. Para isso existem os métodos <code>Append…</code> ("acrescentar"):</p>
+
+<pre class="file" data-file="log.cs">File.AppendAllText("log.txt", "Programa iniciado\n");
+File.AppendAllLines("log.txt", ["Venda: caderno", "Venda: caneta"]);
+Console.WriteLine($"O log tem {File.ReadAllLines("log.txt").Length} linhas");
+</pre>
+
+<dl class="anatomy">
+  <dt>File.AppendAllText("log.txt", "Programa iniciado\n");</dt><dd>Grava o texto no <strong>fim</strong> do arquivo, mantendo o que já estava lá. Se o arquivo não existe, ele é criado, como no <code>WriteAllText</code>. A quebra de linha <code>\n</code> continua sendo sua.</dd>
+  <dt>File.AppendAllLines("log.txt", [ … ]);</dt><dd>O mesmo, para uma lista: cada item vira uma linha no fim do arquivo, cada uma com a sua quebra.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run log.cs
+O log tem 3 linhas
+$ dotnet run log.cs               « de novo: as linhas antigas ficam
+O log tem 6 linhas
+$ cat log.txt
+Programa iniciado
+Venda: caderno
+Venda: caneta
+Programa iniciado
+Venda: caderno
+Venda: caneta</pre>
+
+<hr>
+
+<h2>4. Arquivos grandes: ReadLines</h2>
+<p><code>ReadAllText</code> e <code>ReadAllLines</code> carregam o arquivo <strong>inteiro</strong> na memória antes de devolver qualquer coisa. Para a lista de compras, ótimo. Para um log de 2 GB, o programa pode ficar sem memória. O <code>File.ReadLines</code> (sem o <em>All</em>) entrega <strong>uma linha por vez</strong>, conforme o <code>foreach</code> pede:</p>
+
+<pre class="file" data-file="vendas.cs">int n = 0;
+foreach (string linha in File.ReadLines("log.txt"))
+{
+    n++;
+    if (linha.StartsWith("Venda"))
+    {
+        Console.WriteLine($"{n}: {linha}");
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>File.ReadLines("log.txt")</dt><dd>Não devolve um array: devolve uma <strong>sequência</strong> (<code>IEnumerable&lt;string&gt;</code>, aula <a href="ienumerable.html">IEnumerable e foreach</a>). Cada volta do <code>foreach</code> lê a próxima linha do disco. Só uma linha fica na memória de cada vez.</dd>
+  <dt>n++</dt><dd>Conta as linhas, para mostrar o número de cada uma.</dd>
+  <dt>linha.StartsWith("Venda")</dt><dd>Verdadeiro se a linha começa com <code>Venda</code>.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run vendas.cs
+2: Venda: caderno
+3: Venda: caneta
+5: Venda: caderno
+6: Venda: caneta</pre>
+
+<p>A diferença não aparece na saída: aparece na memória. Se você precisa do <code>Length</code> ou de <code>linhas[3]</code>, use <code>ReadAllLines</code>. Se só vai passar pelas linhas uma vez, do começo ao fim, prefira <code>ReadLines</code>. Para ler e escrever aos poucos com mais controle, a próxima aula apresenta o <a href="streams.html">StreamReader e o StreamWriter</a>.</p>
+
+<hr>
+
+<h2>5. Existe? Copiar, mover e apagar</h2>
+
+<pre class="file" data-file="backup.cs">Console.WriteLine(File.Exists("compras.txt"));
+Console.WriteLine(File.Exists("fotos.zip"));
+
+File.Copy("compras.txt", "compras-backup.txt", overwrite: true);
+File.Move("compras-backup.txt", "backup.txt", overwrite: true);
+Console.WriteLine(File.Exists("compras-backup.txt"));
+Console.WriteLine(File.Exists("backup.txt"));
+
+File.Delete("backup.txt");
+File.Delete("backup.txt");
+Console.WriteLine(File.Exists("backup.txt"));
+</pre>
+
+<dl class="anatomy">
+  <dt>File.Exists("compras.txt")</dt><dd>"O arquivo existe?" Devolve <code>true</code> ou <code>false</code> e <strong>nunca</strong> lança exceção, nem com um nome estranho.</dd>
+  <dt>File.Copy(origem, destino, overwrite: true)</dt><dd>Copia. Sem o <code>overwrite: true</code> ("sobrescrever", um <a href="parametros-opcionais.html">argumento nomeado</a>), ele <strong>recusa</strong> um destino que já existe e lança <code>IOException</code> (veja "Quando dá errado").</dd>
+  <dt>File.Move(origem, destino, overwrite: true)</dt><dd>Move ou <strong>renomeia</strong>: depois dele, o nome antigo não existe mais. O <code>overwrite</code> funciona como no <code>Copy</code>.</dd>
+  <dt>File.Delete("backup.txt")</dt><dd>Apaga de verdade, sem lixeira. Se o arquivo já não existe, ele <strong>não reclama</strong>: por isso a segunda linha igual não deu erro.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run backup.cs
+True
+False
+False
+True
+False</pre>
+
+<div class="tip">
+<strong>Exists antes de ler</strong>
+<p>Conferir com <code>if (File.Exists(nome))</code> antes de ler evita a exceção no caso comum ("o arquivo ainda não foi criado"). Mas o arquivo pode sumir entre o <code>Exists</code> e a leitura, ou existir e estar trancado. Por isso, em programas para outras pessoas, a leitura também fica dentro de um <code>try</code> (seção "Quando dá errado").</p>
+</div>
+
+<hr>
+
+<h2>6. Texto e bytes: UTF-8</h2>
+<p>No disco, um arquivo é uma fila de <strong>bytes</strong> (números de 0 a 255). A <strong>codificação</strong> (<em>encoding</em>) é a tabela que diz qual byte vira qual letra. Para as letras sem acento, quase todas as tabelas concordam. Para <code>ã</code>, <code>é</code> e <code>ç</code>, não.</p>
+<p>O .NET grava e lê em <strong>UTF-8</strong> quando você não diz nada, que é a codificação padrão da internet e do Linux. Em UTF-8, cada letra acentuada ocupa <strong>2 bytes</strong>. O comando <code>xxd</code> mostra os bytes do arquivo de compras (com o café acrescentado na missão):</p>
+
+<pre class="term" data-cwd="~/cs">$ xxd compras.txt
+00000000: 70c3 a36f 0a6c 6569 7465 0a63 6166 c3a9  p..o.leite.caf..
+00000010: 0a                                       .</pre>
+
+<p><code>70</code> é o <code>p</code>, <code>c3 a3</code> é o <code>ã</code> (dois bytes), <code>6f</code> é o <code>o</code> e <code>0a</code> é a quebra de linha. São 15 caracteres, mas 17 bytes.</p>
+
+<p>Arquivos antigos, gerados por programas velhos do Windows, às vezes vêm em <strong>Latin-1</strong> (ISO-8859-1), em que <code>ã</code> é um byte só. A Ana recebeu uma lista de clientes assim. O comando <code>printf</code> do terminal cria um arquivo igual, e o comando <code>file</code> descobre a codificação:</p>
+
+<pre class="file" data-file="latin.cs">using System.Text;
+
+Console.WriteLine(File.ReadAllText("clientes-antigo.txt"));
+Console.WriteLine(File.ReadAllText("clientes-antigo.txt", Encoding.Latin1));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ printf 'Jo\343o;S\343o Paulo\n' &gt; clientes-antigo.txt
+$ file clientes-antigo.txt
+clientes-antigo.txt: ISO-8859 text
+$ dotnet run latin.cs
+Jo�o;S�o Paulo
+
+João;São Paulo
+</pre>
+
+<dl class="anatomy">
+  <dt>using System.Text;</dt><dd>A classe <code>Encoding</code> ("codificação") fica no namespace <code>System.Text</code>, que não vem incluído sozinho.</dd>
+  <dt>File.ReadAllText(caminho)</dt><dd>Lê como UTF-8. O byte do <code>ã</code> em Latin-1 não forma uma letra válida em UTF-8, e o .NET o troca pelo símbolo <code>�</code> ("caractere de substituição"). Não há exceção: o texto simplesmente sai estragado.</dd>
+  <dt>File.ReadAllText(caminho, Encoding.Latin1)</dt><dd>Todos os métodos de <code>File</code> aceitam a codificação como último argumento. Com a tabela certa, o texto sai certo.</dd>
+</dl>
+
+<p>As linhas em branco na saída são o <code>\n</code> do fim do arquivo mais o do <code>WriteLine</code>. Se aparecer <code>�</code>, ou textos como <code>JoÃ£o</code> (UTF-8 lido como Latin-1), o arquivo e o programa estão usando tabelas diferentes. Para gravar, fique sempre com o padrão, UTF-8.</p>
+
+<hr>
+
+<h2>Qual método usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Use</th></tr>
+<tr><td>Gravar um texto (criar ou substituir o arquivo)</td><td><code>File.WriteAllText(caminho, texto)</code></td></tr>
+<tr><td>Gravar uma lista, um item por linha</td><td><code>File.WriteAllLines(caminho, lista)</code></td></tr>
+<tr><td>Acrescentar no fim (log, registro)</td><td><code>File.AppendAllText</code> ou <code>File.AppendAllLines</code></td></tr>
+<tr><td>Ler um arquivo pequeno inteiro</td><td><code>File.ReadAllText(caminho)</code></td></tr>
+<tr><td>Ler as linhas e usar <code>Length</code> ou <code>linhas[i]</code></td><td><code>File.ReadAllLines(caminho)</code></td></tr>
+<tr><td>Passar uma vez por um arquivo grande</td><td><code>foreach (… in File.ReadLines(caminho))</code></td></tr>
+<tr><td>Ler ou escrever aos poucos, com controle</td><td><code>StreamReader</code> e <code>StreamWriter</code> (aula <a href="streams.html">Ler e Escrever</a>)</td></tr>
+<tr><td>Ler sem travar o programa (em apps e servidores)</td><td><code>File.ReadAllTextAsync</code> e os outros <code>…Async</code> (aula <a href="async-await.html">async e await</a>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+<p>Os erros de arquivo são <strong>exceções</strong> (aula <a href="excecoes.html">Exceções</a>): o programa compila, mas para no meio, com o código de saída 134. Todas trazem o caminho completo na mensagem, o que ajuda muito a descobrir o problema. As mensagens das exceções saem em inglês.</p>
+
+<div class="cenario">
+<strong><code>FileNotFoundException</code>: o arquivo não existe (ali)</strong>
+<pre class="file" data-file="ler.cs">string texto = File.ReadAllText("nota.txt");
+Console.WriteLine(texto);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run ler.cs; echo "código: $?"
+Unhandled exception. System.IO.FileNotFoundException: Could not find file '/home/ana/cs/nota.txt'.
+File name: '/home/ana/cs/nota.txt'
+   at Interop.ThrowExceptionForIoErrno(ErrorInfo errorInfo, String path, Boolean isDirError)
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String path, OpenFlags flags, Int32 mode, Boolean failForSymlink, Boolean&amp; wasSymlink, Func`4 createOpenException)
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, UnixFileMode openPermissions, Int64&amp; fileLength, UnixFileMode&amp; filePermissions, Boolean failForSymlink, Boolean&amp; wasSymlink, Func`4 createOpenException)
+   at System.IO.Strategies.OSFileStreamStrategy..ctor(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.FileStream..ctor(String path, FileMode mode, FileAccess access, FileShare share, Int32 bufferSize, FileOptions options, Int64 preallocationSize)
+   at System.IO.StreamReader.ValidateArgsAndOpenPath(String path, Int32 bufferSize)
+   at System.IO.File.ReadAllText(String path, Encoding encoding)
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/ler.cs:line 1
+código: 134</pre>
+<p><strong>O que aconteceu:</strong> "Não foi possível encontrar o arquivo". O arquivo se chama <code>notas.txt</code>; faltou o <code>s</code>. A primeira linha diz o caminho exato que o .NET tentou; a última diz a linha do <strong>seu</strong> programa (<code>ler.cs:line 1</code>). As do meio são o caminho que a chamada fez dentro do .NET e podem ser ignoradas.</p>
+<p><strong>Como resolver:</strong> confira o nome (no Linux, <code>Notas.txt</code> e <code>notas.txt</code> são arquivos diferentes), a extensão e a pasta em que você rodou o programa. Num programa para outras pessoas, trate a exceção e mostre uma mensagem amigável:</p>
+<pre class="file" data-file="tratar.cs">try
+{
+    string texto = File.ReadAllText("nota.txt");
+    Console.WriteLine(texto);
+}
+catch (FileNotFoundException e)
+{
+    Console.WriteLine($"Não achei o arquivo: {e.FileName}");
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run tratar.cs
+Não achei o arquivo: /home/ana/cs/nota.txt</pre>
+</div>
+
+<div class="cenario">
+<strong><code>DirectoryNotFoundException</code>: a pasta não existe</strong>
+<pre class="file" data-file="pasta.cs">File.WriteAllText("relatorios/outubro.txt", "Vendas: 1520\n");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run pasta.cs
+Unhandled exception. System.IO.DirectoryNotFoundException: Could not find a part of the path '/home/ana/cs/relatorios/outubro.txt'.
+   at Interop.ThrowExceptionForIoErrno(ErrorInfo errorInfo, String path, Boolean isDirError)
+   …                                                « mais 4 linhas de dentro do .NET
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/pasta.cs:line 1</pre>
+<p><strong>O que aconteceu:</strong> "Não foi possível encontrar uma parte do caminho". O <code>WriteAllText</code> cria o <strong>arquivo</strong>, mas não cria <strong>pastas</strong>, e a pasta <code>relatorios</code> não existe.</p>
+<p><strong>Como resolver:</strong> crie a pasta antes com <code>Directory.CreateDirectory("relatorios");</code>, assunto da aula <a href="caminhos.html">Pastas e Caminhos</a>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>IOException</code>: o destino da cópia já existe</strong>
+<pre class="file" data-file="copiar.cs">File.Copy("compras.txt", "copia.txt");
+Console.WriteLine("Copiei");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run copiar.cs
+Copiei
+$ dotnet run copiar.cs               « de novo: agora copia.txt já existe
+Unhandled exception. System.IO.IOException: The file '/home/ana/cs/copia.txt' already exists.
+   at Interop.ThrowExceptionForIoErrno(ErrorInfo errorInfo, String path, Boolean isDirError)
+   …                                                « mais 3 linhas de dentro do .NET
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/copiar.cs:line 1</pre>
+<p><strong>O que aconteceu:</strong> "O arquivo já existe". O <code>Copy</code> e o <code>Move</code> se recusam a apagar um arquivo que já está no destino, para você não perder dados sem querer. (O <code>WriteAllText</code>, ao contrário, substitui sem perguntar.)</p>
+<p><strong>Como resolver:</strong> se substituir é o que você quer, diga isso: <code>File.Copy("compras.txt", "copia.txt", overwrite: true);</code>. Se não, confira antes com <code>File.Exists("copia.txt")</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>UnauthorizedAccessException</code>: sem permissão</strong>
+<pre class="term" data-cwd="~/cs">$ echo segredo &gt; trancado.txt
+$ chmod 444 trancado.txt               « só leitura, para todo mundo
+$ cat trancado.cs
+File.WriteAllText("trancado.txt", "novo");
+$ dotnet run trancado.cs
+Unhandled exception. System.UnauthorizedAccessException: Access to the path '/home/ana/cs/trancado.txt' is denied.
+ ---&gt; System.IO.IOException: Permission denied
+   --- End of inner exception stack trace ---
+   at Interop.ThrowExceptionForIoErrno(ErrorInfo errorInfo, String path, Boolean isDirError)
+   …                                                « mais 4 linhas de dentro do .NET
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/trancado.cs:line 1</pre>
+<p><strong>O que aconteceu:</strong> "O acesso ao caminho foi negado". O arquivo é só de leitura (as permissões do Linux, que o Guia Bash explica com o <code>chmod</code>). O mesmo acontece ao tentar gravar numa pasta do sistema, como <code>/etc</code>, sem ser administradora.</p>
+<p><strong>Como resolver:</strong> grave em outro lugar (a sua pasta pessoal) ou devolva a permissão com <code>chmod u+w trancado.txt</code>. Para tratar todos os erros de arquivo de uma vez, use <code>catch (IOException e)</code> (pega <code>FileNotFoundException</code>, <code>DirectoryNotFoundException</code> e as outras filhas) seguido de <code>catch (UnauthorizedAccessException e)</code>, que é de outra família.</p>
+</div>
+
+<div class="cenario">
+<strong>As notas viraram 85, 60 e 95</strong>
+<p>A planilha da escola veio com as notas escritas com <strong>ponto</strong>, como nos países de língua inglesa: <code>Ana;8.5</code>. A Ana converteu o texto em número com <code>double.Parse</code> (aula <a href="parse.html">Parse e TryParse</a>):</p>
+<pre class="file" data-file="media.cs">string[] linhas = File.ReadAllLines("notas.txt");
+foreach (string linha in linhas)
+{
+    string[] partes = linha.Split(';');
+    double nota = double.Parse(partes[1]);
+    Console.WriteLine($"{partes[0]} tirou {nota}");
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ cat notas.txt
+Ana;8.5
+Bruno;6.0
+Carla;9.5
+$ dotnet run media.cs
+Ana tirou 85
+Bruno tirou 60
+Carla tirou 95</pre>
+<p><strong>O que aconteceu:</strong> nenhuma exceção, e o resultado está errado, o pior tipo de erro. O computador da Ana está em português, e em pt-BR a vírgula separa os decimais e o <strong>ponto separa os milhares</strong> (como em <code>1.500</code>). Para o <code>double.Parse</code>, o ponto de <code>8.5</code> é um separador de milhares, que ele aceita e ignora: sobra <code>85</code>. A aula <a href="cultura.html">Cultura</a> explica isso em detalhes.</p>
+<p><strong>Como resolver:</strong> quando o arquivo usa ponto, diga ao <code>Parse</code> que ele está no formato "neutro", o <code>CultureInfo.InvariantCulture</code>:</p>
+<pre class="file" data-file="media.cs">using System.Globalization;
+
+string[] linhas = File.ReadAllLines("notas.txt");
+double soma = 0;
+foreach (string linha in linhas)
+{
+    string[] partes = linha.Split(';');
+    double nota = double.Parse(partes[1], CultureInfo.InvariantCulture);
+    Console.WriteLine($"{partes[0]} tirou {nota}");
+    soma += nota;
+}
+Console.WriteLine($"Média: {soma / linhas.Length:F2}");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run media.cs
+Ana tirou 8,5
+Bruno tirou 6
+Carla tirou 9,5
+Média: 8,00</pre>
+<p>O arquivo continua com ponto; na tela, os números aparecem do jeito brasileiro.</p>
+</div>
+
+<div class="trycs" data-goal="out:Média: 8\,00,src:InvariantCulture">
+<p class="try-task"><strong>Missão:</strong> o <code>notas.txt</code> da outra aba usa ponto nas notas, e a média saiu <code>80,00</code>. Conserte o <code>double.Parse</code> com <code>CultureInfo.InvariantCulture</code> para a saída terminar com <code>Média: 8,00</code>.</p>
+<pre class="script" data-file="media.cs">using System.Globalization;
+
+string[] linhas = File.ReadAllLines("notas.txt");
+double soma = 0;
+foreach (string linha in linhas)
+{
+    string[] partes = linha.Split(';');
+    double nota = double.Parse(partes[1]);
+    Console.WriteLine($"{partes[0]} tirou {nota}");
+    soma += nota;
+}
+Console.WriteLine($"Média: {soma / linhas.Length:F2}");
+</pre>
+<pre class="script" data-file="notas.txt">Ana;8.5
+Bruno;6.0
+Carla;9.5
+</pre>
+<pre class="solucao" data-file="media.cs">using System.Globalization;
+
+string[] linhas = File.ReadAllLines("notas.txt");
+double soma = 0;
+foreach (string linha in linhas)
+{
+    string[] partes = linha.Split(';');
+    double nota = double.Parse(partes[1], CultureInfo.InvariantCulture);
+    Console.WriteLine($"{partes[0]} tirou {nota}");
+    soma += nota;
+}
+Console.WriteLine($"Média: {soma / linhas.Length:F2}");
+</pre>
+</div>
+
+<div class="cenario">
+<strong><code>CS0029</code>: ReadAllText no lugar de ReadAllLines</strong>
+<pre class="file" data-file="erro.cs">string[] linhas = File.ReadAllText("notas.txt");
+Console.WriteLine(linhas.Length);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run erro.cs
+/home/ana/cs/erro.cs(1,19): error CS0029: Não é possível converter implicitamente tipo "string" em "string[]"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que aconteceu:</strong> um erro de compilação (em inglês, <code>Cannot implicitly convert type 'string' to 'string[]'</code>). O <code>ReadAllText</code> devolve <strong>uma</strong> <code>string</code>, e a variável é um array de strings. Os nomes são parecidos, e o autocompletar do editor troca um pelo outro com facilidade.</p>
+<p><strong>Como resolver:</strong> para uma linha em cada posição, <code>File.ReadAllLines</code>. Para o texto inteiro, <code>string texto = File.ReadAllText(…)</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>File.WriteAllText(c, texto)</code></td><td>Cria ou substitui o arquivo com o texto</td></tr>
+<tr><td><code>File.WriteAllLines(c, lista)</code></td><td>Cria ou substitui, um item por linha</td></tr>
+<tr><td><code>File.AppendAllText(c, texto)</code></td><td>Acrescenta no fim (cria se não existir)</td></tr>
+<tr><td><code>File.AppendAllLines(c, lista)</code></td><td>Acrescenta linhas no fim</td></tr>
+<tr><td><code>File.ReadAllText(c)</code></td><td>Arquivo inteiro → <code>string</code></td></tr>
+<tr><td><code>File.ReadAllLines(c)</code></td><td>Arquivo → <code>string[]</code>, sem as quebras</td></tr>
+<tr><td><code>File.ReadLines(c)</code></td><td>Linhas uma por vez, para o <code>foreach</code></td></tr>
+<tr><td><code>File.Exists(c)</code></td><td><code>true</code> se o arquivo existe; nunca lança exceção</td></tr>
+<tr><td><code>File.Copy(a, b)</code> / <code>File.Copy(a, b, overwrite: true)</code></td><td>Copia; sem <code>overwrite</code>, recusa um destino existente</td></tr>
+<tr><td><code>File.Move(a, b)</code></td><td>Move ou renomeia</td></tr>
+<tr><td><code>File.Delete(c)</code></td><td>Apaga (sem lixeira); não reclama se o arquivo não existe</td></tr>
+<tr><td><code>File.ReadAllText(c, Encoding.Latin1)</code></td><td>Lê com outra codificação (<code>using System.Text;</code>)</td></tr>
+<tr><td><code>File.ReadAllTextAsync(c)</code></td><td>Versão assíncrona (aula <a href="async-await.html">async e await</a>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O arquivo inteiro</h3>
+<p>Complete para ler o arquivo inteiro numa única <code>string</code>:</p>
+<div class="ex-code">string texto = File.<input data-answer="ReadAllText" aria-label="método">("compras.txt");</div>
+</div>
+
+<div class="exercise">
+<h3>2. No fim, sem apagar</h3>
+<p>Complete para acrescentar uma linha no fim do log, mantendo o que já existe:</p>
+<div class="ex-code">File.<input data-answer="AppendAllText" aria-label="método">("log.txt", "Venda: régua\n");</div>
+</div>
+
+<div class="exercise">
+<h3>3. Copiar por cima</h3>
+<p>Complete para a cópia substituir o <code>backup.txt</code>, se ele já existir:</p>
+<div class="ex-code">File.Copy("compras.txt", "backup.txt", <input data-answer="overwrite: true|true" aria-label="argumento">);</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. O arquivo <code>log.txt</code> tem 10 linhas. O que acontece com <code>File.WriteAllText("log.txt", "oi\n")</code>?</p>
+<label><input type="radio" name="q4"> O arquivo fica com 11 linhas.</label>
+<label><input type="radio" name="q4"> Lança <code>IOException</code>, porque o arquivo já existe.</label>
+<label><input type="radio" name="q4"> O arquivo passa a ter só a linha <code>oi</code>.</label>
+<label><input type="radio" name="q4"> Nada muda.</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Um arquivo tem as linhas <code>a</code>, <code>b</code> e <code>c</code>, cada uma terminada por uma quebra de linha. Quanto vale <code>File.ReadAllLines(…).Length</code>?</p>
+<label><input type="radio" name="q5"> 4</label>
+<label><input type="radio" name="q5"> 3</label>
+<label><input type="radio" name="q5"> 6</label>
+<label><input type="radio" name="q5"> 1</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. Num computador em pt-BR, quanto vale <code>double.Parse("2.5")</code>?</p>
+<label><input type="radio" name="q6"> 2,5</label>
+<label><input type="radio" name="q6"> Lança <code>FormatException</code>.</label>
+<label><input type="radio" name="q6"> 2</label>
+<label><input type="radio" name="q6"> 25</label>
+</div>
+
+<h3>Missão final: o relatório do estoque</h3>
+<div class="trycs" data-goal="out:Caneta azul: 100\,00,out:Total: 324\,80,src:WriteAllLines,src:ReadAllText">
+<p class="try-task"><strong>Missão:</strong> o <code>estoque.csv</code> (na outra aba) tem, em cada linha, o produto, a quantidade e o preço (com ponto). O programa já lê o arquivo, pula o cabeçalho e calcula o valor de cada produto. Complete-o:</p>
+<ol class="passo">
+  <li>dentro do laço, acrescente na lista <code>relatorio</code> o texto <code>$"{campos[0]}: {valor:F2}"</code> e some o <code>valor</code> no <code>total</code>;</li>
+  <li>depois do laço, acrescente <code>$"Total: {total:F2}"</code> na lista;</li>
+  <li>grave a lista em <code>relatorio.txt</code> com <code>File.WriteAllLines</code>;</li>
+  <li>leia o <code>relatorio.txt</code> de volta com <code>File.ReadAllText</code> e mostre com <code>Console.Write</code>.</li>
+</ol>
+<p class="try-task">A saída deve ser:</p>
+<pre class="out">Caderno: 190,80
+Caneta azul: 100,00
+Cola branca: 34,00
+Total: 324,80</pre>
+<pre class="script" data-file="relatorio.cs">using System.Globalization;
+
+string[] linhas = File.ReadAllLines("estoque.csv");
+List&lt;string&gt; relatorio = [];
+decimal total = 0;
+for (int i = 1; i &lt; linhas.Length; i++)
+{
+    string[] campos = linhas[i].Split(';');
+    int qtd = int.Parse(campos[1]);
+    decimal preco = decimal.Parse(campos[2], CultureInfo.InvariantCulture);
+    decimal valor = qtd * preco;
+    // 1. acrescente o produto na lista e some o valor no total
+}
+// 2. acrescente o total na lista
+// 3. grave a lista em relatorio.txt
+// 4. leia o relatorio.txt e mostre
+</pre>
+<pre class="script" data-file="estoque.csv">produto;qtd;preco
+Caderno;12;15.90
+Caneta azul;40;2.50
+Cola branca;8;4.25
+</pre>
+<pre class="solucao" data-file="relatorio.cs">using System.Globalization;
+
+string[] linhas = File.ReadAllLines("estoque.csv");
+List&lt;string&gt; relatorio = [];
+decimal total = 0;
+for (int i = 1; i &lt; linhas.Length; i++)
+{
+    string[] campos = linhas[i].Split(';');
+    int qtd = int.Parse(campos[1]);
+    decimal preco = decimal.Parse(campos[2], CultureInfo.InvariantCulture);
+    decimal valor = qtd * preco;
+    relatorio.Add($"{campos[0]}: {valor:F2}");
+    total += valor;
+}
+relatorio.Add($"Total: {total:F2}");
+File.WriteAllLines("relatorio.txt", relatorio);
+Console.Write(File.ReadAllText("relatorio.txt"));
+</pre>
+</div>
+
+<p>O preço está em <code>decimal</code>, o tipo certo para dinheiro (aula <a href="decimais.html">float, double e decimal</a>), e o <code>for</code> começa em 1 para pular o cabeçalho <code>produto;qtd;preco</code>. Se quiser ir além: acrescente uma linha <code>Régua;5;1.20</code> no CSV e veja o total mudar para <code>330,80</code>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>A classe <code>File</code> (namespace <code>System.IO</code>, já incluído) lê e grava arquivos com uma linha de código. Um nome sem pasta, como <code>"compras.txt"</code>, é procurado na pasta em que o programa foi rodado.</li>
+  <li><code>WriteAllText</code> e <code>WriteAllLines</code> criam ou <strong>substituem</strong> o arquivo. <code>AppendAllText</code> e <code>AppendAllLines</code> acrescentam no fim.</li>
+  <li><code>ReadAllText</code> devolve uma <code>string</code>; <code>ReadAllLines</code>, um <code>string[]</code> sem as quebras. Os dois leem tudo de uma vez; para arquivos grandes, <code>ReadLines</code> entrega uma linha por vez.</li>
+  <li><code>Exists</code> pergunta sem lançar exceção; <code>Copy</code> e <code>Move</code> recusam um destino existente sem <code>overwrite: true</code>; <code>Delete</code> apaga de verdade.</li>
+  <li>O padrão é UTF-8, em que <code>ã</code> ocupa 2 bytes. Para um arquivo antigo, passe a codificação: <code>Encoding.Latin1</code>.</li>
+  <li>Erros comuns: <code>FileNotFoundException</code>, <code>DirectoryNotFoundException</code>, <code>IOException</code> e <code>UnauthorizedAccessException</code>. E números com ponto: <code>double.Parse(texto, CultureInfo.InvariantCulture)</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
