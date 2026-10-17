@@ -239,6 +239,17 @@ public static partial class Compilador
         w.Flush();
         dll = ok ? msDll.ToArray() : [];
         pdb = ok ? msPdb.ToArray() : [];
+        // O .NET 9+ (CoreCLR) satura double/float → inteiro ((int)1e20 = int.MaxValue, NaN = 0); o Mono do
+        // navegador, não. Compila de novo trocando esses casts por Saturar.* (as mensagens são as da 1ª compilação).
+        if (ok)
+        {
+            try
+            {
+                var (dll2, pdb2) = Saturacao.Recompilar(comp, obj, nome, parse);
+                if (dll2 != null) { dll = dll2; pdb = pdb2!; }
+            }
+            catch { /* fica a primeira */ }
+        }
         return Encoding.UTF8.GetString(buf.ToArray());
     }
 
@@ -366,5 +377,82 @@ static class Analisadores
         public override AnalyzerConfigOptions GlobalOptions => o;
         public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => o;
         public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => o;
+    }
+}
+
+/// Troca "(int)x" (x double/float, fora de checked, não constante) por "global::__GuiaCs.Saturar.I4(x)", com o
+/// comportamento do CoreCLR do .NET 9+: satura no limite do tipo, NaN dá 0; tipos pequenos saturam em int e cortam.
+static class Saturacao
+{
+    const string Ajudante = """
+        namespace __GuiaCs
+        {
+            internal static class Saturar
+            {
+                public static int I4(double v) => double.IsNaN(v) ? 0 : v >= 2147483647.0 ? int.MaxValue : v <= -2147483648.0 ? int.MinValue : (int)v;
+                public static long I8(double v) => double.IsNaN(v) ? 0 : v >= 9223372036854775807.0 ? long.MaxValue : v <= -9223372036854775808.0 ? long.MinValue : (long)v;
+                public static uint U4(double v) => double.IsNaN(v) || v <= 0 ? 0u : v >= 4294967295.0 ? uint.MaxValue : (uint)v;
+                public static ulong U8(double v) => double.IsNaN(v) || v <= 0 ? 0ul : v >= 18446744073709551615.0 ? ulong.MaxValue : (ulong)v;
+                public static short I2(double v) => unchecked((short)I4(v));
+                public static ushort U2(double v) => unchecked((ushort)I4(v));
+                public static sbyte I1(double v) => unchecked((sbyte)I4(v));
+                public static byte U1(double v) => unchecked((byte)I4(v));
+                public static char C2(double v) => unchecked((char)I4(v));
+            }
+        }
+        """;
+
+    public static (byte[]?, byte[]?) Recompilar(CSharpCompilation comp, string obj, string nome, CSharpParseOptions parse)
+    {
+        var novas = new List<(SyntaxTree velha, SyntaxTree nova)>();
+        foreach (var arv in comp.SyntaxTrees)
+        {
+            var sm = comp.GetSemanticModel(arv);
+            var trocas = new List<CastExpressionSyntaxNode>();
+            foreach (var c in arv.GetRoot().DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.CastExpressionSyntax>())
+            {
+                var de = sm.GetTypeInfo(c.Expression).Type;
+                var para = sm.GetTypeInfo(c).Type;
+                if (de == null || para == null) continue;
+                if (de.SpecialType is not (SpecialType.System_Double or SpecialType.System_Single)) continue;
+                string? f = para.SpecialType switch
+                {
+                    SpecialType.System_Int32 => "I4", SpecialType.System_Int64 => "I8", SpecialType.System_UInt32 => "U4", SpecialType.System_UInt64 => "U8",
+                    SpecialType.System_Int16 => "I2", SpecialType.System_UInt16 => "U2", SpecialType.System_SByte => "I1", SpecialType.System_Byte => "U1",
+                    SpecialType.System_Char => "C2", _ => null,
+                };
+                if (f == null || sm.GetConstantValue(c).HasValue || Verificado(c, comp.Options.CheckOverflow)) continue;
+                trocas.Add(new(c, f));
+            }
+            if (trocas.Count == 0) continue;
+            var mapa = trocas.ToDictionary(t => (SyntaxNode)t.No, t => t.Funcao);
+            var raiz = arv.GetRoot().ReplaceNodes(mapa.Keys, (orig, reescrito) =>
+            {
+                var r = (Microsoft.CodeAnalysis.CSharp.Syntax.CastExpressionSyntax)reescrito;
+                var chamada = SyntaxFactory.ParseExpression("global::__GuiaCs.Saturar." + mapa[orig] + "(" + r.Expression.ToFullString().Trim() + ")");
+                return chamada.WithLeadingTrivia(orig.GetLeadingTrivia()).WithTrailingTrivia(orig.GetTrailingTrivia());
+            });
+            novas.Add((arv, arv.WithRootAndOptions(raiz, arv.Options)));
+        }
+        if (novas.Count == 0) return (null, null);
+        var c2 = comp;
+        foreach (var (v, n) in novas) c2 = c2.ReplaceSyntaxTree(v, n);
+        c2 = c2.AddSyntaxTrees(CSharpSyntaxTree.ParseText(SourceText.From(Ajudante, Encoding.UTF8, SourceHashAlgorithm.Sha256), parse, obj + nome + ".Saturar.g.cs"));
+        using var d = new MemoryStream();
+        using var p = new MemoryStream();
+        var r2 = c2.Emit(d, p, options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb, pdbFilePath: obj + nome + ".pdb"));
+        return r2.Success ? (d.ToArray(), p.ToArray()) : (null, null);
+    }
+
+    record CastExpressionSyntaxNode(Microsoft.CodeAnalysis.CSharp.Syntax.CastExpressionSyntax No, string Funcao);
+
+    static bool Verificado(SyntaxNode n, bool padrao)
+    {
+        for (var a = n.Parent; a != null; a = a.Parent)
+        {
+            if (a is Microsoft.CodeAnalysis.CSharp.Syntax.CheckedExpressionSyntax ce) return ce.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.CheckedExpression);
+            if (a is Microsoft.CodeAnalysis.CSharp.Syntax.CheckedStatementSyntax cs) return cs.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.CheckedStatement);
+        }
+        return padrao;
     }
 }

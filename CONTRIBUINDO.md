@@ -148,7 +148,7 @@ No `.exercise`, `data-answer="a|b"` aceita respostas alternativas. Para uma barr
 | Estouro de pilha | `Repeated 261941 times:` | `Repeated 999 times:` (o resto igual) |
 | `async void` que lança | rastro com `ThreadPoolWorkQueue.Dispatch()` etc. | rastro mais curto (mensagem e 134 iguais) |
 | `Math.Cbrt(27)` | `3,0000000000000004` | `3` (as outras funções de `Math` testadas são iguais) |
-| `double` → inteiro fora da faixa, numa variável (`(int)x` com `x = 1e20`, `NaN`, `∞`; `(long)nan`) | `2147483647`, `0`, `2147483647`; `0` (conversão saturante do .NET 9+) | `-2147483648` nos três; `-9223372036854775808`. Com constantes, os dois dão o erro `CS0221` |
+| `double` → `nint`/`nuint` fora da faixa (`(nint)1e30`) | `9223372036854775807` (64 bits) | `-2147483648` (o `nint` tem 32 bits no WebAssembly). Para `int`, `long`, `uint`, `ulong`, `short`, `byte`, `char`… o editor imita a conversão saturante do .NET 9+ (`(int)1e20` = `2147483647`, `(int)NaN` = `0`): igual |
 | Moeda/formatos de culturas asiáticas (`ja-JP`…) | `￥1,235` | `￥ 1.235` (dados ICU diferentes; pt-BR, en-US, de-DE iguais) |
 | `Environment.UserName`, `MachineName`, `OSVersion.Platform` | `ana`, `notebook`, `Unix` | `Browser`, `localhost`, `Other` |
 | `Environment.ProcessorCount`, `Is64BitProcess`, `IntPtr.Size`/`nint.Size` | 8, `True`, 8 | 1, `False`, 4 |
