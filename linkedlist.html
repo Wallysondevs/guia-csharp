@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# LinkedList&lt;T&gt; — lista ligada: nós, Next, Previous, AddAfter | Guia C#</title>
+<meta name="description" content="LinkedList em C# para quem nunca programou: a lista duplamente ligada, AddFirst, AddLast, os nós LinkedListNode com Value, Next e Previous, Find, AddAfter, AddBefore, Remove, percorrer para a frente e para trás, remover durante o percurso, os erros reais (The LinkedList is empty., NullReferenceException, CS0021, nó de outra lista) e quando usar List no lugar, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">LinkedList&lt;T&gt;</span></h1>
+
+<p class="intro">A <a href="list.html">List</a> guarda os itens lado a lado, como cadeiras numeradas num cinema. A <strong>lista ligada</strong> guarda de outro jeito: cada item sabe quem vem <strong>antes</strong> e quem vem <strong>depois</strong> dele, como os vagões de um trem engatados um no outro. Isso torna muito barato encaixar ou soltar um vagão no meio do trem, e é para isso que existe a <code>LinkedList&lt;T&gt;</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é uma lista ligada e o que é um <strong>nó</strong>.</li>
+  <li><code>AddFirst</code>, <code>AddLast</code>, <code>First</code>, <code>Last</code> e <code>Count</code>.</li>
+  <li>Andar de nó em nó com <code>Next</code> e <code>Previous</code>: para a frente e para trás.</li>
+  <li>Achar um nó com <code>Find</code> e encaixar outro com <code>AddAfter</code> e <code>AddBefore</code>.</li>
+  <li>Remover: <code>Remove</code>, <code>RemoveFirst</code>, <code>RemoveLast</code>, inclusive durante o percurso.</li>
+  <li>Os erros reais: lista vazia, <code>null</code>, <code>CS0021</code> e nó de outra lista.</li>
+  <li>Quando vale a pena trocar a <code>List</code> pela <code>LinkedList</code> (spoiler: poucas vezes).</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com o <strong>.NET 10</strong> na máquina da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>. Você pode repetir cada um no editor do guia.</p>
+
+<hr>
+
+<h2>A ideia: um trem de vagões engatados</h2>
+<p>Cada vagão de um trem só conhece os dois vizinhos: o engate da frente e o engate de trás. Ninguém numera os vagões. Para chegar ao terceiro, você começa na locomotiva e vai passando de vagão em vagão.</p>
+
+<pre class="syntax">  First                                            Last
+    ↓                                                ↓
+ [locomotiva] ⇄ [vagão 1] ⇄ [vagão 2] ⇄ [vagão 3]
+               Previous ←  nó  → Next</pre>
+
+<p>Cada vagão é um <strong>nó</strong> (<em>node</em>): uma caixinha com o <strong>valor</strong> (o que está guardado) e dois engates, <code>Next</code> ("próximo") e <code>Previous</code> ("anterior"). Como cada nó conhece os dois vizinhos, o nome técnico é <strong>lista duplamente ligada</strong>. Isso tem duas consequências:</p>
+<ul>
+  <li><strong>Encaixar ou tirar um nó no meio é rápido.</strong> Basta mexer nos engates dos vizinhos; ninguém precisa ser empurrado. Numa <code>List</code>, inserir no começo obriga a empurrar todos os itens uma posição.</li>
+  <li><strong>Não existe posição.</strong> Não há <code>trem[2]</code>. Para chegar a um item, você anda de nó em nó.</li>
+</ul>
+
+<hr>
+
+<h2>1. Montar o trem: <code>AddFirst</code> e <code>AddLast</code></h2>
+
+<pre class="file" data-file="trem.cs">var trem = new LinkedList&lt;string&gt;();
+
+trem.AddLast("vagão 1");
+trem.AddLast("vagão 2");
+trem.AddFirst("locomotiva");
+trem.AddLast("vagão 3");
+
+Console.WriteLine(string.Join(" = ", trem));
+Console.WriteLine($"Peças: {trem.Count}");
+Console.WriteLine($"Primeira: {trem.First!.Value}");
+Console.WriteLine($"Última: {trem.Last!.Value}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run trem.cs
+locomotiva = vagão 1 = vagão 2 = vagão 3
+Peças: 4
+Primeira: locomotiva                « o AddFirst pôs na frente, mesmo vindo depois
+Última: vagão 3</pre>
+
+<dl class="anatomy">
+  <dt>new LinkedList&lt;string&gt;()</dt><dd>Cria uma lista ligada vazia de textos.</dd>
+  <dt>trem.AddLast("vagão 1");</dt><dd>"Acrescentar no fim." Engata o vagão no final do trem.</dd>
+  <dt>trem.AddFirst("locomotiva");</dt><dd>"Acrescentar no começo." Engata na frente de todos. Numa lista ligada, isso é tão rápido quanto acrescentar no fim.</dd>
+  <dt>trem.First / trem.Last</dt><dd>O primeiro e o último <strong>nó</strong> (não o valor!). Numa lista vazia, os dois são <code>null</code>.</dd>
+  <dt>.Value</dt><dd>O valor guardado no nó.</dd>
+  <dt>!</dt><dd>O operador "eu garanto que não é <code>null</code>". Como <code>First</code> pode ser <code>null</code>, o compilador avisaria (<code>CS8602</code>) sem ele. Aqui a lista tem itens, então é seguro. Veja <a href="referencias-anulaveis.html">Referências Anuláveis</a>.</dd>
+</dl>
+
+<p>Você também pode criar a lista já cheia, passando uma coleção: <code>new LinkedList&lt;string&gt;(["a", "b", "c"])</code>. Os itens ficam na mesma ordem da coleção.</p>
+
+<hr>
+
+<h2>2. Os nós: <code>Find</code>, <code>Next</code>, <code>Previous</code>, <code>AddAfter</code></h2>
+<p>O que torna a lista ligada especial é trabalhar com os <strong>nós</strong>. Um nó é do tipo <code>LinkedListNode&lt;T&gt;</code> ("nó de lista ligada"). Com um nó na mão, você vê os vizinhos e encaixa vagões ao lado dele.</p>
+
+<pre class="file" data-file="nos.cs">var trem = new LinkedList&lt;string&gt;(["locomotiva", "vagão 1", "vagão 2", "vagão 3"]);
+
+LinkedListNode&lt;string&gt;? no = trem.Find("vagão 1");
+Console.WriteLine(no!.Value);
+Console.WriteLine(no.Previous!.Value);
+Console.WriteLine(no.Next!.Value);
+
+trem.AddAfter(no, "restaurante");
+trem.AddBefore(no, "carvão");
+Console.WriteLine(string.Join(" = ", trem));
+
+trem.Remove("vagão 2");
+trem.RemoveLast();
+Console.WriteLine(string.Join(" = ", trem));
+Console.WriteLine(trem.Find("vagão 9") is null);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run nos.cs
+vagão 1
+locomotiva                                                      « o vizinho de trás
+vagão 2                                                         « o vizinho da frente
+locomotiva = carvão = vagão 1 = restaurante = vagão 2 = vagão 3
+locomotiva = carvão = vagão 1 = restaurante
+True                                                            « Find não achou: null</pre>
+
+<dl class="anatomy">
+  <dt>LinkedListNode&lt;string&gt;? no = trem.Find("vagão 1");</dt><dd><em>Find</em> = encontrar. Anda do começo ao fim procurando o valor e devolve o <strong>nó</strong> onde ele está, ou <code>null</code> se não achar (por isso o <code>?</code> no tipo). Na prática, quase sempre se escreve <code>var no = …</code>.</dd>
+  <dt>no.Previous / no.Next</dt><dd>Os nós vizinhos. O <code>Previous</code> do primeiro e o <code>Next</code> do último são <code>null</code>: ali o trem acaba.</dd>
+  <dt>trem.AddAfter(no, "restaurante");</dt><dd>"Acrescentar depois": engata um vagão novo logo atrás de <code>no</code>.</dd>
+  <dt>trem.AddBefore(no, "carvão");</dt><dd>"Acrescentar antes": engata logo na frente de <code>no</code>.</dd>
+  <dt>trem.Remove("vagão 2");</dt><dd>Procura o valor e tira o primeiro nó que o tiver. Devolve <code>true</code> se tirou. Também existe <code>Remove(no)</code>, que tira um nó que você já tem na mão (sem procurar).</dd>
+  <dt>trem.RemoveLast();</dt><dd>Tira o último nó. O irmão dele é o <code>RemoveFirst()</code>.</dd>
+</dl>
+
+<div class="trycs" data-goal="out:Asa Branca\, Garota de Ipanema\, Aquarela\, Trem das Onze,src:AddAfter">
+<p class="try-task"><strong>Missão:</strong> a Ana esqueceu "Aquarela" na playlist. Use <code>Find</code> para achar o nó de "Garota de Ipanema" e <code>AddAfter</code> para encaixar "Aquarela" logo depois dele. A saída deve ser <code>Asa Branca, Garota de Ipanema, Aquarela, Trem das Onze</code>.</p>
+<pre class="script">var playlist = new LinkedList&lt;string&gt;(["Asa Branca", "Garota de Ipanema", "Trem das Onze"]);
+
+// encaixe "Aquarela" depois de "Garota de Ipanema"
+
+Console.WriteLine(string.Join(", ", playlist));
+</pre>
+<pre class="solucao">var playlist = new LinkedList&lt;string&gt;(["Asa Branca", "Garota de Ipanema", "Trem das Onze"]);
+
+var garota = playlist.Find("Garota de Ipanema");
+playlist.AddAfter(garota!, "Aquarela");
+
+Console.WriteLine(string.Join(", ", playlist));
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Andar pela lista: para a frente e para trás</h2>
+<p>O <code>foreach</code> percorre do primeiro ao último, como em qualquer coleção. Mas, andando pelos nós, você pode ir também <strong>de trás para a frente</strong>:</p>
+
+<pre class="file" data-file="percorrer.cs">var playlist = new LinkedList&lt;string&gt;(["Asa Branca", "Garota de Ipanema", "Aquarela", "Trem das Onze"]);
+
+for (var no = playlist.First; no is not null; no = no.Next)
+{
+    Console.WriteLine($"Tocando: {no.Value}");
+}
+
+Console.WriteLine("--- de trás para a frente ---");
+for (var no = playlist.Last; no is not null; no = no.Previous)
+{
+    Console.WriteLine(no.Value);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run percorrer.cs
+Tocando: Asa Branca
+Tocando: Garota de Ipanema
+Tocando: Aquarela
+Tocando: Trem das Onze
+--- de trás para a frente ---
+Trem das Onze
+Aquarela
+Garota de Ipanema
+Asa Branca</pre>
+
+<p>Leia o primeiro <code>for</code> (aula <a href="for.html">for</a>) em três partes:</p>
+<dl class="anatomy">
+  <dt>var no = playlist.First;</dt><dd>Começa no primeiro nó.</dd>
+  <dt>no is not null;</dt><dd>Continua enquanto houver nó. Depois do último, <code>Next</code> é <code>null</code> e o laço para.</dd>
+  <dt>no = no.Next</dt><dd>A cada volta, passa para o vagão seguinte.</dd>
+</dl>
+<p>O segundo <code>for</code> é o espelho: começa no <code>Last</code> e anda com <code>Previous</code>. É assim que um tocador de música implementa os botões "próxima" e "anterior".</p>
+
+<h3 id="remover">Remover durante o percurso</h3>
+<p>Dentro de um <code>foreach</code>, você não pode mudar a lista (dá <code>InvalidOperationException</code>, veja <a href="#errado">Quando dá errado</a>). Andando pelos nós, pode, desde que guarde o próximo <strong>antes</strong> de remover o atual:</p>
+
+<pre class="file" data-file="remover.cs">var numeros = new LinkedList&lt;int&gt;([1, 2, 3, 4, 5, 6]);
+
+var no = numeros.First;
+while (no is not null)
+{
+    var proximo = no.Next;
+    if (no.Value % 2 == 0)
+        numeros.Remove(no);
+    no = proximo;
+}
+Console.WriteLine(string.Join(", ", numeros));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run remover.cs
+1, 3, 5</pre>
+
+<dl class="anatomy">
+  <dt>var proximo = no.Next;</dt><dd>Anota o vizinho da frente <strong>antes</strong> de remover. Um nó removido perde os engates (o <code>Next</code> dele vira <code>null</code>), e o laço pararia no meio.</dd>
+  <dt>numeros.Remove(no);</dt><dd>Tira o nó que você já tem na mão: não precisa procurar.</dd>
+</dl>
+
+<hr>
+
+<h2>4. <code>List</code> ou <code>LinkedList</code>?</h2>
+<p>A lista ligada parece ótima, mas no dia a dia a <code>List&lt;T&gt;</code> ganha quase sempre. Os itens da <code>List</code> ficam juntinhos na memória, e o processador lê memória contínua muito depressa. Os nós da <code>LinkedList</code> ficam espalhados, e cada nó gasta memória extra com os dois engates.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operação</th><th><code>List&lt;T&gt;</code></th><th><code>LinkedList&lt;T&gt;</code></th></tr>
+<tr><td>Pegar o item da posição 500</td><td>Imediato: <code>lista[500]</code></td><td>Lento: anda 500 nós (e não tem <code>[ ]</code>)</td></tr>
+<tr><td>Acrescentar no fim</td><td>Rápido</td><td>Rápido</td></tr>
+<tr><td>Acrescentar ou tirar no começo</td><td>Lento: empurra todos</td><td>Rápido</td></tr>
+<tr><td>Encaixar ou tirar ao lado de um nó que você já tem</td><td>Lento: empurra o resto</td><td>Rápido</td></tr>
+<tr><td>Procurar um valor (<code>Contains</code>, <code>Find</code>)</td><td>Olha um por um</td><td>Olha um por um</td></tr>
+<tr><td>Memória por item</td><td>Só o item</td><td>O item e dois engates</td></tr>
+</table>
+</div>
+
+<p>Regra prática: comece com <code>List&lt;T&gt;</code>. Use <code>LinkedList&lt;T&gt;</code> quando o programa encaixa e tira itens <strong>no meio</strong> o tempo todo, sempre ao lado de nós que ele já tem na mão (uma playlist com "tocar a seguir", um editor que guarda as linhas como nós). Para tirar só do começo, a <a href="queue.html">Queue</a> é mais simples; só do fim, a <a href="stack.html">Stack</a>.</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0021: Não é possível aplicar a indexação com [] a uma expressão do tipo "LinkedList&lt;string&gt;"</code></strong>
+<p><strong>O que significa:</strong> você escreveu <code>trem[1]</code>. A lista ligada não tem posições.</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run indice.cs
+/home/ana/cs/indice.cs(2,19): error CS0021: Não é possível aplicar a indexação com [] a uma expressão do tipo "LinkedList&lt;string&gt;"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>Como consertar:</strong> ande pelos nós (<code>First</code>, <code>Next</code>) ou, se você precisa de posições, use uma <code>List&lt;T&gt;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>InvalidOperationException: The LinkedList is empty.</code></strong>
+<p><strong>O que significa:</strong> "a lista ligada está vazia". Um <code>RemoveFirst()</code> ou <code>RemoveLast()</code> numa lista sem nós:</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run vazia.cs
+Unhandled exception. System.InvalidOperationException: The LinkedList is empty.
+   at System.Collections.Generic.LinkedList`1.RemoveFirst()
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/vazia.cs:line 2</pre>
+<p><strong>Como consertar:</strong> teste <code>trem.Count &gt; 0</code> antes de remover.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS8602</code> e depois <code>NullReferenceException</code></strong>
+<p><strong>O que significa:</strong> numa lista vazia, <code>First</code> e <code>Last</code> são <code>null</code>, e <code>Find</code> devolve <code>null</code> quando não acha. Ler <code>.Value</code> de um <code>null</code> derruba o programa. O compilador avisa antes:</p>
+<pre class="term" data-cwd="~/cs">$ cat nulo.cs
+var trem = new LinkedList&lt;string&gt;();
+Console.WriteLine(trem.First is null);
+Console.WriteLine(trem.First.Value);
+$ dotnet run nulo.cs
+/home/ana/cs/nulo.cs(3,19): warning CS8602: Desreferência de uma referência possivelmente nula.
+True
+Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/nulo.cs:line 3</pre>
+<p><strong>Como consertar:</strong> leve o aviso a sério e teste antes: <code>if (trem.First is not null)</code>, ou use <code>trem.First?.Value</code> (que dá <code>null</code> em vez de exceção). Só use o <code>!</code> quando tiver certeza de que a lista não está vazia.</p>
+</div>
+
+<div class="cenario">
+<strong><code>InvalidOperationException: The LinkedList node does not belong to current LinkedList.</code></strong>
+<p><strong>O que significa:</strong> "o nó não pertence a esta lista ligada". Você passou para <code>AddAfter</code>, <code>AddBefore</code> ou <code>Remove</code> um nó que é de <strong>outra</strong> lista (por exemplo, <code>b.AddAfter(a.First!, "w")</code>). Parecida com ela é <code>The LinkedList node already belongs to a LinkedList.</code>: você tentou engatar um nó (e não um valor) que já está em uma lista.</p>
+<p><strong>Como consertar:</strong> use nós da própria lista (vindos de <code>Find</code>, <code>First</code>, <code>Last</code>…). Para copiar de uma lista para outra, passe o <strong>valor</strong>: <code>b.AddLast(no.Value)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>InvalidOperationException: Collection was modified after the enumerator was instantiated.</code></strong>
+<p><strong>O que significa:</strong> você acrescentou ou removeu dentro de um <code>foreach</code> que percorre a mesma lista ligada. Diferente do <code>Dictionary</code>, a lista ligada reclama também de remoções.</p>
+<p><strong>Como consertar:</strong> ande pelos nós com <code>while</code>, guardando o <code>Next</code> antes de remover (<a href="#remover">seção 3</a>).</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>new LinkedList&lt;T&gt;()</code> / <code>new LinkedList&lt;T&gt;(colecao)</code></td><td>Lista ligada vazia / com os itens da coleção</td></tr>
+<tr><td><code>l.AddFirst(x)</code> / <code>l.AddLast(x)</code></td><td>Põe no começo / no fim; devolvem o nó novo</td></tr>
+<tr><td><code>l.AddAfter(no, x)</code> / <code>l.AddBefore(no, x)</code></td><td>Põe logo depois / logo antes de <code>no</code></td></tr>
+<tr><td><code>l.First</code> / <code>l.Last</code></td><td>Primeiro / último nó (<code>null</code> se vazia)</td></tr>
+<tr><td><code>no.Value</code>, <code>no.Next</code>, <code>no.Previous</code></td><td>O valor e os vizinhos (<code>null</code> nas pontas)</td></tr>
+<tr><td><code>l.Find(x)</code> / <code>l.FindLast(x)</code></td><td>Primeiro / último nó com o valor <code>x</code>, ou <code>null</code></td></tr>
+<tr><td><code>l.Remove(x)</code> / <code>l.Remove(no)</code></td><td>Tira pelo valor (devolve <code>bool</code>) / tira o nó</td></tr>
+<tr><td><code>l.RemoveFirst()</code> / <code>l.RemoveLast()</code></td><td>Tira a ponta; <code>InvalidOperationException</code> se vazia</td></tr>
+<tr><td><code>l.Count</code>, <code>l.Contains(x)</code>, <code>l.Clear()</code></td><td>Quantos / existe? / esvazia</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Engatar na frente</h3>
+<p>Complete para pôr a locomotiva antes de todos os vagões:</p>
+<div class="ex-code">trem.<input data-answer="AddFirst" aria-label="método">("locomotiva");</div>
+</div>
+
+<div class="exercise">
+<h3>2. O vizinho de trás</h3>
+<p>Complete para andar para o nó <strong>anterior</strong>:</p>
+<div class="ex-code">no = no.<input data-answer="Previous" aria-label="propriedade">;</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">3. O que <code>trem.Find("vagão 9")</code> devolve se não há esse vagão?</p>
+<label><input type="radio" name="q3"> Lança <code>KeyNotFoundException</code></label>
+<label><input type="radio" name="q3"> <code>null</code></label>
+<label><input type="radio" name="q3"> O último nó</label>
+<label><input type="radio" name="q3"> -1</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">4. Em qual situação a <code>LinkedList</code> é melhor que a <code>List</code>?</p>
+<label><input type="radio" name="q4"> Pegar muitos itens pela posição</label>
+<label><input type="radio" name="q4"> Guardar um milhão de números gastando pouca memória</label>
+<label><input type="radio" name="q4"> Procurar um valor mais rápido</label>
+<label><input type="radio" name="q4"> Encaixar e tirar itens no meio o tempo todo, ao lado de nós que você já tem</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">5. Num laço que anda pelos nós e remove alguns, por que se guarda <code>no.Next</code> antes do <code>Remove(no)</code>?</p>
+<label><input type="radio" name="q5"> Porque o nó removido perde os engates, e o <code>Next</code> dele vira <code>null</code></label>
+<label><input type="radio" name="q5"> Porque o <code>Remove</code> lança exceção se não guardar</label>
+<label><input type="radio" name="q5"> Porque o compilador exige</label>
+<label><input type="radio" name="q5"> Não precisa guardar</label>
+</div>
+
+<h3>Missão final: a playlist de trás para a frente</h3>
+
+<div class="trycs" data-goal="outre:^4\. Trem das Onze\n3\. Aquarela\n2\. Garota de Ipanema\n1\. Asa Branca\n$,src:Previous">
+<p class="try-task"><strong>Missão:</strong> o programa mostra a playlist numerada do começo ao fim. Mude o laço para ela sair <strong>de trás para a frente</strong>, começando em <code>Last</code> e andando com <code>Previous</code>, com a numeração descendo de 4 até 1.</p>
+<pre class="out">4. Trem das Onze
+3. Aquarela
+2. Garota de Ipanema
+1. Asa Branca</pre>
+<pre class="script">var playlist = new LinkedList&lt;string&gt;(["Asa Branca", "Garota de Ipanema", "Aquarela", "Trem das Onze"]);
+
+int numero = 1;
+for (var no = playlist.First; no is not null; no = no.Next)
+{
+    Console.WriteLine($"{numero}. {no.Value}");
+    numero++;
+}
+</pre>
+<pre class="solucao">var playlist = new LinkedList&lt;string&gt;(["Asa Branca", "Garota de Ipanema", "Aquarela", "Trem das Onze"]);
+
+int numero = playlist.Count;
+for (var no = playlist.Last; no is not null; no = no.Previous)
+{
+    Console.WriteLine($"{numero}. {no.Value}");
+    numero--;
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma <code>LinkedList&lt;T&gt;</code> guarda cada item num <strong>nó</strong> (<code>LinkedListNode&lt;T&gt;</code>) que conhece o vizinho de trás (<code>Previous</code>) e o da frente (<code>Next</code>).</li>
+  <li><code>AddFirst</code> e <code>AddLast</code> põem nas pontas; <code>AddAfter</code> e <code>AddBefore</code> encaixam ao lado de um nó; <code>Find</code> acha o nó de um valor (ou <code>null</code>).</li>
+  <li>Não há <code>[ ]</code> (<code>CS0021</code>): ande pelos nós, para a frente ou para trás.</li>
+  <li><code>First</code>, <code>Last</code> e <code>Find</code> podem dar <code>null</code>: teste antes de usar <code>.Value</code>. <code>RemoveFirst</code> numa lista vazia dá <code>The LinkedList is empty.</code></li>
+  <li>Para remover durante o percurso, ande com <code>while</code> e guarde o <code>Next</code> antes do <code>Remove</code>; no <code>foreach</code>, mudar a lista dá <code>InvalidOperationException</code>.</li>
+  <li>No dia a dia, prefira <code>List&lt;T&gt;</code>; a lista ligada vale a pena quando você encaixa e tira no meio o tempo todo.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
