@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# throw — lançar e relançar exceções | Guia C#</title>
+<meta name="description" content="Como lançar exceções em C# com throw: validar argumentos com ArgumentException e suas filhas, os atalhos ThrowIfNull e ThrowIfNegative, relançar com throw; em vez de throw ex; (aviso CA2200), embrulhar com InnerException e as expressões throw (?? throw, ternário, switch e =>), com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">throw</span></h1>
+
+<p class="intro">Até agora, quem lançava as exceções era o .NET: o <code>int.Parse</code>, a divisão por zero, o array. Nesta aula é a sua vez. Com a palavra <code>throw</code> ("lançar", "atirar"), o <strong>seu</strong> método avisa que recebeu algo que não dá para aceitar, do mesmo jeito que os métodos do .NET fazem. Você também vai aprender a <strong>relançar</strong> uma exceção sem perder o rastro dela (<code>throw;</code> × <code>throw ex;</code>), a embrulhar uma exceção em outra e a usar <code>throw</code> no meio de uma expressão.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Lançar uma exceção com <code>throw new …</code>, e quem a recebe.</li>
+  <li>Qual exceção do .NET escolher: <code>ArgumentException</code>, <code>ArgumentNullException</code>, <code>ArgumentOutOfRangeException</code>, <code>InvalidOperationException</code>, <code>NotImplementedException</code>…</li>
+  <li>Os atalhos de validação: <code>ArgumentNullException.ThrowIfNull</code>, <code>ArgumentOutOfRangeException.ThrowIfNegative</code> e companhia.</li>
+  <li>Relançar dentro de um <code>catch</code>: por que <code>throw;</code> e não <code>throw ex;</code> (o aviso <code>CA2200</code>).</li>
+  <li>Embrulhar uma exceção em outra com <code>InnerException</code>.</li>
+  <li>As <strong>expressões throw</strong>: <code>?? throw</code>, no ternário, no <code>switch</code> e depois de <code>=&gt;</code>.</li>
+  <li>Os erros <code>CS0029</code>, <code>CS0156</code> e <code>CS8115</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas rodaram na máquina da Ana, com o .NET 10 (C# 14), usando <code>dotnet run arquivo.cs</code> na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia antes do código</h2>
+<p>A Ana é a gerente da lojinha, e a funcionária nova está no caixa. Um cliente pede 150% de desconto. A funcionária não deve "dar um jeito" (cobrar um valor negativo, inventar um desconto qualquer): ela deve <strong>parar e chamar a gerente</strong>, dizendo exatamente o problema: "o desconto pedido é 150%, e o máximo é 100%". Quem sabe o que fazer com isso é a gerente.</p>
+<p>O <code>throw</code> é esse "chamar a gerente". Um método que recebe um valor impossível <strong>lança</strong> uma exceção com uma mensagem clara, e quem chamou o método decide: trata com <code>catch</code>, ou deixa subir.</p>
+
+<hr>
+
+<h2>1. Lançar uma exceção: <code>throw new …</code></h2>
+
+<pre class="file" data-file="desconto.cs">Console.WriteLine(Loja.AplicarDesconto(80m, 10));
+Console.WriteLine(Loja.AplicarDesconto(80m, 150));
+Console.WriteLine("Fim");
+
+static class Loja
+{
+    public static decimal AplicarDesconto(decimal preco, int percentual)
+    {
+        if (percentual &lt; 0 || percentual &gt; 100)
+        {
+            throw new ArgumentOutOfRangeException(nameof(percentual), percentual, "O desconto vai de 0 a 100.");
+        }
+        return preco - preco * percentual / 100;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run desconto.cs
+72
+Unhandled exception. System.ArgumentOutOfRangeException: O desconto vai de 0 a 100. (Parameter 'percentual')
+Actual value was 150.
+   at Loja.AplicarDesconto(Decimal preco, Int32 percentual) in /home/ana/cs/desconto.cs:line 11
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/desconto.cs:line 2
+$ echo $?
+134</pre>
+
+<dl class="anatomy">
+  <dt>if (percentual &lt; 0 || percentual &gt; 100)</dt><dd>A verificação: o desconto só faz sentido de 0 a 100.</dd>
+  <dt>throw</dt><dd>"Lance." Interrompe o método na hora, como um <code>return</code>, mas em vez de devolver um valor, lança a exceção para quem chamou. A linha do <code>return</code> não roda.</dd>
+  <dt>new ArgumentOutOfRangeException(…)</dt><dd>Cria o <strong>objeto</strong> da exceção, como qualquer <code>new</code> (aula <a href="classes-objetos.html">Classes e Objetos</a>). "Argumento fora do intervalo" é a exceção certa para um número fora dos limites.</dd>
+  <dt>nameof(percentual)</dt><dd>O <strong>nome</strong> do parâmetro, como texto: <code>"percentual"</code>. Usar <code>nameof</code> em vez de escrever o texto à mão garante que, se você renomear o parâmetro, a mensagem acompanha. Aparece no relatório como <code>(Parameter 'percentual')</code>.</dd>
+  <dt>percentual</dt><dd>O valor recebido. Aparece como <code>Actual value was 150.</code> ("o valor recebido foi 150").</dd>
+  <dt>"O desconto vai de 0 a 100."</dt><dd>A mensagem. A sua mensagem pode ser em português: ela aparece exatamente como você escreveu.</dd>
+</dl>
+
+<p>O relatório é igual aos do .NET: tipo, mensagem e stack trace. A primeira linha <code>at</code> aponta a linha 11, a do <code>throw</code>; a de baixo, a linha 2, de onde veio o 150. Para quem chama, não há diferença entre uma exceção lançada pelo .NET e uma lançada por você: dá para capturar com <code>catch (ArgumentOutOfRangeException e)</code>, ler a <code>e.Message</code> etc.</p>
+
+<div class="note">
+<strong>Por que não só mostrar uma mensagem?</strong>
+<p>O método poderia fazer <code>Console.WriteLine("Desconto inválido")</code> e devolver o preço sem desconto. Mas aí quem chamou nunca fica sabendo que deu errado, e o programa segue com um valor que ninguém pediu. Um método não sabe <strong>onde</strong> está sendo usado (num programa de console, numa página web, num teste automático) nem o que é melhor fazer em cada caso. O <code>throw</code> entrega o problema a quem sabe.</p>
+</div>
+
+<div class="trycs" data-goal="exit:134,out:ArgumentOutOfRangeException,src:throw\s+new\s+ArgumentOutOfRangeException">
+<p class="try-task"><strong>Missão:</strong> o método <code>Vender</code> aceita quantidade negativa, e o estoque "cresce" numa venda. Faça-o lançar uma <code>ArgumentOutOfRangeException</code> quando a <code>quantidade</code> for menor ou igual a zero, com a mensagem <code>A quantidade tem de ser positiva.</code></p>
+<pre class="script" data-file="estoque.cs">int estoque = 10;
+estoque = Vender(estoque, 3);
+Console.WriteLine($"Estoque: {estoque}");
+estoque = Vender(estoque, -5);
+Console.WriteLine($"Estoque: {estoque}");
+
+int Vender(int emEstoque, int quantidade)
+{
+    return emEstoque - quantidade;
+}
+</pre>
+<pre class="solucao" data-file="estoque.cs">int estoque = 10;
+estoque = Vender(estoque, 3);
+Console.WriteLine($"Estoque: {estoque}");
+estoque = Vender(estoque, -5);
+Console.WriteLine($"Estoque: {estoque}");
+
+int Vender(int emEstoque, int quantidade)
+{
+    if (quantidade &lt;= 0)
+    {
+        throw new ArgumentOutOfRangeException(nameof(quantidade), quantidade, "A quantidade tem de ser positiva.");
+    }
+    return emEstoque - quantidade;
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Qual exceção lançar</h2>
+<p>O .NET já tem exceções prontas para os problemas mais comuns. Prefira sempre uma delas, porque todo programador C# sabe o que cada uma quer dizer:</p>
+
+<pre class="file" data-file="simples.cs">try
+{
+    throw new ArgumentException("O nome não pode ficar vazio.");
+}
+catch (ArgumentException e)
+{
+    Console.WriteLine(e.Message);
+}
+try
+{
+    throw new ArgumentException("O nome não pode ficar vazio.", "nome");
+}
+catch (ArgumentException e)
+{
+    Console.WriteLine(e.Message);
+    Console.WriteLine(e.ParamName);
+}
+try
+{
+    throw new InvalidOperationException("O caixa está fechado.");
+}
+catch (InvalidOperationException e)
+{
+    Console.WriteLine(e.Message);
+}
+try
+{
+    throw new ArgumentNullException("cliente");
+}
+catch (ArgumentNullException e)
+{
+    Console.WriteLine(e.Message);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run simples.cs
+O nome não pode ficar vazio.
+O nome não pode ficar vazio. (Parameter 'nome')
+nome
+O caixa está fechado.
+Value cannot be null. (Parameter 'cliente')</pre>
+
+<p>Repare na ordem dos argumentos, que pega muita gente: no <code>ArgumentException</code>, a mensagem vem <strong>primeiro</strong> e o nome do parâmetro depois; no <code>ArgumentNullException</code> e no <code>ArgumentOutOfRangeException</code>, o nome do parâmetro vem primeiro. Com um argumento só, o <code>ArgumentNullException</code> monta a mensagem sozinho, em inglês.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Exceção</th><th>Quando lançar</th><th>Exemplo</th></tr>
+<tr><td><code>ArgumentNullException</code></td><td>Um parâmetro veio <code>null</code> e não podia</td><td><code>Cadastrar(null)</code></td></tr>
+<tr><td><code>ArgumentOutOfRangeException</code></td><td>Um número (ou posição) fora dos limites</td><td>Desconto de 150%, idade −1</td></tr>
+<tr><td><code>ArgumentException</code></td><td>Outro problema com um parâmetro</td><td>Nome vazio, e-mail sem <code>@</code></td></tr>
+<tr><td><code>InvalidOperationException</code></td><td>Os parâmetros estão certos, mas o <strong>objeto</strong> não está num estado que permita a operação</td><td>Vender com o caixa fechado; tirar de uma fila vazia</td></tr>
+<tr><td><code>NotImplementedException</code></td><td>O método ainda não foi escrito (lembrete temporário)</td><td><code>CalcularFrete() =&gt; throw new NotImplementedException();</code></td></tr>
+<tr><td><code>NotSupportedException</code></td><td>A operação não existe para este objeto, de propósito</td><td>Escrever numa lista só de leitura</td></tr>
+<tr><td>Uma exceção sua</td><td>Um problema do <strong>seu</strong> domínio, que alguém vai querer capturar separado</td><td><code>SaldoInsuficienteException</code> (aula <a href="excecoes-proprias.html">Exceções Próprias</a>)</td></tr>
+</table>
+</div>
+
+<div class="warning">
+<strong>Nunca lance estas</strong>
+<p><code>Exception</code> e <code>SystemException</code> (gerais demais: quem chama não consegue capturar só o seu problema sem capturar todos), <code>NullReferenceException</code>, <code>IndexOutOfRangeException</code> e <code>StackOverflowException</code> (são do próprio .NET e indicam defeitos; use as <code>Argument…Exception</code> no lugar).</p>
+</div>
+
+<hr>
+
+<h2>3. Os atalhos de validação <span class="versao">.NET 6+</span></h2>
+<p>Verificar parâmetros no começo dos métodos é tão comum que o .NET ganhou métodos prontos que fazem o <code>if</code> e o <code>throw</code> numa linha só, e ainda descobrem sozinhos o nome do parâmetro:</p>
+
+<pre class="file" data-file="guarda.cs">void Cadastrar(string? nome, int idade, decimal saldo)
+{
+    ArgumentException.ThrowIfNullOrWhiteSpace(nome);
+    ArgumentOutOfRangeException.ThrowIfNegative(idade);
+    ArgumentOutOfRangeException.ThrowIfGreaterThan(idade, 130);
+    ArgumentOutOfRangeException.ThrowIfNegative(saldo);
+    Console.WriteLine($"{nome}, {idade} anos: ok");
+}
+
+void Testar(Action acao)
+{
+    try { acao(); }
+    catch (Exception e) { Console.WriteLine($"{e.GetType().Name}: {e.Message}"); }
+}
+
+Testar(() =&gt; Cadastrar("Ana", 29, 10m));
+Testar(() =&gt; Cadastrar("  ", 29, 10m));
+Testar(() =&gt; Cadastrar(null, 29, 10m));
+Testar(() =&gt; Cadastrar("Ana", -1, 10m));
+Testar(() =&gt; Cadastrar("Ana", 200, 10m));
+Testar(() =&gt; Cadastrar("Ana", 29, -5m));
+string? cliente = null;
+Testar(() =&gt; ArgumentNullException.ThrowIfNull(cliente));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run guarda.cs
+Ana, 29 anos: ok
+ArgumentException: The value cannot be an empty string or composed entirely of whitespace. (Parameter 'nome')
+ArgumentNullException: Value cannot be null. (Parameter 'nome')
+ArgumentOutOfRangeException: idade ('-1') must be a non-negative value. (Parameter 'idade')
+Actual value was -1.
+ArgumentOutOfRangeException: idade ('200') must be less than or equal to '130'. (Parameter 'idade')
+Actual value was 200.
+ArgumentOutOfRangeException: saldo ('-5') must be a non-negative value. (Parameter 'saldo')
+Actual value was -5.
+ArgumentNullException: Value cannot be null. (Parameter 'cliente')</pre>
+
+<p>O <code>Testar</code> é só um ajudante desta página: ele roda cada chamada dentro de um <code>try</code> e mostra o tipo e a mensagem, para caberem todos os casos num programa só (o <code>() =&gt; …</code> é uma <a href="lambdas.html">lambda</a>, "um pedaço de código guardado para rodar depois").</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Atalho</th><th>Lança quando</th><th>Desde</th></tr>
+<tr><td><code>ArgumentNullException.ThrowIfNull(x)</code></td><td><code>x</code> é <code>null</code></td><td>.NET 6</td></tr>
+<tr><td><code>ArgumentException.ThrowIfNullOrEmpty(texto)</code></td><td>texto <code>null</code> ou <code>""</code></td><td>.NET 7</td></tr>
+<tr><td><code>ArgumentException.ThrowIfNullOrWhiteSpace(texto)</code></td><td>texto <code>null</code>, vazio ou só com espaços</td><td>.NET 8</td></tr>
+<tr><td><code>ArgumentOutOfRangeException.ThrowIfNegative(n)</code></td><td><code>n &lt; 0</code></td><td>.NET 8</td></tr>
+<tr><td><code>ArgumentOutOfRangeException.ThrowIfNegativeOrZero(n)</code></td><td><code>n &lt;= 0</code></td><td>.NET 8</td></tr>
+<tr><td><code>ArgumentOutOfRangeException.ThrowIfZero(n)</code></td><td><code>n == 0</code></td><td>.NET 8</td></tr>
+<tr><td><code>ArgumentOutOfRangeException.ThrowIfGreaterThan(n, max)</code></td><td><code>n &gt; max</code></td><td>.NET 8</td></tr>
+<tr><td><code>ArgumentOutOfRangeException.ThrowIfLessThan(n, min)</code></td><td><code>n &lt; min</code></td><td>.NET 8</td></tr>
+</table>
+</div>
+
+<p>A desvantagem: a mensagem é a padrão, em inglês. Quando a mensagem importa (vai aparecer para alguém), use o <code>if</code> com <code>throw new</code> e escreva a sua.</p>
+
+<hr>
+
+<h2>4. Relançar: <code>throw;</code> × <code>throw ex;</code></h2>
+<p>Às vezes um <code>catch</code> quer fazer alguma coisa com a exceção (registrar num log, por exemplo) e depois deixá-la <strong>continuar subindo</strong>, porque não sabe resolvê-la. Para isso, dentro do <code>catch</code>, escreva <code>throw;</code> sozinho, sem nada depois:</p>
+
+<pre class="file" data-file="relanca.cs">Estoque.Carregar("doze");
+
+static class Estoque
+{
+    public static void Carregar(string texto)
+    {
+        try
+        {
+            int quantidade = Ler(texto);
+            Console.WriteLine($"Quantidade: {quantidade}");
+        }
+        catch (FormatException)
+        {
+            Console.WriteLine($"[log] falhou ao ler \"{texto}\"");
+            throw;
+        }
+    }
+
+    static int Ler(string texto)
+    {
+        return int.Parse(texto);
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run relanca.cs
+[log] falhou ao ler "doze"
+Unhandled exception. System.FormatException: The input string 'doze' was not in a correct format.
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+   at System.Int32.Parse(String s)
+   at Estoque.Ler(String texto) in /home/ana/cs/relanca.cs:line 21
+   at Estoque.Carregar(String texto) in /home/ana/cs/relanca.cs:line 9
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/relanca.cs:line 1</pre>
+
+<p>O <code>catch</code> escreveu o log e o <code>throw;</code> relançou <strong>a mesma</strong> exceção, com o rastro intacto: dá para ver que ela nasceu no <code>int.Parse</code>, chamado pelo <code>Ler</code> na linha 21, chamado pelo <code>Carregar</code> na linha 9.</p>
+
+<p>Agora a versão que muita gente escreve, dando nome à exceção e relançando com <code>throw e;</code>:</p>
+
+<div class="warning"><strong>Este código perde informação de propósito.</strong></div>
+<pre class="file" data-file="relanca2.cs (trecho)">        catch (FormatException e)
+        {
+            Console.WriteLine($"[log] falhou ao ler \"{texto}\"");
+            throw e;
+        }
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run relanca2.cs
+/home/ana/cs/relanca2.cs(15,13): warning CA2200: Gerar novamente uma exceção detectada altera as informações de pilha (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2200)
+[log] falhou ao ler "doze"
+Unhandled exception. System.FormatException: The input string 'doze' was not in a correct format.
+   at Estoque.Carregar(String texto) in /home/ana/cs/relanca2.cs:line 15
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/relanca2.cs:line 1</pre>
+
+<p>Compare os dois rastros. Com <code>throw e;</code>, o rastro <strong>recomeça</strong> na linha 15, a do próprio <code>throw e;</code>. O <code>Ler</code> e o <code>int.Parse</code> sumiram: quem for consertar o problema vai procurar no lugar errado. O compilador já avisou, na primeira linha: <code>CA2200</code>, "gerar novamente uma exceção detectada altera as informações de pilha". Os avisos <code>CA…</code> vêm dos <strong>analisadores de código</strong> do .NET, que procuram maus hábitos além dos erros da linguagem.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th><code>throw;</code></th><th><code>throw e;</code></th></tr>
+<tr><td>O que relança</td><td>A mesma exceção</td><td>A mesma exceção</td></tr>
+<tr><td>Stack trace</td><td>Preservado: mostra onde ela nasceu</td><td>Recomeça no <code>throw e;</code></td></tr>
+<tr><td>Aviso</td><td>nenhum</td><td><code>CA2200</code></td></tr>
+<tr><td>Onde pode ser escrito</td><td>Só dentro de um <code>catch</code> (senão <code>CS0156</code>)</td><td>Em qualquer lugar</td></tr>
+<tr><td>Use</td><td><strong>Sempre</strong> que for relançar</td><td>Nunca para relançar</td></tr>
+</table>
+</div>
+
+<div class="note">
+<strong>No editor do guia</strong>
+<p>O editor desta página compila com o compilador C# de verdade, mas não roda os analisadores <code>CA…</code>: o aviso <code>CA2200</code> só aparece no <code>dotnet</code> do computador. A diferença entre os dois rastros aparece nos dois.</p>
+</div>
+
+<hr>
+
+<h2>5. Embrulhar: uma exceção dentro da outra</h2>
+<p>Há uma terceira saída: lançar uma exceção <strong>nova</strong>, com uma mensagem que faça sentido para quem chamou, guardando a original dentro dela. A original fica na propriedade <code>InnerException</code> ("exceção interna"), e nada se perde:</p>
+
+<pre class="file" data-file="embrulha.cs">Estoque.Carregar("doze");
+
+static class Estoque
+{
+    public static void Carregar(string texto)
+    {
+        try
+        {
+            int quantidade = int.Parse(texto);
+            Console.WriteLine($"Quantidade: {quantidade}");
+        }
+        catch (FormatException e)
+        {
+            throw new InvalidOperationException($"Não deu para carregar o estoque: \"{texto}\".", e);
+        }
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run embrulha.cs
+Unhandled exception. System.InvalidOperationException: Não deu para carregar o estoque: "doze".
+ ---&gt; System.FormatException: The input string 'doze' was not in a correct format.
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+   at System.Int32.Parse(String s)
+   at Estoque.Carregar(String texto) in /home/ana/cs/embrulha.cs:line 9
+   --- End of inner exception stack trace ---
+   at Estoque.Carregar(String texto) in /home/ana/cs/embrulha.cs:line 14
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/embrulha.cs:line 1</pre>
+
+<dl class="anatomy">
+  <dt>new InvalidOperationException(mensagem, e)</dt><dd>O segundo argumento é a exceção original, que vira a <code>InnerException</code> da nova.</dd>
+  <dt>Unhandled exception. System.InvalidOperationException: Não deu…</dt><dd>A exceção de fora, com a sua mensagem.</dd>
+  <dt> ---&gt; System.FormatException: …</dt><dd>A seta <code>---&gt;</code> marca a exceção de dentro, com o rastro <strong>dela</strong> (linha 9, o <code>int.Parse</code>).</dd>
+  <dt>--- End of inner exception stack trace ---</dt><dd>"Fim do rastro da exceção interna." Daqui para baixo, é o rastro da exceção de fora (linha 14, o <code>throw new</code>).</dd>
+</dl>
+
+<p>Quem captura a exceção de fora pode ler as duas:</p>
+
+<pre class="file" data-file="embrulha2.cs (trecho do topo)">try
+{
+    Estoque.Carregar("doze");
+}
+catch (InvalidOperationException e)
+{
+    Console.WriteLine(e.Message);
+    Console.WriteLine($"Causa: {e.InnerException?.GetType().Name}: {e.InnerException?.Message}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run embrulha2.cs
+Não deu para carregar o estoque: "doze".
+Causa: FormatException: The input string 'doze' was not in a correct format.</pre>
+
+<p>O <code>?.</code> está ali porque <code>InnerException</code> pode ser <code>null</code>: nem toda exceção tem uma "de dentro".</p>
+
+<hr>
+
+<h2>6. Expressões <code>throw</code> <span class="versao">C# 7</span></h2>
+<p>Até aqui, <code>throw</code> foi uma <strong>instrução</strong>, numa linha própria. Desde o C# 7 ele também pode aparecer no meio de uma <strong>expressão</strong>, em quatro lugares: depois de <code>??</code>, como um dos lados do ternário <code>? :</code>, num braço de uma expressão <code>switch</code> e depois de <code>=&gt;</code>. Todos de uma vez:</p>
+
+<pre class="file" data-file="expr.cs">var ana = new Cliente("Ana", 29);
+Console.WriteLine($"{ana.Nome}, {ana.Idade} anos");
+Console.WriteLine(Categoria(2));
+try { var x = new Cliente(null, 30); }
+catch (ArgumentNullException e) { Console.WriteLine(e.Message); }
+try { var y = new Cliente("Bia", -3); }
+catch (ArgumentOutOfRangeException e) { Console.WriteLine(e.Message); }
+Console.WriteLine(Categoria(9));
+
+string Categoria(int codigo) =&gt; codigo switch
+{
+    1 =&gt; "Alimentos",
+    2 =&gt; "Limpeza",
+    _ =&gt; throw new ArgumentOutOfRangeException(nameof(codigo), $"Categoria {codigo} não existe.")
+};
+
+class Cliente
+{
+    public string Nome { get; }
+    public int Idade { get; }
+
+    public Cliente(string? nome, int idade)
+    {
+        Nome = nome ?? throw new ArgumentNullException(nameof(nome));
+        Idade = idade &gt;= 0 ? idade : throw new ArgumentOutOfRangeException(nameof(idade), "A idade não pode ser negativa.");
+    }
+
+    public decimal CalcularFrete() =&gt; throw new NotImplementedException();
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run expr.cs
+Ana, 29 anos
+Limpeza
+Value cannot be null. (Parameter 'nome')
+A idade não pode ser negativa. (Parameter 'idade')
+Unhandled exception. System.ArgumentOutOfRangeException: Categoria 9 não existe. (Parameter 'codigo')
+   at Program.&lt;&lt;Main&gt;$&gt;g__Categoria|0_0(Int32 codigo) in /home/ana/cs/expr.cs:line 14
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/expr.cs:line 8</pre>
+
+<dl class="anatomy">
+  <dt>Nome = nome ?? throw new ArgumentNullException(nameof(nome));</dt><dd>"Use <code>nome</code>; se for <code>null</code>, lance." O <code>??</code> (aula <a href="operadores-null.html">Operadores ??, ?. e ??=</a>) só avalia o lado direito quando o esquerdo é <code>null</code>. É a forma mais comum de expressão throw, e de quebra o compilador entende que <code>Nome</code> nunca fica <code>null</code>.</dd>
+  <dt>idade &gt;= 0 ? idade : throw new …</dt><dd>No <a href="ternario.html">ternário</a>: "se a idade não é negativa, use-a; senão, lance."</dd>
+  <dt>_ =&gt; throw new …</dt><dd>No <code>switch</code> (aula <a href="switch-expressoes.html">Expressões switch</a>): o braço <code>_</code> ("qualquer outro valor") lança. Sem ele, o compilador avisa (<code>CS8509</code>: "a expressão switch não manipula todos os valores possíveis") e um código desconhecido lança uma <code>SwitchExpressionException</code> genérica (<em>Non-exhaustive switch expression failed to match its input</em>), sem a sua mensagem.</dd>
+  <dt>CalcularFrete() =&gt; throw new NotImplementedException();</dt><dd>Um método ainda por fazer. Compila, e quem chamar descobre na hora que falta escrever.</dd>
+</dl>
+
+<p>Fora desses quatro lugares, o <code>throw</code> continua sendo uma instrução:</p>
+
+<pre class="file" data-file="tx.cs">int x = throw new InvalidOperationException("não");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run tx.cs
+/home/ana/cs/tx.cs(1,9): error CS8115: Uma expressão throw não é permitida neste contexto.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<div class="trycs" data-goal="out:Value cannot be null,src:\?\?\s*throw\s+new\s+ArgumentNullException">
+<p class="try-task"><strong>Missão:</strong> o <code>Produto</code> aceita nome <code>null</code> sem reclamar. Troque a linha <code>Nome = nome;</code> por uma expressão <code>?? throw</code> que lance <code>ArgumentNullException</code> com <code>nameof(nome)</code>.</p>
+<pre class="script" data-file="produto.cs">var caderno = new Produto("Caderno");
+Console.WriteLine(caderno.Nome);
+try
+{
+    var semNome = new Produto(null);
+    Console.WriteLine($"Criado: [{semNome.Nome}]");
+}
+catch (ArgumentNullException e)
+{
+    Console.WriteLine(e.Message);
+}
+
+class Produto
+{
+    public string? Nome { get; }
+
+    public Produto(string? nome)
+    {
+        Nome = nome;
+    }
+}
+</pre>
+<pre class="solucao" data-file="produto.cs">var caderno = new Produto("Caderno");
+Console.WriteLine(caderno.Nome);
+try
+{
+    var semNome = new Produto(null);
+    Console.WriteLine($"Criado: [{semNome.Nome}]");
+}
+catch (ArgumentNullException e)
+{
+    Console.WriteLine(e.Message);
+}
+
+class Produto
+{
+    public string? Nome { get; }
+
+    public Produto(string? nome)
+    {
+        Nome = nome ?? throw new ArgumentNullException(nameof(nome));
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Formas diferentes, qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Forma</th></tr>
+<tr><td>Parâmetro inválido, com mensagem sua</td><td><code>if (…) throw new ArgumentOutOfRangeException(nameof(x), x, "…");</code></td></tr>
+<tr><td>Parâmetro <code>null</code>, negativo, vazio (mensagem padrão serve)</td><td><code>ArgumentNullException.ThrowIfNull(x);</code>, <code>ArgumentOutOfRangeException.ThrowIfNegative(n);</code>…</td></tr>
+<tr><td>Guardar um parâmetro que não pode ser <code>null</code></td><td><code>Campo = valor ?? throw new ArgumentNullException(nameof(valor));</code></td></tr>
+<tr><td>Valor que não cabe em nenhum caso do <code>switch</code></td><td><code>_ =&gt; throw new ArgumentOutOfRangeException(…)</code></td></tr>
+<tr><td>Registrar e deixar subir</td><td><code>catch (…) { log; throw; }</code></td></tr>
+<tr><td>Trocar por uma exceção com mais sentido para quem chama</td><td><code>throw new OutraException("…", e);</code> (guarda a original em <code>InnerException</code>)</td></tr>
+<tr><td>Método ainda não escrito</td><td><code>=&gt; throw new NotImplementedException();</code></td></tr>
+<tr><td>Problema próprio do seu programa</td><td>Uma exceção sua: <a href="excecoes-proprias.html">Exceções Próprias</a></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS0029: lançar algo que não é exceção</strong>
+<pre class="file" data-file="erros.cs">throw "deu errado";
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run erros.cs
+/home/ana/cs/erros.cs(1,7): error CS0029: Não é possível converter implicitamente tipo "string" em "System.Exception"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> só objetos da família <code>Exception</code> podem ser lançados. Um texto não é uma exceção (em JavaScript e em Python dá para lançar quase qualquer coisa; em C#, não).</p>
+<p><strong>Como consertar:</strong> embrulhe a mensagem numa exceção: <code>throw new InvalidOperationException("deu errado");</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0156: <code>throw;</code> fora de um <code>catch</code></strong>
+<pre class="file" data-file="erros2.cs">Console.WriteLine("oi");
+throw;
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run erros2.cs
+/home/ana/cs/erros2.cs(2,1): error CS0156: Uma instrução throw sem argumentos não é permitida fora de uma cláusula catch
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> <code>throw;</code> quer dizer "relance a exceção que estou tratando". Fora de um <code>catch</code>, não há exceção nenhuma para relançar.</p>
+<p><strong>Como consertar:</strong> fora do <code>catch</code>, escreva o que lançar: <code>throw new …;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>Aviso CA2200: o rastro some depois de relançar</strong>
+<p><strong>O que significa:</strong> você escreveu <code>throw e;</code> num <code>catch</code>. O rastro da exceção recomeça ali, e a origem do problema some do relatório.</p>
+<p><strong>Como consertar:</strong> troque por <code>throw;</code>. Se a ideia era lançar uma exceção nova, passe a original como <code>InnerException</code>: <code>throw new …("…", e);</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>A exceção "estranha" que o seu método lançou</strong>
+<p><strong>O que significa:</strong> o relatório diz <code>(Parameter 'percentual')</code>, mas o seu método chama o parâmetro de <code>desconto</code>. Alguém renomeou o parâmetro e esqueceu de trocar o texto escrito à mão.</p>
+<p><strong>Como consertar:</strong> use <code>nameof(desconto)</code> em vez de <code>"desconto"</code>: o compilador acompanha a mudança de nome.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Sintaxe</th><th>O que faz</th></tr>
+<tr><td><code>throw new Tipo("mensagem");</code></td><td>Lança uma exceção nova</td></tr>
+<tr><td><code>new ArgumentException("msg", nameof(p))</code></td><td>Mensagem primeiro, parâmetro depois</td></tr>
+<tr><td><code>new ArgumentNullException(nameof(p))</code></td><td>Parâmetro primeiro (mensagem opcional depois)</td></tr>
+<tr><td><code>new ArgumentOutOfRangeException(nameof(p), p, "msg")</code></td><td>Parâmetro, valor recebido, mensagem</td></tr>
+<tr><td><code>ArgumentNullException.ThrowIfNull(x)</code></td><td>Lança se <code>x</code> for <code>null</code> <span class="versao">.NET 6</span></td></tr>
+<tr><td><code>ArgumentOutOfRangeException.ThrowIfNegative(n)</code></td><td>Lança se <code>n &lt; 0</code> <span class="versao">.NET 8</span></td></tr>
+<tr><td><code>throw;</code></td><td>Relança a exceção do <code>catch</code>, com o rastro intacto</td></tr>
+<tr><td><code>throw new Tipo("msg", e);</code></td><td>Lança uma nova, guardando <code>e</code> em <code>InnerException</code></td></tr>
+<tr><td><code>x ?? throw new …</code></td><td>Expressão throw depois de <code>??</code> <span class="versao">C# 7</span></td></tr>
+<tr><td><code>cond ? valor : throw new …</code></td><td>Expressão throw no ternário</td></tr>
+<tr><td><code>_ =&gt; throw new …</code></td><td>Expressão throw num <code>switch</code></td></tr>
+<tr><td><code>Metodo() =&gt; throw new NotImplementedException();</code></td><td>Expressão throw depois de <code>=&gt;</code></td></tr>
+<tr><td><code>CS0029</code></td><td>Tentou lançar algo que não é <code>Exception</code></td></tr>
+<tr><td><code>CS0156</code></td><td><code>throw;</code> fora de um <code>catch</code></td></tr>
+<tr><td><code>CS8115</code></td><td>Expressão throw fora dos quatro lugares permitidos</td></tr>
+<tr><td><code>CA2200</code> (aviso)</td><td><code>throw e;</code> perde o rastro</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Lançar</h3>
+<p>Complete para lançar a exceção:</p>
+<div class="ex-code">if (preco &lt; 0) <input data-answer="throw" aria-label="palavra-chave"> new ArgumentOutOfRangeException(nameof(preco));</div>
+</div>
+
+<div class="exercise">
+<h3>2. Relançar sem perder o rastro</h3>
+<p>Complete a última linha do <code>catch</code>:</p>
+<div class="ex-code">catch (IOException) { Console.WriteLine("[log] erro de disco"); <input data-answer="throw;" aria-label="instrução"> }</div>
+</div>
+
+<div class="exercise">
+<h3>3. O nome do parâmetro</h3>
+<p>Complete com o operador que transforma o nome do parâmetro em texto:</p>
+<div class="ex-code">throw new ArgumentNullException(<input data-answer="nameof" aria-label="operador">(cliente));</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. Um método <code>Sacar(decimal valor)</code> recebeu <code>valor = -50</code>. Qual exceção ele deve lançar?</p>
+<label><input type="radio" name="q4"> <code>Exception</code></label>
+<label><input type="radio" name="q4"> <code>ArgumentOutOfRangeException</code></label>
+<label><input type="radio" name="q4"> <code>NullReferenceException</code></label>
+<label><input type="radio" name="q4"> <code>IndexOutOfRangeException</code></label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Qual a diferença entre <code>throw;</code> e <code>throw e;</code> dentro de um <code>catch (Exception e)</code>?</p>
+<label><input type="radio" name="q5"> <code>throw;</code> lança uma exceção nova; <code>throw e;</code> relança a mesma.</label>
+<label><input type="radio" name="q5"> Nenhuma: os dois fazem a mesma coisa.</label>
+<label><input type="radio" name="q5"> Os dois relançam a mesma exceção, mas <code>throw e;</code> faz o rastro recomeçar na linha do <code>throw</code>.</label>
+<label><input type="radio" name="q5"> <code>throw;</code> não compila dentro de um <code>catch</code>.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Onde uma expressão throw <strong>não</strong> pode aparecer?</p>
+<label><input type="radio" name="q6"> Sozinha numa declaração: <code>int x = throw new Exception();</code></label>
+<label><input type="radio" name="q6"> Depois de <code>??</code></label>
+<label><input type="radio" name="q6"> Num lado do ternário <code>? :</code></label>
+<label><input type="radio" name="q6"> Num braço de uma expressão <code>switch</code></label>
+</div>
+
+<div class="trycs" data-goal="out:Estoque.Ler,src:throw\s*;">
+<p class="try-task"><strong>Missão final:</strong> o <code>catch</code> relança com <code>throw e;</code>, e o relatório não mostra mais o método <code>Ler</code>, onde o problema nasceu. Conserte o relançamento para o rastro voltar a mostrar <code>Estoque.Ler</code>.</p>
+<pre class="script" data-file="relanca.cs">Estoque.Carregar("doze");
+
+static class Estoque
+{
+    public static void Carregar(string texto)
+    {
+        try
+        {
+            int quantidade = Ler(texto);
+            Console.WriteLine($"Quantidade: {quantidade}");
+        }
+        catch (FormatException e)
+        {
+            Console.WriteLine($"[log] falhou ao ler \"{texto}\": {e.Message}");
+            throw e;
+        }
+    }
+
+    static int Ler(string texto)
+    {
+        return int.Parse(texto);
+    }
+}
+</pre>
+<pre class="solucao" data-file="relanca.cs">Estoque.Carregar("doze");
+
+static class Estoque
+{
+    public static void Carregar(string texto)
+    {
+        try
+        {
+            int quantidade = Ler(texto);
+            Console.WriteLine($"Quantidade: {quantidade}");
+        }
+        catch (FormatException e)
+        {
+            Console.WriteLine($"[log] falhou ao ler \"{texto}\": {e.Message}");
+            throw;
+        }
+    }
+
+    static int Ler(string texto)
+    {
+        return int.Parse(texto);
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>throw new Tipo("mensagem");</code> lança uma exceção: o método para ali e o problema vai para quem chamou, como as exceções do .NET.</li>
+  <li>Escolha uma exceção pronta: <code>ArgumentNullException</code>, <code>ArgumentOutOfRangeException</code>, <code>ArgumentException</code> para parâmetros; <code>InvalidOperationException</code> para o estado do objeto. Nunca lance <code>Exception</code>.</li>
+  <li>Use <code>nameof(parametro)</code> para o nome do parâmetro. Os atalhos <code>ThrowIfNull</code>, <code>ThrowIfNegative</code>… fazem o <code>if</code> e o <code>throw</code> numa linha.</li>
+  <li>Para relançar num <code>catch</code>, <code>throw;</code>. <code>throw e;</code> apaga a origem do rastro (aviso <code>CA2200</code>).</li>
+  <li>Para trocar por uma exceção mais clara, passe a original: <code>throw new …("…", e)</code>, e ela fica em <code>InnerException</code>.</li>
+  <li>Expressões throw: <code>?? throw</code>, <code>? … : throw</code>, <code>_ =&gt; throw</code> e <code>=&gt; throw</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
