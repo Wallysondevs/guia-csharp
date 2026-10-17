@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Lendo Erros do Compilador — arquivo(linha,coluna): error CSxxxx | Guia C#</title>
+<meta name="description" content="Como ler as mensagens de erro do compilador C#: arquivo(linha,coluna): error CS0029: descrição, error e warning, os códigos CS iguais em qualquer língua e o inglês para pesquisar (LANG=C), um método para consertar, os erros mais comuns de quem começa (CS1002, CS0103, CS0029, CS1010, CS1513, CS1022, CS0117, CS1061, CS0246, CS1501), por que um engano vira várias mensagens, os erros num projeto e a diferença para as exceções, com mensagens reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Lendo Erros do Compilador</span></h1>
+
+<p class="intro">Todo programador, do primeiro dia ao vigésimo ano, vê erros de compilação o tempo todo. A diferença é que quem tem experiência lê a mensagem e sabe onde olhar em segundos. As mensagens do compilador C# seguem <strong>sempre o mesmo formato</strong>, uma linha por erro, e cada uma traz um código, como <code>CS0029</code>, que é igual no mundo inteiro. Nesta aula você aprende a ler esse formato parte por parte, conhece os erros mais comuns de quem começa, com a mensagem real e o conserto, e descobre como achar ajuda em inglês para qualquer erro.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>As partes de uma mensagem: <code>arquivo(linha,coluna): error CS0029: descrição</code>.</li>
+  <li>A diferença entre <code>error</code> e <code>warning</code>, e o que acontece com o programa em cada caso.</li>
+  <li>Por que o código <code>CS</code> importa mais que a frase, e como ver a mensagem em inglês para pesquisar.</li>
+  <li>Um método para consertar sem se perder: o primeiro erro primeiro.</li>
+  <li>Os erros mais comuns de quem começa: <code>;</code>, nome, tipo, aspas, chaves, método, <code>using</code> e quantidade de argumentos.</li>
+  <li>Por que um engano às vezes vira várias mensagens, e por que um conserto às vezes revela erros novos.</li>
+  <li>Como os erros aparecem num projeto (<code>dotnet build</code>) e a diferença entre erro de compilação e exceção.</li>
+</ul>
+</div>
+
+<p>Todos os códigos desta aula têm erros <strong>de propósito</strong>. Eles foram rodados na máquina fictícia da Ana com o <strong>.NET 10 SDK</strong> (C# 14), na pasta <code>~/cs/erros</code>, com <code>dotnet run arquivo.cs</code>. As mensagens saem em português, como num Ubuntu em pt-BR, e foram copiadas da tela sem mudar nada, inclusive os pequenos tropeços da tradução.</p>
+
+<hr>
+
+<h2>A ideia: a redação corrigida</h2>
+<p>Quando a professora corrige uma redação, ela não reescreve o texto. Ela faz um círculo vermelho no lugar do problema e escreve na margem: "linha 4: falta pontuação", "linha 7: concordância". Às vezes usa um código: "C" para concordância, "P" para pontuação.</p>
+
+<p>O compilador faz o mesmo com o seu código. Ele lê o arquivo inteiro e, para cada problema, anota <strong>onde</strong> (arquivo, linha e coluna), um <strong>código</strong> (<code>CS1002</code>) e <strong>o que esperava</strong> encontrar. Duas coisas para guardar desde já:</p>
+<ul>
+  <li><strong>Um erro de compilação não estraga nada.</strong> O programa só não roda até você consertar. Pode errar à vontade.</li>
+  <li><strong>O compilador diz onde percebeu o erro, e isso nem sempre é onde você errou.</strong> Você vai ver por quê.</li>
+</ul>
+
+<hr>
+
+<h2>1. Anatomia de uma mensagem</h2>
+<p>A Ana esqueceu o ponto e vírgula no fim da linha 1:</p>
+
+<pre class="file" data-file="pv.cs · erro de propósito">Console.WriteLine("Lista de compras")
+Console.WriteLine("Arroz");
+</pre>
+
+<pre class="term" data-cwd="~/cs/erros">$ dotnet run pv.cs; echo "código de saída: $?"
+/home/ana/cs/erros/pv.cs(1,38): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.
+código de saída: 1</pre>
+
+<p>A primeira linha é a mensagem do compilador. Ela tem cinco partes:</p>
+
+<dl class="anatomy">
+  <dt>/home/ana/cs/erros/pv.cs</dt><dd>O <strong>arquivo</strong>, com o caminho completo. Num programa com vários arquivos, é aqui que você descobre qual abrir. (No editor do guia, o arquivo da caixa se chama <code>Program.cs</code>.)</dd>
+  <dt>(1,38)</dt><dd>A <strong>posição</strong>: <strong>linha</strong> 1, <strong>coluna</strong> 38. A coluna é o número do caractere na linha, contando da esquerda a partir de 1. A linha 1 tem 37 caracteres; a coluna 38 é logo depois do <code>)</code>, exatamente onde o <code>;</code> deveria estar.</dd>
+  <dt>error</dt><dd>O <strong>tipo</strong> da mensagem: um erro de verdade. O programa não é gerado (veja a seção 2).</dd>
+  <dt>CS1002</dt><dd>O <strong>código</strong> do erro. <code>CS</code> vem de <em>C Sharp</em>, e o número identifica o tipo de problema. É a parte mais útil para pesquisar (seção 3).</dd>
+  <dt>; esperado</dt><dd>A <strong>descrição</strong>: o compilador esperava um <code>;</code> naquela posição e não achou.</dd>
+</dl>
+
+<p>E as outras linhas:</p>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>O que é</th></tr>
+<tr><td>(linha vazia)</td><td>Só um separador.</td></tr>
+<tr><td><code>Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</code></td><td>Não é do compilador: é o <code>dotnet run</code> avisando que, como a compilação (o <strong>build</strong>) falhou, ele <strong>não</strong> rodou o programa. Repare que nem o <code>Arroz</code>, da linha 2, que estava certa, apareceu.</td></tr>
+<tr><td><code>código de saída: 1</code></td><td>Do <code>echo $?</code> (aula <a href="top-level.html">Program.cs e o Main</a>): o <code>dotnet</code> terminou com 1, que quer dizer "deu errado".</td></tr>
+</table>
+</div>
+
+<div class="note">
+<strong>Para quem vem do gcc ou do Java</strong>
+<p>O compilador C# não copia a linha do seu código na mensagem, nem desenha um <code>^</code> embaixo do lugar do erro. Ele dá só o <code>(linha,coluna)</code>. Os editores fazem o resto: no VS Code, o lugar fica sublinhado em vermelho, e <kbd>Ctrl</kbd>+<kbd>G</kbd> pula para uma linha (aula <a href="editores.html">Editores e IDEs</a>).</p>
+</div>
+
+<div class="trycs" data-goal="erro:CS1002">
+<p class="try-task"><strong>Missão:</strong> este programa está certo. Apague o <code>;</code> do fim da linha 1, rode e leia a mensagem: o arquivo, a linha, a coluna, o <code>error</code>, o código e a descrição. Depois, conte os caracteres da linha 1 e confira a coluna.</p>
+<pre class="script">Console.WriteLine("Lista de compras");
+Console.WriteLine("Arroz");
+</pre>
+<pre class="solucao">Console.WriteLine("Lista de compras")
+Console.WriteLine("Arroz");
+</pre>
+</div>
+
+<hr>
+
+<h2>2. <code>error</code> e <code>warning</code></h2>
+<p>As mensagens do compilador são de dois tipos. Aqui a Ana escreveu o nome da variável errado (<code>idadi</code> em vez de <code>idade</code>; variáveis são da aula <a href="variaveis.html">Variáveis</a>):</p>
+
+<pre class="file" data-file="nome.cs · erro de propósito">int idade = 29;
+Console.WriteLine(idadi);
+</pre>
+
+<pre class="term" data-cwd="~/cs/erros">$ dotnet run nome.cs
+/home/ana/cs/erros/nome.cs(2,19): error CS0103: O nome "idadi" não existe no contexto atual
+/home/ana/cs/erros/nome.cs(1,5): warning CS0219: A variável "idade" é atribuída, mas seu valor nunca é usado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>Quer dizer</th><th>O programa roda?</th></tr>
+<tr><td><code>error</code></td><td>Erro: o código está fora das regras do C#.</td><td><strong>Não</strong></td></tr>
+<tr><td><code>warning</code></td><td>Aviso: o código segue as regras, mas tem cara de engano. Aula <a href="avisos.html">Avisos do Compilador</a>.</td><td>Sim, se não houver nenhum <code>error</code></td></tr>
+</table>
+</div>
+
+<p>Aqui o aviso é <strong>consequência</strong> do erro: como a única linha que usava a <code>idade</code> tinha o nome errado, o compilador acha que a <code>idade</code> nunca foi usada. Consertando o <code>idadi</code>, o aviso some junto. O compilador do C# não sugere o nome certo ("você quis dizer…?"); quem faz isso é o editor, enquanto você digita.</p>
+
+<hr>
+
+<h2>3. O código <code>CS</code> e a língua da mensagem</h2>
+<p>As mensagens saem em português porque o computador da Ana está em português. A <strong>frase</strong> muda de língua, mas o <strong>código</strong> não: <code>CS0029</code> é o mesmo erro no Brasil, no Japão e nos Estados Unidos. Isso é ótimo para pesquisar, porque quase toda a ajuda da internet está em inglês.</p>
+
+<pre class="file" data-file="tipo.cs · erro de propósito">int idade = "vinte e nove";
+Console.WriteLine(idade);
+</pre>
+
+<pre class="term" data-cwd="~/cs/erros">$ dotnet run tipo.cs
+/home/ana/cs/erros/tipo.cs(1,13): error CS0029: Não é possível converter implicitamente tipo "string" em "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.
+$ LANG=C dotnet run tipo.cs
+/home/ana/cs/erros/tipo.cs(1,13): error CS0029: Cannot implicitly convert type 'string' to 'int'
+
+The build failed. Fix the build errors and run again.</pre>
+
+<p>O <code>LANG=C</code> na frente do comando pede as mensagens <strong>sem tradução</strong>, só para aquele comando. (Na verdade, a Ana acrescentou um comentário vazio, <code>//</code>, no fim do arquivo antes do segundo comando. Sem mudar o arquivo, o <code>dotnet run</code> não recompila e mostra o resultado guardado da vez anterior.)</p>
+
+<p>Para pesquisar, use o código: <code>CS0029</code>, ou <code>C# CS0029</code>. A documentação oficial da Microsoft (em <code>learn.microsoft.com</code>) tem uma página para cada código, em inglês (muitas com tradução para o português), quase sempre com exemplos do erro e do conserto. Pesquisar a frase traduzida dá muito menos resultados.</p>
+
+<div class="warning">
+<strong>De repente, as mensagens em inglês (ou em português)</strong>
+<p>Para ganhar tempo, o <code>dotnet</code> deixa o compilador ligado em segundo plano depois do primeiro uso (o "servidor de build"). Ele guarda a língua de quando foi ligado. Se o primeiro comando do dia foi com <code>LANG=C</code>, os seguintes continuam em inglês, mesmo sem o <code>LANG=C</code>. Para voltar ao normal, desligue o servidor:</p>
+<pre class="term" data-cwd="~/cs/erros">$ dotnet run lista.cs
+/home/ana/cs/erros/lista.cs(1,39): error CS1002: ; expected      « em inglês, sem LANG=C!
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.
+$ dotnet build-server shutdown
+Desligando Servidor MSBuild...
+Desligando Servidor do compilador VB/C#...
+Servidor MSBuild desligado com sucesso.
+Servidor do compilador VB/C# desligado com sucesso.
+$ dotnet run lista.cs
+/home/ana/cs/erros/lista.cs(1,39): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p>Repare que a última linha estava em português o tempo todo: ela é do <code>dotnet</code>, e não do compilador.</p>
+</div>
+
+<hr>
+
+<h2>4. O vocabulário das mensagens</h2>
+<p>Algumas palavras aparecem em quase toda mensagem. Com elas, você entende a maioria dos erros, nas duas línguas:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Na mensagem em português</th><th>Em inglês</th><th>Quer dizer</th></tr>
+<tr><td><code>esperado</code> / <code>esperada</code></td><td><code>expected</code></td><td>Faltou isso aqui (<code>; esperado</code>)</td></tr>
+<tr><td><code>não existe no contexto atual</code></td><td><code>does not exist in the current context</code></td><td>Nome desconhecido: escrito errado, ou criado em outro lugar</td></tr>
+<tr><td><code>não contém uma definição para</code></td><td><code>does not contain a definition for</code></td><td>O nome antes do ponto existe, o depois não</td></tr>
+<tr><td><code>Não é possível converter implicitamente</code></td><td><code>Cannot implicitly convert</code></td><td>Tipo errado: um valor de um tipo onde se esperava outro</td></tr>
+<tr><td><code>sobrecarga</code></td><td><code>overload</code></td><td>Uma das versões de um método (aula <a href="sobrecarga.html">Sobrecarga</a>)</td></tr>
+<tr><td><code>argumento</code></td><td><code>argument</code></td><td>Um valor entre os parênteses de um método</td></tr>
+<tr><td><code>diretiva using</code></td><td><code>using directive</code></td><td>Uma linha <code>using …;</code> no topo do arquivo</td></tr>
+<tr><td><code>tipo</code> / <code>namespace</code></td><td><code>type</code> / <code>namespace</code></td><td><code>int</code>, <code>string</code>, uma classe… / o "sobrenome" de um grupo de classes</td></tr>
+<tr><td><code>Erro de sintaxe</code></td><td><code>Syntax error</code></td><td>Erro de escrita: sinais, pares, ordem (aula <a href="sintaxe.html">Sintaxe</a>)</td></tr>
+<tr><td><code>Newline em constante</code></td><td><code>Newline in constant</code></td><td>Aspas que não fecharam na linha</td></tr>
+<tr><td><code>final do arquivo</code></td><td><code>end-of-file</code></td><td>O arquivo acabou antes da hora (ou depois)</td></tr>
+<tr><td><code>Ocorreu uma falha no build.</code></td><td><code>The build failed.</code></td><td>O resumo do <code>dotnet</code>: houve pelo menos um <code>error</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>5. O método: um erro de cada vez</h2>
+<ol class="passo">
+  <li><strong>Leia só o primeiro <code>error</code>.</strong> Os seguintes podem ser consequência dele.</li>
+  <li>Vá até o <strong>arquivo</strong>, a <strong>linha</strong> e a <strong>coluna</strong> indicados.</li>
+  <li>Leia a descrição com o vocabulário acima. Se não entender, pesquise o <strong>código</strong>.</li>
+  <li><strong>Se a linha parece certa, olhe a de cima.</strong> Aspas e chaves esquecidas são percebidas só depois.</li>
+  <li>Corrija <strong>só esse erro</strong> e rode de novo. Muitas vezes os outros somem junto, e às vezes aparecem novos (seção 7).</li>
+</ol>
+
+<hr>
+
+<h2>6. Os erros mais comuns de quem começa</h2>
+
+<h3>6.1. <code>CS1002: ; esperado</code></h3>
+<p>O da seção 1. A posição aponta onde o <code>;</code> deveria estar: o fim da instrução. Em inglês, <code>; expected</code>.</p>
+
+<h3>6.2. <code>CS0103: O nome "…" não existe no contexto atual</code></h3>
+<p>O da seção 2. Um nome que o compilador não conhece: escrito diferente (<code>idadi</code>, <code>console</code> com c minúsculo), usado antes de ser criado, ou um texto sem aspas (<code>Console.WriteLine(Olá);</code>, aula <a href="saida.html">Saída</a>). Em inglês, <code>The name 'idadi' does not exist in the current context</code>. <strong>Conserto:</strong> copie o nome da mensagem e compare letra por letra, maiúsculas incluídas.</p>
+
+<h3>6.3. <code>CS0029: Não é possível converter implicitamente tipo "string" em "int"</code></h3>
+<p>O da seção 3. A variável <code>idade</code> é do tipo <code>int</code> (número inteiro), e a Ana tentou guardar nela um texto. A coluna 13 aponta o começo do <code>"vinte e nove"</code>. "Converter implicitamente" é transformar um valor em outro tipo sozinho, sem você pedir; de texto para número, o C# não faz isso. <strong>Conserto:</strong> o valor do tipo certo, <code>int idade = 29;</code>. Para transformar um texto digitado em número de propósito, existe o <code>int.Parse</code> (aula <a href="parse.html">Texto → Número</a>).</p>
+
+<div class="trycs" data-goal="out:A Ana tem 29 anos.,compila">
+<p class="try-task"><strong>Missão:</strong> rode e leia o erro <code>CS0029</code>. A caixa <code>idade</code> é de número, mas recebeu um texto. Conserte a linha 1 para o programa mostrar <code>A Ana tem 29 anos.</code>.</p>
+<pre class="script">int idade = "29";
+Console.WriteLine($"A Ana tem {idade} anos.");
+</pre>
+<pre class="solucao">int idade = 29;
+Console.WriteLine($"A Ana tem {idade} anos.");
+</pre>
+</div>
+
+<h3>6.4. <code>CS1010: Newline em constante</code></h3>
+<p>Aspas que não fecharam antes do fim da linha. Costuma vir com uma fila de outros erros: com <code>Console.WriteLine("Lista de</code> numa linha e <code>compras");</code> na outra, foram <strong>seis</strong> mensagens (aula <a href="sintaxe.html">Sintaxe</a>):</p>
+
+<pre class="term" data-cwd="~/cs/sintaxe">$ dotnet run quebra.cs 2&gt;&amp;1 | grep -c "error CS"
+6</pre>
+
+<p>(O <code>2&gt;&amp;1 | grep -c "error CS"</code> conta as linhas que têm <code>error CS</code>.) Seis erros, um engano só: o primeiro, <code>CS1010</code>. <strong>Conserto:</strong> feche as aspas na mesma linha.</p>
+
+<h3>6.5. Chaves: <code>CS1513: } esperada</code> e <code>CS1022</code></h3>
+<p>Uma <code>{</code> sem a <code>}</code> dá <code>CS1513: } esperada</code>, apontando o fim do arquivo (aula <a href="sintaxe.html">Sintaxe</a>). E uma <code>}</code> <strong>sobrando</strong>:</p>
+
+<pre class="file" data-file="sobra.cs · erro de propósito">Console.WriteLine("Olá!");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs/erros">$ dotnet run sobra.cs
+/home/ana/cs/erros/sobra.cs(2,1): error CS1022: Definição de namespace ou tipo, ou final do arquivo esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Esperava uma definição de namespace ou de tipo, ou o fim do arquivo": fora de qualquer bloco, uma <code>}</code> não fecha nada, e o compilador esperava outra coisa ali. Em inglês, <code>Type or namespace definition, or end-of-file expected</code>. <strong>Conserto:</strong> toda <code>{</code> tem a sua <code>}</code>, nem mais nem menos. O recuo bem-feito, ou um <code>dotnet format</code>, mostra quem ficou sem par.</p>
+
+<h3>6.6. Nome errado depois do ponto: <code>CS0117</code> e <code>CS1061</code></h3>
+<p>Quando o nome <strong>antes</strong> do ponto existe, mas o <strong>depois</strong> não, a mensagem muda. Com uma classe, como o <code>Console</code>, é o <code>CS0117</code> (<code>"Console" não contém uma definição para "Writeline"</code>; aula <a href="saida.html">Saída</a>). Com um valor, como um texto guardado numa variável, é o <code>CS1061</code>:</p>
+
+<pre class="file" data-file="metodo.cs · erro de propósito">string nome = "Ana";
+Console.WriteLine(nome.Tamanho);
+</pre>
+
+<pre class="term" data-cwd="~/cs/erros">$ dotnet run metodo.cs
+/home/ana/cs/erros/metodo.cs(2,24): error CS1061: ‘string’ não contém uma definição para "Tamanho" e não foi possível encontrar nenhum método de extensão "Tamanho" que aceite um primeiro argumento do tipo ‘string’ (você está se esquecendo de usar uma diretiva ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A mensagem é longa, mas o começo diz tudo: "<code>string</code> não contém uma definição para <code>Tamanho</code>". O resto fala de "métodos de extensão" (aula <a href="extensoes.html">Métodos de Extensão</a>) e pode ser ignorado por enquanto. O tamanho de um texto em C# se chama <code>Length</code> (aula <a href="strings.html">Strings</a>): os nomes do .NET são em inglês. Em inglês: <code>'string' does not contain a definition for 'Tamanho' and no accessible extension method 'Tamanho' accepting a first argument of type 'string' could be found</code>.</p>
+
+<h3>6.7. <code>CS0246: O nome do tipo ou do namespace "…" não pode ser encontrado</code></h3>
+
+<pre class="file" data-file="tiponome.cs · erro de propósito">StringBuilder texto = new StringBuilder();
+texto.Append("Olá");
+Console.WriteLine(texto);
+</pre>
+
+<pre class="term" data-cwd="~/cs/erros">$ dotnet run tiponome.cs
+/home/ana/cs/erros/tiponome.cs(1,1): error CS0246: O nome do tipo ou do namespace "StringBuilder" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?)
+/home/ana/cs/erros/tiponome.cs(1,27): error CS0246: O nome do tipo ou do namespace "StringBuilder" não pode ser encontrado (está faltando uma diretiva using ou uma referência de assembly?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O <code>StringBuilder</code> existe no .NET, mas mora no namespace <code>System.Text</code>, que não está entre os <code>using</code> implícitos. A própria mensagem sugere a causa: "está faltando uma diretiva <code>using</code>?". O erro aparece duas vezes porque o nome aparece duas vezes na linha 1 (colunas 1 e 27). Em inglês: <code>The type or namespace name 'StringBuilder' could not be found (are you missing a using directive or an assembly reference?)</code>. <strong>Conserto:</strong> <code>using System.Text;</code> no topo do arquivo (aulas <a href="namespaces.html">Namespaces e using</a> e <a href="stringbuilder.html">StringBuilder</a>). O mesmo erro aparece com um tipo escrito errado, como <code>Strng nome</code>.</p>
+
+<h3>6.8. <code>CS1501: Nenhuma sobrecarga para o método "…" leva N argumentos</code></h3>
+<p>O método existe, mas não com aquela quantidade de valores entre os parênteses. O <code>Math.Max</code> ("o maior") compara <strong>dois</strong> números; com um só:</p>
+
+<pre class="term" data-cwd="~/cs/erros">$ dotnet run args.cs                    « Console.WriteLine(Math.Max(3));
+/home/ana/cs/erros/args.cs(2,24): error CS1501: Nenhuma sobrecarga para o método "Max" leva 1 argumentos
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>(O "1 argumentos", no plural, é tropeço da tradução.) Em inglês: <code>No overload for method 'Max' takes 1 arguments</code>. <strong>Conserto:</strong> confira quantos valores o método espera; o editor mostra isso quando você abre o parêntese.</p>
+
+<hr>
+
+<h2>7. Um engano, várias mensagens, e erros que aparecem depois</h2>
+<p>O compilador trabalha em <strong>etapas</strong>. Primeiro ele confere a <strong>escrita</strong>: sinais, pares, <code>;</code>. Depois confere o <strong>significado</strong>: se os nomes existem, se os tipos combinam. No terminal, se a primeira etapa já encontrou erros, o <code>dotnet</code> para ali. Este arquivo tem três problemas:</p>
+
+<pre class="file" data-file="lista.cs · erro de propósito">Console.WriteLine("Lista de compras:")
+Console.WriteLine("Arroz");
+Console.Writeline("Feijão");
+int quantidade = "3";
+</pre>
+
+<pre class="term" data-cwd="~/cs/erros">$ dotnet run lista.cs
+/home/ana/cs/erros/lista.cs(1,39): error CS1002: ; esperado
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Só um erro! A Ana põe o <code>;</code> na linha 1 e roda de novo:</p>
+
+<pre class="term" data-cwd="~/cs/erros">$ dotnet run lista.cs
+/home/ana/cs/erros/lista.cs(3,9): error CS0117: "Console" não contém uma definição para "Writeline"
+/home/ana/cs/erros/lista.cs(4,18): error CS0029: Não é possível converter implicitamente tipo "string" em "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Agora que a escrita está certa, o compilador chegou à segunda etapa e encontrou mais dois. Não é que o conserto "criou" erros: eles estavam lá, escondidos. É por isso que o método diz <strong>rode de novo depois de cada conserto</strong>. (O editor do guia faz as duas etapas de uma vez e costuma mostrar os três erros juntos. A regra de começar pelo primeiro vale do mesmo jeito.)</p>
+
+<p>E o contrário também acontece: um engano só pode produzir várias mensagens, como as seis do <code>CS1010</code> (seção 6.4). Nos dois casos, a saída é a mesma: <strong>o primeiro erro primeiro</strong>.</p>
+
+<hr>
+
+<h2>8. Os erros num projeto: <code>dotnet build</code></h2>
+<p>Num projeto (aula <a href="projetos-console.html">Projetos</a>), a mensagem tem uma parte a mais no fim: o <code>.csproj</code> entre colchetes, dizendo de qual projeto ela veio. E o <code>dotnet build</code> mostra cada erro <strong>duas vezes</strong>: uma durante a compilação e outra no resumo do fim:</p>
+
+<pre class="term" data-cwd="~/projetos/Ola">$ dotnet build; echo "código de saída: $?"
+  Determinando os projetos a serem restaurados...
+  Todos os projetos estão atualizados para restauração.
+/home/ana/projetos/Ola/Program.cs(2,9): error CS0117: "Console" não contém uma definição para "Writeline" [/home/ana/projetos/Ola/Ola.csproj]
+/home/ana/projetos/Ola/Program.cs(3,18): error CS0029: Não é possível converter implicitamente tipo "string" em "int" [/home/ana/projetos/Ola/Ola.csproj]
+
+FALHA da compilação.
+
+/home/ana/projetos/Ola/Program.cs(2,9): error CS0117: "Console" não contém uma definição para "Writeline" [/home/ana/projetos/Ola/Ola.csproj]
+/home/ana/projetos/Ola/Program.cs(3,18): error CS0029: Não é possível converter implicitamente tipo "string" em "int" [/home/ana/projetos/Ola/Ola.csproj]
+    0 Aviso(s)
+    2 Erro(s)
+
+Tempo Decorrido 00:00:01.61
+código de saída: 1</pre>
+
+<p>São <strong>2</strong> erros, e não 4: o resumo repete os mesmos, para você não precisar rolar a tela quando a compilação é longa. A contagem do fim (<code>2 Erro(s)</code>) é a que vale. Em inglês, o resumo é <code>Build FAILED.</code>, <code>0 Warning(s)</code>, <code>2 Error(s)</code>.</p>
+
+<hr>
+
+<h2>9. Erro de compilação, aviso e exceção</h2>
+<p>Nem todo erro é do compilador. Um programa pode compilar perfeitamente e dar errado <strong>na hora de rodar</strong>. Esse tipo de erro se chama <strong>exceção</strong>, e tem outra cara:</p>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run excecao.cs; echo "código de saída: $?"     « int[] notas = { 9, 8 }; Console.WriteLine(notas[5]);
+Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/excecao.cs:line 2
+código de saída: 134</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th>Erro de compilação</th><th>Aviso</th><th>Exceção</th></tr>
+<tr><td>Quando aparece</td><td>Antes de rodar</td><td>Antes de rodar</td><td>Durante a execução</td></tr>
+<tr><td>Como começa</td><td><code>arquivo(linha,coluna): error CS…</code></td><td><code>arquivo(linha,coluna): warning CS…</code></td><td><code>Unhandled exception. System.…Exception</code></td></tr>
+<tr><td>Língua</td><td>A do computador (aqui, português)</td><td>A do computador</td><td>Sempre inglês, no Linux</td></tr>
+<tr><td>O programa roda?</td><td>Não</td><td>Sim</td><td>Rodou até ali e parou</td></tr>
+<tr><td>Código de saída</td><td>1 (do <code>dotnet</code>)</td><td>O do programa</td><td>134</td></tr>
+<tr><td>Aula</td><td>Esta</td><td><a href="avisos.html">Avisos do Compilador</a></td><td><a href="excecoes.html">Exceções</a></td></tr>
+</table>
+</div>
+
+<p>Os erros de compilação são os <strong>melhores</strong> erros que existem: aparecem na hora, dizem a linha e não deixam um programa errado chegar a ninguém. É por isso que o C# é tão rigoroso com tipos e nomes: muita coisa que em outras linguagens só daria problema na hora de rodar, aqui é pega antes.</p>
+
+<hr>
+
+<h2 id="errado">Quando dá errado</h2>
+
+<div class="cenario">
+<strong>"A linha que o compilador apontou está certa!"</strong>
+<p><strong>O que significa:</strong> o compilador aponta onde <strong>percebeu</strong> o problema. Aspas e chaves esquecidas só são percebidas mais adiante, às vezes no fim do arquivo (<code>CS1513</code>).</p>
+<p><strong>Como consertar:</strong> leia a descrição e olhe as linhas de cima. Procure o par que não fechou.</p>
+</div>
+
+<div class="cenario">
+<strong>"Consertei, mas o erro continua igual"</strong>
+<p><strong>O que significa:</strong> o arquivo não foi salvo (o <code>dotnet</code> lê o disco, não a tela do editor), ou você rodou outro arquivo (<code>pv.cs</code> em vez de <code>pv2.cs</code>), ou outra pasta.</p>
+<p><strong>Como consertar:</strong> salve (<kbd>Ctrl</kbd>+<kbd>S</kbd>) e confira o caminho no começo da mensagem: é o arquivo que o compilador leu.</p>
+</div>
+
+<div class="cenario">
+<strong>"Consertei um erro e apareceram outros"</strong>
+<p><strong>O que significa:</strong> normal. Os novos estavam escondidos atrás de um erro de escrita (seção 7).</p>
+<p><strong>Como consertar:</strong> continue o método: o primeiro da nova lista.</p>
+</div>
+
+<div class="cenario">
+<strong>As mensagens mudaram de língua sozinhas</strong>
+<p><strong>O que significa:</strong> o servidor de build ficou com a língua de um comando anterior, como um <code>LANG=C</code> (seção 3).</p>
+<p><strong>Como consertar:</strong> <code>dotnet build-server shutdown</code>, e rode de novo.</p>
+</div>
+
+<div class="cenario">
+<strong>"Não entendi a mensagem nem com o vocabulário"</strong>
+<p><strong>O que significa:</strong> algumas mensagens citam assuntos que você ainda não estudou (métodos de extensão, referências de assembly…).</p>
+<p><strong>Como consertar:</strong> leia só o começo da frase, que costuma bastar, e pesquise o <strong>código</strong> (<code>CS1061</code>). Veja também a tabela abaixo e a página <a href="ref-erros.html">Erros Comuns</a>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Em português</th><th>Em inglês</th><th>Causa mais comum</th></tr>
+<tr><td><code>CS1002</code></td><td><code>; esperado</code></td><td><code>; expected</code></td><td>Faltou o <code>;</code></td></tr>
+<tr><td><code>CS1026</code></td><td><code>) esperado</code></td><td><code>) expected</code></td><td>Faltou fechar o parêntese</td></tr>
+<tr><td><code>CS1513</code></td><td><code>} esperada</code></td><td><code>} expected</code></td><td>Faltou fechar a chave</td></tr>
+<tr><td><code>CS1022</code></td><td><code>Definição de namespace ou tipo, ou final do arquivo esperado</code></td><td><code>Type or namespace definition, or end-of-file expected</code></td><td>Uma <code>}</code> a mais</td></tr>
+<tr><td><code>CS1010</code></td><td><code>Newline em constante</code></td><td><code>Newline in constant</code></td><td>Aspas que não fecharam</td></tr>
+<tr><td><code>CS1056</code></td><td><code>Caractere inesperado</code></td><td><code>Unexpected character</code></td><td>Aspas curvas copiadas</td></tr>
+<tr><td><code>CS0103</code></td><td><code>O nome "x" não existe no contexto atual</code></td><td><code>The name 'x' does not exist in the current context</code></td><td>Nome escrito errado ou usado antes de existir</td></tr>
+<tr><td><code>CS0117</code></td><td><code>"Console" não contém uma definição para "x"</code></td><td><code>'Console' does not contain a definition for 'x'</code></td><td>Método escrito errado (<code>Writeline</code>)</td></tr>
+<tr><td><code>CS1061</code></td><td><code>'string' não contém uma definição para "x"…</code></td><td><code>'string' does not contain a definition for 'x'…</code></td><td>Propriedade ou método que não existe naquele valor</td></tr>
+<tr><td><code>CS0029</code></td><td><code>Não é possível converter implicitamente tipo "string" em "int"</code></td><td><code>Cannot implicitly convert type 'string' to 'int'</code></td><td>Valor do tipo errado</td></tr>
+<tr><td><code>CS0246</code></td><td><code>O nome do tipo ou do namespace "X" não pode ser encontrado</code></td><td><code>The type or namespace name 'X' could not be found</code></td><td>Falta um <code>using</code>, ou o tipo está escrito errado</td></tr>
+<tr><td><code>CS1501</code></td><td><code>Nenhuma sobrecarga para o método "X" leva N argumentos</code></td><td><code>No overload for method 'X' takes N arguments</code></td><td>Quantidade errada de valores nos parênteses</td></tr>
+<tr><td><code>CS0201</code></td><td><code>Somente as expressões de atribuição, chamada… podem ser utilizadas como uma instrução</code></td><td><code>Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement</code></td><td>Uma conta solta, sem fazer nada com ela</td></tr>
+<tr><td><code>CS5001</code></td><td><code>Programa não contém um método "Main" estático adequado…</code></td><td><code>Program does not contain a static 'Main' method suitable for an entry point</code></td><td>Sem ponto de entrada (aula <a href="top-level.html">Program.cs e o Main</a>)</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Qual linha?</h3>
+<p>Em <code>/home/ana/cs/jogo.cs(12,7): error CS0103: O nome "pontos" não existe no contexto atual</code>, em que linha está o problema?</p>
+<div class="ex-code">Linha: <input data-answer="12" aria-label="linha"></div>
+</div>
+
+<div class="exercise">
+<h3>2. E a coluna?</h3>
+<p>Na mesma mensagem, em que coluna?</p>
+<div class="ex-code">Coluna: <input data-answer="7" aria-label="coluna"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Em inglês</h3>
+<p>Complete a variável que, na frente de um comando, mostra as mensagens sem tradução:</p>
+<div class="ex-code"><input data-answer="LANG=C" aria-label="variável"> dotnet run jogo.cs</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O compilador mostrou 5 erros. O que fazer primeiro?</p>
+<label><input type="radio" name="q4"> Corrigir o último, que é o mais recente.</label>
+<label><input type="radio" name="q4"> Corrigir o primeiro e rodar de novo: os outros podem ser consequência dele.</label>
+<label><input type="radio" name="q4"> Apagar o arquivo e começar do zero.</label>
+<label><input type="radio" name="q4"> Pesquisar os 5 ao mesmo tempo.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Para pesquisar um erro na internet, qual é a melhor parte da mensagem?</p>
+<label><input type="radio" name="q5"> O caminho do arquivo.</label>
+<label><input type="radio" name="q5"> A frase em português, inteira.</label>
+<label><input type="radio" name="q5"> O código, como <code>CS0029</code>, que é igual em qualquer língua.</label>
+<label><input type="radio" name="q5"> A linha <code>Ocorreu uma falha no build.</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. A saída tem uma linha <code>warning CS0219</code> e nenhuma <code>error</code>. O programa roda?</p>
+<label><input type="radio" name="q6"> Sim: avisos não impedem o programa (mas merecem atenção).</label>
+<label><input type="radio" name="q6"> Não: qualquer mensagem impede o programa.</label>
+<label><input type="radio" name="q6"> Só se você rodar com <code>LANG=C</code>.</label>
+<label><input type="radio" name="q6"> Só no editor do guia.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">7. Qual mensagem é de uma <strong>exceção</strong>, e não do compilador?</p>
+<label><input type="radio" name="q7"> <code>error CS1002: ; esperado</code></label>
+<label><input type="radio" name="q7"> <code>warning CS0219: A variável "x" é atribuída, mas seu valor nunca é usado</code></label>
+<label><input type="radio" name="q7"> <code>Ocorreu uma falha no build.</code></label>
+<label><input type="radio" name="q7"> <code>Unhandled exception. System.IndexOutOfRangeException: Index was outside the bounds of the array.</code></label>
+</div>
+
+<h3>Missão final: o boletim</h3>
+
+<div class="trycs" data-goal="outre:^Boletim da Ana\nMatemática: 9\nHistória: 8\n$,semaviso">
+<p class="try-task"><strong>Missão:</strong> a Ana escreveu o boletim com pressa. Há quatro erros: um <code>;</code>, um tipo, um método e um nome. Use o método: rode, conserte <strong>só o primeiro</strong> erro, rode de novo, e repita. No fim, o programa deve mostrar as três linhas abaixo, sem nenhum aviso:</p>
+<pre class="out">Boletim da Ana
+Matemática: 9
+História: 8</pre>
+<pre class="script">Console.WriteLine("Boletim da Ana")
+int matematica = 9;
+int historia = "8";
+Console.Writeline($"Matemática: {matematica}");
+Console.WriteLine($"História: {histora}");
+</pre>
+<pre class="solucao">Console.WriteLine("Boletim da Ana");
+int matematica = 9;
+int historia = 8;
+Console.WriteLine($"Matemática: {matematica}");
+Console.WriteLine($"História: {historia}");
+</pre>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Uma mensagem tem <code>arquivo(linha,coluna): tipo código: descrição</code>, como <code>/home/ana/cs/erros/tipo.cs(1,13): error CS0029: …</code>. Num projeto, termina com <code>[…/Nome.csproj]</code>.</li>
+  <li><code>error</code> impede o programa de rodar (<code>Ocorreu uma falha no build.</code>, código de saída 1); <code>warning</code> não impede.</li>
+  <li>O código <code>CS</code> é igual em qualquer língua: pesquise por ele. <code>LANG=C</code> mostra a mensagem em inglês; se as mensagens mudarem de língua sozinhas, <code>dotnet build-server shutdown</code>.</li>
+  <li>O método: o <strong>primeiro</strong> erro, a linha e a coluna, a descrição, a linha de cima se preciso, conserte só ele e rode de novo.</li>
+  <li>Um engano pode virar várias mensagens (<code>CS1010</code>), e um conserto pode revelar erros escondidos: o compilador confere a escrita antes do significado.</li>
+  <li>Os mais comuns: <code>CS1002</code>, <code>CS0103</code>, <code>CS0029</code>, <code>CS1010</code>, <code>CS1513</code>/<code>CS1022</code>, <code>CS0117</code>/<code>CS1061</code>, <code>CS0246</code> e <code>CS1501</code>.</li>
+  <li>Exceções são outra coisa: acontecem ao rodar, saem em inglês e terminam com o código 134.</li>
+  <li>Próximo passo: <a href="avisos.html">Avisos do Compilador</a>, os problemas que não impedem o programa, mas que você deve levar a sério.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
