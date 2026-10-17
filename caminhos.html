@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Pastas e Caminhos — Directory, Path, FileInfo e DirectoryInfo | Guia C#</title>
+<meta name="description" content="Pastas e caminhos em C# para quem nunca programou: Path.Combine, GetFileName, GetExtension, GetDirectoryName, ChangeExtension e GetFullPath, caminho relativo × absoluto, a pasta atual e a pasta pessoal, Directory.CreateDirectory, GetFiles, GetDirectories, EnumerateFiles, Move e Delete, FileInfo e DirectoryInfo, e os erros Directory not empty, DirectoryNotFoundException e o Path.Combine que joga a pasta fora, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Pastas e Caminhos</span></h1>
+
+<p class="intro">Nas aulas <a href="arquivos.html">Arquivos</a> e <a href="streams.html">Ler e Escrever</a>, todos os arquivos ficavam na mesma pasta do programa. Programas de verdade guardam relatórios em subpastas, procuram fotos na pasta <code>Downloads</code> e organizam arquivos. Nesta aula você vai usar a classe <code>Path</code> ("caminho") para montar e desmontar endereços de arquivos, e a classe <code>Directory</code> ("diretório", outro nome para pasta) para criar, listar, mover e apagar pastas. No fim, vai escrever um programa que arruma a pasta de downloads da Ana.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Montar caminhos com <code>Path.Combine</code> e desmontá-los com <code>GetFileName</code>, <code>GetExtension</code> e <code>GetDirectoryName</code>.</li>
+  <li>A diferença entre caminho <strong>relativo</strong> e <strong>absoluto</strong>, e o que é a pasta atual.</li>
+  <li>Encontrar a pasta pessoal com <code>Environment.GetFolderPath</code>.</li>
+  <li>Criar pastas com <code>Directory.CreateDirectory</code> e listar com <code>GetFiles</code> e <code>GetDirectories</code>, com filtro e subpastas.</li>
+  <li>Ver tamanho, nome e extensão com <code>FileInfo</code> e <code>DirectoryInfo</code>.</li>
+  <li>Mover e apagar pastas, e por que <code>Directory.Delete</code> reclama de pasta cheia.</li>
+</ul>
+</div>
+
+<p>Os programas desta aula rodam com <code>dotnet run</code> na pasta <code>~/cs</code> da Ana. A pasta pessoal dela, <code>/home/ana</code>, tem as pastas de sempre do Ubuntu em português: <code>Documentos</code>, <code>Downloads</code>, <code>Imagens</code>, <code>Música</code>…</p>
+
+<pre class="term" data-cwd="~/cs">$ ls ~/Downloads ~/Documentos
+/home/ana/Documentos:
+acesso.log
+alunos.csv
+notas.txt
+projetos
+relatorio.odt
+
+/home/ana/Downloads:
+foto.jpg
+fotos-viagem.zip
+manual.pdf
+musica.mp3
+ubuntu-26.04-desktop-amd64.iso</pre>
+
+<hr>
+
+<h2>A ideia: o endereço e o prédio</h2>
+<p>Um caminho é um <strong>endereço</strong>: "Rua Documentos, prédio relatorios, apartamento outubro.txt". Escrever um endereço num papel não constrói prédio nenhum. A classe <code>Path</code> trabalha só com o <strong>papel</strong>: junta, separa e confere pedaços de texto, sem tocar no disco. A classe <code>Directory</code> trabalha com os <strong>prédios</strong>: ela cria, lista e apaga pastas de verdade.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Classe</th><th>Mexe no disco?</th><th>Exemplos</th></tr>
+<tr><td><code>Path</code></td><td>Não: só texto</td><td><code>Path.Combine</code>, <code>Path.GetExtension</code></td></tr>
+<tr><td><code>Directory</code></td><td>Sim: pastas</td><td><code>Directory.CreateDirectory</code>, <code>Directory.GetFiles</code></td></tr>
+<tr><td><code>File</code></td><td>Sim: arquivos</td><td><code>File.ReadAllText</code>, <code>File.Move</code> (aula <a href="arquivos.html">Arquivos</a>)</td></tr>
+</table>
+</div>
+
+<p>No Linux e no macOS, as partes de um caminho são separadas por <code>/</code>. No Windows, por <code>\</code>. Se você monta os caminhos com <code>Path</code>, o mesmo programa funciona nos três.</p>
+
+<hr>
+
+<h2>1. Montar e desmontar caminhos: Path</h2>
+
+<pre class="file" data-file="path.cs">string caminho = Path.Combine("Documentos", "relatorios", "outubro.txt");
+Console.WriteLine(caminho);
+Console.WriteLine(Path.GetFileName(caminho));
+Console.WriteLine(Path.GetFileNameWithoutExtension(caminho));
+Console.WriteLine(Path.GetExtension(caminho));
+Console.WriteLine(Path.GetDirectoryName(caminho));
+Console.WriteLine(Path.ChangeExtension(caminho, ".csv"));
+Console.WriteLine(Path.GetFullPath(caminho));
+Console.WriteLine(Path.IsPathRooted(caminho));
+Console.WriteLine(Path.DirectorySeparatorChar);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run path.cs
+Documentos/relatorios/outubro.txt
+outubro.txt
+outubro
+.txt
+Documentos/relatorios
+Documentos/relatorios/outubro.csv
+/home/ana/cs/Documentos/relatorios/outubro.txt
+False
+/</pre>
+
+<dl class="anatomy">
+  <dt>Path.Combine("Documentos", "relatorios", "outubro.txt")</dt><dd>"Combinar": junta as partes com o separador do sistema. No Linux, <code>Documentos/relatorios/outubro.txt</code>; no Windows, <code>Documentos\relatorios\outubro.txt</code>. Aceita quantas partes você quiser.</dd>
+  <dt>Path.GetFileName</dt><dd>O último pedaço, o nome do arquivo: <code>outubro.txt</code>.</dd>
+  <dt>Path.GetFileNameWithoutExtension</dt><dd>O nome sem a extensão: <code>outubro</code>.</dd>
+  <dt>Path.GetExtension</dt><dd>A extensão, <strong>com</strong> o ponto: <code>.txt</code>. Sem extensão, devolve <code>""</code>.</dd>
+  <dt>Path.GetDirectoryName</dt><dd>Tudo menos o último pedaço: a pasta onde o arquivo está.</dd>
+  <dt>Path.ChangeExtension(caminho, ".csv")</dt><dd>O mesmo caminho com outra extensão. Só muda o texto: o arquivo no disco continua com o nome antigo (para renomear de verdade, <code>File.Move</code>).</dd>
+  <dt>Path.GetFullPath</dt><dd>O caminho <strong>absoluto</strong>, a partir da raiz <code>/</code>, completando com a pasta atual (seção 2).</dd>
+  <dt>Path.IsPathRooted</dt><dd>"Começa na raiz?" <code>False</code>: este caminho é relativo.</dd>
+  <dt>Path.DirectorySeparatorChar</dt><dd>O separador do sistema, como <code>char</code>: <code>/</code> no Linux.</dd>
+</dl>
+
+<p>Nenhuma dessas linhas conferiu se <code>Documentos/relatorios/outubro.txt</code> existe. E ele não existe: a classe <code>Path</code> só trabalha com o texto.</p>
+
+<div class="trycs" data-goal="out:Documentos/fotos/praia.png,src:ChangeExtension">
+<p class="try-task"><strong>Missão:</strong> a Ana converteu a foto da praia para PNG. Acrescente uma linha que mostre o caminho da foto com a extensão <code>.png</code>, usando <code>Path.ChangeExtension</code>. A última linha da saída deve ser <code>Documentos/fotos/praia.png</code>.</p>
+<pre class="script" data-file="foto.cs">string foto = Path.Combine("Documentos", "fotos", "praia.jpg");
+Console.WriteLine(foto);
+Console.WriteLine(Path.GetFileName(foto));
+Console.WriteLine(Path.GetDirectoryName(foto));
+</pre>
+<pre class="solucao" data-file="foto.cs">string foto = Path.Combine("Documentos", "fotos", "praia.jpg");
+Console.WriteLine(foto);
+Console.WriteLine(Path.GetFileName(foto));
+Console.WriteLine(Path.GetDirectoryName(foto));
+Console.WriteLine(Path.ChangeExtension(foto, ".png"));
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Relativo × absoluto, e a pasta atual</h2>
+<p>Um caminho <strong>absoluto</strong> começa na raiz, <code>/</code>, e aponta sempre para o mesmo lugar: <code>/home/ana/Documentos/notas.txt</code>. Um caminho <strong>relativo</strong>, como <code>notas.txt</code> ou <code>../Documentos/notas.txt</code>, é completado com a <strong>pasta atual</strong>: a pasta em que o terminal estava quando o programa começou (o <code>pwd</code> do terminal). O <code>..</code> quer dizer "a pasta de cima".</p>
+
+<pre class="file" data-file="abs.cs">Console.WriteLine(Path.GetFullPath("notas.txt"));
+Console.WriteLine(Path.GetFullPath("../Documentos/notas.txt"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run abs.cs
+/home/ana/cs/notas.txt
+/home/ana/Documentos/notas.txt
+$ cd ..                         « agora a pasta atual é /home/ana
+$ dotnet run cs/abs.cs
+/home/ana/notas.txt
+/home/Documentos/notas.txt</pre>
+
+<p>O mesmo programa, rodado de outra pasta, procura os arquivos em <strong>outro lugar</strong>. É a causa número um de <code>FileNotFoundException</code> "misteriosa": o arquivo está lá, mas o programa foi iniciado em outra pasta.</p>
+
+<h3>A pasta pessoal e outras pastas do sistema</h3>
+<p>Para um caminho que funcione de qualquer pasta, comece pela pasta pessoal do usuário. Quem diz qual é ela é o <code>Environment</code> ("ambiente"):</p>
+
+<pre class="file" data-file="pastas.cs">string casa = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+Console.WriteLine($"Pasta pessoal: {casa}");
+Console.WriteLine($"Pasta atual: {Directory.GetCurrentDirectory()}");
+Console.WriteLine($"Temporária: {Path.GetTempPath()}");
+
+string notas = Path.Combine(casa, "Documentos", "notas.txt");
+Console.WriteLine($"{notas} existe? {File.Exists(notas)}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pastas.cs
+Pasta pessoal: /home/ana
+Pasta atual: /home/ana/cs
+Temporária: /tmp/
+/home/ana/Documentos/notas.txt existe? True</pre>
+
+<dl class="anatomy">
+  <dt>Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)</dt><dd>"A pasta do perfil do usuário": <code>/home/ana</code> no Linux, <code>/Users/ana</code> no macOS e <code>C:\Users\ana</code> no Windows. <code>SpecialFolder</code> é um <a href="enums.html">enum</a> com dezenas de pastas especiais.</dd>
+  <dt>Directory.GetCurrentDirectory()</dt><dd>A pasta atual. (<code>Environment.CurrentDirectory</code> é o mesmo.)</dd>
+  <dt>Path.GetTempPath()</dt><dd>A pasta de arquivos temporários, que o sistema pode limpar: <code>/tmp/</code> no Linux.</dd>
+</dl>
+
+<div class="tip">
+<strong>Por que "Documentos", e não "Documents"?</strong>
+<p>Os nomes das pastas pessoais dependem do idioma do sistema: no Ubuntu em português é <code>Documentos</code>, em inglês é <code>Documents</code>. O <code>SpecialFolder.MyDocuments</code> tenta descobrir pela configuração do sistema, e o resultado muda de máquina para máquina. O <code>UserProfile</code> é o único que existe em todo lugar. Para dados do seu programa, uma escolha comum é uma pasta própria dentro dele, como <code>Path.Combine(casa, ".lojinha")</code>.</p>
+</div>
+
+<hr>
+
+<h2>3. Criar pastas e listar o conteúdo: Directory</h2>
+
+<pre class="file" data-file="criar.cs">string pasta = Path.Combine("relatorios", "2026", "outubro");
+DirectoryInfo d = Directory.CreateDirectory(pasta);
+Console.WriteLine($"Criei {d.FullName}");
+
+File.WriteAllText(Path.Combine(pasta, "vendas.txt"), "Vendas: 1520\n");
+File.WriteAllText(Path.Combine(pasta, "gastos.txt"), "Gastos: 830\n");
+Directory.CreateDirectory(pasta);
+
+foreach (string f in Directory.GetFiles("relatorios", "*.txt", SearchOption.AllDirectories).Order())
+{
+    Console.WriteLine(f);
+}
+foreach (string p in Directory.GetDirectories("relatorios"))
+{
+    Console.WriteLine($"pasta: {p}");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run criar.cs
+Criei /home/ana/cs/relatorios/2026/outubro
+relatorios/2026/outubro/gastos.txt
+relatorios/2026/outubro/vendas.txt
+pasta: relatorios/2026</pre>
+
+<dl class="anatomy">
+  <dt>Directory.CreateDirectory(pasta)</dt><dd>Cria a pasta <strong>e todas as que faltarem</strong> no caminho (<code>relatorios</code>, <code>2026</code> e <code>outubro</code>), como o <code>mkdir -p</code> do terminal. Se ela já existe, não faz nada e não reclama: por isso a segunda chamada, mais abaixo, passou sem erro. Devolve um <code>DirectoryInfo</code> (seção 5), aqui usado para mostrar o caminho completo.</dd>
+  <dt>Directory.GetFiles("relatorios", "*.txt", SearchOption.AllDirectories)</dt><dd>Os caminhos dos arquivos da pasta, num <code>string[]</code>. O segundo argumento é um <strong>filtro</strong>: <code>*</code> quer dizer "qualquer coisa", então <code>*.txt</code> é "tudo que termina em .txt". O terceiro diz para procurar também <strong>dentro das subpastas</strong> (o padrão é <code>SearchOption.TopDirectoryOnly</code>, só a própria pasta).</dd>
+  <dt>.Order()</dt><dd>Põe os caminhos em ordem alfabética (aula <a href="linq-ordenar.html">Ordenar</a>). A seção 4 explica por quê.</dd>
+  <dt>Directory.GetDirectories("relatorios")</dt><dd>As subpastas, só do primeiro nível: <code>relatorios/2026</code>, e não <code>outubro</code>, que está dentro dela.</dd>
+</dl>
+
+<p>Os caminhos que voltam são do mesmo tipo que você passou: com <code>"relatorios"</code> (relativo), eles voltam relativos. Para só o nome, use <code>Path.GetFileName</code> em cada um.</p>
+
+<hr>
+
+<h2>4. A ordem da lista não é garantida</h2>
+<p>O <code>GetFiles</code> devolve os arquivos na ordem em que o sistema de arquivos os guarda, que <strong>não</strong> é a alfabética e pode mudar de um computador para outro:</p>
+
+<pre class="file" data-file="ordem.cs">string casa = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+foreach (string a in Directory.GetFiles(Path.Combine(casa, "Downloads")))
+{
+    Console.WriteLine(Path.GetFileName(a));
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ordem.cs
+fotos-viagem.zip
+manual.pdf
+ubuntu-26.04-desktop-amd64.iso
+musica.mp3
+foto.jpg</pre>
+
+<p>O <code>ls</code> do terminal ordena antes de mostrar; o <code>GetFiles</code>, não. Quando a ordem importa (para mostrar ao usuário, para comparar duas listas), ordene: <code>Directory.GetFiles(…).Order()</code>, ou <code>Array.Sort(lista)</code> (aula <a href="classe-array.html">A Classe Array</a>).</p>
+
+<hr>
+
+<h2>5. Detalhes do arquivo: FileInfo e DirectoryInfo</h2>
+<p>As classes <code>File</code> e <code>Directory</code> respondem uma pergunta por vez, com o caminho em cada chamada. As classes <code>FileInfo</code> ("informação do arquivo") e <code>DirectoryInfo</code> são <strong>objetos</strong> que representam um arquivo ou uma pasta, com propriedades prontas: nome, extensão, tamanho, data.</p>
+
+<pre class="file" data-file="docs.cs">string casa = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+DirectoryInfo docs = new DirectoryInfo(Path.Combine(casa, "Documentos"));
+Console.WriteLine($"{docs.Name} existe? {docs.Exists}");
+
+foreach (FileInfo f in docs.GetFiles().OrderBy(f =&gt; f.Name))
+{
+    Console.WriteLine($"{f.Name,-15} {f.Extension,-5} {f.Length,6} bytes");
+}
+foreach (DirectoryInfo sub in docs.GetDirectories())
+{
+    Console.WriteLine($"[{sub.Name}]");
+}
+
+long total = 0;
+foreach (string a in Directory.EnumerateFiles(docs.FullName, "*", SearchOption.AllDirectories))
+{
+    total += new FileInfo(a).Length;
+}
+Console.WriteLine($"Total: {total} bytes");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run docs.cs
+Documentos existe? True
+acesso.log      .log     389 bytes
+alunos.csv      .csv     132 bytes
+notas.txt       .txt      69 bytes
+relatorio.odt   .odt    8394 bytes
+[projetos]
+Total: 9065 bytes</pre>
+
+<dl class="anatomy">
+  <dt>new DirectoryInfo(caminho)</dt><dd>Um objeto que representa a pasta. Criá-lo não cria a pasta: <code>docs.Exists</code> diz se ela existe (e <code>docs.Create()</code> cria).</dd>
+  <dt>docs.GetFiles()</dt><dd>Devolve um <code>FileInfo[]</code>, e não um <code>string[]</code>: cada item já sabe o seu <code>Name</code>, <code>Extension</code>, <code>Length</code> (tamanho em bytes), <code>FullName</code> (caminho completo) e <code>LastWriteTime</code> (data da última mudança).</dd>
+  <dt>.OrderBy(f =&gt; f.Name)</dt><dd>Ordena pelo nome (aulas <a href="lambdas.html">Lambdas</a> e <a href="linq-ordenar.html">Ordenar</a>).</dd>
+  <dt>{f.Name,-15}</dt><dd>Alinha o texto em 15 colunas, à esquerda; <code>{f.Length,6}</code> alinha o número em 6, à direita (aula <a href="formatacao.html">Formatar Números</a>).</dd>
+  <dt>Directory.EnumerateFiles(…)</dt><dd>Igual ao <code>GetFiles</code>, mas entrega um caminho por vez, como o <code>File.ReadLines</code> da aula <a href="arquivos.html">Arquivos</a>. Para pastas com milhares de arquivos, começa a responder antes e gasta menos memória.</dd>
+</dl>
+
+<p>O total inclui os arquivos de dentro de <code>projetos</code>, por causa do <code>SearchOption.AllDirectories</code>: 389 + 132 + 69 + 8394 são 8984, e os 81 bytes restantes estão na subpasta.</p>
+
+<hr>
+
+<h2>6. Mover e apagar pastas</h2>
+
+<pre class="file" data-file="mover.cs">Directory.CreateDirectory(Path.Combine("rascunhos", "contos"));
+File.WriteAllText(Path.Combine("rascunhos", "ideias.txt"), "um robô jardineiro\n");
+
+Directory.Move("rascunhos", "textos");
+Console.WriteLine(Directory.Exists("rascunhos"));
+Console.WriteLine(File.Exists(Path.Combine("textos", "ideias.txt")));
+
+Directory.Delete(Path.Combine("textos", "contos"));
+Console.WriteLine(Directory.Exists(Path.Combine("textos", "contos")));
+
+Directory.Delete("textos", recursive: true);
+Console.WriteLine(Directory.Exists("textos"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run mover.cs
+False
+True
+False
+False</pre>
+
+<dl class="anatomy">
+  <dt>Directory.Move("rascunhos", "textos")</dt><dd>Move ou renomeia a pasta, <strong>com tudo o que tem dentro</strong>. Depois dele, <code>rascunhos</code> não existe mais, e o <code>ideias.txt</code> está em <code>textos</code>.</dd>
+  <dt>Directory.Delete(caminho)</dt><dd>Apaga uma pasta <strong>vazia</strong>. A <code>contos</code> estava vazia, então foi.</dd>
+  <dt>Directory.Delete("textos", recursive: true)</dt><dd>"Recursivo": apaga a pasta e <strong>tudo</strong> o que estiver dentro, subpastas incluídas, sem lixeira. É o <code>rm -r</code> do terminal. Confira duas vezes o caminho antes de rodar.</dd>
+</dl>
+
+<hr>
+
+<h2>Formas de fazer: qual usar</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Você quer…</th><th>Use</th></tr>
+<tr><td>Juntar pedaços de um caminho</td><td><code>Path.Combine(a, b, c)</code>, nunca <code>a + "/" + b</code></td></tr>
+<tr><td>Só o nome, a extensão ou a pasta</td><td><code>Path.GetFileName</code>, <code>GetExtension</code>, <code>GetDirectoryName</code></td></tr>
+<tr><td>Um caminho que funcione de qualquer pasta</td><td><code>Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), …)</code></td></tr>
+<tr><td>Garantir que uma pasta existe</td><td><code>Directory.CreateDirectory</code> (não reclama se já existir)</td></tr>
+<tr><td>Os caminhos dos arquivos de uma pasta</td><td><code>Directory.GetFiles(pasta, filtro)</code>, ordenado com <code>.Order()</code></td></tr>
+<tr><td>Muitos arquivos, um por vez</td><td><code>Directory.EnumerateFiles</code></td></tr>
+<tr><td>Nome, tamanho e data de cada arquivo</td><td><code>new DirectoryInfo(pasta).GetFiles()</code> ou <code>new FileInfo(caminho)</code></td></tr>
+<tr><td>Apagar uma pasta com conteúdo</td><td><code>Directory.Delete(pasta, recursive: true)</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>IOException: Directory not empty</code></strong>
+<pre class="file" data-file="apagar.cs">try
+{
+    Directory.Delete("relatorios");
+}
+catch (IOException e)
+{
+    Console.WriteLine($"{e.GetType().Name}: {e.Message}");
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run apagar.cs
+IOException: Directory not empty : '/home/ana/cs/relatorios'</pre>
+<p><strong>O que aconteceu:</strong> "A pasta não está vazia". Sem o segundo argumento, o <code>Directory.Delete</code> só apaga pastas vazias, para você não perder arquivos sem querer. A <code>relatorios</code> da seção 3 tem a <code>2026</code> e dois arquivos dentro.</p>
+<p><strong>Como resolver:</strong> se é isso mesmo que você quer, <code>Directory.Delete("relatorios", recursive: true)</code>. Se não, apague antes os arquivos que você conhece, um por um, com <code>File.Delete</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>DirectoryNotFoundException</code> ao listar</strong>
+<pre class="file" data-file="fotos.cs">string[] fotos = Directory.GetFiles("Fotos");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run fotos.cs
+Unhandled exception. System.IO.DirectoryNotFoundException: Could not find a part of the path '/home/ana/cs/Fotos'.
+   at System.IO.Enumeration.FileSystemEnumerator`1.CreateDirectoryHandle(String path, Boolean ignoreNotFound)
+   at System.IO.Enumeration.FileSystemEnumerator`1.Init()
+   …                                                « mais 4 linhas de dentro do .NET
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/fotos.cs:line 1</pre>
+<p><strong>O que aconteceu:</strong> a pasta <code>Fotos</code> não existe dentro de <code>~/cs</code>. (As fotos da Ana estão em <code>~/Imagens</code>.) O caminho completo da mensagem mostra onde o .NET procurou.</p>
+<p><strong>Como resolver:</strong> confira com <code>Directory.Exists</code> antes de listar, ou monte o caminho a partir da pasta pessoal: <code>Path.Combine(casa, "Imagens")</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>O <code>Path.Combine</code> jogou a pasta fora</strong>
+<pre class="file" data-file="combine.cs">Console.WriteLine(Path.Combine("/home/ana", "/Documentos", "notas.txt"));
+Console.WriteLine(Path.Join("/home/ana", "/Documentos", "notas.txt"));
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run combine.cs
+/Documentos/notas.txt
+/home/ana/Documentos/notas.txt</pre>
+<p><strong>O que aconteceu:</strong> a segunda parte, <code>"/Documentos"</code>, começa com <code>/</code>, então é um caminho absoluto. Quando uma das partes é absoluta, o <code>Path.Combine</code> <strong>descarta tudo o que veio antes</strong> e começa dali. Nenhum erro: o programa simplesmente procura no lugar errado.</p>
+<p><strong>Como resolver:</strong> escreva as partes sem a barra no começo: <code>Path.Combine("/home/ana", "Documentos", "notas.txt")</code>. Se as partes vêm de fora (digitadas pelo usuário, lidas de um arquivo), use <code>Path.Join</code>, que só junta e nunca descarta.</p>
+</div>
+
+<div class="cenario">
+<strong>Caminhos montados com <code>+</code></strong>
+<pre class="file" data-file="somar.cs">Console.WriteLine("Documentos" + "notas.txt");
+File.WriteAllText("Documentos\\notas.txt", "oi");
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run somar.cs
+Documentosnotas.txt
+$ ls
+Documentos\notas.txt
+somar.cs</pre>
+<p><strong>O que aconteceu:</strong> na primeira linha, faltou a barra entre a pasta e o arquivo. Na segunda, a Ana copiou um caminho do Windows, com <code>\</code> (escrita <code>\\</code> dentro da string, aula <a href="escapes.html">Escapes</a>). No Linux, <code>\</code> não separa pastas: é uma letra comum. O programa criou na pasta <code>cs</code> um arquivo chamado, literalmente, <code>Documentos\notas.txt</code>.</p>
+<p><strong>Como resolver:</strong> deixe o <code>Path.Combine("Documentos", "notas.txt")</code> escolher o separador. Para apagar o arquivo estranho no terminal, use aspas: <code>rm 'Documentos\notas.txt'</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>O que faz</th></tr>
+<tr><td><code>Path.Combine(a, b, …)</code> / <code>Path.Join(a, b, …)</code></td><td>Junta as partes com o separador (o <code>Join</code> nunca descarta partes)</td></tr>
+<tr><td><code>Path.GetFileName(c)</code> / <code>GetFileNameWithoutExtension(c)</code></td><td>Nome, com e sem extensão</td></tr>
+<tr><td><code>Path.GetExtension(c)</code></td><td>Extensão com o ponto (<code>.txt</code>)</td></tr>
+<tr><td><code>Path.GetDirectoryName(c)</code></td><td>A pasta do caminho</td></tr>
+<tr><td><code>Path.ChangeExtension(c, ".csv")</code></td><td>O texto do caminho com outra extensão</td></tr>
+<tr><td><code>Path.GetFullPath(c)</code></td><td>Caminho absoluto</td></tr>
+<tr><td><code>Path.GetTempPath()</code></td><td>Pasta temporária</td></tr>
+<tr><td><code>Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)</code></td><td>Pasta pessoal (<code>/home/ana</code>)</td></tr>
+<tr><td><code>Directory.GetCurrentDirectory()</code></td><td>Pasta atual</td></tr>
+<tr><td><code>Directory.Exists(c)</code></td><td>A pasta existe?</td></tr>
+<tr><td><code>Directory.CreateDirectory(c)</code></td><td>Cria a pasta e as que faltarem</td></tr>
+<tr><td><code>Directory.GetFiles(c, "*.txt", SearchOption.AllDirectories)</code></td><td>Arquivos (filtro e subpastas opcionais), sem ordem garantida</td></tr>
+<tr><td><code>Directory.GetDirectories(c)</code></td><td>Subpastas do primeiro nível</td></tr>
+<tr><td><code>Directory.EnumerateFiles(c)</code></td><td>Arquivos, um por vez</td></tr>
+<tr><td><code>Directory.Move(a, b)</code></td><td>Move ou renomeia a pasta</td></tr>
+<tr><td><code>Directory.Delete(c)</code> / <code>Directory.Delete(c, recursive: true)</code></td><td>Apaga a pasta vazia / com tudo dentro</td></tr>
+<tr><td><code>new FileInfo(c)</code>: <code>Name</code>, <code>Extension</code>, <code>Length</code>, <code>LastWriteTime</code></td><td>Detalhes de um arquivo</td></tr>
+<tr><td><code>new DirectoryInfo(c)</code>: <code>GetFiles()</code>, <code>GetDirectories()</code></td><td>Detalhes e conteúdo de uma pasta</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Juntar as partes</h3>
+<p>Complete para montar o caminho <code>Imagens/ferias.jpg</code> com o separador certo do sistema:</p>
+<div class="ex-code">string foto = Path.<input data-answer="Combine|Join" aria-label="método">("Imagens", "ferias.jpg");</div>
+</div>
+
+<div class="exercise">
+<h3>2. A extensão</h3>
+<p>O que <code>Path.GetExtension("musica.mp3")</code> devolve?</p>
+<div class="ex-code"><input data-answer=".mp3|&quot;.mp3&quot;" aria-label="resultado"></div>
+</div>
+
+<div class="exercise">
+<h3>3. Apagar com tudo</h3>
+<p>Complete para apagar a pasta <code>antigos</code> mesmo que ela tenha arquivos dentro:</p>
+<div class="ex-code">Directory.Delete("antigos", recursive: <input data-answer="true" aria-label="valor">);</div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O que <code>Directory.CreateDirectory("a/b/c")</code> faz se a pasta <code>a</code> não existe?</p>
+<label><input type="radio" name="q4"> Lança <code>DirectoryNotFoundException</code>.</label>
+<label><input type="radio" name="q4"> Cria <code>a</code>, <code>b</code> e <code>c</code>.</label>
+<label><input type="radio" name="q4"> Cria só <code>c</code>, na pasta atual.</label>
+<label><input type="radio" name="q4"> Não faz nada.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">5. O programa lê <code>"dados.txt"</code> e funciona quando rodado em <code>~/cs</code>. Rodado em <code>~</code>, dá <code>FileNotFoundException</code>. Por quê?</p>
+<label><input type="radio" name="q5"> O arquivo foi apagado.</label>
+<label><input type="radio" name="q5"> O C# só lê arquivos da pasta do programa.</label>
+<label><input type="radio" name="q5"> Faltou o <code>using System.IO;</code>.</label>
+<label><input type="radio" name="q5"> O caminho é relativo à pasta atual, e em <code>~</code> não há <code>dados.txt</code>.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Quanto vale <code>Path.Combine("/home/ana", "/tmp", "x.txt")</code>?</p>
+<label><input type="radio" name="q6"> <code>/tmp/x.txt</code></label>
+<label><input type="radio" name="q6"> <code>/home/ana/tmp/x.txt</code></label>
+<label><input type="radio" name="q6"> <code>/home/ana//tmp/x.txt</code></label>
+<label><input type="radio" name="q6"> Lança uma exceção.</label>
+</div>
+
+<h3>Missão final: arrumar os downloads</h3>
+<div class="trycs" data-goal="out:Arquivos soltos: 0,out:jpg: 2,out:mp3: 1,out:pdf: 2,src:Path\.GetExtension,src:File\.Move">
+<p class="try-task"><strong>Missão:</strong> o programa cria uma pasta <code>Downloads</code> com cinco arquivos misturados. Complete o laço para guardar cada arquivo numa subpasta com o nome da extensão (<code>Downloads/jpg/foto.jpg</code>, <code>Downloads/pdf/manual.pdf</code>…):</p>
+<ol class="passo">
+  <li>descubra a extensão com <code>Path.GetExtension(arquivo)</code> e tire o ponto com <code>.TrimStart('.')</code>;</li>
+  <li>monte o caminho da subpasta com <code>Path.Combine(origem, extensao)</code> e crie-a com <code>Directory.CreateDirectory</code>;</li>
+  <li>mova o arquivo para lá com <code>File.Move(arquivo, Path.Combine(destino, Path.GetFileName(arquivo)), overwrite: true)</code>.</li>
+</ol>
+<p class="try-task">A saída deve ser:</p>
+<pre class="out">Arquivos soltos: 0
+jpg: 2
+mp3: 1
+pdf: 2</pre>
+<pre class="script" data-file="organizar.cs">string origem = "Downloads";
+Directory.CreateDirectory(origem);
+string[] nomes = ["foto.jpg", "manual.pdf", "praia.jpg", "musica.mp3", "boleto.pdf"];
+foreach (string nome in nomes)
+{
+    File.WriteAllText(Path.Combine(origem, nome), "");
+}
+
+foreach (string arquivo in Directory.GetFiles(origem))
+{
+    // 1. a extensão sem o ponto
+    // 2. a subpasta com o nome da extensão
+    // 3. mova o arquivo para a subpasta
+}
+
+Console.WriteLine($"Arquivos soltos: {Directory.GetFiles(origem).Length}");
+foreach (string pasta in Directory.GetDirectories(origem).Order())
+{
+    Console.WriteLine($"{Path.GetFileName(pasta)}: {Directory.GetFiles(pasta).Length}");
+}
+</pre>
+<pre class="solucao" data-file="organizar.cs">string origem = "Downloads";
+Directory.CreateDirectory(origem);
+string[] nomes = ["foto.jpg", "manual.pdf", "praia.jpg", "musica.mp3", "boleto.pdf"];
+foreach (string nome in nomes)
+{
+    File.WriteAllText(Path.Combine(origem, nome), "");
+}
+
+foreach (string arquivo in Directory.GetFiles(origem))
+{
+    string extensao = Path.GetExtension(arquivo).TrimStart('.');
+    string destino = Path.Combine(origem, extensao);
+    Directory.CreateDirectory(destino);
+    File.Move(arquivo, Path.Combine(destino, Path.GetFileName(arquivo)), overwrite: true);
+}
+
+Console.WriteLine($"Arquivos soltos: {Directory.GetFiles(origem).Length}");
+foreach (string pasta in Directory.GetDirectories(origem).Order())
+{
+    Console.WriteLine($"{Path.GetFileName(pasta)}: {Directory.GetFiles(pasta).Length}");
+}
+</pre>
+</div>
+
+<p>Os arquivos são criados vazios (<code>""</code>) só para o exemplo. O <code>GetFiles(origem)</code> do laço é chamado <strong>uma vez</strong>, antes de o laço começar, então mover arquivos lá dentro não atrapalha a lista. Rodando de novo, o resultado é o mesmo: os arquivos são recriados soltos e o <code>overwrite: true</code> deixa o <code>Move</code> substituir os que já estavam nas subpastas. Se quiser ir além: em vez da extensão, separe por tipo (<code>Imagens</code> para <code>.jpg</code> e <code>.png</code>, <code>Documentos</code> para <code>.pdf</code>) com uma <a href="switch-expressoes.html">expressão switch</a>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>Path</code> só mexe no texto do caminho: <code>Combine</code> junta, <code>GetFileName</code>, <code>GetExtension</code> e <code>GetDirectoryName</code> separam. Monte caminhos com ele, nunca com <code>+</code>.</li>
+  <li>Caminhos relativos são completados com a pasta atual, onde o programa foi iniciado. Para um caminho fixo, comece da pasta pessoal: <code>Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)</code>.</li>
+  <li><code>Directory.CreateDirectory</code> cria a pasta e as que faltarem, sem reclamar se já existe.</li>
+  <li><code>Directory.GetFiles</code> e <code>GetDirectories</code> listam (com filtro <code>*.txt</code> e <code>SearchOption.AllDirectories</code>); a ordem não é garantida, então ordene.</li>
+  <li><code>FileInfo</code> e <code>DirectoryInfo</code> dão nome, extensão, tamanho e data como propriedades.</li>
+  <li><code>Directory.Delete</code> só apaga pasta vazia; com <code>recursive: true</code>, apaga tudo, sem lixeira. Uma parte absoluta no <code>Path.Combine</code> descarta as anteriores.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
