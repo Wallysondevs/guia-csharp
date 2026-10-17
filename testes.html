@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Testes — xUnit, [Fact], [Theory] e dotnet test | Guia C#</title>
+<meta name="description" content="Testes automatizados em C# com xUnit para quem nunca testou: dotnet new xunit, o .csproj de testes, [Fact], Assert.Equal, dotnet test com um teste passando e outro falhando (Expected × Actual), [Theory] com [InlineData], Assert.Throws, --filter, --list-tests, os avisos xUnit2000 e xUnit1001 e o ciclo de TDD, com saídas reais do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Testes (xUnit)</span></h1>
+
+<p class="intro">Toda vez que a Ana muda o boletim da escola, ela roda o programa, lança umas notas e confere a média de cabeça. Funciona, mas cansa, e um dia ela vai esquecer de conferir um caso. Um <strong>teste automatizado</strong> é um pedaço de código que faz essa conferência por ela: chama a função, compara o resultado com o esperado e diz "passou" ou "falhou". Com centenas deles, um único comando, <code>dotnet test</code>, confere o programa inteiro em segundos. Nesta aula você vai escrever testes com o <strong>xUnit</strong>, a biblioteca de testes mais usada no .NET.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Por que testar e o que é um teste de unidade.</li>
+  <li>A criar um projeto de testes com <code>dotnet new xunit</code> e ligá-lo à biblioteca que ele testa.</li>
+  <li>A escrever um teste com <code>[Fact]</code> e <code>Assert.Equal</code>, e a rodar com <code>dotnet test</code>.</li>
+  <li>A ler um teste que <strong>falha</strong> (<code>Expected</code> × <code>Actual</code>) e a consertar o código.</li>
+  <li>Um teste com vários valores (<code>[Theory]</code> e <code>[InlineData]</code>) e o teste de exceções (<code>Assert.Throws</code>).</li>
+  <li><code>--filter</code>, <code>--list-tests</code>, os avisos <code>xUnit2000</code> e <code>xUnit1001</code> e a ideia do TDD.</li>
+</ul>
+</div>
+
+<p>Todas as saídas desta aula são reais, feitas com o <strong>.NET 10 SDK</strong> (<code>10.0.112</code>) e o <strong>xUnit 2.9.3</strong> na máquina fictícia da Ana, na solução <code>~/projetos/Escola</code> da aula <a href="bibliotecas-classe.html">Bibliotecas de Classes</a>. O <code>dotnet new xunit</code> baixa pacotes do NuGet: na primeira vez, precisa de internet e pode demorar.</p>
+
+<hr>
+
+<h2>Por que testar?</h2>
+<p>Na aula de bibliotecas, a média do Beto, (5,0 + 7,5) ÷ 2 = 6,25, saiu <strong>6,2</strong>. A escola arredonda para 6,3. Ninguém percebeu na hora, porque ninguém conferiu esse caso. Um teste é a anotação permanente "<strong>com as notas 5,0 e 7,5, a média tem de ser 6,3</strong>", conferida pelo computador toda vez.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Conferir à mão</th><th>Teste automatizado</th></tr>
+<tr><td>Roda o programa, digita, olha a tela</td><td><code>dotnet test</code></td></tr>
+<tr><td>Confere os casos de que você se lembra</td><td>Confere <strong>todos</strong> os casos escritos, sempre</td></tr>
+<tr><td>Minutos a cada mudança</td><td>Segundos</td></tr>
+<tr><td>Uma mudança aqui quebra algo ali sem ninguém ver</td><td>O teste daquele caso falha e avisa</td></tr>
+</table>
+</div>
+
+<p>Um <strong>teste de unidade</strong> (em inglês, <em>unit test</em>) testa um pedaço pequeno do código, como um método, sem tela, sem teclado, sem internet. É por isso que as regras ficam numa biblioteca: o projeto de testes a usa como qualquer outro programa.</p>
+
+<p>Todo teste tem três partes, os três <strong>A</strong>:</p>
+<ol class="passo">
+  <li><strong>Arrange</strong> (preparar): criar o que o teste precisa (um boletim, algumas notas).</li>
+  <li><strong>Act</strong> (agir): chamar o que está sendo testado (ler a <code>Media</code>).</li>
+  <li><strong>Assert</strong> (afirmar): comparar o resultado com o esperado.</li>
+</ol>
+
+<hr>
+
+<h2>1. Criar o projeto de testes</h2>
+<pre class="term" data-cwd="~/projetos/Escola">$ dotnet new xunit -o tests/Escola.Notas.Tests
+O modelo "Projeto de Teste xUnit" foi criado com êxito.
+
+Processando ações pós-criação...
+Restaurando /home/ana/projetos/Escola/tests/Escola.Notas.Tests/Escola.Notas.Tests.csproj:
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Escola/tests/Escola.Notas.Tests/Escola.Notas.Tests.csproj restaurado (em 2,57 seg).
+A restauração foi bem-sucedida.
+
+
+$ dotnet sln add tests/Escola.Notas.Tests
+O projeto ‘tests/Escola.Notas.Tests/Escola.Notas.Tests.csproj’ foi adicionado à solução.
+$ dotnet reference add src/Escola.Notas --project tests/Escola.Notas.Tests
+A referência ‘..\..\src\Escola.Notas\Escola.Notas.csproj’ foi adicionada ao projeto.</pre>
+
+<dl class="anatomy">
+  <dt>dotnet new xunit -o tests/Escola.Notas.Tests</dt><dd>O modelo "Projeto de Teste xUnit". Os testes ficam na pasta <code>tests</code>, e o nome é o do projeto testado mais <code>.Tests</code>: assim, qualquer pessoa sabe o que ele testa.</dd>
+  <dt>dotnet sln add …</dt><dd>Põe o projeto de testes na solução (veja <a href="solucoes.html">Soluções</a>), para o <code>dotnet test</code> da pasta da solução encontrá-lo.</dd>
+  <dt>dotnet reference add src/Escola.Notas --project …Tests</dt><dd>Os testes usam a biblioteca, como o programa usa. O caminho tem <code>..\..</code> porque a pasta <code>tests/Escola.Notas.Tests</code> está dois níveis abaixo da solução.</dd>
+</dl>
+
+<h3>O <code>.csproj</code> de testes</h3>
+<pre class="term" data-cwd="~/projetos/Escola">$ cat tests/Escola.Notas.Tests/Escola.Notas.Tests.csproj
+&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+
+  &lt;PropertyGroup&gt;
+    &lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;
+    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+    &lt;Nullable&gt;enable&lt;/Nullable&gt;
+    &lt;IsPackable&gt;false&lt;/IsPackable&gt;
+  &lt;/PropertyGroup&gt;
+
+  &lt;ItemGroup&gt;
+    &lt;PackageReference Include="coverlet.collector" Version="6.0.4" /&gt;
+    &lt;PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" /&gt;
+    &lt;PackageReference Include="xunit" Version="2.9.3" /&gt;
+    &lt;PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" /&gt;
+  &lt;/ItemGroup&gt;
+
+  &lt;ItemGroup&gt;
+    &lt;Using Include="Xunit" /&gt;
+  &lt;/ItemGroup&gt;
+«… e o ProjectReference para a biblioteca, que o reference add acrescentou …»
+&lt;/Project&gt;</pre>
+
+<dl class="anatomy">
+  <dt>&lt;IsPackable&gt;false&lt;/IsPackable&gt;</dt><dd>O <code>dotnet pack</code> não deve empacotar os testes.</dd>
+  <dt>xunit</dt><dd>A biblioteca de testes: os atributos <code>[Fact]</code> e <code>[Theory]</code> e a classe <code>Assert</code>.</dd>
+  <dt>Microsoft.NET.Test.Sdk e xunit.runner.visualstudio</dt><dd>As peças que fazem o <code>dotnet test</code> (e os editores) encontrarem e rodarem os testes do xUnit.</dd>
+  <dt>coverlet.collector</dt><dd>Mede a <strong>cobertura</strong>: quais linhas do código os testes executaram. É opcional.</dd>
+  <dt>&lt;Using Include="Xunit" /&gt;</dt><dd>Um <code>global using Xunit;</code> para o projeto todo (veja <a href="csproj.html">O Arquivo .csproj</a>). Por isso os arquivos de teste não precisam de <code>using Xunit;</code>.</dd>
+  <dt>sem &lt;OutputType&gt;</dt><dd>Um projeto de testes não é um programa: quem o roda é o <code>dotnet test</code>.</dd>
+</dl>
+
+<p>O modelo também criou um arquivo de exemplo, com um teste vazio:</p>
+<pre class="file" data-file="tests/Escola.Notas.Tests/UnitTest1.cs">namespace Escola.Notas.Tests;
+
+public class UnitTest1
+{
+    [Fact]
+    public void Test1()
+    {
+
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Escola">$ dotnet test
+  Determinando os projetos a serem restaurados...
+  /home/ana/projetos/Escola/tests/Escola.Notas.Tests/Escola.Notas.Tests.csproj restaurado (em 570 ms).
+  3 de 4 projetos estão atualizados para restauração.
+  Escola.Notas -&gt; /home/ana/projetos/Escola/src/Escola.Notas/bin/Debug/net10.0/Escola.Notas.dll
+  Escola.Notas.Tests -&gt; /home/ana/projetos/Escola/tests/Escola.Notas.Tests/bin/Debug/net10.0/Escola.Notas.Tests.dll
+Execução de teste para /home/ana/projetos/Escola/tests/Escola.Notas.Tests/bin/Debug/net10.0/Escola.Notas.Tests.dll (.NETCoreApp,Version=v10.0)
+Versão do VSTest 18.0.2 (x64)
+
+Iniciando execução de teste, espere...
+1 arquivos de teste no total corresponderam ao padrão especificado.
+
+Aprovado!  – Com falha:     0, Aprovado:     1, Ignorado:     0, Total:     1, Duração: 20 ms - Escola.Notas.Tests.dll (net10.0)</pre>
+
+<dl class="anatomy">
+  <dt>Escola.Notas -&gt; … / Escola.Notas.Tests -&gt; …</dt><dd>O <code>dotnet test</code> compilou primeiro a biblioteca e os testes (os programas da solução não foram compilados porque os testes não dependem deles).</dd>
+  <dt>Versão do VSTest 18.0.2</dt><dd>O VSTest é o "executor" de testes do .NET: ele carrega o <code>.dll</code> de testes e pede ao xUnit para rodar cada um.</dd>
+  <dt>Aprovado! – Com falha: 0, Aprovado: 1 …</dt><dd>O resumo: 1 teste, 1 aprovado. Um teste vazio passa, porque nada nele falhou.</dd>
+</dl>
+
+<hr>
+
+<h2>2. O primeiro teste de verdade: <code>[Fact]</code> e <code>Assert.Equal</code></h2>
+<p>A Ana apagou o <code>UnitTest1.cs</code> e escreveu os testes do boletim. O terceiro é o caso do Beto:</p>
+
+<pre class="file" data-file="tests/Escola.Notas.Tests/BoletimTests.cs">namespace Escola.Notas.Tests;
+
+public class BoletimTests
+{
+    [Fact]
+    public void Media_de_tres_notas_tem_uma_casa_decimal()
+    {
+        var boletim = new Boletim("Ana");
+        boletim.Lancar(8.5m);
+        boletim.Lancar(6.0m);
+        boletim.Lancar(9.25m);
+
+        Assert.Equal(7.9m, boletim.Media);
+    }
+
+    [Fact]
+    public void Sem_notas_a_media_e_zero()
+    {
+        var boletim = new Boletim("Ana");
+
+        Assert.Equal(0m, boletim.Media);
+    }
+
+    [Fact]
+    public void Media_6_25_arredonda_para_6_3()
+    {
+        var boletim = new Boletim("Beto");
+        boletim.Lancar(5.0m);
+        boletim.Lancar(7.5m);
+
+        Assert.Equal(6.3m, boletim.Media);
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>public class BoletimTests</dt><dd>Uma classe de testes: costuma ter o nome da classe testada mais <code>Tests</code>. Ela precisa ser <code>public</code>.</dd>
+  <dt>[Fact]</dt><dd>"Fato": um <strong>atributo</strong> (veja <a href="atributos.html">Atributos</a>) que marca o método como um teste. Sem ele, o xUnit ignora o método.</dd>
+  <dt>public void Media_de_tres_notas_tem_uma_casa_decimal()</dt><dd>O nome do teste é uma <strong>frase</strong> que diz o que deve acontecer. Quando ele falhar, só o nome já explica o problema. Os <code>_</code> são só para ler melhor.</dd>
+  <dt>var boletim = …; boletim.Lancar(…);</dt><dd><em>Arrange</em>: preparar.</dd>
+  <dt>Assert.Equal(7.9m, boletim.Media);</dt><dd><em>Act</em> e <em>Assert</em>: "afirme que são iguais". O <strong>primeiro</strong> argumento é o <strong>esperado</strong>; o segundo, o que o código deu. Se forem diferentes, o teste falha ali.</dd>
+</dl>
+
+<h3>Um teste que falha</h3>
+<pre class="term" data-cwd="~/projetos/Escola">$ dotnet test
+  Determinando os projetos a serem restaurados...
+  Todos os projetos estão atualizados para restauração.
+  Escola.Notas -&gt; /home/ana/projetos/Escola/src/Escola.Notas/bin/Debug/net10.0/Escola.Notas.dll
+  Escola.Notas.Tests -&gt; /home/ana/projetos/Escola/tests/Escola.Notas.Tests/bin/Debug/net10.0/Escola.Notas.Tests.dll
+Execução de teste para /home/ana/projetos/Escola/tests/Escola.Notas.Tests/bin/Debug/net10.0/Escola.Notas.Tests.dll (.NETCoreApp,Version=v10.0)
+Versão do VSTest 18.0.2 (x64)
+
+Iniciando execução de teste, espere...
+1 arquivos de teste no total corresponderam ao padrão especificado.
+[xUnit.net 00:00:00.41]     Escola.Notas.Tests.BoletimTests.Media_6_25_arredonda_para_6_3 [FAIL]
+  Com falha Escola.Notas.Tests.BoletimTests.Media_6_25_arredonda_para_6_3 [26 ms]
+  Mensagem de erro:
+   Assert.Equal() Failure: Values differ
+Expected: 6,3
+Actual:   6,2
+  Rastreamento de pilha:
+     at Escola.Notas.Tests.BoletimTests.Media_6_25_arredonda_para_6_3() in /home/ana/projetos/Escola/tests/Escola.Notas.Tests/BoletimTests.cs:line 31
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Com falha! – Com falha:     1, Aprovado:     2, Ignorado:     0, Total:     3, Duração: 113 ms - Escola.Notas.Tests.dll (net10.0)</pre>
+
+<p>Leia de cima para baixo:</p>
+<dl class="anatomy">
+  <dt>[FAIL]</dt><dd>Qual teste falhou: <code>Media_6_25_arredonda_para_6_3</code>. O nome já diz o que se esperava.</dd>
+  <dt>Assert.Equal() Failure: Values differ</dt><dd>"Falha no <code>Assert.Equal</code>: os valores são diferentes."</dd>
+  <dt>Expected: 6,3 / Actual: 6,2</dt><dd><strong>Esperado</strong> (o que você escreveu no teste) e <strong>obtido</strong> (o que o código deu). É a linha mais importante.</dd>
+  <dt>at … BoletimTests.cs:line 31</dt><dd>A linha do <code>Assert</code> que falhou. As duas linhas <code>System.Reflection…</code> são o xUnit chamando o teste: pode ignorar.</dd>
+  <dt>Com falha: 1, Aprovado: 2</dt><dd>Os outros dois testes continuaram passando. Um teste que falha não impede os outros de rodar.</dd>
+</dl>
+
+<p>O teste fez o trabalho dele: achou o defeito. O <code>Math.Round</code> arredonda os números "do meio" para o vizinho <strong>par</strong> (6,25 → 6,2). A Ana consertou a <strong>biblioteca</strong> (não o teste!), na linha de <code>Regras.cs</code>:</p>
+
+<pre class="file" data-file="src/Escola.Notas/Regras.cs">    public static decimal Arredondar(decimal valor) =&gt; Math.Round(valor, 1, MidpointRounding.AwayFromZero);
+</pre>
+
+<pre class="term" data-cwd="~/projetos/Escola">$ dotnet test 2&gt;&amp;1 | tail -2
+
+Aprovado!  – Com falha:     0, Aprovado:     3, Ignorado:     0, Total:     3, Duração: 44 ms - Escola.Notas.Tests.dll (net10.0)</pre>
+
+<p><code>MidpointRounding.AwayFromZero</code> ("o meio vai para longe do zero") é o arredondamento da escola: 6,25 → 6,3. Os três passam. E, a partir de agora, se alguém mexer no arredondamento, esse teste avisa.</p>
+
+<p>O editor do guia não tem o xUnit, mas a ideia de um teste cabe em qualquer programa: comparar o esperado com o obtido. Experimente:</p>
+
+<div class="trycs" data-goal="out:3 de 3 passaram,src:AwayFromZero">
+<p class="try-task"><strong>Missão:</strong> abaixo, um "testador" feito à mão confere a função <code>Media</code> com três casos, como os testes da Ana. Rode: um caso <code>FALHOU</code>. Conserte a <strong>função</strong> (não os testes) acrescentando <code>MidpointRounding.AwayFromZero</code> ao <code>Math.Round</code>, até aparecer <code>3 de 3 passaram</code>.</p>
+<pre class="script">int passaram = 0, total = 0;
+
+Verificar(7.9m, Media([8.5m, 6.0m, 9.25m]), "média de três notas");
+Verificar(0m, Media([]), "sem notas, média zero");
+Verificar(6.3m, Media([5.0m, 7.5m]), "6,25 arredonda para 6,3");
+
+Console.WriteLine($"{passaram} de {total} passaram");
+
+void Verificar(decimal esperado, decimal obtido, string nome)
+{
+    total++;
+    if (esperado == obtido)
+    {
+        passaram++;
+        Console.WriteLine($"ok     {nome}");
+    }
+    else
+    {
+        Console.WriteLine($"FALHOU {nome}: esperado {esperado}, obtido {obtido}");
+    }
+}
+
+static decimal Media(decimal[] notas) =&gt;
+    notas.Length == 0 ? 0 : Math.Round(notas.Average(), 1);
+</pre>
+<pre class="solucao">int passaram = 0, total = 0;
+
+Verificar(7.9m, Media([8.5m, 6.0m, 9.25m]), "média de três notas");
+Verificar(0m, Media([]), "sem notas, média zero");
+Verificar(6.3m, Media([5.0m, 7.5m]), "6,25 arredonda para 6,3");
+
+Console.WriteLine($"{passaram} de {total} passaram");
+
+void Verificar(decimal esperado, decimal obtido, string nome)
+{
+    total++;
+    if (esperado == obtido)
+    {
+        passaram++;
+        Console.WriteLine($"ok     {nome}");
+    }
+    else
+    {
+        Console.WriteLine($"FALHOU {nome}: esperado {esperado}, obtido {obtido}");
+    }
+}
+
+static decimal Media(decimal[] notas) =&gt;
+    notas.Length == 0 ? 0 : Math.Round(notas.Average(), 1, MidpointRounding.AwayFromZero);
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Vários valores num teste: <code>[Theory]</code> e <code>[InlineData]</code></h2>
+<p>Para testar a <code>Situacao</code>, a Ana quer conferir vários casos: 7,0 (bem no limite) aprova, 6,9 não. Em vez de um <code>[Fact]</code> para cada, um <strong><code>[Theory]</code></strong> ("teoria") recebe os valores como parâmetros:</p>
+
+<pre class="file" data-file="tests/Escola.Notas.Tests/BoletimTests.cs">public class SituacaoTests
+{
+    [Theory]
+    [InlineData(7.0, "Aprovado")]
+    [InlineData(9.5, "Aprovado")]
+    [InlineData(6.9, "Recuperação")]
+    [InlineData(0.0, "Recuperação")]
+    public void Situacao_depende_da_media(double nota, string esperado)
+    {
+        var boletim = new Boletim("Ana");
+        boletim.Lancar((decimal)nota);
+
+        Assert.Equal(esperado, boletim.Situacao);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(11)]
+    public void Nota_fora_de_0_a_10_lanca_excecao(int nota)
+    {
+        var boletim = new Boletim("Ana");
+
+        var erro = Assert.Throws&lt;ArgumentOutOfRangeException&gt;(() =&gt; boletim.Lancar(nota));
+        Assert.Equal("nota", erro.ParamName);
+    }
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>[Theory]</dt><dd>Um teste com parâmetros: ele roda <strong>uma vez para cada</strong> <code>[InlineData]</code>.</dd>
+  <dt>[InlineData(7.0, "Aprovado")]</dt><dd>"Dados na linha": os valores de uma rodada, na ordem dos parâmetros (<code>nota</code> = 7.0, <code>esperado</code> = "Aprovado").</dd>
+  <dt>double nota … (decimal)nota</dt><dd>Um atributo não aceita valores <code>decimal</code> (o C# não deixa: <code>7.0m</code> não pode ser argumento de atributo). Por isso o parâmetro é <code>double</code>, convertido para <code>decimal</code> dentro do teste (veja <a href="conversao-tipos.html">Conversão de Tipos</a>).</dd>
+  <dt>Assert.Throws&lt;ArgumentOutOfRangeException&gt;(() =&gt; …)</dt><dd>"Afirme que lança": roda a lambda e <strong>passa</strong> se ela lançar essa exceção; <strong>falha</strong> se não lançar nada (ou se lançar outra). Ele devolve a exceção, para você conferir mais coisas nela.</dd>
+  <dt>Assert.Equal("nota", erro.ParamName)</dt><dd>Confere que a exceção fala do parâmetro certo.</dd>
+</dl>
+
+<pre class="term" data-cwd="~/projetos/Escola">$ dotnet test 2&gt;&amp;1 | tail -2
+
+Aprovado!  – Com falha:     0, Aprovado:     9, Ignorado:     0, Total:     9, Duração: 67 ms - Escola.Notas.Tests.dll (net10.0)
+$ dotnet test --list-tests 2&gt;&amp;1 | tail -12
+Versão do VSTest 18.0.2 (x64)
+
+Os Testes a seguir estão disponíveis:
+    Escola.Notas.Tests.BoletimTests.Media_de_tres_notas_tem_uma_casa_decimal
+    Escola.Notas.Tests.BoletimTests.Sem_notas_a_media_e_zero
+    Escola.Notas.Tests.BoletimTests.Media_6_25_arredonda_para_6_3
+    Escola.Notas.Tests.SituacaoTests.Situacao_depende_da_media(nota: 7, esperado: "Aprovado")
+    Escola.Notas.Tests.SituacaoTests.Situacao_depende_da_media(nota: 9,5, esperado: "Aprovado")
+    Escola.Notas.Tests.SituacaoTests.Situacao_depende_da_media(nota: 6,9000000000000004, esperado: "Recuperação")
+    Escola.Notas.Tests.SituacaoTests.Situacao_depende_da_media(nota: 0, esperado: "Recuperação")
+    Escola.Notas.Tests.SituacaoTests.Nota_fora_de_0_a_10_lanca_excecao(nota: -1)
+    Escola.Notas.Tests.SituacaoTests.Nota_fora_de_0_a_10_lanca_excecao(nota: 11)</pre>
+
+<p>Nove testes: 3 <code>[Fact]</code> + 4 rodadas de um <code>[Theory]</code> + 2 do outro. O <code>--list-tests</code> ("liste os testes") mostra cada rodada com os seus valores. Repare no <code>6,9000000000000004</code>: é o <code>double</code> 6.9, que não tem representação exata no computador (veja <a href="decimais.html">float, double e decimal</a>). A conversão <code>(decimal)nota</code> o arredonda para <code>6,9</code>, e o teste passa.</p>
+
+<hr>
+
+<h2>4. Rodar só alguns testes: <code>--filter</code></h2>
+<pre class="term" data-cwd="~/projetos/Escola">$ dotnet test --filter "FullyQualifiedName~SituacaoTests" 2&gt;&amp;1 | tail -1
+Aprovado!  – Com falha:     0, Aprovado:     6, Ignorado:     0, Total:     6, Duração: 50 ms - Escola.Notas.Tests.dll (net10.0)</pre>
+
+<dl class="anatomy">
+  <dt>--filter "FullyQualifiedName~SituacaoTests"</dt><dd>"Filtre": só os testes cujo nome completo (namespace + classe + método) <strong>contém</strong> (<code>~</code>) <code>SituacaoTests</code>. Com <code>=</code> em vez de <code>~</code>, o nome tem de ser exatamente igual. Útil quando há centenas de testes e você está mexendo numa parte só.</dd>
+</dl>
+
+<p>Para ver o nome de <strong>cada</strong> teste aprovado, aumente a conversa do executor:</p>
+<pre class="term" data-cwd="~/projetos/Escola">$ dotnet test --logger "console;verbosity=normal" 2&gt;&amp;1 | grep -E "Aprovado|Com falha" | head -12
+  Aprovado Escola.Notas.Tests.SituacaoTests.Nota_fora_de_0_a_10_lanca_excecao(nota: 11) [9 ms]
+  Aprovado Escola.Notas.Tests.SituacaoTests.Nota_fora_de_0_a_10_lanca_excecao(nota: -1) [&lt; 1 ms]
+  Aprovado Escola.Notas.Tests.SituacaoTests.Situacao_depende_da_media(nota: 7, esperado: "Aprovado") [&lt; 1 ms]
+  Aprovado Escola.Notas.Tests.SituacaoTests.Situacao_depende_da_media(nota: 6,9000000000000004, esperado: "Recuperação") [&lt; 1 ms]
+  Aprovado Escola.Notas.Tests.SituacaoTests.Situacao_depende_da_media(nota: 9,5, esperado: "Aprovado") [&lt; 1 ms]
+  Aprovado Escola.Notas.Tests.SituacaoTests.Situacao_depende_da_media(nota: 0, esperado: "Recuperação") [&lt; 1 ms]
+  Aprovado Escola.Notas.Tests.BoletimTests.Media_6_25_arredonda_para_6_3 [22 ms]
+  Aprovado Escola.Notas.Tests.BoletimTests.Media_de_tres_notas_tem_uma_casa_decimal [&lt; 1 ms]
+  Aprovado Escola.Notas.Tests.BoletimTests.Sem_notas_a_media_e_zero [&lt; 1 ms]
+     Aprovados: 9</pre>
+
+<p>A ordem não é a do arquivo: o xUnit não promete nenhuma ordem. Por isso, <strong>um teste nunca pode depender de outro</strong>: cada um cria o seu próprio boletim (o xUnit cria até um objeto novo da classe de testes para cada teste).</p>
+
+<hr>
+
+<h2>5. As verificações mais usadas</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Verificação</th><th>Passa quando…</th></tr>
+<tr><td><code>Assert.Equal(esperado, obtido)</code></td><td>Os dois são iguais.</td></tr>
+<tr><td><code>Assert.NotEqual(a, b)</code></td><td>São diferentes.</td></tr>
+<tr><td><code>Assert.True(condição)</code> / <code>Assert.False(condição)</code></td><td>A condição é <code>true</code> / <code>false</code>.</td></tr>
+<tr><td><code>Assert.Null(x)</code> / <code>Assert.NotNull(x)</code></td><td><code>x</code> é / não é <code>null</code>.</td></tr>
+<tr><td><code>Assert.Contains("Ana", texto)</code></td><td>O texto (ou a lista) contém o item.</td></tr>
+<tr><td><code>Assert.Empty(lista)</code> / <code>Assert.Single(lista)</code></td><td>A lista está vazia / tem um item só.</td></tr>
+<tr><td><code>Assert.Throws&lt;TipoDaExceção&gt;(() =&gt; …)</code></td><td>O código lança exatamente essa exceção.</td></tr>
+<tr><td><code>await Assert.ThrowsAsync&lt;…&gt;(() =&gt; …)</code></td><td>O mesmo, para métodos <code>async</code> (o teste vira <code>public async Task</code>).</td></tr>
+<tr><td><code>Assert.InRange(valor, mínimo, máximo)</code></td><td>O valor está no intervalo.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>6. A ideia do TDD</h2>
+<p>A Ana escreveu o teste do 6,25 <strong>antes</strong> de consertar o arredondamento: primeiro ele falhou, depois ela mudou o código, depois ele passou. Fazer isso de propósito, sempre, tem nome: <strong>TDD</strong> (<em>Test-Driven Development</em>, "desenvolvimento guiado por testes"). O ciclo tem três passos:</p>
+<ol class="passo">
+  <li><strong>Vermelho:</strong> escreva um teste para o que ainda não funciona. Rode: ele falha.</li>
+  <li><strong>Verde:</strong> escreva o mínimo de código para ele passar. Rode: todos passam.</li>
+  <li><strong>Refatorar:</strong> melhore o código (nomes, repetições) com os testes passando. Se algum falhar, você quebrou algo.</li>
+</ol>
+<p>Ver o teste falhar primeiro é importante: um teste que nunca falhou pode estar testando a coisa errada (ou nada).</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>Assert.Throws() Failure: No exception was thrown</code></strong>
+<pre class="term" data-cwd="~/projetos/Escola">$ dotnet test --filter "FullyQualifiedName~ErrosTests" 2&gt;&amp;1 | sed -n '/Iniciando/,$p'
+Iniciando execução de teste, espere...
+1 arquivos de teste no total corresponderam ao padrão especificado.
+[xUnit.net 00:00:00.32]     Escola.Notas.Tests.ErrosTests.Nota_10_lanca_excecao [FAIL]
+  Com falha Escola.Notas.Tests.ErrosTests.Nota_10_lanca_excecao [7 ms]
+  Mensagem de erro:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(System.ArgumentOutOfRangeException)
+  Rastreamento de pilha:
+     at Escola.Notas.Tests.ErrosTests.Nota_10_lanca_excecao() in /home/ana/projetos/Escola/tests/Escola.Notas.Tests/ErrosTests.cs:line 10
+«…»
+
+Com falha! – Com falha:     1, Aprovado:     0, Ignorado:     0, Total:     1, Duração: 36 ms - Escola.Notas.Tests.dll (net10.0)</pre>
+<p><strong>O que aconteceu:</strong> o teste esperava uma exceção em <code>boletim.Lancar(10m)</code>, e nenhuma veio ("nenhuma exceção foi lançada"). Aqui quem está errado é o <strong>teste</strong>: 10 é uma nota válida.</p>
+<p><strong>Como resolver:</strong> quando um teste falha, pergunte primeiro "o que está errado: o código ou o teste?". Aqui, o teste certo usa um valor inválido, como <code>10.5m</code> ou <code>11m</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning xUnit2000</code>: esperado e obtido trocados</strong>
+<pre class="term" data-cwd="~/projetos/Escola">$ dotnet test 2&gt;&amp;1 | grep warning | sort -u
+/home/ana/projetos/Escola/tests/Escola.Notas.Tests/ErrosTests.cs(19,9): warning xUnit2000: The literal or constant value 8m should be passed as the 'expected' argument in the call to 'Assert.Equal(expected, actual)' in method 'Ordem_trocada' on type 'ErrosTests'. Swap the parameter values. (https://xunit.net/xunit.analyzers/rules/xUnit2000) [/home/ana/projetos/Escola/tests/Escola.Notas.Tests/Escola.Notas.Tests.csproj]</pre>
+<p><strong>O que aconteceu:</strong> a Ana escreveu <code>Assert.Equal(boletim.Media, 8m)</code>. O teste até passa, mas, se um dia falhar, a mensagem vai dizer <code>Expected</code> e <code>Actual</code> trocados, e confundir quem ler. O xUnit vem com <strong>analisadores</strong> que conferem os testes enquanto compilam; os avisos dele começam com <code>xUnit</code> e vêm em inglês: "o valor literal 8m deveria ser o argumento <code>expected</code>… troque os valores".</p>
+<p><strong>Como resolver:</strong> o esperado vem primeiro: <code>Assert.Equal(8m, boletim.Media)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error xUnit1001: Fact methods cannot have parameters.</code></strong>
+<pre class="term" data-cwd="~/projetos/Escola">$ dotnet test 2&gt;&amp;1 | grep -E "error|warning" | sort -u
+/home/ana/projetos/Escola/tests/Escola.Notas.Tests/ErrosTests.cs(6,17): error xUnit1001: Fact methods cannot have parameters. Remove the parameters from the method or convert it into a Theory. (https://xunit.net/xunit.analyzers/rules/xUnit1001) [/home/ana/projetos/Escola/tests/Escola.Notas.Tests/Escola.Notas.Tests.csproj]</pre>
+<p><strong>O que aconteceu:</strong> um método com <code>[Fact]</code> tinha um parâmetro (<code>int nota</code>). Um <code>[Fact]</code> não recebe valores: de onde viria a nota?</p>
+<p><strong>Como resolver:</strong> como a própria mensagem diz, tire o parâmetro ou troque para <code>[Theory]</code> com <code>[InlineData(…)]</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>O teste não aparece no total</strong>
+<p><strong>O que aconteceu:</strong> não há mensagem de erro: o teste novo simplesmente não roda. As causas comuns: faltou o <code>[Fact]</code> (ou <code>[Theory]</code>) em cima do método; o método ou a classe não é <code>public</code>; o projeto de testes não está na solução e você rodou <code>dotnet test</code> na pasta da solução.</p>
+<p><strong>Como resolver:</strong> <code>dotnet test --list-tests</code> mostra o que o xUnit encontrou. Se o teste não estiver na lista, confira o atributo e o <code>public</code>; se o projeto todo sumiu, <code>dotnet sln list</code>.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Comando ou código</th><th>O que faz</th></tr>
+<tr><td><code>dotnet new xunit -o tests/Nome.Tests</code></td><td>Cria o projeto de testes.</td></tr>
+<tr><td><code>dotnet reference add src/Nome --project tests/Nome.Tests</code></td><td>Liga os testes ao que eles testam.</td></tr>
+<tr><td><code>dotnet test</code></td><td>Compila e roda todos os testes.</td></tr>
+<tr><td><code>dotnet test --list-tests</code></td><td>Lista os testes encontrados.</td></tr>
+<tr><td><code>dotnet test --filter "FullyQualifiedName~Texto"</code></td><td>Roda só os testes com "Texto" no nome.</td></tr>
+<tr><td><code>dotnet test --logger "console;verbosity=normal"</code></td><td>Mostra cada teste aprovado.</td></tr>
+<tr><td><code>[Fact]</code></td><td>Um teste sem parâmetros.</td></tr>
+<tr><td><code>[Theory]</code> + <code>[InlineData(…)]</code></td><td>Um teste que roda com cada linha de dados.</td></tr>
+<tr><td><code>Assert.Equal(esperado, obtido)</code></td><td>Afirma que são iguais (o esperado primeiro).</td></tr>
+<tr><td><code>Assert.Throws&lt;T&gt;(() =&gt; …)</code></td><td>Afirma que o código lança a exceção <code>T</code>.</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Marcar o teste</h3>
+<p>Complete o atributo de um teste sem parâmetros:</p>
+<div class="ex-code">[<input data-answer="Fact" aria-label="atributo">]<br>public void Nota_7_aprova() { … }</div>
+</div>
+
+<div class="exercise">
+<h3>2. A ordem do Assert</h3>
+<p>A média esperada é <code>8m</code>. Complete na ordem certa:</p>
+<div class="ex-code">Assert.Equal(<input data-answer="8m" aria-label="primeiro argumento">, boletim.Media);</div>
+</div>
+
+<div class="exercise">
+<h3>3. Rodar os testes</h3>
+<p>Complete o comando que compila e roda todos os testes da solução:</p>
+<div class="ex-code">dotnet <input data-answer="test" aria-label="comando"></div>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">4. O <code>dotnet test</code> mostrou <code>Expected: 6,3</code> e <code>Actual: 6,2</code>. O que isso quer dizer?</p>
+<label><input type="radio" name="q4"> O teste esperava 6,2 e o código deu 6,3.</label>
+<label><input type="radio" name="q4"> O teste esperava 6,3 e o código deu 6,2.</label>
+<label><input type="radio" name="q4"> O xUnit não conseguiu rodar o teste.</label>
+<label><input type="radio" name="q4"> Os dois valores são iguais, mas em formatos diferentes.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Você quer testar a <code>Situacao</code> com as médias 7,0, 6,9 e 10,0. Qual é o jeito mais simples?</p>
+<label><input type="radio" name="q5"> Um <code>[Fact]</code> com um <code>for</code> dentro.</label>
+<label><input type="radio" name="q5"> Três projetos de teste.</label>
+<label><input type="radio" name="q5"> Um <code>[Theory]</code> com três <code>[InlineData]</code>.</label>
+<label><input type="radio" name="q5"> Rodar <code>dotnet test</code> três vezes.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Um teste falhou. Qual é a primeira pergunta?</p>
+<label><input type="radio" name="q6"> O que está errado: o código ou o teste?</label>
+<label><input type="radio" name="q6"> Como apagar o teste?</label>
+<label><input type="radio" name="q6"> Como trocar o esperado pelo obtido para ele passar?</label>
+<label><input type="radio" name="q6"> Quantos outros testes passaram?</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Um teste automatizado confere um caso do seu código sempre que você roda <code>dotnet test</code>: preparar, agir, afirmar.</li>
+  <li>Projeto de testes: <code>dotnet new xunit -o tests/Nome.Tests</code>, <code>dotnet sln add</code> e <code>dotnet reference add</code> para a biblioteca testada.</li>
+  <li><code>[Fact]</code> marca um teste; <code>Assert.Equal(esperado, obtido)</code> compara, com o esperado primeiro.</li>
+  <li>No teste que falha, leia o nome, o <code>Expected</code>, o <code>Actual</code> e a linha. Conserte o código (ou o teste, se ele estiver errado).</li>
+  <li><code>[Theory]</code> + <code>[InlineData]</code> roda o mesmo teste com vários valores; <code>Assert.Throws</code> testa exceções.</li>
+  <li><code>--filter</code> escolhe os testes; <code>--list-tests</code> mostra o que foi encontrado; os analisadores <code>xUnit…</code> avisam dos erros comuns.</li>
+  <li>TDD: vermelho (teste falha), verde (código passa), refatorar.</li>
+</ul>
+
+<div class="pager"></div>
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
