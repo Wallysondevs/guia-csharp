@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Inteiros — int, long, byte, short, uint e o estouro | Guia C#</title>
+<meta name="description" content="Números inteiros em C# para quem nunca programou: int, long, short, byte, sbyte e as versões sem sinal (uint, ulong), os limites MinValue e MaxValue, literais 1_000_000, 0xFF e 0b1010, sufixos L e U, o estouro (int.MaxValue + 1), checked, unchecked e a OverflowException real, com saídas do .NET 10 e missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Inteiros</span></h1>
+
+<p class="intro">Números inteiros estão em todo lugar: a quantidade de cadernos da lojinha, a idade de um cliente, os pontos de um jogo, o número de habitantes de um país. O C# tem uma <strong>família</strong> de tipos inteiros, de tamanhos diferentes, com e sem sinal. Nesta aula você vai conhecer cada um, ver até onde cada caixa vai e descobrir o que acontece quando uma conta passa do limite, e como fazer o C# avisar quando isso acontece.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>A família: <code>byte</code>, <code>short</code>, <code>int</code>, <code>long</code> e as versões sem sinal (<code>sbyte</code>, <code>ushort</code>, <code>uint</code>, <code>ulong</code>).</li>
+  <li>Os limites de cada tipo, com <code>MinValue</code> e <code>MaxValue</code>.</li>
+  <li>Como escrever inteiros: <code>1_000_000</code>, <code>0xFF</code>, <code>0b1010</code> e os sufixos <code>L</code>, <code>U</code> e <code>UL</code>.</li>
+  <li>Os erros de valor que não cabe: <code>CS0031</code>, <code>CS0266</code> e <code>CS1021</code>.</li>
+  <li>O <strong>estouro</strong> (<em>overflow</em>): por que <code>int.MaxValue + 1</code> dá um número negativo.</li>
+  <li><code>checked</code> e <code>unchecked</code>, e a exceção <code>OverflowException</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> (C# 14) na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: o hodômetro do carro</h2>
+<p>O hodômetro de um carro antigo tem 6 rodinhas: mostra de <code>000000</code> a <code>999999</code> quilômetros. Ele não consegue mostrar um milhão. Se o carro rodar mais 1 km depois de <code>999999</code>, as rodinhas voltam para <code>000000</code>.</p>
+<p>Os inteiros do computador são iguais: cada tipo tem um número fixo de "rodinhas" (bits) e, por isso, um <strong>maior valor</strong> e um <strong>menor valor</strong>. Para números maiores, você precisa de uma caixa com mais rodinhas. E quando uma conta passa do limite, o C# deixa você escolher: dar a volta, como o hodômetro, ou parar o programa com um erro (seção 5).</p>
+
+<hr>
+
+<h2>1. A família dos inteiros</h2>
+
+<pre class="file" data-file="familia.cs">byte idade = 29;
+short ano = 2026;
+int habitantes = 213_000_000;
+long populacaoMundial = 8_100_000_000;
+
+Console.WriteLine(idade);
+Console.WriteLine(ano);
+Console.WriteLine(habitantes);
+Console.WriteLine(populacaoMundial);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run familia.cs
+29
+2026
+213000000
+8100000000</pre>
+
+<dl class="anatomy">
+  <dt>byte idade = 29;</dt><dd><code>byte</code>: 1 byte, de 0 a 255. Pequeno e sem negativos. Aparece muito ao ler arquivos e imagens, byte a byte.</dd>
+  <dt>short ano = 2026;</dt><dd><code>short</code> ("curto"): 2 bytes, de -32 768 a 32 767. Quase não se usa no dia a dia.</dd>
+  <dt>int habitantes = 213_000_000;</dt><dd><code>int</code>: 4 bytes, até uns 2,1 bilhões. É o <strong>padrão</strong>: na dúvida, use <code>int</code>. Os <code>_</code> só ajudam a ler o número (seção 3).</dd>
+  <dt>long populacaoMundial = 8_100_000_000;</dt><dd><code>long</code> ("longo"): 8 bytes, até uns 9,2 quintilhões. Para números que passam de 2 bilhões: população, bytes de um disco, milissegundos.</dd>
+</dl>
+
+<p>Na prática, você vai usar <code>int</code> quase sempre e <code>long</code> quando o número pode passar de 2 bilhões. Os outros existem para economizar memória ou para conversar com arquivos e outros sistemas.</p>
+
+<h3>Com sinal e sem sinal</h3>
+<p>Cada tamanho tem duas versões: uma <strong>com sinal</strong> (guarda negativos) e uma <strong>sem sinal</strong> (só zero e positivos, mas vai até o dobro). A letra <code>u</code> na frente quer dizer <em>unsigned</em>, "sem sinal"; o <code>s</code> do <code>sbyte</code> quer dizer <em>signed</em>, "com sinal":</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Bytes</th><th>Com sinal</th><th>Sem sinal</th></tr>
+<tr><td>1</td><td><code>sbyte</code></td><td><code>byte</code></td></tr>
+<tr><td>2</td><td><code>short</code></td><td><code>ushort</code></td></tr>
+<tr><td>4</td><td><code>int</code></td><td><code>uint</code></td></tr>
+<tr><td>8</td><td><code>long</code></td><td><code>ulong</code></td></tr>
+</table>
+</div>
+
+<p>Repare que o <code>byte</code> é a exceção: o "normal" dele é sem sinal, e o com sinal ganhou o nome <code>sbyte</code>.</p>
+
+<hr>
+
+<h2>2. Os limites: <code>MinValue</code> e <code>MaxValue</code></h2>
+<p>Todo tipo inteiro sabe o seu menor valor (<code>MinValue</code>, "valor mínimo") e o seu maior valor (<code>MaxValue</code>, "valor máximo"):</p>
+
+<pre class="file" data-file="limites.cs">Console.WriteLine($"sbyte:  {sbyte.MinValue} a {sbyte.MaxValue}");
+Console.WriteLine($"byte:   {byte.MinValue} a {byte.MaxValue}");
+Console.WriteLine($"short:  {short.MinValue} a {short.MaxValue}");
+Console.WriteLine($"ushort: {ushort.MinValue} a {ushort.MaxValue}");
+Console.WriteLine($"int:    {int.MinValue} a {int.MaxValue}");
+Console.WriteLine($"uint:   {uint.MinValue} a {uint.MaxValue}");
+Console.WriteLine($"long:   {long.MinValue} a {long.MaxValue}");
+Console.WriteLine($"ulong:  {ulong.MinValue} a {ulong.MaxValue}");
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run limites.cs
+sbyte:  -128 a 127
+byte:   0 a 255
+short:  -32768 a 32767
+ushort: 0 a 65535
+int:    -2147483648 a 2147483647
+uint:   0 a 4294967295
+long:   -9223372036854775808 a 9223372036854775807
+ulong:  0 a 18446744073709551615</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Tipo</th><th>Bytes</th><th>Faixa</th><th>Em palavras</th></tr>
+<tr><td><code>sbyte</code></td><td>1</td><td>-128 a 127</td><td>pouco mais de cem</td></tr>
+<tr><td><code>byte</code></td><td>1</td><td>0 a 255</td><td>duzentos e poucos</td></tr>
+<tr><td><code>short</code></td><td>2</td><td>-32 768 a 32 767</td><td>uns 32 mil</td></tr>
+<tr><td><code>ushort</code></td><td>2</td><td>0 a 65 535</td><td>uns 65 mil</td></tr>
+<tr><td><code>int</code></td><td>4</td><td>-2 147 483 648 a 2 147 483 647</td><td>uns 2,1 bilhões</td></tr>
+<tr><td><code>uint</code></td><td>4</td><td>0 a 4 294 967 295</td><td>uns 4,2 bilhões</td></tr>
+<tr><td><code>long</code></td><td>8</td><td>-9 223 372 036 854 775 808 a 9 223 372 036 854 775 807</td><td>uns 9,2 quintilhões</td></tr>
+<tr><td><code>ulong</code></td><td>8</td><td>0 a 18 446 744 073 709 551 615</td><td>uns 18 quintilhões</td></tr>
+</table>
+</div>
+
+<p>O lado negativo sempre tem um a mais (<code>-128</code> e <code>127</code>): o zero ocupa uma vaga do lado positivo. E o tipo sem sinal vai até o dobro, porque usa para os positivos as vagas que seriam dos negativos. Esses tamanhos são <strong>fixos</strong> no C#: um <code>long</code> tem 8 bytes em qualquer computador.</p>
+
+<div class="tip">
+<strong>Ver o número com separador de milhar</strong>
+<p><code>Console.WriteLine(1234567.ToString("N0"));</code> mostra <code>1.234.567</code> no Ubuntu em português (o <code>N0</code> quer dizer "número com 0 casas decimais"). Os formatos estão em <a href="formatacao.html">Formatar Números</a>.</p>
+</div>
+
+<h3>Quando o valor não cabe na caixa</h3>
+<p>Se você escreve um número que não cabe no tipo, o C# nem compila. Três tentativas e três erros:</p>
+
+<pre class="file" data-file="naocabe.cs">byte nota = 300;
+Console.WriteLine(nota);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run naocabe.cs
+/home/ana/cs/naocabe.cs(1,13): error CS0031: O valor de constante "300" não pode ser convertido em "byte"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O <code>byte</code> vai até 255; 300 não cabe. Em inglês: <code>Constant value '300' cannot be converted to a 'byte'</code>. O mesmo erro aparece com <code>uint estoque = -1;</code>: um tipo sem sinal não aceita negativos.</p>
+
+<pre class="file" data-file="naocabe2.cs">int populacao = 8100000000;
+Console.WriteLine(populacao);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run naocabe2.cs
+/home/ana/cs/naocabe2.cs(1,17): error CS0266: Não é possível converter implicitamente tipo "long" em "int". Existe uma conversão explícita (há uma conversão ausente?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Aqui a mensagem fala em <code>long</code>, e você nem escreveu <code>long</code>. É que o C# dá a todo número escrito no código (um <strong>literal</strong>) o primeiro tipo em que ele cabe, nesta ordem: <code>int</code>, <code>uint</code>, <code>long</code>, <code>ulong</code>. O <code>8100000000</code> não cabe em <code>int</code> nem em <code>uint</code>, então ele é um <code>long</code>, e um <code>long</code> não entra numa caixa <code>int</code>.</p>
+
+<pre class="file" data-file="naocabe3.cs">ulong enorme = 99999999999999999999;
+Console.WriteLine(enorme);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run naocabe3.cs
+/home/ana/cs/naocabe3.cs(1,16): error CS1021: Constante de integral muito grande
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Esse número (20 dígitos) passa até do <code>ulong</code>, o maior inteiro comum. Em inglês: <code>Integral constant is too large</code>. Para números assim, veja "Inteiros ainda maiores" no fim da seção 5.</p>
+
+<div class="trycs" data-goal="out:8100000000,src:\blong\s+populacao\b">
+<p class="try-task"><strong>Missão:</strong> a população do mundo passa de 8 bilhões e não cabe num <code>int</code>. Rode para ver o erro <code>CS0266</code> e troque o tipo da variável para o inteiro de 8 bytes, para mostrar <code>8100000000</code>.</p>
+<pre class="script" data-file="populacao.cs">int populacao = 8_100_000_000;
+Console.WriteLine(populacao);
+</pre>
+<pre class="solucao" data-file="populacao.cs">long populacao = 8_100_000_000;
+Console.WriteLine(populacao);
+</pre>
+</div>
+
+<hr>
+
+<h2>3. Como escrever inteiros (literais)</h2>
+
+<pre class="file" data-file="literais.cs">int milhao = 1_000_000;
+int hexa = 0xFF;
+int binario = 0b1010_1010;
+int dez = 010;
+long grande = 5_000_000_000L;
+uint semSinal = 4_000_000_000U;
+ulong maior = 18_000_000_000_000_000_000UL;
+Console.WriteLine(milhao);
+Console.WriteLine(hexa);
+Console.WriteLine(binario);
+Console.WriteLine(dez);
+Console.WriteLine(grande);
+Console.WriteLine(semSinal);
+Console.WriteLine(maior);
+Console.WriteLine(255.ToString("X"));
+Console.WriteLine(10.ToString("B"));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run literais.cs
+1000000
+255
+170
+10
+5000000000
+4000000000
+18000000000000000000
+FF
+1010</pre>
+
+<dl class="anatomy">
+  <dt>1_000_000</dt><dd>O <strong>separador de dígitos</strong> <span class="versao">C# 7</span>: o <code>_</code> só ajuda os seus olhos e é ignorado. Pode ficar entre quaisquer dígitos: <code>1_000_000</code>, <code>12_34</code>. Não aparece na saída.</dd>
+  <dt>0xFF</dt><dd><strong>Hexadecimal</strong>, base 16: começa com <code>0x</code> e usa os dígitos 0 a 9 e A a F (A = 10 … F = 15). <code>FF</code> = 15 × 16 + 15 = 255. Muito usado para cores (<code>0xFF8000</code> é laranja).</dd>
+  <dt>0b1010_1010</dt><dd><strong>Binário</strong>, base 2 <span class="versao">C# 7</span>: começa com <code>0b</code> e só usa 0 e 1. <code>10101010</code> em binário é 128 + 32 + 8 + 2 = 170.</dd>
+  <dt>010</dt><dd>Dez mesmo! No C#, ao contrário do C e do Java, um zero à esquerda <strong>não</strong> muda a base: não existe literal octal. O zero é só ignorado.</dd>
+  <dt>5_000_000_000L</dt><dd>O sufixo <code>L</code> diz "este número é <code>long</code>". Aqui ele nem era preciso (o número já seria <code>long</code>, porque não cabe em <code>uint</code>), mas ele é útil para forçar uma <strong>conta</strong> a ser feita em <code>long</code> (seção 4). Use <code>L</code> maiúsculo: o <code>l</code> minúsculo parece o dígito 1, e o compilador até avisa (<code>CS0078</code>).</dd>
+  <dt>4_000_000_000U … UL</dt><dd><code>U</code> = <code>uint</code> (ou <code>ulong</code>, se não couber); <code>UL</code> = <code>ulong</code>. As letras podem ser maiúsculas ou minúsculas.</dd>
+  <dt>255.ToString("X") · 10.ToString("B")</dt><dd>O caminho inverso: mostrar um número em hexadecimal (<code>"X"</code>) ou em binário (<code>"B"</code>, novo no .NET 8).</dd>
+</dl>
+
+<hr>
+
+<h2>4. Estouro: quando a conta passa do limite</h2>
+<p>Escrever um número que não cabe é fácil de pegar: o compilador vê o número. Mas e quando o número só aparece <strong>durante</strong> o programa, como resultado de uma conta? Veja:</p>
+
+<pre class="file" data-file="estouro.cs">int pontos = int.MaxValue;
+Console.WriteLine(pontos);
+pontos = pontos + 1;
+Console.WriteLine(pontos);
+byte b = 255;
+b++;
+Console.WriteLine(b);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run estouro.cs
+2147483647
+-2147483648      « o maior int + 1 virou o MENOR int
+0                « e o byte 255 + 1 virou 0</pre>
+
+<dl class="anatomy">
+  <dt>int pontos = int.MaxValue;</dt><dd>O jogador começa com o maior <code>int</code> possível, 2 147 483 647.</dd>
+  <dt>pontos = pontos + 1;</dt><dd>Mais um ponto. O resultado certo (2 147 483 648) não cabe num <code>int</code>.</dd>
+  <dt>-2147483648</dt><dd>O número <strong>deu a volta</strong>, como o hodômetro: do maior positivo para o menor negativo. Nenhum erro, nenhum aviso: o programa simplesmente seguiu com o valor errado.</dd>
+  <dt>b++;</dt><dd>Soma 1 ao <code>byte</code> (o <code>++</code> tem aula própria, <a href="incremento.html">++ e --</a>). 255 + 1 não cabe em 1 byte e volta para 0.</dd>
+</dl>
+
+<p>Isso é o <strong>estouro</strong> (<em>overflow</em>, "transbordar"). Diferente do C, no C# o resultado é sempre esse, em qualquer computador: a conta guarda só os bits que cabem. Mas "sempre igual" não quer dizer "certo". Um saldo que vira negativo de repente é um defeito grave.</p>
+
+<p>Um tipo sem sinal dá a volta para o outro lado. A Ana tinha 3 cadernos e vendeu 5:</p>
+
+<pre class="file" data-file="subtrai.cs">uint estoque = 3;
+uint vendidos = 5;
+uint resta = estoque - vendidos;
+Console.WriteLine(resta);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run subtrai.cs
+4294967294       « 3 - 5 deu quase 4,3 bilhões</pre>
+
+<p>O <code>uint</code> não fica negativo: 3 - 5 = -2 vira 4 294 967 296 - 2. Por isso a recomendação é usar <code>int</code> para contas comuns, mesmo de coisas que "nunca são negativas". Com <code>int</code>, o resultado seria <code>-2</code>, que pelo menos mostra que faltam 2 cadernos.</p>
+
+<h3>O estouro escondido na conta</h3>
+<p>Guardar o resultado num tipo grande não basta, se a conta foi feita num tipo pequeno:</p>
+
+<pre class="file" data-file="escondido.cs">int anos = 100;
+long segundos = anos * 365 * 24 * 60 * 60;
+Console.WriteLine(segundos);
+long certo = anos * 365L * 24 * 60 * 60;
+Console.WriteLine(certo);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run escondido.cs
+-1141367296      « errado!
+3153600000       « certo: uns 3,15 bilhões de segundos</pre>
+
+<p>A caixa <code>segundos</code> é <code>long</code>, mas o C# faz a conta <strong>primeiro</strong> e só depois guarda. Na conta só há <code>int</code> (<code>anos</code>, <code>365</code>, <code>24</code>, <code>60</code>), então ela é feita em <code>int</code>, estoura no caminho, e o valor já errado é guardado. Na segunda linha, o <code>365L</code> é <code>long</code>, e uma conta entre <code>int</code> e <code>long</code> é feita em <code>long</code>. A regra completa está em <a href="conversao-tipos.html">Conversão de Tipos</a>.</p>
+
+<hr>
+
+<h2>5. <code>checked</code>: estouro vira erro</h2>
+<p>O estouro do C# é silencioso por padrão porque conferir cada conta custa um pouquinho de tempo. Quando um valor errado seria grave (dinheiro, estoque, contagens importantes), você pode pedir para o C# <strong>conferir</strong>, com a palavra <code>checked</code> ("conferido"):</p>
+
+<pre class="file" data-file="checked1.cs">int pontos = int.MaxValue;
+Console.WriteLine("Antes da conta");
+int novo = checked(pontos + 1);
+Console.WriteLine(novo);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run checked1.cs
+Antes da conta
+Unhandled exception. System.OverflowException: Arithmetic operation resulted in an overflow.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/checked1.cs:line 3
+$ echo $?
+134</pre>
+
+<dl class="anatomy">
+  <dt>checked(pontos + 1)</dt><dd>Faz a conta <strong>conferindo</strong>: se o resultado não couber no tipo, em vez de dar a volta, o programa para com um erro.</dd>
+  <dt>Unhandled exception.</dt><dd>"Exceção não tratada": aconteceu um erro durante a execução e ninguém cuidou dele. As exceções saem em inglês, mesmo no Ubuntu em português.</dd>
+  <dt>System.OverflowException</dt><dd>O tipo do erro: "exceção de estouro".</dd>
+  <dt>Arithmetic operation resulted in an overflow.</dt><dd>"A operação aritmética resultou em estouro."</dd>
+  <dt>at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/checked1.cs:line 3</dt><dd>Onde foi: no programa principal (o <code>&lt;Main&gt;$</code> é o nome que o compilador dá às instruções soltas do arquivo, aula <a href="top-level.html">Program.cs e o Main</a>), no arquivo <code>checked1.cs</code>, <strong>linha 3</strong>.</dd>
+  <dt>134</dt><dd>O código de saída de um programa que morreu com exceção no Linux. O <code>Console.WriteLine(novo)</code> nunca rodou.</dd>
+</dl>
+
+<p>Parar com erro parece pior do que seguir, mas é muito melhor do que guardar um saldo errado sem ninguém perceber. Mais tarde você vai aprender a <strong>tratar</strong> o erro, com <a href="try-catch.html">try e catch</a>.</p>
+
+<h3>Um bloco inteiro conferido</h3>
+<p><code>checked</code> também pode envolver várias linhas, entre chaves. Toda conta de inteiros dentro do bloco é conferida:</p>
+
+<pre class="file" data-file="checked2.cs">int saldo = 2_000_000_000;
+int deposito = 500_000_000;
+checked
+{
+    int total = saldo + deposito;
+    Console.WriteLine(total);
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run checked2.cs
+Unhandled exception. System.OverflowException: Arithmetic operation resulted in an overflow.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/checked2.cs:line 5</pre>
+
+<p>Sem o <code>checked</code>, o programa mostraria <code>-1794967296</code>: um depósito que deixou o saldo negativo.</p>
+
+<div class="trycs" data-goal="outre:OverflowException,exit:134,src:\bchecked\b">
+<p class="try-task"><strong>Missão:</strong> o estoque da Ana tem 50 000 caixas com 50 000 parafusos cada. A conta estoura e o programa mostra um número sem sentido. Envolva a multiplicação com <code>checked( … )</code> para o programa <strong>parar com <code>OverflowException</code></strong> em vez de mostrar o valor errado.</p>
+<pre class="script" data-file="parafusos.cs">int caixas = 50_000;
+int porCaixa = 50_000;
+int parafusos = caixas * porCaixa;
+Console.WriteLine("Parafusos: " + parafusos);
+</pre>
+<pre class="solucao" data-file="parafusos.cs">int caixas = 50_000;
+int porCaixa = 50_000;
+int parafusos = checked(caixas * porCaixa);
+Console.WriteLine("Parafusos: " + parafusos);
+</pre>
+</div>
+
+<p>Depois de cumprir a missão, troque os dois <code>int</code> por <code>long</code> (inclusive o de <code>parafusos</code>): agora o resultado, 2 500 000 000, cabe, e o <code>checked</code> deixa a conta passar.</p>
+
+<h3>Ligar o <code>checked</code> no programa todo</h3>
+<p>Em vez de escrever <code>checked</code> em cada conta, você pode ligar a conferência para o programa inteiro com a opção <code>CheckForOverflowUnderflow</code> ("conferir estouro para cima e para baixo"). Num arquivo solto, ela vai numa linha <code>#:property</code> no topo <span class="versao">.NET 10</span>; num projeto, no <code>.csproj</code> (aula <a href="csproj.html">O Arquivo .csproj</a>). Com ela ligada, <code>unchecked</code> ("não conferido") abre uma exceção, para as contas em que dar a volta é o que você quer:</p>
+
+<pre class="file" data-file="checkedprop.cs">#:property CheckForOverflowUnderflow=true
+int pontos = int.MaxValue;
+int a = unchecked(pontos + 1);
+Console.WriteLine(a);
+int b = pontos + 1;
+Console.WriteLine(b);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run checkedprop.cs
+-2147483648
+Unhandled exception. System.OverflowException: Arithmetic operation resulted in an overflow.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/checkedprop.cs:line 5</pre>
+
+<p>A linha 3, marcada com <code>unchecked</code>, deu a volta; a linha 5, uma conta comum, agora é conferida e parou o programa.</p>
+
+<h3>Contas só com constantes: o compilador confere sozinho</h3>
+<p>Se a conta só tem valores fixos, o compilador faz a conta na hora de compilar, e ali ele <strong>sempre</strong> confere:</p>
+
+<pre class="file" data-file="estouroconst.cs">int pontos = int.MaxValue + 1;
+Console.WriteLine(pontos);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run estouroconst.cs
+/home/ana/cs/estouroconst.cs(1,14): error CS0220: A operação estoura o tempo de compilação no modo de ativação
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A tradução para o português ficou estranha. O original em inglês é mais claro: <code>The operation overflows at compile time in checked mode</code>, "a operação estoura durante a compilação, no modo conferido". Se você quer mesmo esse resultado, escreva <code>unchecked(int.MaxValue + 1)</code>: compila e vale <code>-2147483648</code>.</p>
+
+<h3>Inteiros ainda maiores</h3>
+<p>Quando nem o <code>ulong</code> basta, o .NET tem <code>Int128</code> <span class="versao">.NET 7</span> (16 bytes) e <code>System.Numerics.BigInteger</code>, que cresce o quanto precisar:</p>
+
+<pre class="file" data-file="grandes.cs">Console.WriteLine(Int128.MaxValue);
+System.Numerics.BigInteger fat = 1;
+for (int i = 1; i &lt;= 30; i++) fat *= i;
+Console.WriteLine(fat);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run grandes.cs
+170141183460469231731687303715884105727
+265252859812191058636308480000000</pre>
+
+<p>A segunda linha é o fatorial de 30 (1 × 2 × 3 × … × 30), que passa de qualquer <code>long</code>. O <code>for</code> só repete a multiplicação 30 vezes (aula <a href="for.html">for</a>). Esses tipos são mais lentos e raros no dia a dia; você vai saber quando precisar deles.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0031: O valor de constante "300" não pode ser convertido em "byte"</code></strong>
+<p><strong>O que significa:</strong> o número escrito não cabe no tipo (um <code>byte</code> vai de 0 a 255; um <code>uint</code> não aceita negativos).</p>
+<p><strong>Como consertar:</strong> use um tipo maior ou com sinal. Na dúvida, <code>int</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0266: Não é possível converter implicitamente tipo "long" em "int"…</code></strong>
+<p><strong>O que significa:</strong> um número (ou uma conta) do tipo <code>long</code> foi guardado numa caixa <code>int</code>. Pode ser um literal grande, como <code>8100000000</code>, ou uma variável <code>long</code>.</p>
+<p><strong>Como consertar:</strong> troque a caixa para <code>long</code>. Se você tem certeza de que o valor cabe, peça a conversão com <code>(int)</code> (aula <a href="conversao-tipos.html">Conversão de Tipos</a>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0266: Não é possível converter implicitamente tipo "int" em "byte"…</code> numa soma de dois <code>byte</code></strong>
+<pre class="file" data-file="bytesoma.cs">byte a = 10;
+byte b = 20;
+byte c = a + b;
+Console.WriteLine(c);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run bytesoma.cs
+/home/ana/cs/bytesoma.cs(3,10): error CS0266: Não é possível converter implicitamente tipo "int" em "byte". Existe uma conversão explícita (há uma conversão ausente?)
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> uma surpresa do C#: contas com <code>byte</code>, <code>sbyte</code>, <code>short</code> e <code>ushort</code> são sempre feitas em <code>int</code>. <code>a + b</code> é um <code>int</code>, que não entra sozinho num <code>byte</code>.</p>
+<p><strong>Como consertar:</strong> use <code>int</code> para a conta (<code>int c = a + b;</code>) ou converta o resultado: <code>byte c = (byte)(a + b);</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS1021: Constante de integral muito grande</code></strong>
+<p><strong>O que significa:</strong> o número escrito não cabe nem no <code>ulong</code>.</p>
+<p><strong>Como consertar:</strong> use <code>Int128</code> ou <code>BigInteger</code>, ou, se não for um número de verdade (código de barras, número de cartão), guarde como <code>string</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0220</code>: a operação estoura durante a compilação</strong>
+<p><strong>O que significa:</strong> uma conta só com valores fixos, como <code>int.MaxValue + 1</code>, não cabe no tipo.</p>
+<p><strong>Como consertar:</strong> faça a conta num tipo maior (<code>int.MaxValue + 1L</code>, guardado num <code>long</code>) ou, se a volta é o que você quer, <code>unchecked( … )</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>System.OverflowException: Arithmetic operation resulted in an overflow.</code></strong>
+<p><strong>O que significa:</strong> uma conta dentro de <code>checked</code> (ou com <code>CheckForOverflowUnderflow</code> ligado) passou do limite do tipo. A linha está no fim da mensagem: <code>line 3</code>.</p>
+<p><strong>Como consertar:</strong> use um tipo maior (<code>long</code>) ou confira os valores antes da conta. Não tire o <code>checked</code> só para o erro sumir: o valor estaria errado do mesmo jeito.</p>
+</div>
+
+<div class="cenario">
+<strong>O resultado de uma conta grande saiu negativo (ou enorme), sem erro nenhum</strong>
+<p><strong>O que significa:</strong> estouro silencioso: a conta deu a volta. Muitas vezes a conta foi feita em <code>int</code> e só o resultado ia para um <code>long</code>.</p>
+<p><strong>Como consertar:</strong> faça pelo menos um número da conta ser <code>long</code> desde o começo (<code>365L</code>, ou uma variável <code>long</code>). Use <code>checked</code> para descobrir onde estoura.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que é</th></tr>
+<tr><td><code>int</code>, <code>long</code></td><td>Os inteiros do dia a dia (4 e 8 bytes). Também <code>byte</code>, <code>sbyte</code>, <code>short</code>, <code>ushort</code>, <code>uint</code>, <code>ulong</code>.</td></tr>
+<tr><td><code>int.MaxValue</code>, <code>int.MinValue</code></td><td>Maior e menor valor (vale para todos: <code>long.MaxValue</code>, <code>byte.MaxValue</code>…)</td></tr>
+<tr><td><code>1_000_000</code></td><td>Separador de dígitos <span class="versao">C# 7</span></td></tr>
+<tr><td><code>0xFF</code>, <code>0b1010</code></td><td>Hexadecimal (255) e binário (10). Não existe octal: <code>010</code> é 10.</td></tr>
+<tr><td><code>5L</code>, <code>5U</code>, <code>5UL</code></td><td>Literal <code>long</code>, <code>uint</code>, <code>ulong</code></td></tr>
+<tr><td>sem sufixo</td><td>O primeiro que couber: <code>int</code>, <code>uint</code>, <code>long</code>, <code>ulong</code></td></tr>
+<tr><td><code>checked(conta)</code>, <code>checked { … }</code></td><td>Estouro lança <code>OverflowException</code></td></tr>
+<tr><td><code>unchecked(conta)</code></td><td>Estouro dá a volta (o padrão)</td></tr>
+<tr><td><code>#:property CheckForOverflowUnderflow=true</code></td><td>Liga o <code>checked</code> no programa todo</td></tr>
+<tr><td><code>Int128</code>, <code>BigInteger</code></td><td>Inteiros maiores que o <code>ulong</code></td></tr>
+<tr><td><code>n.ToString("N0")</code>, <code>"X"</code>, <code>"B"</code></td><td>Mostrar com separador de milhar, em hexadecimal, em binário</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O maior int</h3>
+<p>Complete para guardar o maior valor que um <code>int</code> aceita:</p>
+<div class="ex-code">int limite = int.<input data-answer="MaxValue" aria-label="propriedade">;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Um milhão legível</h3>
+<p>Escreva um milhão usando o separador de dígitos entre os milhares:</p>
+<div class="ex-code">int premio = <input data-answer="1_000_000" aria-label="número">;</div>
+</div>
+
+<div class="exercise">
+<h3>3. Conferir a conta</h3>
+<p>Complete para o programa parar com <code>OverflowException</code> se a soma estourar:</p>
+<div class="ex-code">int total = <input data-answer="checked" aria-label="palavra">(saldo + deposito);</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. O que <code>int x = int.MaxValue; x = x + 1; Console.WriteLine(x);</code> mostra?</p>
+<label><input type="radio" name="q4"> <code>2147483648</code></label>
+<label><input type="radio" name="q4"> Um erro de compilação</label>
+<label><input type="radio" name="q4"> <code>-2147483648</code>: o número deu a volta</label>
+<label><input type="radio" name="q4"> <code>OverflowException</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Quanto vale <code>int x = 010;</code> em C#?</p>
+<label><input type="radio" name="q5"> 8</label>
+<label><input type="radio" name="q5"> 10: o C# não tem octal, e o zero à esquerda é ignorado</label>
+<label><input type="radio" name="q5"> 2</label>
+<label><input type="radio" name="q5"> Não compila</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. <code>byte a = 10, b = 20; byte c = a + b;</code> O que acontece?</p>
+<label><input type="radio" name="q6"> Funciona e <code>c</code> vale 30</label>
+<label><input type="radio" name="q6"> Estoura e <code>c</code> vale 0</label>
+<label><input type="radio" name="q6"> <code>OverflowException</code></label>
+<label><input type="radio" name="q6"> Não compila: <code>a + b</code> é <code>int</code>, que não entra sozinho num <code>byte</code> (<code>CS0266</code>)</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">7. Por que <code>long s = anos * 365 * 24 * 60 * 60;</code> (com <code>int anos = 100</code>) guarda um valor errado?</p>
+<label><input type="radio" name="q7"> A conta é feita em <code>int</code>, porque todos os números são <code>int</code>, e estoura antes de ser guardada</label>
+<label><input type="radio" name="q7"> Um <code>long</code> não guarda 3 bilhões</label>
+<label><input type="radio" name="q7"> O C# arredonda contas grandes</label>
+<label><input type="radio" name="q7"> Falta um <code>checked</code></label>
+</div>
+
+<h3>Missão final: quantos segundos tem um século?</h3>
+
+<div class="trycs" data-goal="out:Segundos em 100 anos: 3153600000,semaviso">
+<p class="try-task"><strong>Missão:</strong> o programa calcula quantos segundos existem em 100 anos (de 365 dias), mas mostra um número negativo: a conta estoura o <code>int</code> antes de chegar na caixa <code>long</code>. Conserte para mostrar <code>Segundos em 100 anos: 3153600000</code>. Dica: basta mudar o tipo de <code>anos</code>, ou pôr um <code>L</code> num dos números da conta.</p>
+<pre class="script" data-file="seculo.cs">int anos = 100;
+long segundos = anos * 365 * 24 * 60 * 60;
+Console.WriteLine($"Segundos em {anos} anos: {segundos}");
+</pre>
+<pre class="solucao" data-file="seculo.cs">long anos = 100;
+long segundos = anos * 365 * 24 * 60 * 60;
+Console.WriteLine($"Segundos em {anos} anos: {segundos}");
+</pre>
+</div>
+
+<p>Dica extra: envolva a conta errada com <code>checked( … )</code> antes de consertar. O programa para com <code>OverflowException</code> e mostra a linha exata do estouro.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Família: <code>byte</code>/<code>sbyte</code> (1 byte), <code>short</code>/<code>ushort</code> (2), <code>int</code>/<code>uint</code> (4), <code>long</code>/<code>ulong</code> (8). Na dúvida, <code>int</code>; acima de 2 bilhões, <code>long</code>.</li>
+  <li><code>int.MaxValue</code> = 2147483647, <code>long.MaxValue</code> ≈ 9,2 quintilhões. Os tamanhos são iguais em qualquer computador.</li>
+  <li>Literais: <code>1_000_000</code>, <code>0xFF</code>, <code>0b1010</code>, sufixos <code>L</code>, <code>U</code>, <code>UL</code>. Não há octal: <code>010</code> é 10.</li>
+  <li>Número escrito que não cabe: erro de compilação (<code>CS0031</code>, <code>CS0266</code>, <code>CS1021</code>, <code>CS0220</code>).</li>
+  <li>Conta que não cabe: por padrão, dá a volta em silêncio (<code>int.MaxValue + 1</code> = <code>-2147483648</code>; <code>uint</code> 3 - 5 = 4294967294).</li>
+  <li><code>checked</code> transforma o estouro em <code>System.OverflowException</code> (código de saída 134); <code>unchecked</code> deixa dar a volta.</li>
+  <li>Uma conta só com <code>int</code> é feita em <code>int</code>, mesmo que o resultado vá para um <code>long</code>. Contas com <code>byte</code> e <code>short</code> são feitas em <code>int</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
