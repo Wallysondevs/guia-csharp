@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Operadores Lógicos — &amp;&amp;, || e ! | Guia C#</title>
+<meta name="description" content="Operadores lógicos em C# para quem nunca programou: &amp;&amp; (e), || (ou), ! (não) e ^ (ou exclusivo), tabela-verdade, curto-circuito para evitar DivideByZeroException, &amp; × &amp;&amp;, &amp;&amp; antes de ||, os padrões is &gt;= 0 and &lt;= 10 e os erros reais CS0019, CS0023 e CS0029 do .NET 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Operadores Lógicos</span></h1>
+
+<p class="intro">Na aula anterior você fez perguntas simples: "a nota é maior que 6?". Muitas vezes, porém, a pergunta tem <strong>mais de uma parte</strong>: "a nota está entre 0 <em>e</em> 10?", "o cliente é estudante <em>ou</em> tem mais de 65 anos?", "o estoque <em>não</em> acabou?". Para juntar perguntas, o C# tem os <strong>operadores lógicos</strong>: <code>&amp;&amp;</code> (e), <code>||</code> (ou) e <code>!</code> (não). Nesta aula você vai ver o que cada um responde, como o C# economiza trabalho com o <strong>curto-circuito</strong> (e por que isso evita que o programa quebre) e as confusões mais comuns.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Os três operadores: <code>&amp;&amp;</code> (e), <code>||</code> (ou) e <code>!</code> (não), e a tabela-verdade de cada um.</li>
+  <li>Que eles só aceitam <code>bool</code>: em C#, um número não vira "sim" ou "não" sozinho.</li>
+  <li>O <strong>curto-circuito</strong>: por que <code>b != 0 &amp;&amp; a / b &gt; 2</code> nunca divide por zero.</li>
+  <li>A diferença entre <code>&amp;&amp;</code> e <code>&amp;</code>, entre <code>||</code> e <code>|</code>, e o "ou exclusivo" <code>^</code>.</li>
+  <li>Por que <code>&amp;&amp;</code> vem antes de <code>||</code>, a forma moderna <code>nota is &gt;= 0 and &lt;= 10</code> e os erros reais do compilador.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula foram rodados com o <strong>.NET 10</strong> na máquina fictícia da Ana (usuária <code>ana</code>, computador <code>notebook</code>), na pasta <code>~/cs</code>, com <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: as regras de uma festa</h2>
+<p>Imagine a portaria de uma festa. O segurança tem regras:</p>
+<ul>
+  <li>"Entra quem tem convite <strong>e</strong> documento." Precisa das <strong>duas</strong> coisas. Faltou uma, não entra.</li>
+  <li>"Ganha pulseira VIP quem é aniversariante <strong>ou</strong> amigo do dono." Basta <strong>uma</strong> das duas. Ter as duas também vale.</li>
+  <li>"Pode beber cerveja quem <strong>não</strong> é menor de idade." O "não" <strong>inverte</strong> a resposta.</li>
+</ul>
+<p>Em C#, essas três palavras viram símbolos:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>Nome</th><th>Responde <code>true</code> quando…</th><th>Exemplo</th></tr>
+<tr><td><code>&amp;&amp;</code></td><td>E (<em>AND</em>)</td><td>os <strong>dois</strong> lados são <code>true</code></td><td><code>convite &amp;&amp; documento</code></td></tr>
+<tr><td><code>||</code></td><td>OU (<em>OR</em>)</td><td>pelo menos <strong>um</strong> lado é <code>true</code></td><td><code>aniversariante || amigo</code></td></tr>
+<tr><td><code>!</code></td><td>NÃO (<em>NOT</em>)</td><td>o valor é <code>false</code> (ele inverte)</td><td><code>!menorDeIdade</code></td></tr>
+</table>
+</div>
+
+<p>O <code>&amp;&amp;</code> são dois "e comercial" grudados. O <code>||</code> são duas barras verticais (no teclado brasileiro ABNT2, a barra vertical fica na tecla à esquerda do <code>Z</code>, com <kbd>Shift</kbd>). O <code>!</code> é o ponto de exclamação, escrito <strong>antes</strong> do valor, como no <code>!=</code> ("não igual") da aula <a href="operadores-comparacao.html">Operadores de Comparação</a>.</p>
+
+<hr>
+
+<h2>1. A tabela-verdade</h2>
+<p>Como cada lado só pode ser <code>true</code> ou <code>false</code>, dá para listar todas as combinações numa tabela, a <strong>tabela-verdade</strong>. O programa abaixo calcula cada uma:</p>
+
+<pre class="file" data-file="tabela.cs">Console.WriteLine(" a     b     | a &amp;&amp; b | a || b");
+Console.WriteLine("false false  | " + (false &amp;&amp; false) + "  | " + (false || false));
+Console.WriteLine("false true   | " + (false &amp;&amp; true) + "  | " + (false || true));
+Console.WriteLine("true  false  | " + (true &amp;&amp; false) + "  | " + (true || false));
+Console.WriteLine("true  true   | " + (true &amp;&amp; true) + "   | " + (true || true));
+Console.WriteLine("!false = " + !false + "   !true = " + !true);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run tabela.cs
+ a     b     | a &amp;&amp; b | a || b
+false false  | False  | False
+false true   | False  | True
+true  false  | False  | True
+true  true   | True   | True
+!false = True   !true = False</pre>
+
+<p>Leia as colunas assim:</p>
+<ul>
+  <li><strong><code>&amp;&amp;</code></strong> só dá <code>True</code> na última linha, quando os <strong>dois</strong> são <code>true</code>. É exigente.</li>
+  <li><strong><code>||</code></strong> só dá <code>False</code> na primeira linha, quando os <strong>dois</strong> são <code>false</code>. É generoso.</li>
+  <li><strong><code>!</code></strong> troca: o que era <code>false</code> vira <code>true</code>, e vice-versa.</li>
+</ul>
+<p>O "ou" do C# é o <strong>ou inclusivo</strong>: se os dois lados forem verdadeiros, a resposta também é verdadeira. É diferente do "ou" de "quer café ou chá?", em que só se escolhe um. (Para esse "ou um ou outro", existe o <code>^</code>, mais adiante.)</p>
+
+<h3>Juntando comparações de verdade</h3>
+<p>Na prática, os lados de um <code>&amp;&amp;</code> ou de um <code>||</code> são comparações. O exemplo clássico é a faixa: "a nota está entre 0 e 10?" vira "a nota é maior ou igual a 0 <strong>e</strong> menor ou igual a 10?":</p>
+
+<pre class="file" data-file="faixa.cs">int nota = 15;
+int idade = 70;
+bool estudante = false;
+Console.WriteLine("Nota válida? " + (nota &gt;= 0 &amp;&amp; nota &lt;= 10));
+Console.WriteLine("Meia-entrada? " + (estudante || idade &gt;= 65));
+Console.WriteLine("Paga inteira? " + !(estudante || idade &gt;= 65));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run faixa.cs
+Nota válida? False     « 15 &gt;= 0 é true, mas 15 &lt;= 10 é false: true &amp;&amp; false dá false
+Meia-entrada? True     « não é estudante (false), mas tem 65 ou mais (true)
+Paga inteira? False    « o ! inverteu a resposta anterior</pre>
+
+<dl class="anatomy">
+  <dt>nota &gt;= 0 &amp;&amp; nota &lt;= 10</dt><dd>Duas perguntas completas, uma de cada lado do <code>&amp;&amp;</code>. Repare que <code>nota</code> aparece <strong>duas vezes</strong>: em C# não existe <code>0 &lt;= nota &lt;= 10</code> com o sentido da matemática (é o erro <code>CS0019</code>). As comparações são feitas antes do <code>&amp;&amp;</code>, então não precisam de parênteses (aula <a href="precedencia.html">Precedência</a>).</dd>
+  <dt>bool estudante = false;</dt><dd>Um <code>bool</code> já é um "sim ou não", então vai direto num <code>||</code>, sem comparar com nada.</dd>
+  <dt>( … ) em volta de tudo</dt><dd>Como na aula anterior, os parênteses separam a pergunta do texto que vem antes do <code>+</code>.</dd>
+  <dt>!( … )</dt><dd>Aqui os parênteses são obrigatórios: sem eles, o <code>!</code> se aplicaria só ao <code>estudante</code>. O <code>!</code> é "grudento" e pega só o que vem logo depois dele.</dd>
+</dl>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> mude os valores de <code>convite</code> e <code>documento</code> (<code>true</code> ou <code>false</code>) e veja quando a pessoa entra. Depois troque o <code>&amp;&amp;</code> por <code>||</code> e compare.</p>
+<pre class="script" data-file="festa.cs">bool convite = true;
+bool documento = false;
+Console.WriteLine("Entra na festa? " + (convite &amp;&amp; documento));
+Console.WriteLine("Esqueceu algo? " + (!convite || !documento));
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Só <code>bool</code> entra</h2>
+<p>Quem já viu C ou JavaScript conhece o costume de usar um número como "sim ou não" (0 é não, o resto é sim). <strong>O C# não aceita isso.</strong> Os operadores lógicos e o <code>if</code> exigem um <code>bool</code> de verdade:</p>
+
+<pre class="file" data-file="el4.cs">int estoque = 3;
+Console.WriteLine(estoque &amp;&amp; true);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run el4.cs
+/home/ana/cs/el4.cs(2,19): error CS0019: O operador "&amp;&amp;" não pode ser aplicado a operandos dos tipos "int" e "bool"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Parece chato, mas evita um monte de erros. Você precisa escrever a pergunta completa: "o estoque é maior que zero?" é <code>estoque &gt; 0</code>, e aí sim dá para usar: <code>estoque &gt; 0 &amp;&amp; true</code>. A regra vale para os três operadores e para o <code>if</code>: <code>if (estoque)</code> dá <code>CS0029</code> e <code>!estoque</code> dá <code>CS0023</code> (veja <a href="#erros">Quando dá errado</a>).</p>
+
+<hr>
+
+<h2>3. Curto-circuito: o C# para assim que sabe a resposta</h2>
+<p>Pense de novo na portaria. Se a pessoa <strong>não tem convite</strong>, o segurança nem pede o documento: já sabe que ela não entra. O C# faz igual:</p>
+<ul>
+  <li>Em <code>A &amp;&amp; B</code>, se <code>A</code> é <code>false</code>, a resposta é <code>false</code> de qualquer jeito, e <strong><code>B</code> nem é calculado</strong>.</li>
+  <li>Em <code>A || B</code>, se <code>A</code> é <code>true</code>, a resposta é <code>true</code> de qualquer jeito, e <strong><code>B</code> nem é calculado</strong>.</li>
+</ul>
+<p>Isso se chama <strong>avaliação em curto-circuito</strong> (<em>short-circuit evaluation</em>). O lado esquerdo é sempre calculado primeiro, e o direito só se for preciso. Parece só uma economia, mas é uma ferramenta de <strong>segurança</strong>. Dividir um inteiro por zero derruba o programa (aula <a href="operadores-aritmeticos.html">Operadores Aritméticos</a>):</p>
+
+<pre class="file" data-file="div.cs">int a = 10;
+int b = 0;
+Console.WriteLine("Com proteção: " + (b != 0 &amp;&amp; a / b &gt; 2));
+Console.WriteLine("Sem proteção: " + (a / b &gt; 2 &amp;&amp; b != 0));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run div.cs
+Com proteção: False
+Unhandled exception. System.DivideByZeroException: Attempted to divide by zero.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/div.cs:line 4
+$ echo $?
+134</pre>
+
+<ol class="passo">
+  <li><strong>Linha 3:</strong> o C# calcula <code>b != 0</code>. Como <code>b</code> é 0, dá <code>false</code>. O <code>&amp;&amp;</code> já sabe que a resposta é <code>false</code> e <strong>não faz a divisão</strong>. O programa mostra <code>Com proteção: False</code>.</li>
+  <li><strong>Linha 4:</strong> as mesmas duas perguntas, na ordem trocada. Agora o lado esquerdo é <code>a / b &gt; 2</code>, calculado primeiro: 10 dividido por 0. O .NET lança uma <strong>exceção</strong>, <code>DivideByZeroException</code> ("tentativa de dividir por zero"), e o programa termina ali. A mensagem sai em inglês (o .NET no Linux não traduz as exceções), diz a linha (<code>line 4</code>), e o código de saída é <strong>134</strong>, o de um programa que morreu com uma exceção não tratada (aula <a href="excecoes.html">Exceções</a>). A segunda linha nunca aparece.</li>
+</ol>
+<p>O compilador <strong>não avisou nada</strong>: ao compilar, ele não sabe que <code>b</code> vai valer 0. A proteção é responsabilidade sua, e a regra é: <strong>a pergunta que protege vem à esquerda</strong>.</p>
+
+<p>O mesmo vale com <code>||</code>, de trás para a frente: "o grupo está vazio <strong>ou</strong> cada pessoa ganha menos de uma pizza?". Se o grupo está vazio, a divisão nem acontece.</p>
+
+<div class="trycs" data-goal="out:Pouca pizza? True,exit:0">
+<p class="try-task"><strong>Missão:</strong> a Ana quer saber se vai faltar pizza. Com zero pessoas, o programa quebra com <code>DivideByZeroException</code>. Sem apagar nenhuma das duas perguntas, <strong>troque a ordem</strong> delas para que o curto-circuito proteja a divisão e apareça <code>Pouca pizza? True</code>.</p>
+<pre class="out">Pouca pizza? True</pre>
+<pre class="script" data-file="pizza.cs">int pessoas = 0;
+int pizzas = 3;
+Console.WriteLine("Pouca pizza? " + (pizzas / pessoas &lt; 1 || pessoas == 0));
+</pre>
+<pre class="solucao" data-file="pizza.cs">int pessoas = 0;
+int pizzas = 3;
+Console.WriteLine("Pouca pizza? " + (pessoas == 0 || pizzas / pessoas &lt; 1));
+</pre>
+</div>
+
+<div class="tip">
+<strong>Você vai usar isso muito</strong>
+<p>O curto-circuito aparece em todo programa de verdade: "o índice está dentro do array <strong>e</strong> o elemento é zero?" (<a href="arrays.html">Arrays</a>), "o texto não é <code>null</code> <strong>e</strong> tem mais de 3 letras?" (<a href="null.html">null</a>). Sempre a pergunta que protege primeiro.</p>
+</div>
+
+<hr>
+
+<h2>4. <code>&amp;&amp;</code> não é <code>&amp;</code> (e <code>||</code> não é <code>|</code>)</h2>
+<p>O C# também tem <code>&amp;</code> e <code>|</code>, com um símbolo só. Com <code>bool</code>, eles dão <strong>a mesma resposta</strong> que <code>&amp;&amp;</code> e <code>||</code>, mas <strong>não fazem curto-circuito</strong>: calculam sempre os dois lados. Veja o programa da divisão com <code>&amp;</code>:</p>
+
+<pre class="file" data-file="ebits.cs">int a = 10;
+int b = 0;
+Console.WriteLine("Com &amp;: " + (b != 0 &amp; a / b &gt; 2));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run ebits.cs
+Unhandled exception. System.DivideByZeroException: Attempted to divide by zero.
+   at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/ebits.cs:line 3</pre>
+
+<p>A proteção estava à esquerda, mas o <code>&amp;</code> fez a divisão mesmo assim. O compilador não avisa, porque <code>&amp;</code> com <code>bool</code> é permitido. Com números inteiros, <code>&amp;</code> e <code>|</code> fazem outra coisa: trabalham com cada dígito binário (são operadores de bits, assunto de <a href="ref-operadores.html">Operadores</a>). Regra simples: <strong>para juntar perguntas, sempre dois símbolos</strong>: <code>&amp;&amp;</code> e <code>||</code>.</p>
+
+<h3>O "ou exclusivo": <code>^</code></h3>
+<p>Lembra do "quer café <strong>ou</strong> chá?", em que só se escolhe um? Esse é o <strong>ou exclusivo</strong> (<em>XOR</em>), e em C# ele é o <code>^</code> (acento circunflexo): dá <code>true</code> quando <strong>exatamente um</strong> dos lados é <code>true</code>.</p>
+
+<pre class="file" data-file="xor.cs">bool temCafe = true;
+bool temCha = false;
+Console.WriteLine(temCafe &amp; temCha);
+Console.WriteLine(temCafe | temCha);
+Console.WriteLine(temCafe ^ temCha);
+Console.WriteLine(true ^ true);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run xor.cs
+False     « &amp; : os dois? não
+True      « | : pelo menos um? sim
+True      « ^ : exatamente um? sim
+False     « ^ com os dois true: não (não é "exatamente um")</pre>
+
+<p>O <code>^</code> é raro no dia a dia. Você vai usá-lo pouco, mas é bom reconhecê-lo.</p>
+
+<hr>
+
+<h2>5. Misturando <code>&amp;&amp;</code>, <code>||</code> e <code>!</code></h2>
+
+<h3><code>&amp;&amp;</code> vem antes de <code>||</code></h3>
+<p>Assim como na matemática a multiplicação vem antes da soma, em C# o <code>&amp;&amp;</code> é calculado antes do <code>||</code>. Então <code>a || b &amp;&amp; c</code> significa <code>a || (b &amp;&amp; c)</code>:</p>
+
+<pre class="file" data-file="mistura.cs">int idade = 70;
+bool estudante = false;
+bool doador = false;
+Console.WriteLine(estudante &amp;&amp; doador || idade &gt;= 65);
+Console.WriteLine((estudante &amp;&amp; doador) || idade &gt;= 65);
+Console.WriteLine(estudante &amp;&amp; (doador || idade &gt;= 65));
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run mistura.cs
+True      « sem parênteses: o C# leu (estudante &amp;&amp; doador) || idade &gt;= 65
+True      « a mesma coisa, agora escrita
+False     « outra pergunta: estudante E (doador OU idoso)</pre>
+
+<p>A primeira e a segunda linha são a mesma pergunta; a terceira é outra, e dá outra resposta. O compilador do C# <strong>não avisa</strong> quando você mistura os dois sem parênteses (o <code>gcc</code> do C avisa). Então a boa prática é sua: <strong>ao misturar <code>&amp;&amp;</code> e <code>||</code>, escreva os parênteses</strong>, mesmo quando eles não mudam nada. Quem lê o código (inclusive você, daqui a um mês) agradece.</p>
+
+<h3>O <code>!</code> pega só o que vem logo depois</h3>
+<p>O <code>!</code> é calculado antes de tudo. Por isso <code>!(estudante || idoso)</code> e <code>!estudante || idoso</code> são perguntas diferentes: a primeira é "nem estudante, nem idoso"; a segunda é "não é estudante, ou é idoso".</p>
+
+<div class="trycs" data-goal="out:15 é válida? False,src:&amp;&amp;">
+<p class="try-task"><strong>Missão:</strong> a Ana quer conferir se uma nota está entre 0 e 10. Ela escreveu a faixa como na matemática, e o compilador recusa com <code>CS0019</code>. Conserte com duas comparações ligadas por <code>&amp;&amp;</code>. Depois teste com outras notas (7, 0, −1, 10).</p>
+<pre class="out">15 é válida? False</pre>
+<pre class="script" data-file="nota.cs">int nota = 15;
+bool valida = 0 &lt;= nota &lt;= 10;
+Console.WriteLine(nota + " é válida? " + valida);
+</pre>
+<pre class="solucao" data-file="nota.cs">int nota = 15;
+bool valida = nota &gt;= 0 &amp;&amp; nota &lt;= 10;
+Console.WriteLine(nota + " é válida? " + valida);
+</pre>
+</div>
+
+<hr>
+
+<h2>Formas diferentes de escrever a mesma pergunta</h2>
+
+<h3>As leis de De Morgan</h3>
+<p>Um "não" na frente de um "e" ou de um "ou" pode ser distribuído, desde que você <strong>troque</strong> o <code>&amp;&amp;</code> pelo <code>||</code> (e vice-versa). Essas regras têm o nome do matemático inglês Augustus De Morgan:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Esta forma…</th><th>…é igual a esta</th><th>Em palavras</th></tr>
+<tr><td><code>!(a &amp;&amp; b)</code></td><td><code>!a || !b</code></td><td>"não (convite e documento)" = "falta o convite ou falta o documento"</td></tr>
+<tr><td><code>!(a || b)</code></td><td><code>!a &amp;&amp; !b</code></td><td>"não (estudante ou idoso)" = "nem estudante, nem idoso"</td></tr>
+<tr><td><code>!(nota &gt;= 0 &amp;&amp; nota &lt;= 10)</code></td><td><code>nota &lt; 0 || nota &gt; 10</code></td><td>"fora da faixa": o <code>!</code> também inverte cada comparação (<code>&gt;=</code> vira <code>&lt;</code>)</td></tr>
+</table>
+</div>
+
+<p>Com <code>nota = 12</code>, as duas últimas dão <code>True</code>. <strong>Qual usar?</strong> A que se lê mais fácil em voz alta. Para "nota inválida", <code>nota &lt; 0 || nota &gt; 10</code> é mais clara do que <code>!(nota &gt;= 0 &amp;&amp; nota &lt;= 10)</code>.</p>
+
+<h3>Padrões com <code>is</code>, <code>and</code>, <code>or</code> e <code>not</code> <span class="versao">C# 9</span></h3>
+<p>Desde o C# 9, dá para fazer perguntas sobre <strong>uma mesma variável</strong> com a palavra <code>is</code> ("é") e as palavras <code>and</code>, <code>or</code> e <code>not</code>. A faixa da nota fica quase em português:</p>
+
+<pre class="file" data-file="padrao.cs">int nota = 7;
+Console.WriteLine(nota is &gt;= 0 and &lt;= 10);
+int dia = 7;
+Console.WriteLine(dia is 6 or 7);
+Console.WriteLine(dia is not 1);
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run padrao.cs
+True      « "nota é maior ou igual a 0 e menor ou igual a 10"
+True      « "dia é 6 ou 7"
+True      « "dia não é 1"</pre>
+
+<p>Repare que <code>nota</code> e <code>dia</code> aparecem <strong>uma vez só</strong>: tudo depois do <code>is</code> fala da mesma variável. Esses <code>and</code>/<code>or</code>/<code>not</code> só existem <strong>depois de um <code>is</code></strong> (são <em>padrões</em>, assunto de <a href="pattern-matching.html">Pattern Matching</a>); para juntar perguntas sobre variáveis diferentes, continue com <code>&amp;&amp;</code> e <code>||</code>.</p>
+
+<p><strong>Qual usar?</strong> Para faixas e listas de valores de uma variável, <code>is … and …</code> é curto e difícil de errar. Para o resto, <code>&amp;&amp;</code>, <code>||</code> e <code>!</code>, que você vai encontrar em todo código C#.</p>
+
+<hr>
+
+<h2 id="erros">Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>Unhandled exception. System.DivideByZeroException: Attempted to divide by zero.</code> numa condição</strong>
+<p><strong>O que significa:</strong> a divisão por zero foi calculada porque a pergunta que protege estava do lado errado (<code>a / b &gt; 2 &amp;&amp; b != 0</code>) ou porque você usou <code>&amp;</code> no lugar de <code>&amp;&amp;</code>. O código de saída é 134.</p>
+<p><strong>Como consertar:</strong> a proteção à esquerda e <code>&amp;&amp;</code>: <code>b != 0 &amp;&amp; a / b &gt; 2</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0029: Não é possível converter implicitamente tipo "int" em "bool"</code></strong>
+<pre class="file" data-file="el1.cs">int estoque = 3;
+if (estoque)
+{
+    Console.WriteLine("Tem produto");
+}
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run el1.cs
+/home/ana/cs/el1.cs(2,5): error CS0029: Não é possível converter implicitamente tipo "int" em "bool"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o <code>if</code> recebeu um número, e o C# não transforma número em <code>bool</code>.</p>
+<p><strong>Como consertar:</strong> escreva a pergunta: <code>if (estoque &gt; 0)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0023: O operador "!" não pode ser aplicado ao operando do tipo "int"</code></strong>
+<pre class="file" data-file="el2.cs">int idade = 20;
+Console.WriteLine(!idade == 18);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run el2.cs
+/home/ana/cs/el2.cs(2,19): error CS0023: O operador "!" não pode ser aplicado ao operando do tipo "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> a intenção era "a idade não é 18". Mas o <code>!</code> pega só o que vem logo depois, o <code>idade</code>, que é um <code>int</code>. Em inglês: <code>Operator '!' cannot be applied to operand of type 'int'</code>.</p>
+<p><strong>Como consertar:</strong> <code>idade != 18</code> (ou <code>!(idade == 18)</code>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0019: O operador "||" não pode ser aplicado a operandos dos tipos "bool" e "int"</code></strong>
+<pre class="file" data-file="el3.cs">int idade = 20;
+Console.WriteLine(idade == 18 || 21);
+</pre>
+<pre class="term" data-cwd="~/cs">$ dotnet run el3.cs
+/home/ana/cs/el3.cs(2,19): error CS0019: O operador "||" não pode ser aplicado a operandos dos tipos "bool" e "int"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> a intenção era "a idade é 18 ou 21". Mas o C# não "distribui" o <code>idade ==</code>: ele leu <code>(idade == 18) || 21</code>, e <code>21</code> não é um <code>bool</code>. (Em C, esse código compila e é sempre verdade; o C# pega o erro.)</p>
+<p><strong>Como consertar:</strong> a pergunta completa dos dois lados, <code>idade == 18 || idade == 21</code>, ou o padrão <code>idade is 18 or 21</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>A resposta está errada, e não há erro nem aviso</strong>
+<p><strong>O que significa:</strong> provavelmente você misturou <code>&amp;&amp;</code> e <code>||</code> sem parênteses, e o C# fez o <code>&amp;&amp;</code> primeiro. Ou trocou <code>!(a || b)</code> por <code>!a || b</code>.</p>
+<p><strong>Como consertar:</strong> escreva os parênteses do jeito que você quer que a pergunta seja lida, e teste com valores que mudam a resposta.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Operador</th><th>Nome</th><th>Resposta</th><th>Curto-circuito</th></tr>
+<tr><td><code>a &amp;&amp; b</code></td><td>E</td><td><code>true</code> se os dois são <code>true</code></td><td>Se <code>a</code> é <code>false</code>, <code>b</code> não é calculado</td></tr>
+<tr><td><code>a || b</code></td><td>OU</td><td><code>true</code> se pelo menos um é <code>true</code></td><td>Se <code>a</code> é <code>true</code>, <code>b</code> não é calculado</td></tr>
+<tr><td><code>!a</code></td><td>NÃO</td><td>o contrário de <code>a</code></td><td>—</td></tr>
+<tr><td><code>a ^ b</code></td><td>OU exclusivo</td><td><code>true</code> se exatamente um é <code>true</code></td><td>Não (precisa dos dois)</td></tr>
+<tr><td><code>a &amp; b</code>, <code>a | b</code></td><td>E / OU sem atalho</td><td>iguais a <code>&amp;&amp;</code> / <code>||</code> com <code>bool</code></td><td>Não: calculam sempre os dois lados</td></tr>
+<tr><td><code>x is &gt;= 0 and &lt;= 10</code></td><td>padrão <span class="versao">C# 9</span></td><td><code>true</code> se <code>x</code> casa com o padrão</td><td>—</td></tr>
+</table>
+</div>
+<p>Ordem de cálculo (do que vem primeiro para o que vem depois): <code>!</code> → comparações (<code>&lt; &lt;= &gt; &gt;=</code>, depois <code>== !=</code>) → <code>&amp;</code> → <code>^</code> → <code>|</code> → <code>&amp;&amp;</code> → <code>||</code>. A tabela completa está em <a href="precedencia.html">Precedência</a>.</p>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Os dois</h3>
+<p>Complete para responder <code>true</code> só se a pessoa tem convite <strong>e</strong> documento:</p>
+<div class="ex-code">bool entra = convite <input data-answer="&amp;&amp;" aria-label="operador"> documento;</div>
+</div>
+
+<div class="exercise">
+<h3>2. Pelo menos um</h3>
+<p>Complete para responder <code>true</code> se o cliente é estudante <strong>ou</strong> idoso:</p>
+<div class="ex-code">bool meia = estudante <input data-answer="\|\|" aria-label="operador"> idoso;</div>
+</div>
+
+<div class="exercise">
+<h3>3. A proteção primeiro</h3>
+<p>Complete para nunca dividir por zero:</p>
+<div class="ex-code">bool muito = <input data-answer="b != 0|b!=0|0 != b|0!=b" aria-label="proteção"> &amp;&amp; a / b &gt; 2;</div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Em C#, o que acontece com <code>int estoque = 3; if (estoque) { … }</code>?</p>
+<label><input type="radio" name="q4"> Entra no <code>if</code>, porque 3 é diferente de zero.</label>
+<label><input type="radio" name="q4"> Não entra no <code>if</code>.</label>
+<label><input type="radio" name="q4"> Não compila: <code>CS0029</code>, o <code>if</code> precisa de um <code>bool</code>.</label>
+<label><input type="radio" name="q4"> Compila com um aviso.</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Em <code>pessoas == 0 || pizzas / pessoas &lt; 1</code>, com <code>pessoas</code> valendo 0, o que acontece?</p>
+<label><input type="radio" name="q5"> O programa quebra com <code>DivideByZeroException</code>.</label>
+<label><input type="radio" name="q5"> O compilador recusa.</label>
+<label><input type="radio" name="q5"> A resposta é <code>true</code> e a divisão nem é feita.</label>
+<label><input type="radio" name="q5"> A resposta é <code>false</code>.</label>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">6. A Ana quer saber se <code>dia</code> é 6 ou 7 (fim de semana). Qual está certo?</p>
+<label><input type="radio" name="q6"> <code>dia == 6 || 7</code></label>
+<label><input type="radio" name="q6"> <code>dia == 6 &amp;&amp; dia == 7</code></label>
+<label><input type="radio" name="q6"> <code>dia == (6 || 7)</code></label>
+<label><input type="radio" name="q6"> <code>dia == 6 || dia == 7</code></label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">7. Qual destas é igual a <code>!(a &amp;&amp; b)</code>?</p>
+<label><input type="radio" name="q7"> <code>!a || !b</code></label>
+<label><input type="radio" name="q7"> <code>!a &amp;&amp; !b</code></label>
+<label><input type="radio" name="q7"> <code>a || b</code></label>
+<label><input type="radio" name="q7"> <code>!a &amp;&amp; b</code></label>
+</div>
+
+<h3>Missão final: o desconto da lojinha</h3>
+
+<div class="trycs" data-goal="out:Desconto? False,src:\([^()]*\|\|[^()]*\)\s*&amp;&amp;">
+<p class="try-task"><strong>Missão:</strong> a lojinha da Ana dá desconto quando o cliente é <strong>estudante ou tem 65 anos ou mais</strong>, mas <strong>só se a compra passa de 50 reais</strong>. Um estudante de 20 anos comprou 30 reais e o programa deu desconto, o que está errado. Sem trocar os valores, ponha os <strong>parênteses</strong> no lugar certo para aparecer <code>Desconto? False</code>.</p>
+<pre class="out">Desconto? False</pre>
+<pre class="script" data-file="desconto.cs">int idade = 20;
+bool estudante = true;
+decimal total = 30m;
+bool desconto = estudante || idade &gt;= 65 &amp;&amp; total &gt; 50m;
+Console.WriteLine("Desconto? " + desconto);
+</pre>
+<pre class="solucao" data-file="desconto.cs">int idade = 20;
+bool estudante = true;
+decimal total = 30m;
+bool desconto = (estudante || idade &gt;= 65) &amp;&amp; total &gt; 50m;
+Console.WriteLine("Desconto? " + desconto);
+</pre>
+</div>
+
+<p>Depois, teste outros clientes: <code>idade = 70</code>, <code>estudante = false</code>, <code>total = 80m</code> (tem desconto); <code>idade = 30</code>, <code>estudante = false</code>, <code>total = 100m</code> (não tem).</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>&amp;&amp;</code> (e): <code>true</code> só se os dois lados forem <code>true</code>. <code>||</code> (ou): <code>true</code> se pelo menos um for. <code>!</code> (não): inverte.</li>
+  <li>Só <code>bool</code> entra: <code>if (estoque)</code> com um <code>int</code> dá <code>CS0029</code>. Escreva a pergunta: <code>estoque &gt; 0</code>.</li>
+  <li>Curto-circuito: o lado esquerdo é calculado primeiro; o direito só se for preciso. Use para proteger: <code>b != 0 &amp;&amp; a / b &gt; 2</code>.</li>
+  <li><code>&amp;</code> e <code>|</code> (um símbolo) não fazem curto-circuito. <code>^</code> é o "ou exclusivo".</li>
+  <li><code>&amp;&amp;</code> vem antes de <code>||</code>, e o C# não avisa: ao misturar, use parênteses.</li>
+  <li><code>idade == 18 || 21</code> não compila (<code>CS0019</code>): escreva <code>idade == 18 || idade == 21</code>, ou <code>idade is 18 or 21</code>.</li>
+  <li>De Morgan: <code>!(a &amp;&amp; b)</code> = <code>!a || !b</code>; <code>!(a || b)</code> = <code>!a &amp;&amp; !b</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
