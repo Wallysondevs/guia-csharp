@@ -341,9 +341,28 @@ abc: False False</pre>
 
 <p>Você só escreve a "metade de cima" (<code>partial</code>, sem corpo); o gerador escreve a outra metade, com a regex já transformada em código. A forma com método (<code>CepAntigo()</code>) é a do .NET 7 e 8, e você vai vê-la muito.</p>
 
-<div class="warning">
-<strong>O <code>[GeneratedRegex]</code> não roda no editor do guia</strong>
-<p>O editor desta página usa o compilador C# de verdade, mas <strong>não roda geradores de código</strong>. Lá, o <code>gerada.cs</code> não compila: a "metade de baixo" nunca é escrita, e aparecem os erros <code>CS9248: A propriedade parcial "Validador.Cep" precisa ter uma parte de implementação</code> e <code>CS8795</code> para o método. No <code>dotnet run</code> e em projetos, funciona normalmente. Por isso os exercícios desta página usam os métodos estáticos.</p>
+<div class="note">
+<strong>O <code>[GeneratedRegex]</code> também roda no editor do guia</strong>
+<p>O editor desta página roda os mesmos geradores de código do <code>dotnet run</code>: o <code>gerada.cs</code> compila e mostra a mesma saída. Experimente abaixo. Depois, estrague a regex de propósito (apague o <code>)</code> de um grupo, por exemplo <code>@"^(\d{5}-\d{3}$"</code>): o gerador recusa na compilação, com o erro <code>SYSLIB1042: O regex especificado é inválido.</code>, antes de o programa rodar.</p>
+</div>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> acrescente uma propriedade <code>Placa</code> com <code>[GeneratedRegex(@"^[A-Z]{3}\d[A-Z]\d{2}$")]</code> e teste <code>"ABC1D23"</code>.</p>
+<pre class="script" data-file="gerada.cs">using System.Text.RegularExpressions;
+
+string[] testes = ["01310-100", "abc"];
+foreach (var t in testes)
+    Console.WriteLine($"{t}: {Validador.Cep.IsMatch(t)} {Validador.CepAntigo().IsMatch(t)}");
+
+static partial class Validador
+{
+    [GeneratedRegex(@"^\d{5}-\d{3}$")]
+    public static partial Regex Cep { get; }
+
+    [GeneratedRegex(@"^\d{5}-\d{3}$")]
+    public static partial Regex CepAntigo();
+}
+</pre>
 </div>
 
 <hr>
@@ -387,7 +406,7 @@ Unhandled exception. System.Text.RegularExpressions.RegexParseException: Invalid
    at System.Text.RegularExpressions.RegexCache.GetOrAdd(String pattern)
    at System.Text.RegularExpressions.Regex.IsMatch(String input, String pattern)
    at Program.&lt;Main&gt;$(String[] args) in /home/ana/cs/quebrada.cs:line 2</pre>
-<p><strong>O que quer dizer:</strong> "regex inválida na posição 6: faltam <code>)</code>". O programa compilou (para o C#, a regex é só um texto), e o erro apareceu ao rodar. O <code>(</code> abriu um grupo que nunca foi fechado; a intenção era um parêntese de verdade. <strong>Como consertar:</strong> <code>@"\(\d{2}\)"</code>. A <code>RegexParseException</code> é um tipo de <code>ArgumentException</code>; se a regex vem do usuário, use <a href="try-catch.html"><code>try/catch</code></a>. (Com <code>[GeneratedRegex]</code>, no <code>dotnet</code>, o erro aparece já na compilação: <code>error SYSLIB1042: O regex especificado é inválido.</code>)</p>
+<p><strong>O que quer dizer:</strong> "regex inválida na posição 6: faltam <code>)</code>". O programa compilou (para o C#, a regex é só um texto), e o erro apareceu ao rodar. O <code>(</code> abriu um grupo que nunca foi fechado; a intenção era um parêntese de verdade. <strong>Como consertar:</strong> <code>@"\(\d{2}\)"</code>. A <code>RegexParseException</code> é um tipo de <code>ArgumentException</code>; se a regex vem do usuário, use <a href="try-catch.html"><code>try/catch</code></a>. (Com <code>[GeneratedRegex]</code>, o erro aparece já na compilação, no <code>dotnet</code> e no editor do guia: <code>error SYSLIB1042: O regex especificado é inválido.</code>)</p>
 </div>
 
 <div class="cenario">
@@ -496,7 +515,7 @@ Ana (81) ****-0001, Bruno (11) ****-0002, Carla (21) ****-4444</pre>
   <li><code>Regex.IsMatch</code> procura em <strong>qualquer lugar</strong>: para validar o texto inteiro, use <code>^…$</code>. Para só 0 a 9, <code>[0-9]</code> (o <code>\d</code> aceita dígitos de outras escritas).</li>
   <li><code>Match</code> (primeiro, com <code>Success</code>) e <code>Matches</code> (todos) acham pedaços; <code>Groups[1]</code> ou <code>Groups["nome"]</code> separam as partes.</li>
   <li><code>Regex.Replace</code> troca (com <code>$1</code> ou uma lambda) e <code>Regex.Split</code> divide. <code>.*</code> é guloso; <code>.*?</code> é preguiçoso.</li>
-  <li>Regex errada é <code>RegexParseException</code> ao rodar. <code>[GeneratedRegex]</code> transforma a regex em código na compilação (no <code>dotnet</code>; o editor do guia não roda geradores).</li>
+  <li>Regex errada é <code>RegexParseException</code> ao rodar. <code>[GeneratedRegex]</code> transforma a regex em código na compilação, e uma regex errada vira o erro <code>SYSLIB1042</code> (no <code>dotnet</code> e no editor do guia).</li>
 </ul>
 
 <p>Próxima aula: <a href="span.html">Span&lt;T&gt;</a>, para olhar pedaços de arrays e textos sem copiar nada.</p>
