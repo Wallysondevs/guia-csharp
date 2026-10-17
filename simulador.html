@@ -35,7 +35,7 @@
 <hr>
 
 <h2>A ideia: um laboratório portátil</h2>
-<p>Na escola, o laboratório de ciências tem tudo pronto: você chega, faz o experimento e vai embora. O editor do guia é assim. O compilador fica guardado <strong>dentro da página</strong>, e o programa roda num "computador de mentirinha" que só existe enquanto a aba está aberta, com a pasta da Ana (<code>/home/ana/cs</code>). Nada do que você fizer ali toca no seu computador. Se algo der muito errado, recarregue a página.</p>
+<p>Na escola, o laboratório de ciências tem tudo pronto: você chega, faz o experimento e vai embora. O editor do guia é assim. O compilador fica guardado <strong>dentro da página</strong>, e o programa roda num "computador de mentirinha" que só existe enquanto a aba está aberta, com a pasta da Ana (<code>/home/ana/cs</code>). Nada do que você fizer ali toca no seu computador. Um programa que não termina não trava nada: o botão <strong>■ Parar</strong> o interrompe (veja <a href="#parar">Parar um programa</a>).</p>
 
 <p>Por baixo, são duas peças, as mesmas que você instala com o .NET SDK (veja <a href="dotnet.html">.NET: SDK, Runtime e CLR</a>):</p>
 <ul>
@@ -161,7 +161,7 @@ Olá, Ana! Daqui a 10 anos você terá 39.
 </table>
 </div>
 
-<div class="note"><strong>Como o editor faz isso:</strong> o navegador não deixa um programa WebAssembly parar no meio e esperar o teclado. Então, quando o programa pede uma linha que você ainda não digitou, o editor o encerra, mostra o campo e, quando você tecla Enter, <strong>roda o programa de novo desde o começo</strong>, entregando as linhas que você já digitou. Você não percebe: a saída é a mesma. Os números do <code>Random</code> também se repetem nessas novas rodadas (o editor usa a mesma "semente"), então um jogo de adivinhação continua com o mesmo número secreto. Só o que depende do relógio (<code>DateTime.Now</code>, tempo medido) pode mudar entre uma linha e outra.</div>
+<div class="note"><strong>Como o editor faz isso:</strong> o navegador não deixa um programa WebAssembly parar no meio e esperar o teclado. Então, quando o programa pede uma linha que você ainda não digitou, o editor o encerra, mostra o campo e, quando você tecla Enter, <strong>roda o programa de novo desde o começo</strong>, entregando as linhas que você já digitou. Você não percebe: a saída é a mesma. Os números do <code>Random</code> também se repetem nessas novas rodadas (o editor usa a mesma "semente"), então um jogo de adivinhação continua com o mesmo número secreto. Só o que depende do relógio (<code>DateTime.Now</code>, tempo medido) pode mudar entre uma linha e outra; e o que o programa faz antes de perguntar é feito de novo (um arquivo que ele grava é gravado outra vez, numa pasta limpa).</div>
 
 <p>Algumas caixas já trazem a entrada pronta, num campo <strong>Entrada</strong> abaixo do editor (uma linha por Enter). Nelas o programa lê dali e não pergunta nada; você pode mudar o texto do campo e rodar de novo.</p>
 
@@ -243,7 +243,7 @@ Console.WriteLine($"Total: {total:C}");
 </pre>
 </div>
 
-<h3>Parar um programa</h3>
+<h3 id="parar">Parar um programa</h3>
 <p>Um programa que nunca termina (um laço infinito, por exemplo) não trava a página: clique em <strong>■ Parar</strong>. Se ele passar de 15 segundos sem terminar nem pedir entrada, o editor para sozinho e avisa: <code>(o editor parou o programa: ele rodou mais de 15 segundos sem terminar — laço infinito?)</code>.</p>
 
 <hr>
