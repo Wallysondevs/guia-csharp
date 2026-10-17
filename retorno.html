@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Valor de Retorno — return e métodos que devolvem um resultado | Guia C#</title>
+<meta name="description" content="Valor de retorno em C# para quem nunca programou: trocar o void por um tipo, devolver com return, usar o resultado numa variável, numa conta ou noutra chamada, return que encerra o método, vários return com if, o corpo com =>, e os erros reais do dotnet 10 (CS0161, CS0126, CS0127, CS0664, CS0162, CS0815), com missões no editor.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Valor de Retorno</span></h1>
+
+<p class="intro">Os métodos das aulas anteriores <strong>faziam</strong> alguma coisa: escreviam uma linha, mostravam um preço. Muitas vezes, porém, você quer que o método <strong>calcule</strong> algo e entregue o resultado de volta, para você guardar numa variável, somar com outro valor ou mostrar do jeito que quiser. Esse resultado é o <strong>valor de retorno</strong>, e a palavra que o entrega é <code>return</code> ("devolver"). Nesta aula você vai trocar o <code>void</code> por um tipo, usar o resultado de várias formas e ler os erros que o compilador mostra quando falta (ou sobra) um <code>return</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como declarar um método que devolve um valor: o tipo no lugar do <code>void</code> e o <code>return</code>.</li>
+  <li>As formas de usar o resultado: numa variável, numa conta, direto no <code>WriteLine</code>, como argumento de outra chamada.</li>
+  <li>Que o <code>return</code> <strong>encerra</strong> o método na hora, e como usar vários <code>return</code> com <code>if</code>.</li>
+  <li>O <code>return;</code> sozinho, para sair cedo de um método <code>void</code>.</li>
+  <li>O corpo curto com <code>=&gt;</code>.</li>
+  <li>Os erros <code>CS0161</code>, <code>CS0126</code>, <code>CS0127</code>, <code>CS0664</code>, <code>CS0815</code> e o aviso <code>CS0162</code>.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram na máquina fictícia da Ana, na pasta <code>~/cs</code>, com o <strong>.NET 10</strong> e o comando <code>dotnet run arquivo.cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: perguntar e receber a resposta</h2>
+<p>Na lojinha, a Ana entrega os produtos ao caixa e pergunta: "quanto deu?". O caixa faz a conta e <strong>responde</strong> um número. Com esse número na mão, a Ana decide o que fazer: anotar no caderno, somar com a compra de ontem, dizer ao cliente.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>No caixa</th><th>Em C#</th></tr>
+<tr><td>Entregar os produtos</td><td>Passar os <strong>argumentos</strong> (<a href="parametros.html">Parâmetros</a>)</td></tr>
+<tr><td>O caixa faz a conta</td><td>O <strong>corpo</strong> do método roda</td></tr>
+<tr><td>O caixa responde "deu R$ 37,50"</td><td><code>return total;</code>: o método <strong>devolve</strong> o valor</td></tr>
+<tr><td>A Ana anota o número no caderno</td><td><code>decimal compra = Total(…);</code>: quem chamou <strong>guarda</strong> o valor</td></tr>
+</table>
+</div>
+
+<p>Você já usa métodos que devolvem valores: <code>Math.Sqrt(16)</code> devolve <code>4</code>, <code>texto.ToUpper()</code> devolve o texto em maiúsculas, <code>Console.ReadLine()</code> devolve o que a pessoa digitou. Agora você vai escrever os seus.</p>
+
+<hr>
+
+<h2>1. Trocar o <code>void</code> por um tipo</h2>
+
+<pre class="file" data-file="dobro1.cs">int resultado = Dobro(4);
+Console.WriteLine(resultado);
+
+int Dobro(int n)
+{
+    return n * 2;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run dobro1.cs
+8</pre>
+
+<dl class="anatomy">
+  <dt>int Dobro(int n)</dt><dd>O primeiro <code>int</code>, antes do nome, é o <strong>tipo de retorno</strong>: diz que o método devolve um número inteiro. Ele ocupa o lugar onde antes ficava o <code>void</code>. O segundo <code>int</code>, entre os parênteses, é o tipo do parâmetro, como você já viu.</dd>
+  <dt>return n * 2;</dt><dd>"Devolva o valor de <code>n * 2</code>". O C# calcula a conta e entrega o resultado a quem chamou. O valor depois do <code>return</code> tem de ser do tipo de retorno (aqui, <code>int</code>).</dd>
+  <dt>int resultado = Dobro(4);</dt><dd>A chamada <code>Dobro(4)</code> <strong>vale</strong> 8. É como se a linha fosse <code>int resultado = 8;</code>. O valor fica guardado em <code>resultado</code>.</dd>
+</dl>
+
+<p>Compare com o <code>MostrarDobro</code> de <a href="parametros.html">Parâmetros</a>: aquele método <strong>escrevia</strong> o dobro na tela e acabava. Este <strong>devolve</strong> o dobro e não escreve nada. Quem decide o que fazer com o número é quem chamou. Isso deixa o método mais útil, porque o mesmo <code>Dobro</code> serve para mostrar, para somar, para comparar.</p>
+
+<h3>Quatro jeitos de usar o resultado</h3>
+<p>Uma chamada a um método com retorno é uma <strong>expressão</strong>: ela produz um valor, como <code>2 + 3</code>. Por isso pode aparecer em qualquer lugar onde caberia um número:</p>
+
+<pre class="file" data-file="dobro2.cs">int resultado = Dobro(4);
+Console.WriteLine(resultado);
+Console.WriteLine(Dobro(10));
+Console.WriteLine(Dobro(3) + Dobro(5));
+Console.WriteLine(Dobro(Dobro(2)));
+
+int Dobro(int n)
+{
+    return n * 2;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run dobro2.cs
+8
+20
+16
+8</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Linha</th><th>Jeito</th><th>Como o C# resolve</th></tr>
+<tr><td><code>int resultado = Dobro(4);</code></td><td>Guardar numa variável</td><td><code>Dobro(4)</code> vale 8; 8 vai para <code>resultado</code></td></tr>
+<tr><td><code>Console.WriteLine(Dobro(10));</code></td><td>Usar direto como argumento</td><td><code>Dobro(10)</code> vale 20; 20 vai para o <code>WriteLine</code></td></tr>
+<tr><td><code>Dobro(3) + Dobro(5)</code></td><td>Numa conta</td><td>6 + 10 = 16</td></tr>
+<tr><td><code>Dobro(Dobro(2))</code></td><td>Como argumento do próprio método</td><td>Primeiro a chamada de dentro: <code>Dobro(2)</code> = 4. Depois <code>Dobro(4)</code> = 8</td></tr>
+</table>
+</div>
+
+<div class="trycs" data-goal="outre:^12\n30\n$,src:int\s+Triplo\s*\(\s*int\s+\w+\s*\),src:return">
+<p class="try-task"><strong>Missão:</strong> escreva o método <code>int Triplo(int n)</code>, que <strong>devolve</strong> (com <code>return</code>) o triplo de <code>n</code>. Ele não escreve nada; quem mostra é o programa. A saída deve ser:</p>
+<pre class="out">12
+30</pre>
+<pre class="script">Console.WriteLine(Triplo(4));
+Console.WriteLine(Triplo(10));
+
+// escreva o método Triplo aqui
+</pre>
+<pre class="solucao">Console.WriteLine(Triplo(4));
+Console.WriteLine(Triplo(10));
+
+int Triplo(int n)
+{
+    return n * 3;
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>2. Um exemplo da lojinha</h2>
+<p>O método <code>Total</code> recebe o preço e a quantidade e devolve quanto deu. O programa guarda cada resultado e ainda soma os dois:</p>
+
+<pre class="file" data-file="total2.cs">decimal caderno = Total(12.50m, 3);
+decimal caneta = Total(3m, 2);
+decimal compra = caderno + caneta;
+
+Console.WriteLine($"Cadernos: {caderno:C}");
+Console.WriteLine($"Canetas:  {caneta:C}");
+Console.WriteLine($"Compra:   {compra:C}");
+
+decimal Total(decimal preco, int quantidade)
+{
+    decimal total = preco * quantidade;
+    return total;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run total2.cs
+Cadernos: R$ 37,50
+Canetas:  R$ 6,00
+Compra:   R$ 43,50</pre>
+
+<p>O tipo de retorno é <code>decimal</code>, porque é dinheiro. Dentro do método, a variável <code>total</code> guarda a conta, e o <code>return total;</code> devolve o <strong>valor</strong> dela (37,50 na primeira chamada). A variável <code>total</code> deixa de existir quando o método termina; o valor, não: ele já foi entregue e está guardado em <code>caderno</code>.</p>
+
+<h3>O jeito certo de "mudar" uma variável</h3>
+<p>Em <a href="parametros.html">Parâmetros</a> você viu que o método recebe uma cópia e não consegue mudar a variável de quem chamou. Com retorno, o método devolve o valor novo, e <strong>quem chamou</strong> decide guardá-lo:</p>
+
+<pre class="file" data-file="pontos2.cs">int pontos = 10;
+pontos = Dobrar(pontos);
+Console.WriteLine($"pontos = {pontos}");
+
+int Dobrar(int valor)
+{
+    return valor * 2;
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run pontos2.cs
+pontos = 20</pre>
+
+<p>Na linha 2, o C# primeiro calcula o lado direito, <code>Dobrar(pontos)</code> = <code>Dobrar(10)</code> = 20, e depois guarda o 20 em <code>pontos</code>. É o mesmo jeito de <code>texto = texto.ToUpper();</code>.</p>
+
+<div class="warning">
+<strong>Esquecer de guardar o resultado não dá erro</strong>
+<p>Uma chamada sozinha na linha, como <code>Dobro(4);</code>, compila e roda sem aviso nenhum. O método calcula o 8, devolve, e ninguém pega: o valor se perde.</p>
+<pre class="term" data-cwd="~/cs">$ dotnet run ignora.cs                « Dobro(4); sozinho na linha 1
+O resultado se perdeu</pre>
+<p>É um engano comum: <code>Dobrar(pontos);</code> no lugar de <code>pontos = Dobrar(pontos);</code>. Se o método devolve algo, pergunte-se: "onde estou guardando isso?".</p>
+</div>
+
+<hr>
+
+<h2>3. O <code>return</code> encerra o método</h2>
+<p>O <code>return</code> faz duas coisas ao mesmo tempo: entrega o valor e <strong>sai do método na hora</strong>. O que estiver escrito depois dele, no mesmo caminho, nunca roda. O compilador percebe e avisa:</p>
+
+<pre class="file" data-file="depoisreturn.cs">Console.WriteLine(Dobro(4));
+
+int Dobro(int n)
+{
+    return n * 2;
+    Console.WriteLine("Calculei!");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run depoisreturn.cs
+/home/ana/cs/depoisreturn.cs(6,5): warning CS0162: Código inacessível detectado
+8</pre>
+
+<p><em>Código inacessível</em> (<em>Unreachable code detected</em>): a linha 6 nunca vai rodar, porque o método sempre sai na linha 5. É só um aviso (o programa rodou e mostrou 8), mas é quase sempre um engano: troque a ordem das duas linhas, se queria a mensagem.</p>
+
+<h3>Vários <code>return</code>, um para cada caso</h3>
+<p>Como o <code>return</code> sai na hora, dá para usar um em cada ramo de um <code>if</code>. O primeiro que for alcançado decide a resposta:</p>
+
+<pre class="file" data-file="situacao.cs">Console.WriteLine(Situacao(8.5));
+Console.WriteLine(Situacao(6.0));
+Console.WriteLine(Situacao(4.5));
+
+string Situacao(double media)
+{
+    if (media &gt;= 7)
+    {
+        return "Aprovada";
+    }
+    if (media &gt;= 5)
+    {
+        return "Recuperação";
+    }
+    return "Reprovada";
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run situacao.cs
+Aprovada
+Recuperação
+Reprovada</pre>
+
+<ol class="passo">
+  <li>Com 8,5: o primeiro <code>if</code> é verdadeiro, o método devolve <code>"Aprovada"</code> e sai. O resto nem é olhado.</li>
+  <li>Com 6,0: o primeiro <code>if</code> é falso; o segundo é verdadeiro, e o método devolve <code>"Recuperação"</code>.</li>
+  <li>Com 4,5: os dois são falsos, e o programa chega no último <code>return</code>.</li>
+</ol>
+
+<p>Repare que não precisou de <code>else</code>: se o primeiro <code>return</code> rodou, o método já saiu. O tipo de retorno é <code>string</code>, porque a resposta é um texto.</p>
+
+<h3>Todo caminho precisa de um <code>return</code></h3>
+<p>Num método com tipo de retorno, o compilador confere <strong>todos</strong> os caminhos possíveis. Se existe um jeito de chegar no <code>}</code> final sem passar por um <code>return</code>, ele não aceita:</p>
+
+<pre class="file" data-file="faltareturn.cs">Console.WriteLine(Situacao(8.5));
+
+string Situacao(double media)
+{
+    if (media &gt;= 7)
+    {
+        return "Aprovada";
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run faltareturn.cs
+/home/ana/cs/faltareturn.cs(3,8): error CS0161: "Situacao(double)": nem todos os caminhos de código retornam um valor
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p><em>Nem todos os caminhos de código retornam um valor</em> (<em>not all code paths return a value</em>). E se a média for 5? O <code>if</code> é falso, o método chega ao fim, e não tem resposta nenhuma para entregar. Repare que o programa chamou com 8,5, que daria certo: não importa, o compilador olha o método inteiro, para qualquer valor. Conserto: um <code>return</code> no fim (<code>return "Reprovada";</code>) ou um <code>else</code> com <code>return</code>.</p>
+
+<div class="trycs" data-goal="compila,out:Reprovada">
+<p class="try-task"><strong>Missão:</strong> o programa não compila (<code>CS0161</code>). Acrescente um <code>return</code> que devolva <code>"Reprovada"</code> quando a média for menor que 7, e rode.</p>
+<pre class="script">Console.WriteLine(Situacao(8.5));
+Console.WriteLine(Situacao(4.0));
+
+string Situacao(double media)
+{
+    if (media &gt;= 7)
+    {
+        return "Aprovada";
+    }
+}
+</pre>
+<pre class="solucao">Console.WriteLine(Situacao(8.5));
+Console.WriteLine(Situacao(4.0));
+
+string Situacao(double media)
+{
+    if (media &gt;= 7)
+    {
+        return "Aprovada";
+    }
+    return "Reprovada";
+}
+</pre>
+</div>
+
+<h3><code>return;</code> num método <code>void</code></h3>
+<p>Um método <code>void</code> não devolve nada, mas pode usar <code>return;</code> sozinho, sem valor, para <strong>sair mais cedo</strong>:</p>
+
+<pre class="file" data-file="retvoid.cs">Saudar("");
+Saudar("Ana");
+
+void Saudar(string nome)
+{
+    if (nome == "")
+    {
+        Console.WriteLine("Sem nome: nada a fazer.");
+        return;
+    }
+    Console.WriteLine($"Olá, {nome}!");
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run retvoid.cs
+Sem nome: nada a fazer.
+Olá, Ana!</pre>
+
+<p>Na primeira chamada, o nome está vazio: o método avisa e o <code>return;</code> o encerra antes do <code>Olá</code>. Na segunda, o <code>if</code> é falso e o método segue até o fim. Esse "teste no começo e sai" é muito usado para recusar valores inválidos logo de cara.</p>
+
+<hr>
+
+<h2>4. O corpo curto com <code>=&gt;</code></h2>
+<p>Quando o método só tem um <code>return</code> com uma conta, o C# permite escrever o corpo numa linha, com uma seta <code>=&gt;</code> no lugar de <code>{ return …; }</code>. Isso se chama <strong>corpo de expressão</strong> (<em>expression body</em>) <span class="versao">C# 7</span>:</p>
+
+<pre class="file" data-file="seta.cs">Console.WriteLine(Dobro(7));
+Console.WriteLine(EhPar(7));
+Console.WriteLine(EhPar(10));
+Console.WriteLine(Total(12.50m, 3).ToString("C"));
+
+int Dobro(int n) =&gt; n * 2;
+bool EhPar(int n) =&gt; n % 2 == 0;
+decimal Total(decimal preco, int quantidade) =&gt; preco * quantidade;
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run seta.cs
+14
+False
+True
+R$ 37,50</pre>
+
+<dl class="anatomy">
+  <dt>int Dobro(int n) =&gt; n * 2;</dt><dd>O mesmo que <code>int Dobro(int n) { return n * 2; }</code>. Leia a seta como "devolve": "Dobro de n devolve n vezes 2". Sem chaves, sem <code>return</code>, com <code>;</code> no fim.</dd>
+  <dt>bool EhPar(int n)</dt><dd>Um método pode devolver <code>bool</code>: a comparação <code>n % 2 == 0</code> vale <code>true</code> ou <code>false</code>. O <code>Console.WriteLine</code> mostra um <code>bool</code> como <code>True</code> ou <code>False</code>, com maiúscula. Métodos assim costumam começar com <code>Eh</code>, <code>Tem</code>, <code>Pode</code> (em inglês, <code>Is</code>, <code>Has</code>, <code>Can</code>) e ficam ótimos dentro de um <code>if</code>: <code>if (EhPar(numero))</code>.</dd>
+  <dt>Total(12.50m, 3).ToString("C")</dt><dd>O resultado é um <code>decimal</code>, e dá para chamar métodos nele direto, como em qualquer <code>decimal</code>.</dd>
+</dl>
+
+<p>A seta também serve para métodos <code>void</code> de uma linha só: <code>void Linha() =&gt; Console.WriteLine("----------");</code>. Use quando o método couber numa linha e ficar fácil de ler; se precisar de um <code>if</code> ou de variáveis, volte às chaves.</p>
+
+<hr>
+
+<h2>Formas diferentes</h2>
+<p>Tudo o que você viu funciona igual na forma com classe; só aparece o <code>static</code> antes do tipo de retorno:</p>
+
+<pre class="file" data-file="classeret.cs">class Program
+{
+    static void Main()
+    {
+        Console.WriteLine(Dobro(21));
+    }
+
+    static int Dobro(int n)
+    {
+        return n * 2;
+    }
+}
+</pre>
+
+<pre class="term" data-cwd="~/cs">$ dotnet run classeret.cs
+42</pre>
+
+<p>Repare no <code>static void Main()</code>: o <code>Main</code> também tem tipo de retorno, e é <code>void</code>. Ele pode ser <code>static int Main()</code>, e o número devolvido vira o <strong>código de saída</strong> do programa (o <code>echo $?</code> do terminal); veja <a href="top-level.html">Program.cs e o Main</a>.</p>
+
+<h3>Qual usar?</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Forma</th></tr>
+<tr><td>O método calcula algo que quem chamou vai usar (um total, uma média, uma resposta sim/não)</td><td>Tipo de retorno + <code>return</code></td></tr>
+<tr><td>O método só faz uma ação (mostrar, desenhar) e não há resultado</td><td><code>void</code></td></tr>
+<tr><td>O corpo é um único <code>return</code> curto</td><td><code>=&gt;</code></td></tr>
+<tr><td>Precisa devolver dois valores ao mesmo tempo</td><td>Uma <a href="tuplas.html">tupla</a> (<code>(int, int)</code>) ou parâmetros <a href="ref-out-in.html"><code>out</code></a></td></tr>
+</table>
+</div>
+
+<div class="tip">
+<strong>Prefira devolver a mostrar</strong>
+<p>Um método que <strong>devolve</strong> o total pode ser usado para mostrar, para somar, para salvar num arquivo. Um método que <strong>escreve</strong> o total na tela só serve para mostrar. Por isso, quando o método calcula algo, a regra do guia é: devolva o valor e deixe o <code>Console.WriteLine</code> para quem chamou.</p>
+</div>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong><code>error CS0161: "Situacao(double)": nem todos os caminhos de código retornam um valor</code></strong>
+<p><strong>O que significa:</strong> existe algum caminho pelo método que chega ao <code>}</code> sem passar por um <code>return</code>. Acontece muito com <code>if</code> sem <code>else</code>, e com um <code>return</code> só dentro de um laço.</p>
+<p><strong>Como consertar:</strong> garanta um <code>return</code> no fim do método, ou um <code>else</code> com <code>return</code>. O compilador não sabe com quais valores você vai chamar; ele exige uma resposta para todos.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0126: Um objeto de tipo conversível em "int" é necessário</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run returnvazio.cs
+/home/ana/cs/returnvazio.cs(6,5): error CS0126: Um objeto de tipo conversível em "int" é necessário
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> num método <code>int Dobro(int n)</code>, a linha 6 tem <code>return;</code> sem valor. O método prometeu um <code>int</code> e não entregou. (A palavra "objeto", aqui, quer dizer "valor".)</p>
+<p><strong>Como consertar:</strong> escreva o valor depois do <code>return</code>: <code>return d;</code>.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0127: Como "Mostrar(int)" retorna void, uma palavra-chave return não deve ser seguida por uma expressão de objeto</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run voidvalor.cs
+/home/ana/cs/voidvalor.cs(6,5): error CS0127: Como "Mostrar(int)" retorna void, uma palavra-chave return não deve ser seguida por uma expressão de objeto
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o contrário do anterior: o método é <code>void Mostrar(int n)</code> e tem <code>return n;</code>. Um método <code>void</code> não devolve nada.</p>
+<p><strong>Como consertar:</strong> se o método deve devolver o número, troque <code>void</code> por <code>int</code>. Se não, deixe só <code>return;</code> (ou tire o <code>return</code>).</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0664: Literal do tipo double não pode ser convertido implicitamente no tipo "decimal"; use um sufixo "M"…</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run tiporet.cs
+/home/ana/cs/tiporet.cs(5,12): error CS0664: Literal do tipo double não pode ser convertido implicitamente no tipo "decimal"; use um sufixo "M" para criar um literal desse tipo
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> o método é <code>decimal Desconto()</code> e a linha 5 é <code>return 1.5;</code>. O valor do <code>return</code> tem de ser do tipo de retorno, e <code>1.5</code> sem letra é <code>double</code>. Com um texto num método <code>int</code> (<code>return "dez";</code>), o erro é o <code>CS0029</code>: <code>Não é possível converter implicitamente tipo "string" em "int"</code>.</p>
+<p><strong>Como consertar:</strong> devolva um valor do tipo certo: <code>return 1.5m;</code>, <code>return 10;</code>. Ou mude o tipo de retorno, se ele é que estava errado.</p>
+</div>
+
+<div class="cenario">
+<strong><code>error CS0815: Não é possível atribuir void a uma variável de tipo implícito</code></strong>
+<pre class="term" data-cwd="~/cs">$ dotnet run varvoid.cs
+/home/ana/cs/varvoid.cs(1,5): error CS0815: Não é possível atribuir void a uma variável de tipo implícito
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+<p><strong>O que significa:</strong> <code>var x = Linha();</code>, com <code>void Linha()</code>. O <code>var</code> descobre o tipo pelo valor (<a href="var.html">Inferência com var</a>), mas um método <code>void</code> não tem valor. Com <code>int x</code> no lugar de <code>var x</code>, o erro é o <code>CS0029</code> que você viu em <a href="metodos.html">Métodos</a>.</p>
+<p><strong>Como consertar:</strong> chame o método sozinho, ou faça-o devolver um valor.</p>
+</div>
+
+<div class="cenario">
+<strong><code>warning CS0162: Código inacessível detectado</code></strong>
+<p><strong>O que significa:</strong> há linhas depois de um <code>return</code> que nunca vão rodar.</p>
+<p><strong>Como consertar:</strong> mova essas linhas para antes do <code>return</code>, ou apague-as.</p>
+</div>
+
+<hr>
+
+<h2>Referência rápida</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>O que faz</th></tr>
+<tr><td><code>int Nome(…) { … return valor; }</code></td><td>Método que devolve um <code>int</code></td></tr>
+<tr><td><code>return expressão;</code></td><td>Calcula a expressão, entrega o valor e sai do método na hora</td></tr>
+<tr><td><code>return;</code></td><td>Sai de um método <code>void</code> sem devolver nada</td></tr>
+<tr><td><code>var x = Nome(…);</code></td><td>Guarda o valor devolvido</td></tr>
+<tr><td><code>x = Nome(x);</code></td><td>"Muda" a variável com o valor novo que o método devolveu</td></tr>
+<tr><td><code>int Nome(int n) =&gt; n * 2;</code></td><td>Corpo de expressão: o mesmo que <code>{ return n * 2; }</code></td></tr>
+<tr><td><code>bool EhPar(int n) =&gt; n % 2 == 0;</code></td><td>Método que responde sim/não, bom para <code>if</code></td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O tipo de retorno</h3>
+<p>Complete a declaração de um método que devolve uma média com casas decimais (<code>double</code>):</p>
+<div class="ex-code"><input data-answer="double" aria-label="tipo de retorno"> Media(double a, double b)</div>
+</div>
+
+<div class="exercise">
+<h3>2. Devolver</h3>
+<p>Complete o corpo do método para devolver a soma:</p>
+<div class="ex-code">int Somar(int a, int b) { <input data-answer="return a + b;|return a+b;|return b + a;" aria-label="instrução"> }</div>
+</div>
+
+<div class="exercise">
+<h3>3. Quanto vale?</h3>
+<p>Com <code>int Dobro(int n) =&gt; n * 2;</code>, quanto vale <code>Dobro(Dobro(3)) + 1</code>?</p>
+<div class="ex-code"><input data-answer="13" aria-label="valor"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. O que acontece com uma linha escrita logo depois de um <code>return</code>, dentro do mesmo bloco?</p>
+<label><input type="radio" name="q4"> Roda depois que o valor é devolvido</label>
+<label><input type="radio" name="q4"> Erro de compilação</label>
+<label><input type="radio" name="q4"> Nunca roda, e o compilador avisa <code>CS0162</code></label>
+<label><input type="radio" name="q4"> Roda antes do <code>return</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. A linha <code>Dobrar(pontos);</code> (com <code>int Dobrar(int v) =&gt; v * 2;</code>) sozinha no programa. O que acontece com <code>pontos</code>?</p>
+<label><input type="radio" name="q5"> Dobra</label>
+<label><input type="radio" name="q5"> Nada: o valor devolvido se perdeu, porque ninguém o guardou</label>
+<label><input type="radio" name="q5"> Erro: o resultado precisa ser usado</label>
+<label><input type="radio" name="q5"> Vira zero</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Por que o compilador recusa um método <code>string</code> que só tem <code>return</code> dentro de um <code>if</code>?</p>
+<label><input type="radio" name="q6"> Porque, se o <code>if</code> for falso, o método chega ao fim sem resposta (<code>CS0161</code>)</label>
+<label><input type="radio" name="q6"> Porque <code>return</code> não pode ficar dentro de <code>if</code></label>
+<label><input type="radio" name="q6"> Porque métodos <code>string</code> não aceitam <code>if</code></label>
+<label><input type="radio" name="q6"> Ele não recusa</label>
+</div>
+
+<h3>Missão final: o desconto da lojinha</h3>
+
+<div class="trycs" data-goal="outre:^Total: R\$ 135\,00\nCom desconto: R\$ 121\,50\nTotal: R\$ 25\,00\nCom desconto: R\$ 25\,00\n$,src:decimal\s+ComDesconto\s*\(\s*decimal\s+\w+\s*\)">
+<p class="try-task"><strong>Missão:</strong> a lojinha dá 10% de desconto nas compras de R$ 100,00 ou mais. O método <code>Total</code> já funciona. Complete <code>ComDesconto</code>: se <code>valor</code> for maior ou igual a 100, devolva <code>valor * 0.9m</code>; senão, devolva o próprio <code>valor</code>. A saída deve ser:</p>
+<pre class="out">Total: R$ 135,00
+Com desconto: R$ 121,50
+Total: R$ 25,00
+Com desconto: R$ 25,00</pre>
+<pre class="script">decimal grande = Total(45.00m, 3);
+Console.WriteLine($"Total: {grande:C}");
+Console.WriteLine($"Com desconto: {ComDesconto(grande):C}");
+
+decimal pequena = Total(12.50m, 2);
+Console.WriteLine($"Total: {pequena:C}");
+Console.WriteLine($"Com desconto: {ComDesconto(pequena):C}");
+
+decimal Total(decimal preco, int quantidade) =&gt; preco * quantidade;
+
+decimal ComDesconto(decimal valor)
+{
+    // complete aqui
+    return valor;
+}
+</pre>
+<pre class="solucao">decimal grande = Total(45.00m, 3);
+Console.WriteLine($"Total: {grande:C}");
+Console.WriteLine($"Com desconto: {ComDesconto(grande):C}");
+
+decimal pequena = Total(12.50m, 2);
+Console.WriteLine($"Total: {pequena:C}");
+Console.WriteLine($"Com desconto: {ComDesconto(pequena):C}");
+
+decimal Total(decimal preco, int quantidade) =&gt; preco * quantidade;
+
+decimal ComDesconto(decimal valor)
+{
+    if (valor &gt;= 100)
+    {
+        return valor * 0.9m;
+    }
+    return valor;
+}
+</pre>
+</div>
+
+<p>Se apareceu <code>CS0019: O operador "*" não pode ser aplicado a operandos dos tipos "decimal" e "double"</code>, faltou o <code>m</code> do <code>0.9m</code>: um <code>decimal</code> não se mistura com <code>double</code>.</p>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Para o método devolver um valor, troque o <code>void</code> pelo tipo do resultado e use <code>return valor;</code>.</li>
+  <li>Uma chamada com retorno vale o resultado: guarde numa variável, use numa conta, passe para outro método. Se ninguém guardar, o valor se perde, sem aviso.</li>
+  <li>O <code>return</code> sai do método na hora. Linhas depois dele dão o aviso <code>CS0162</code>. Vários <code>return</code> com <code>if</code> são comuns; todo caminho precisa de um (<code>CS0161</code>).</li>
+  <li><code>return;</code> sozinho sai cedo de um método <code>void</code>. Num método com tipo, falta o valor (<code>CS0126</code>); num <code>void</code>, sobra (<code>CS0127</code>).</li>
+  <li>O valor devolvido tem de ser do tipo de retorno (<code>CS0029</code>, <code>CS0664</code>). Métodos curtos podem usar <code>=&gt;</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
