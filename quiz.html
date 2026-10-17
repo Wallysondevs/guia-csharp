@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Quiz — 40 perguntas do básico ao avançado | Guia C#</title>
+<meta name="description" content="Quiz do Guia C#: 40 perguntas de múltipla escolha nos três níveis, muitas do tipo &quot;o que este programa mostra?&quot;, sobre divisão inteira, double e decimal, interpolação, ++, arrays e índices, switch, TryParse, null e ??, records, structs, referências, herança e polimorfismo, exceções e finally, coleções, LINQ, async e o coletor de lixo, com correção na hora, explicação e link para revisar. As respostas foram conferidas no dotnet 10 e no editor do guia.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Quiz</span></h1>
+
+<p class="intro">40 perguntas sobre o que você estudou no guia, divididas nos três níveis. Muitas mostram um trecho de código e perguntam <strong>o que ele mostra</strong>: tente responder de cabeça, sem rodar. Todas as respostas foram conferidas de verdade, com o <code>dotnet run</code> do .NET 10 na máquina da Ana (em português, por isso <code>3,5</code> com vírgula) e no editor do guia. A correção é na hora; abra "Explicação" para entender o porquê, e o link "Revise" leva à aula do assunto.</p>
+
+<p>Acertos: <strong id="placar">0 de 40</strong></p>
+
+<div class="note">
+<strong>Como os trechos funcionam</strong>
+<p>Os trechos são instruções de nível superior, como num arquivo <code>teste.cs</code> rodado com <code>dotnet run teste.cs</code>. Quando o trecho usa uma classe, um record ou um struct, ela aparece depois das instruções, como no arquivo de verdade. Para conferir uma resposta, cole o trecho numa caixa "Experimente" de qualquer aula, como a de <a href="primeiro-programa.html">Olá, Mundo</a>, e clique em Rodar.</p>
+</div>
+
+<p>Ir para: <a href="#nivel1">Nível 1</a> · <a href="#nivel2">Nível 2</a> · <a href="#nivel3">Nível 3</a></p>
+
+<h2 id="nivel1">Nível 1 · Iniciante</h2>
+<p>Saída, tipos, operadores, texto, decisões, laços, entrada e arrays.</p>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">1. O que este código mostra?</p>
+<pre class="file">Console.WriteLine(7 / 2);</pre>
+<label><input type="radio" name="q1"> <code>3,5</code></label>
+<label><input type="radio" name="q1"> <code>3</code></label>
+<label><input type="radio" name="q1"> <code>4</code></label>
+<label><input type="radio" name="q1"> <code>3.5</code></label>
+<details><summary>Explicação</summary><p>Os dois números são <code>int</code>, então a divisão é <strong>inteira</strong>: o resultado é 3, e a parte decimal é jogada fora (não arredonda para 4).</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="operadores-aritmeticos.html">Operadores Aritméticos</a></p>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">2. E este, na máquina da Ana, que está em português?</p>
+<pre class="file">Console.WriteLine(7 / 2.0);</pre>
+<label><input type="radio" name="q2"> <code>3</code></label>
+<label><input type="radio" name="q2"> <code>3.5</code></label>
+<label><input type="radio" name="q2"> <code>3,5</code></label>
+<label><input type="radio" name="q2"> <code>3,50</code></label>
+<details><summary>Explicação</summary><p>Com um <code>double</code> na conta (<code>2.0</code>), a divisão tem casas decimais. No código, o separador é sempre o ponto; na saída, o C# usa o formato da cultura da máquina, e em pt-BR a casa decimal é a vírgula.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="decimais.html">float, double e decimal</a> e <a href="cultura.html">Cultura</a></p>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">3. O que este código mostra?</p>
+<pre class="file">Console.WriteLine(0.1 + 0.2 == 0.3);</pre>
+<label><input type="radio" name="q3"> <code>False</code></label>
+<label><input type="radio" name="q3"> <code>True</code></label>
+<label><input type="radio" name="q3"> <code>0,3</code></label>
+<label><input type="radio" name="q3"> Não compila.</label>
+<details><summary>Explicação</summary><p>O <code>double</code> guarda os números em base 2, e 0,1 e 0,2 não têm representação exata: a soma dá <code>0,30000000000000004</code>, que não é igual a 0,3. Com <code>decimal</code> (<code>0.1m + 0.2m == 0.3m</code>), dá <code>True</code>. Por isso, dinheiro em <code>decimal</code>.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="decimais.html">float, double e decimal</a></p>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">4. O que este código mostra?</p>
+<pre class="file">Console.WriteLine("Total: " + 2 + 3);</pre>
+<label><input type="radio" name="q4"> <code>Total: 5</code></label>
+<label><input type="radio" name="q4"> <code>Total: 2 + 3</code></label>
+<label><input type="radio" name="q4"> Não compila.</label>
+<label><input type="radio" name="q4"> <code>Total: 23</code></label>
+<details><summary>Explicação</summary><p>O <code>+</code> é resolvido da esquerda para a direita. <code>"Total: " + 2</code> junta texto e número e dá o texto <code>"Total: 2"</code>; depois, <code>"Total: 2" + 3</code> dá <code>"Total: 23"</code>. Para somar antes, use parênteses: <code>"Total: " + (2 + 3)</code>, ou a interpolação <code>$"Total: {2 + 3}"</code>.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="precedencia.html">Precedência</a> e <a href="saida.html">Saída</a></p>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. O que este código mostra?</p>
+<pre class="file">int x = 5;
+Console.WriteLine(x++ + " " + x);</pre>
+<label><input type="radio" name="q5"> <code>6 6</code></label>
+<label><input type="radio" name="q5"> <code>5 6</code></label>
+<label><input type="radio" name="q5"> <code>5 5</code></label>
+<label><input type="radio" name="q5"> <code>6 5</code></label>
+<details><summary>Explicação</summary><p>O <code>x++</code> (pós-fixado) <strong>usa</strong> o valor atual (5) e só depois soma 1. Quando o segundo <code>x</code> é lido, ele já vale 6. Com <code>++x</code>, a saída seria <code>6 6</code>.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="incremento.html">++ e --</a></p>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">6. Qual é o tipo de <code>preco</code>?</p>
+<pre class="file">var preco = 19.90;</pre>
+<label><input type="radio" name="q6"> <code>decimal</code>, porque é um preço.</label>
+<label><input type="radio" name="q6"> <code>float</code></label>
+<label><input type="radio" name="q6"> <code>double</code></label>
+<label><input type="radio" name="q6"> <code>var</code>, um tipo que aceita qualquer valor.</label>
+<details><summary>Explicação</summary><p>O <code>var</code> não é um tipo: o compilador olha o valor e escolhe. Um número com ponto e sem sufixo é <code>double</code> (<code>preco.GetType()</code> mostra <code>System.Double</code>). Para dinheiro, escreva <code>19.90m</code> ou <code>decimal preco = 19.90m;</code>.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="var.html">Inferência com var</a></p>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">7. O que este código mostra?</p>
+<pre class="file">Console.WriteLine($"{1234.5m:C}");</pre>
+<label><input type="radio" name="q7"> <code>R$ 1.234,50</code></label>
+<label><input type="radio" name="q7"> <code>R$ 1234.5</code></label>
+<label><input type="radio" name="q7"> <code>$1,234.50</code></label>
+<label><input type="radio" name="q7"> <code>1.234,5</code></label>
+<details><summary>Explicação</summary><p>O formato <code>C</code> (<em>currency</em>, moeda) usa a moeda e os separadores da cultura da máquina: em pt-BR, <code>R$</code>, ponto nos milhares, vírgula nos centavos e sempre duas casas.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="formatacao.html">Formatar Números</a></p>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">8. O que este código mostra?</p>
+<pre class="file">string texto = "Olá";
+texto.ToUpper();
+Console.WriteLine(texto);</pre>
+<label><input type="radio" name="q8"> <code>OLÁ</code></label>
+<label><input type="radio" name="q8"> <code>OLá</code></label>
+<label><input type="radio" name="q8"> Não compila.</label>
+<label><input type="radio" name="q8"> <code>Olá</code></label>
+<details><summary>Explicação</summary><p>Strings são <strong>imutáveis</strong>: <code>ToUpper()</code> não muda o texto, ele <strong>devolve</strong> um texto novo, que aqui foi jogado fora. Para guardar, escreva <code>texto = texto.ToUpper();</code>.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="strings.html">Strings</a> e <a href="metodos-string.html">Métodos de String</a></p>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">9. O que este código mostra?</p>
+<pre class="file">Console.WriteLine("banana".IndexOf('n') + " " + "banana".IndexOf('z'));</pre>
+<label><input type="radio" name="q9"> <code>3 0</code></label>
+<label><input type="radio" name="q9"> <code>2 -1</code></label>
+<label><input type="radio" name="q9"> <code>2 0</code></label>
+<label><input type="radio" name="q9"> Uma exceção, porque não há <code>z</code>.</label>
+<details><summary>Explicação</summary><p>As posições começam em 0: <code>b</code> é 0, <code>a</code> é 1, o primeiro <code>n</code> é 2. Quando a letra não existe, <code>IndexOf</code> não lança exceção: devolve <code>-1</code>.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="metodos-string.html">Métodos de String</a></p>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">10. O que este código mostra?</p>
+<pre class="file">int[] v = [10, 20, 30];
+Console.WriteLine(v[^1]);</pre>
+<label><input type="radio" name="q10"> <code>10</code></label>
+<label><input type="radio" name="q10"> <code>20</code></label>
+<label><input type="radio" name="q10"> <code>30</code></label>
+<label><input type="radio" name="q10"> <code>IndexOutOfRangeException</code></label>
+<details><summary>Explicação</summary><p><code>^1</code> quer dizer "o primeiro a partir do fim", ou seja, o último elemento. É o mesmo que <code>v[v.Length - 1]</code>. (<code>^0</code> seria uma posição depois do fim e lançaria exceção.)</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="indices-intervalos.html">Índices (^) e Intervalos (..)</a></p>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">11. O que este código mostra?</p>
+<pre class="file">int[] v = [10, 20, 30];
+int[] copia = v;
+copia[0] = 99;
+Console.WriteLine(v[0]);</pre>
+<label><input type="radio" name="q11"> <code>99</code></label>
+<label><input type="radio" name="q11"> <code>10</code></label>
+<label><input type="radio" name="q11"> <code>0</code></label>
+<label><input type="radio" name="q11"> Não compila.</label>
+<details><summary>Explicação</summary><p>Um array é um tipo de <strong>referência</strong>: <code>copia = v</code> não copia os números, copia o endereço. As duas variáveis apontam para o mesmo array, então mudar por uma aparece na outra. Para uma cópia de verdade, use <code>v.Clone()</code>, <code>[.. v]</code> ou <code>v.ToArray()</code>.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="arrays.html">Arrays</a> e <a href="valor-referencia.html">Valor × Referência</a></p>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">12. O que este código mostra?</p>
+<pre class="file">for (int i = 0; i &lt; 3; i++)
+{
+    Console.Write(i);
+}</pre>
+<label><input type="radio" name="q12"> <code>123</code></label>
+<label><input type="radio" name="q12"> <code>0123</code></label>
+<label><input type="radio" name="q12"> <code>3</code></label>
+<label><input type="radio" name="q12"> <code>012</code></label>
+<details><summary>Explicação</summary><p>O <code>i</code> começa em 0 e o laço roda enquanto <code>i &lt; 3</code>: com 0, 1 e 2. Quando <code>i</code> vira 3, a condição é falsa e o laço para antes de mostrar. <code>Write</code> não pula linha, por isso sai tudo junto.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="for.html">for</a></p>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">13. Quais números <code>Random.Shared.Next(1, 7)</code> pode sortear?</p>
+<label><input type="radio" name="q13"> De 1 a 7.</label>
+<label><input type="radio" name="q13"> De 1 a 6.</label>
+<label><input type="radio" name="q13"> De 0 a 7.</label>
+<label><input type="radio" name="q13"> De 0 a 6.</label>
+<details><summary>Explicação</summary><p>O primeiro número entra no sorteio; o segundo é o limite <strong>de fora</strong>. <code>Next(1, 7)</code> é um dado: 1, 2, 3, 4, 5 ou 6. Para 1 a 100, <code>Next(1, 101)</code>.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="aleatorios.html">Números Aleatórios</a></p>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">14. O que acontece com este código?</p>
+<pre class="file">string operacao = "+";
+switch (operacao)
+{
+    case "+":
+        Console.WriteLine("soma");
+    case "-":
+        Console.WriteLine("subtração");
+        break;
+}</pre>
+<label><input type="radio" name="q14"> Mostra <code>soma</code> e <code>subtração</code>.</label>
+<label><input type="radio" name="q14"> Mostra só <code>soma</code>.</label>
+<label><input type="radio" name="q14"> Não compila: <code>error CS0163</code>, o <code>case "+"</code> não pode "cair" no seguinte.</label>
+<label><input type="radio" name="q14"> Mostra só <code>subtração</code>.</label>
+<details><summary>Explicação</summary><p>Em C e Java, sem <code>break</code> o programa continuaria no <code>case</code> de baixo. O C# proíbe isso, porque quase sempre é um esquecimento: todo <code>case</code> com código tem de terminar com <code>break</code>, <code>return</code> ou <code>throw</code>.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="switch.html">switch</a></p>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">15. Quantas vezes o <code>A</code> aparece?</p>
+<pre class="file">do
+{
+    Console.Write("A");
+} while (false);</pre>
+<label><input type="radio" name="q15"> Uma vez.</label>
+<label><input type="radio" name="q15"> Nenhuma.</label>
+<label><input type="radio" name="q15"> Para sempre.</label>
+<label><input type="radio" name="q15"> Não compila.</label>
+<details><summary>Explicação</summary><p>O <code>do while</code> roda o corpo <strong>antes</strong> de testar a condição: mesmo com <code>false</code>, roda uma vez. Um <code>while (false) { … }</code> não rodaria nenhuma.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="do-while.html">do while</a></p>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">16. A Ana digitou <code>abc</code>. O que acontece com <code>int.Parse(Console.ReadLine()!)</code>?</p>
+<label><input type="radio" name="q16"> Devolve 0.</label>
+<label><input type="radio" name="q16"> Devolve <code>null</code>.</label>
+<label><input type="radio" name="q16"> O compilador dá um erro.</label>
+<label><input type="radio" name="q16"> Lança <code>FormatException</code>, e, se ninguém tratar, o programa cai com o código 134.</label>
+<details><summary>Explicação</summary><p><code>Parse</code> confia que o texto é um número. Para o que o usuário digita, use <code>int.TryParse(texto, out int numero)</code>, que devolve <code>false</code> em vez de lançar exceção.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="parse.html">Parse e TryParse</a> e <a href="readline.html">Ler do Teclado</a></p>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">17. O que este código mostra?</p>
+<pre class="file">Console.WriteLine(Math.Round(2.5) + " " + Math.Round(3.5));</pre>
+<label><input type="radio" name="q17"> <code>3 4</code></label>
+<label><input type="radio" name="q17"> <code>2 4</code></label>
+<label><input type="radio" name="q17"> <code>2 3</code></label>
+<label><input type="radio" name="q17"> <code>3 3</code></label>
+<details><summary>Explicação</summary><p>Por padrão, <code>Math.Round</code> usa o arredondamento <strong>bancário</strong>: no meio exato (,5), vai para o número <strong>par</strong> mais próximo. 2,5 vira 2 e 3,5 vira 4. Para o arredondamento da escola, use <code>Math.Round(2.5, MidpointRounding.AwayFromZero)</code>, que dá 3.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="math.html">Matemática (Math)</a></p>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">18. O que este código mostra?</p>
+<pre class="file">int trezentos = 300;
+Console.WriteLine((int)7.9 + " " + (byte)trezentos);</pre>
+<label><input type="radio" name="q18"> <code>8 300</code></label>
+<label><input type="radio" name="q18"> <code>8 255</code></label>
+<label><input type="radio" name="q18"> <code>7 44</code></label>
+<label><input type="radio" name="q18"> <code>OverflowException</code></label>
+<details><summary>Explicação</summary><p>O cast <code>(int)</code> <strong>corta</strong> a parte decimal (não arredonda): 7,9 vira 7. Um <code>byte</code> vai de 0 a 255; o cast fica só com os 8 bits de baixo de 300, que dão 300 − 256 = 44. Sem <code>checked</code>, ninguém avisa. Com <code>checked((byte)trezentos)</code>, viria uma <code>OverflowException</code>.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="conversao-tipos.html">Conversão de Tipos</a> e <a href="inteiros.html">Inteiros</a></p>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">19. O que o erro <code>CS0165: Uso de variável local não atribuída "total"</code> quer dizer?</p>
+<label><input type="radio" name="q19"> Que o programa lê <code>total</code> antes de guardar qualquer valor nela.</label>
+<label><input type="radio" name="q19"> Que <code>total</code> foi declarada duas vezes.</label>
+<label><input type="radio" name="q19"> Que <code>total</code> não existe.</label>
+<label><input type="radio" name="q19"> Que <code>total</code> é <code>null</code>.</label>
+<details><summary>Explicação</summary><p>O C# não deixa ler uma variável local sem valor, para você nunca usar um "lixo" da memória. Dê um valor inicial (<code>int total = 0;</code>) ou garanta que todo caminho do código atribua antes de ler. (Uma variável que não existe é o <code>CS0103</code>; declarada duas vezes, o <code>CS0128</code>.)</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="variaveis.html">Variáveis</a> e <a href="erros-compilacao.html">Lendo Erros do Compilador</a></p>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">20. O que este código mostra?</p>
+<pre class="file">int[] v = [99, 20, 30];
+Console.WriteLine(string.Join(" | ", v[..2]));</pre>
+<label><input type="radio" name="q20"> <code>99 | 20 | 30</code></label>
+<label><input type="radio" name="q20"> <code>99</code></label>
+<label><input type="radio" name="q20"> <code>20 | 30</code></label>
+<label><input type="radio" name="q20"> <code>99 | 20</code></label>
+<details><summary>Explicação</summary><p>O intervalo <code>..2</code> vai do começo até a posição 2, <strong>sem incluir</strong> a 2: as posições 0 e 1. O fim de um intervalo nunca entra.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="indices-intervalos.html">Índices (^) e Intervalos (..)</a></p>
+</div>
+
+<h2 id="nivel2">Nível 2 · Intermediário</h2>
+<p>Métodos, null, classes, herança, tipos de valor e exceções.</p>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">21. O que este código mostra?</p>
+<pre class="file">int? idade = null;
+Console.WriteLine(idade ?? 0);</pre>
+<label><input type="radio" name="q21"> Uma linha em branco.</label>
+<label><input type="radio" name="q21"> <code>null</code></label>
+<label><input type="radio" name="q21"> <code>0</code></label>
+<label><input type="radio" name="q21"> <code>NullReferenceException</code></label>
+<details><summary>Explicação</summary><p><code>int?</code> é um inteiro que aceita <code>null</code>. O <code>??</code> é o "valor reserva": se o da esquerda for <code>null</code>, usa o da direita.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="null.html">null e Tipos Anuláveis</a> e <a href="operadores-null.html">Operadores ??, ?. e ??=</a></p>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">22. O que este código mostra?</p>
+<pre class="file">string? apelido = null;
+Console.WriteLine($"[{apelido?.Length}]");</pre>
+<label><input type="radio" name="q22"> <code>[0]</code></label>
+<label><input type="radio" name="q22"> <code>[]</code></label>
+<label><input type="radio" name="q22"> <code>[null]</code></label>
+<label><input type="radio" name="q22"> <code>NullReferenceException</code></label>
+<details><summary>Explicação</summary><p>O <code>?.</code> só lê <code>Length</code> se <code>apelido</code> não for <code>null</code>; se for, o resultado inteiro é <code>null</code>, e na interpolação um <code>null</code> vira texto vazio. Sem o <code>?</code>, <code>apelido.Length</code> lançaria <code>NullReferenceException</code> (e o compilador avisaria com <code>CS8602</code>).</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="operadores-null.html">Operadores ??, ?. e ??=</a> e <a href="referencias-anulaveis.html">Referências Anuláveis</a></p>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">23. O que este código mostra?</p>
+<pre class="file">Console.WriteLine(new Ponto(1, 2) == new Ponto(1, 2));
+Console.WriteLine(new PontoClasse(1, 2) == new PontoClasse(1, 2));
+
+record Ponto(int X, int Y);
+class PontoClasse(int x, int y) { public int X = x; public int Y = y; }</pre>
+<label><input type="radio" name="q23"> <code>True</code> e depois <code>False</code></label>
+<label><input type="radio" name="q23"> <code>True</code> e <code>True</code></label>
+<label><input type="radio" name="q23"> <code>False</code> e <code>False</code></label>
+<label><input type="radio" name="q23"> <code>False</code> e depois <code>True</code></label>
+<details><summary>Explicação</summary><p>Um <strong>record</strong> compara pelo <strong>conteúdo</strong>: dois pontos com os mesmos valores são iguais. Uma classe comum compara pela <strong>referência</strong>: dois <code>new</code> são dois objetos diferentes, mesmo com os mesmos valores.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="records.html">Records</a> e <a href="object.html">A Classe object (Equals)</a></p>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">24. O que este código mostra?</p>
+<pre class="file">var a = new Ponto { X = 1 };
+var b = a;
+b.X = 5;
+Console.WriteLine(a.X);
+
+struct Ponto { public int X; }</pre>
+<label><input type="radio" name="q24"> <code>5</code></label>
+<label><input type="radio" name="q24"> <code>0</code></label>
+<label><input type="radio" name="q24"> Não compila.</label>
+<label><input type="radio" name="q24"> <code>1</code></label>
+<details><summary>Explicação</summary><p><code>Ponto</code> é um <strong>struct</strong>, um tipo de valor: <code>b = a</code> faz uma <strong>cópia</strong> inteira. Mudar <code>b</code> não mexe em <code>a</code>. Se <code>Ponto</code> fosse uma <code>class</code>, a resposta seria 5.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="structs.html">Structs</a> e <a href="valor-referencia.html">Valor × Referência</a></p>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">25. O que este código mostra?</p>
+<pre class="file">var compras = new List&lt;string&gt; { "arroz" };
+var mesmaLista = compras;
+mesmaLista.Add("feijão");
+Console.WriteLine(compras.Count);</pre>
+<label><input type="radio" name="q25"> <code>1</code></label>
+<label><input type="radio" name="q25"> <code>2</code></label>
+<label><input type="radio" name="q25"> <code>0</code></label>
+<label><input type="radio" name="q25"> Não compila.</label>
+<details><summary>Explicação</summary><p><code>List</code> é uma classe: as duas variáveis guardam o endereço da mesma lista no heap. O <code>Add</code> por uma aparece na outra.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="valor-referencia.html">Valor × Referência</a> e <a href="memoria.html">Memória e Coletor de Lixo</a></p>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">26. Numa classe <code>Conta</code>, o que <code>public decimal Saldo { get; private set; }</code> permite?</p>
+<label><input type="radio" name="q26"> Ninguém lê nem muda o saldo.</label>
+<label><input type="radio" name="q26"> Todos leem e mudam o saldo.</label>
+<label><input type="radio" name="q26"> Todos leem o saldo, mas só o código da própria classe o muda; fora dela, <code>conta.Saldo = 10;</code> dá o erro <code>CS0272</code>.</label>
+<label><input type="radio" name="q26"> O saldo só pode ser lido dentro da classe.</label>
+<details><summary>Explicação</summary><p>É o <strong>encapsulamento</strong>: o saldo só muda pelos métodos da classe (<code>Depositar</code>, <code>Sacar</code>), que conferem as regras.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="propriedades.html">Propriedades</a>, <a href="encapsulamento.html">Encapsulamento</a> e <a href="projeto-banco.html">Conta Bancária</a></p>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">27. O que este código mostra?</p>
+<pre class="file">Animal bicho = new Cachorro();
+Console.WriteLine(bicho.Falar() + " " + bicho.Mover());
+
+class Animal
+{
+    public virtual string Falar() =&gt; "...";
+    public string Mover() =&gt; "anda";
+}
+class Cachorro : Animal
+{
+    public override string Falar() =&gt; "Au";
+    public new string Mover() =&gt; "corre";
+}</pre>
+<label><input type="radio" name="q27"> <code>Au anda</code></label>
+<label><input type="radio" name="q27"> <code>Au corre</code></label>
+<label><input type="radio" name="q27"> <code>... anda</code></label>
+<label><input type="radio" name="q27"> <code>... corre</code></label>
+<details><summary>Explicação</summary><p><code>Falar</code> é <code>virtual</code> e o cachorro faz <code>override</code>: vale a versão do objeto de verdade, um <code>Cachorro</code> (polimorfismo). <code>Mover</code> não é virtual; o <code>new</code> só <strong>esconde</strong> o da mãe, e, por uma variável do tipo <code>Animal</code>, quem roda é o <code>Mover</code> do <code>Animal</code>.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="virtual-override.html">virtual e override</a> e <a href="polimorfismo.html">Polimorfismo</a></p>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">28. Uma classe filha tem o construtor <code>public ContaPoupanca(string titular)</code>, sem <code>: base(…)</code>, e a mãe só tem <code>public Conta(string titular)</code>. O que acontece?</p>
+<label><input type="radio" name="q28"> Compila, e o titular fica <code>null</code>.</label>
+<label><input type="radio" name="q28"> O C# passa o <code>titular</code> para a mãe sozinho.</label>
+<label><input type="radio" name="q28"> Uma exceção quando o objeto é criado.</label>
+<label><input type="radio" name="q28"> O erro <code>CS7036</code>: o C# tenta chamar um construtor da mãe sem parâmetros, que não existe.</label>
+<details><summary>Explicação</summary><p>Todo construtor da filha chama um construtor da mãe. Sem <code>: base(titular)</code>, o C# tenta o construtor sem parâmetros. Como a <code>Conta</code> só tem o que pede o titular, a compilação falha.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="base.html">base</a> e <a href="heranca.html">Herança</a></p>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">29. O que este código mostra?</p>
+<pre class="file">try
+{
+    Console.Write("A ");
+    int zero = 0;
+    Console.Write(10 / zero);
+    Console.Write("B ");
+}
+catch (DivideByZeroException)
+{
+    Console.Write("C ");
+}
+finally
+{
+    Console.Write("F");
+}</pre>
+<label><input type="radio" name="q29"> <code>A B F</code></label>
+<label><input type="radio" name="q29"> <code>A C F</code></label>
+<label><input type="radio" name="q29"> <code>A C</code></label>
+<label><input type="radio" name="q29"> <code>A B C F</code></label>
+<details><summary>Explicação</summary><p>A divisão inteira por zero lança <code>DivideByZeroException</code>: o resto do <code>try</code> (o <code>B</code>) é pulado, o <code>catch</code> roda (<code>C</code>) e o <code>finally</code> roda <strong>sempre</strong>, com ou sem exceção (<code>F</code>).</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="try-catch.html">try e catch</a> e <a href="finally.html">finally</a></p>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">30. Dentro de um <code>catch (Exception ex)</code>, qual é a forma certa de <strong>relançar</strong> a exceção sem perder de onde ela veio?</p>
+<label><input type="radio" name="q30"> <code>throw ex;</code></label>
+<label><input type="radio" name="q30"> <code>throw new Exception();</code></label>
+<label><input type="radio" name="q30"> <code>throw;</code></label>
+<label><input type="radio" name="q30"> <code>return ex;</code></label>
+<details><summary>Explicação</summary><p><code>throw;</code> sozinho relança a mesma exceção com o rastro original (o <em>stack trace</em>). <code>throw ex;</code> recomeça o rastro na linha do <code>catch</code>, e você perde a linha em que o erro nasceu (o analisador avisa com <code>CA2200</code>).</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="throw.html">throw</a></p>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">31. O que este código mostra?</p>
+<pre class="file">Console.WriteLine(Contador.Total);
+new Contador();
+new Contador();
+Console.WriteLine(Contador.Total);
+
+class Contador
+{
+    public static int Total;
+    public Contador() =&gt; Total++;
+}</pre>
+<label><input type="radio" name="q31"> <code>0</code> e depois <code>2</code></label>
+<label><input type="radio" name="q31"> <code>0</code> e depois <code>1</code></label>
+<label><input type="radio" name="q31"> <code>1</code> e depois <code>2</code></label>
+<label><input type="radio" name="q31"> Não compila: <code>Total</code> não tem valor inicial.</label>
+<details><summary>Explicação</summary><p>Um campo <code>static</code> é <strong>da classe</strong>, não de cada objeto: existe um <code>Total</code> só, que começa em 0 (o valor padrão de <code>int</code>), e cada construtor soma 1 nele.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="static.html">static</a></p>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">32. Num record <code>record Aluno(string Nome, double Nota);</code>, a Ana escreveu <code>bruno.Nota = 8;</code>. O que acontece, e como trocar a nota?</p>
+<label><input type="radio" name="q32"> Funciona normalmente.</label>
+<label><input type="radio" name="q32"> Uma exceção na hora de rodar.</label>
+<label><input type="radio" name="q32"> O erro <code>CS0103</code>; é preciso declarar <code>Nota</code> de novo.</label>
+<label><input type="radio" name="q32"> O erro <code>CS8852</code>, porque a propriedade é <code>init</code>; para trocar, crie uma cópia: <code>bruno with { Nota = 8 }</code>.</label>
+<details><summary>Explicação</summary><p>As propriedades de um record posicional só recebem valor na criação. A expressão <code>with</code> cria um record novo, igual ao antigo, com as propriedades indicadas trocadas.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="records.html">Records</a> e <a href="readonly.html">readonly e init</a></p>
+</div>
+
+<h2 id="nivel3">Nível 3 · Avançado</h2>
+<p>Coleções, LINQ, arquivos, assíncrono e ferramentas.</p>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">33. O que acontece neste código?</p>
+<pre class="file">var estoque = new Dictionary&lt;string, int&gt;();
+Console.WriteLine(estoque["caneta"]);</pre>
+<label><input type="radio" name="q33"> Mostra <code>0</code>.</label>
+<label><input type="radio" name="q33"> Lança <code>KeyNotFoundException: The given key 'caneta' was not present in the dictionary.</code></label>
+<label><input type="radio" name="q33"> Mostra uma linha em branco.</label>
+<label><input type="radio" name="q33"> Acrescenta a chave <code>"caneta"</code> com 0.</label>
+<details><summary>Explicação</summary><p>Ler uma chave que não existe com <code>[ ]</code> lança exceção. Para perguntar com segurança, use <code>TryGetValue("caneta", out int qtd)</code> ou <code>GetValueOrDefault("caneta")</code>.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="dictionary.html">Dictionary</a></p>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">34. O que este código mostra?</p>
+<pre class="file">var numeros = new List&lt;int&gt; { 1, 2, 3 };
+var grandes = numeros.Where(n =&gt; n &gt; 1);
+numeros.Add(10);
+Console.WriteLine(grandes.Count());</pre>
+<label><input type="radio" name="q34"> <code>2</code></label>
+<label><input type="radio" name="q34"> <code>4</code></label>
+<label><input type="radio" name="q34"> <code>3</code></label>
+<label><input type="radio" name="q34"> <code>InvalidOperationException</code></label>
+<details><summary>Explicação</summary><p>A consulta LINQ tem <strong>execução adiada</strong>: o <code>Where</code> não filtra na hora, só guarda a receita. Ela roda no <code>Count()</code>, quando a lista já tem o 10: os maiores que 1 são 2, 3 e 10. Para "fotografar" o resultado na hora, use <code>.ToList()</code>.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="linq.html">O que é LINQ</a></p>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">35. Numa lista <strong>vazia</strong> de <code>decimal</code>, o que <code>Sum()</code> e <code>Average()</code> fazem?</p>
+<label><input type="radio" name="q35"> <code>Sum()</code> dá 0; <code>Average()</code> lança <code>InvalidOperationException: Sequence contains no elements</code>.</label>
+<label><input type="radio" name="q35"> Os dois dão 0.</label>
+<label><input type="radio" name="q35"> Os dois lançam exceção.</label>
+<label><input type="radio" name="q35"> <code>Sum()</code> lança exceção; <code>Average()</code> dá 0.</label>
+<details><summary>Explicação</summary><p>A soma de nada é zero, sem problema. Mas a média de nada não existe (seria 0 dividido por 0), e o LINQ avisa com a exceção. Confira com <code>Any()</code> antes, ou use <code>DefaultIfEmpty()</code>.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="linq-agregar.html">Agregar (Count, Sum, Average)</a></p>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">36. O que este código mostra?</p>
+<pre class="file">var compras = new HashSet&lt;string&gt; { "arroz" };
+Console.WriteLine(compras.Add("arroz") + " " + compras.Count);</pre>
+<label><input type="radio" name="q36"> <code>True 2</code></label>
+<label><input type="radio" name="q36"> <code>True 1</code></label>
+<label><input type="radio" name="q36"> Uma <code>ArgumentException</code> de item repetido.</label>
+<label><input type="radio" name="q36"> <code>False 1</code></label>
+<details><summary>Explicação</summary><p>Um <code>HashSet</code> não guarda repetidos. O <code>Add</code> de um item que já está lá não lança exceção: devolve <code>false</code> e não muda nada.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="hashset.html">HashSet</a></p>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">37. Depois de pôr 1, 2 e 3 (nessa ordem) numa <code>Queue&lt;int&gt;</code> com <code>Enqueue</code> e numa <code>Stack&lt;int&gt;</code> com <code>Push</code>, o que <code>fila.Dequeue()</code> e <code>pilha.Pop()</code> devolvem?</p>
+<label><input type="radio" name="q37"> 1 e 1</label>
+<label><input type="radio" name="q37"> 1 e 3</label>
+<label><input type="radio" name="q37"> 3 e 1</label>
+<label><input type="radio" name="q37"> 3 e 3</label>
+<details><summary>Explicação</summary><p>A fila é "primeiro a entrar, primeiro a sair", como a fila do banco: sai o 1. A pilha é "último a entrar, primeiro a sair", como uma pilha de pratos: sai o 3, que está no topo.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="queue.html">Queue</a> e <a href="stack.html">Stack</a></p>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">38. A Ana remove itens de uma <code>List</code> com <code>Remove</code> <strong>dentro</strong> de um <code>foreach</code> sobre a mesma lista. O que acontece?</p>
+<label><input type="radio" name="q38"> Funciona e remove todos.</label>
+<label><input type="radio" name="q38"> O compilador dá um erro.</label>
+<label><input type="radio" name="q38"> <code>InvalidOperationException: Collection was modified; enumeration operation may not execute.</code></label>
+<label><input type="radio" name="q38"> O laço pula um item e segue sem erro.</label>
+<details><summary>Explicação</summary><p>O <code>foreach</code> confere se a lista mudou debaixo dele e, se mudou, lança a exceção na próxima volta. Ache primeiro e remova depois, ou use <code>RemoveAll(condição)</code>.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="list.html">List&lt;T&gt;</a> e <a href="projeto-agenda.html">Agenda de Contatos</a></p>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">39. Num método <code>async Task&lt;string&gt; LerAsync()</code>, o que o <code>await</code> em <code>string texto = await File.ReadAllTextAsync("notas.txt");</code> faz?</p>
+<label><input type="radio" name="q39"> Espera a leitura terminar <strong>sem travar</strong> a thread: o método pausa ali e continua quando o arquivo chega.</label>
+<label><input type="radio" name="q39"> Lê o arquivo numa thread nova e devolve na hora uma string vazia.</label>
+<label><input type="radio" name="q39"> Repete a leitura até dar certo.</label>
+<label><input type="radio" name="q39"> Nada: o <code>await</code> é só um comentário para o leitor.</label>
+<details><summary>Explicação</summary><p>O <code>await</code> "desembrulha" a <code>Task&lt;string&gt;</code>: enquanto a leitura não termina, o método fica pausado e a thread fica livre para outras coisas; quando termina, o método continua com o texto. Esquecer o <code>await</code> ao chamar um método <code>async</code> dá o aviso <code>CS4014</code>.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="async-await.html">async e await</a></p>
+</div>
+
+<div class="mc" data-answer="4">
+<p class="mc-q">40. Quando o coletor de lixo (GC) pode liberar um objeto?</p>
+<label><input type="radio" name="q40"> Quando o programador chama <code>Dispose</code>.</label>
+<label><input type="radio" name="q40"> No fim de cada método, sempre.</label>
+<label><input type="radio" name="q40"> Só quando o programa termina.</label>
+<label><input type="radio" name="q40"> Quando nenhuma variável, campo <code>static</code> ou outro objeto vivo chega mais até ele, numa hora que o próprio coletor escolhe.</label>
+<details><summary>Explicação</summary><p>O coletor libera o que não é mais <strong>alcançável</strong>, e não tem hora marcada. Por isso, arquivos e conexões se fecham com <code>using</code> (que chama o <code>Dispose</code> na hora), e não esperando o coletor. E uma lista <code>static</code> que só cresce mantém tudo alcançável: é o "vazamento" de memória do C#.</p></details>
+<p class="mc-q" style="font-weight:400;font-size:14px">Revise: <a href="memoria.html">Memória e Coletor de Lixo</a> e <a href="using-dispose.html">using e IDisposable</a></p>
+</div>
+
+<h2>E agora?</h2>
+<p>Errou alguma? Abra a aula do "Revise", leia a seção do assunto e pratique nas caixas "Experimente". Para consultar rapidamente um termo, use o <a href="glossario.html">Glossário</a>; para juntar tudo num programa, os <a href="projetos.html">Projetos</a>.</p>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
