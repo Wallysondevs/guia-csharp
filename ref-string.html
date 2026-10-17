@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# string e StringBuilder — tabela de métodos com exemplos | Guia C#</title>
+<meta name="description" content="Referência de string e StringBuilder no C#: Length, índices, Trim, ToUpper, Contains, IndexOf, Substring, Replace, Split com opções, Join, PadLeft, IsNullOrWhiteSpace, Equals e Compare com StringComparison, e os métodos do StringBuilder (Append, AppendLine, Insert, Replace, Remove, Clear), com a saída real do dotnet 10 em pt-BR, a imutabilidade e os erros mais comuns.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">string e StringBuilder</span></h1>
+
+<p class="intro">Esta é a página de consulta dos textos no C#: todos os métodos de <code>string</code> que você vai usar no dia a dia e os do <code>StringBuilder</code>, cada um com exemplo e resultado. Para aprender com calma, veja as aulas <a href="strings.html">Strings</a>, <a href="metodos-string.html">Métodos de String</a>, <a href="interpolacao.html">Interpolação</a> e <a href="stringbuilder.html">StringBuilder</a>.</p>
+
+<p>Os resultados vêm dos programas desta página, rodados no <code>dotnet</code> 10.0.112 da máquina da Ana (pasta <code>~/cs/str</code>, cultura pt-BR) e no editor do guia, que deram a mesma saída (a não ser numa linha do rastro de uma exceção, indicada abaixo).</p>
+
+<p>Atalhos: <a href="#imutavel">A string não muda</a> · <a href="#metodos">Métodos de string</a> · <a href="#estaticos">Métodos de string.</a> · <a href="#comparar">Comparar e ordenar</a> · <a href="#char">char</a> · <a href="#sb">StringBuilder</a> · <a href="#qual">string ou StringBuilder?</a> · <a href="#erros">Quando dá errado</a> · <a href="#experimente">Experimente</a></p>
+
+<hr>
+
+<h2 id="imutavel">Antes de tudo: a string não muda</h2>
+<p>Nenhum método de <code>string</code> muda o texto original. <code>ToUpper</code>, <code>Trim</code>, <code>Replace</code> e todos os outros <strong>devolvem uma string nova</strong>. Se você não guardar o resultado, ele se perde:</p>
+<pre class="file" data-file="imut.cs">string nome = "ana";
+nome.ToUpper();
+Console.WriteLine(nome);
+nome = nome.ToUpper();
+Console.WriteLine(nome);
+</pre>
+<pre class="term" data-cwd="~/cs/str">$ dotnet run imut.cs
+ana
+ANA</pre>
+<p>A linha 2 criou <code>"ANA"</code> e jogou fora; só a linha 4, que guarda o resultado em <code>nome</code>, mudou o que a variável mostra. Essa regra (a string é <strong>imutável</strong>) é o motivo de existir o <code>StringBuilder</code>, no fim desta página.</p>
+
+<h2 id="metodos">Métodos de string</h2>
+<p>Este programa usa os métodos mais comuns. Cada linha da saída começa com o número da linha da tabela:</p>
+<pre class="file" data-file="metodos.cs">// metodos.cs — os métodos de string mais usados
+string s = "  Ana Maria da Silva  ";
+string nome = "Ana Maria";
+Console.WriteLine($"1  [{s.Trim()}] [{s.TrimStart()}] [{s.TrimEnd()}]");
+Console.WriteLine($"2  {nome.Length} {nome[0]} {nome[^1]} {nome[4..9]}");
+Console.WriteLine($"3  {nome.ToUpper()} {nome.ToLower()} {"ação".ToUpper()}");
+Console.WriteLine($"4  {nome.Contains("Maria")} {nome.Contains("maria")} {nome.Contains("maria", StringComparison.OrdinalIgnoreCase)}");
+Console.WriteLine($"5  {nome.StartsWith("Ana")} {nome.EndsWith("ia")} {nome.IndexOf('a')} {nome.LastIndexOf('a')} {nome.IndexOf("Maria")} {nome.IndexOf("José")}");
+Console.WriteLine($"6  {nome.Substring(4)} | {nome.Substring(0, 3)} | {nome.Replace("Maria", "Clara")} | {nome.Replace('a', 'o')}");
+Console.WriteLine($"7  {nome.Insert(3, " Paula")} | {nome.Remove(3)} | {nome.Remove(0, 4)}");
+Console.WriteLine($"8  [{"7".PadLeft(3, '0')}] [{"Ana".PadRight(6)}] [{"Ana".PadLeft(6)}]");
+string[] partes = "arroz,feijão,,ovos".Split(',');
+Console.WriteLine($"9  {partes.Length} [{string.Join("|", partes)}]");
+string[] limpas = "arroz, feijão,, ovos".Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+Console.WriteLine($"10 {limpas.Length} [{string.Join("|", limpas)}]");
+Console.WriteLine($"11 {string.Concat("a", "b", "c")} {string.Join(", ", ["x", "y", "z"])} {string.Format("{0} tem {1} anos", "Ana", 29)} {new string('-', 5)}");
+Console.WriteLine($"12 {string.IsNullOrEmpty("")} {string.IsNullOrEmpty(" ")} {string.IsNullOrWhiteSpace(" ")} {string.IsNullOrWhiteSpace(null)}");
+Console.WriteLine($"13 {"ana" == "Ana"} {"ana".Equals("Ana", StringComparison.OrdinalIgnoreCase)} {string.Compare("abacate", "banana")} {string.Compare("b", "a")} {"a".CompareTo("a")}");
+char[] letras = nome.ToCharArray();
+Array.Reverse(letras);
+Console.WriteLine($"14 {new string(letras)} {string.Join("-", nome.Split(' '))} {nome.Count(c =&gt; c == 'a')}");
+Console.WriteLine($"15 {"maçã".Length} {"🍎".Length} {"olá"[2]} {(int)'á'} {char.IsLetter('á')} {char.IsDigit('7')} {char.ToUpper('é')}");
+Console.WriteLine($"16 {"Olá".PadRight(5, '.')}{"Mundo"} {"abc".IndexOfAny(['x', 'b'])} {"a-b-c".Split('-', 2)[1]}");
+</pre>
+<pre class="term" data-cwd="~/cs/str">$ dotnet run metodos.cs
+1  [Ana Maria da Silva] [Ana Maria da Silva  ] [  Ana Maria da Silva]
+2  9 A a Maria
+3  ANA MARIA ana maria AÇÃO
+4  True False True
+5  True True 2 8 4 -1
+6  Maria | Ana | Ana Clara | Ano Morio
+7  Ana Paula Maria | Ana | Maria
+8  [007] [Ana   ] [   Ana]
+9  4 [arroz|feijão||ovos]
+10 3 [arroz|feijão|ovos]
+11 abc x, y, z Ana tem 29 anos -----
+12 True False True True
+13 False True -1 1 0
+14 airaM anA Ana-Maria 3
+15 4 2 á 225 True True É
+16 Olá..Mundo 1 b-c</pre>
+
+<p>Nas tabelas, <code>nome</code> é <code>"Ana Maria"</code> e <code>s</code> é <code>"  Ana Maria da Silva  "</code> (com dois espaços nas pontas).</p>
+
+<h3>Tamanho, posições e pedaços</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Membro</th><th>O que faz</th><th>Exemplo</th><th>Resultado</th><th>Aula</th></tr>
+<tr><td><code>Length</code></td><td>quantos caracteres (propriedade, sem parênteses)</td><td><code>nome.Length</code></td><td><code>9</code></td><td><a href="strings.html">Strings</a></td></tr>
+<tr><td><code>[i]</code></td><td>o caractere da posição <code>i</code> (do 0); é um <code>char</code></td><td><code>nome[0]</code> · <code>nome[^1]</code></td><td><code>A</code> · <code>a</code></td><td><a href="strings.html">Strings</a></td></tr>
+<tr><td><code>[a..b]</code></td><td>o pedaço da posição <code>a</code> até antes de <code>b</code></td><td><code>nome[4..9]</code></td><td><code>Maria</code></td><td><a href="indices-intervalos.html">Índices e Intervalos</a></td></tr>
+<tr><td><code>Substring(início)</code></td><td>do <code>início</code> até o fim</td><td><code>nome.Substring(4)</code></td><td><code>Maria</code></td><td><a href="metodos-string.html">Métodos de String</a></td></tr>
+<tr><td><code>Substring(início, tamanho)</code></td><td><code>tamanho</code> caracteres a partir do <code>início</code></td><td><code>nome.Substring(0, 3)</code></td><td><code>Ana</code></td><td><a href="metodos-string.html">Métodos de String</a></td></tr>
+<tr><td><code>IndexOf(x)</code></td><td>a primeira posição de <code>x</code> (char ou texto), ou <code>-1</code></td><td><code>nome.IndexOf('a')</code> · <code>nome.IndexOf("Maria")</code> · <code>nome.IndexOf("José")</code></td><td><code>2</code> · <code>4</code> · <code>-1</code></td><td><a href="metodos-string.html">Métodos de String</a></td></tr>
+<tr><td><code>LastIndexOf(x)</code></td><td>a última posição</td><td><code>nome.LastIndexOf('a')</code></td><td><code>8</code></td><td><a href="metodos-string.html">Métodos de String</a></td></tr>
+<tr><td><code>IndexOfAny(chars)</code></td><td>a primeira posição de qualquer um dos caracteres</td><td><code>"abc".IndexOfAny(['x', 'b'])</code></td><td><code>1</code></td><td><a href="metodos-string.html">Métodos de String</a></td></tr>
+</table>
+</div>
+<p>Repare no <code>IndexOf('a')</code>: o <code>A</code> maiúsculo da posição 0 não conta. Maiúsculas e minúsculas são caracteres diferentes.</p>
+
+<h3>Procurar</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>Pergunta</th><th>Exemplo</th><th>Resultado</th></tr>
+<tr><td><code>Contains(x)</code></td><td>tem <code>x</code> em algum lugar?</td><td><code>nome.Contains("Maria")</code> · <code>nome.Contains("maria")</code></td><td><code>True</code> · <code>False</code></td></tr>
+<tr><td><code>Contains(x, StringComparison.OrdinalIgnoreCase)</code></td><td>o mesmo, ignorando maiúsculas</td><td><code>nome.Contains("maria", StringComparison.OrdinalIgnoreCase)</code></td><td><code>True</code></td></tr>
+<tr><td><code>StartsWith(x)</code></td><td>começa com <code>x</code>?</td><td><code>nome.StartsWith("Ana")</code></td><td><code>True</code></td></tr>
+<tr><td><code>EndsWith(x)</code></td><td>termina com <code>x</code>?</td><td><code>nome.EndsWith("ia")</code></td><td><code>True</code></td></tr>
+</table>
+</div>
+<p>Aula: <a href="metodos-string.html">Métodos de String</a>. Para procurar padrões (um CPF, um e-mail), veja <a href="regex.html">Expressões Regulares</a>.</p>
+
+<h3>Transformar (sempre devolvem uma string nova)</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>O que faz</th><th>Exemplo</th><th>Resultado</th></tr>
+<tr><td><code>Trim()</code></td><td>tira espaços (e Tab, Enter) das duas pontas</td><td><code>s.Trim()</code></td><td><code>[Ana Maria da Silva]</code></td></tr>
+<tr><td><code>TrimStart()</code>, <code>TrimEnd()</code></td><td>só do começo, só do fim</td><td><code>s.TrimStart()</code> · <code>s.TrimEnd()</code></td><td><code>[Ana Maria da Silva  ]</code> · <code>[  Ana Maria da Silva]</code></td></tr>
+<tr><td><code>ToUpper()</code>, <code>ToLower()</code></td><td>maiúsculas, minúsculas (com acentos, na cultura atual)</td><td><code>nome.ToUpper()</code> · <code>"ação".ToUpper()</code></td><td><code>ANA MARIA</code> · <code>AÇÃO</code></td></tr>
+<tr><td><code>Replace(velho, novo)</code></td><td>troca <strong>todas</strong> as ocorrências</td><td><code>nome.Replace("Maria", "Clara")</code> · <code>nome.Replace('a', 'o')</code></td><td><code>Ana Clara</code> · <code>Ano Morio</code></td></tr>
+<tr><td><code>Insert(posição, texto)</code></td><td>põe o texto na posição</td><td><code>nome.Insert(3, " Paula")</code></td><td><code>Ana Paula Maria</code></td></tr>
+<tr><td><code>Remove(início)</code>, <code>Remove(início, quantos)</code></td><td>tira do <code>início</code> até o fim, ou só <code>quantos</code></td><td><code>nome.Remove(3)</code> · <code>nome.Remove(0, 4)</code></td><td><code>Ana</code> · <code>Maria</code></td></tr>
+<tr><td><code>PadLeft(n, c)</code>, <code>PadRight(n, c)</code></td><td>completa até <code>n</code> caracteres com <code>c</code> (espaço, se omitido)</td><td><code>"7".PadLeft(3, '0')</code> · <code>"Ana".PadRight(6)</code> · <code>"Olá".PadRight(5, '.')</code></td><td><code>[007]</code> · <code>[Ana   ]</code> · <code>Olá..</code></td></tr>
+<tr><td><code>ToCharArray()</code></td><td>vira um array de <code>char</code></td><td><code>Array.Reverse(letras)</code> e <code>new string(letras)</code></td><td><code>airaM anA</code></td></tr>
+</table>
+</div>
+<p>Aulas: <a href="metodos-string.html">Métodos de String</a> e, para alinhar números, <a href="formatacao.html">Formatar Números</a>.</p>
+
+<h3>Cortar e juntar</h3>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>O que faz</th><th>Exemplo</th><th>Resultado</th></tr>
+<tr><td><code>Split(c)</code></td><td>corta em cada <code>c</code> e devolve um <code>string[]</code>; pedaços vazios ficam</td><td><code>"arroz,feijão,,ovos".Split(',')</code></td><td>4 pedaços: <code>arroz|feijão||ovos</code></td></tr>
+<tr><td><code>Split(c, opções)</code></td><td><code>RemoveEmptyEntries</code> tira os vazios; <code>TrimEntries</code> tira os espaços de cada pedaço <span class="versao">.NET 5</span></td><td><code>"arroz, feijão,, ovos".Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)</code></td><td>3 pedaços: <code>arroz|feijão|ovos</code></td></tr>
+<tr><td><code>Split(c, n)</code></td><td>no máximo <code>n</code> pedaços; o último fica com o resto</td><td><code>"a-b-c".Split('-', 2)[1]</code></td><td><code>b-c</code></td></tr>
+<tr><td><code>string.Join(sep, itens)</code></td><td>junta, com <code>sep</code> entre os itens</td><td><code>string.Join("-", nome.Split(' '))</code></td><td><code>Ana-Maria</code></td></tr>
+</table>
+</div>
+
+<h2 id="estaticos">Métodos de <code>string.</code> (chamados pelo tipo)</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Método</th><th>O que faz</th><th>Exemplo</th><th>Resultado</th><th>Aula</th></tr>
+<tr><td><code>string.IsNullOrEmpty(s)</code></td><td><code>null</code> ou <code>""</code>?</td><td><code>string.IsNullOrEmpty("")</code> · <code>(" ")</code></td><td><code>True</code> · <code>False</code></td><td rowspan="2"><a href="null.html">null</a></td></tr>
+<tr><td><code>string.IsNullOrWhiteSpace(s)</code></td><td><code>null</code>, vazio ou só espaços? (o melhor para validar o que foi digitado)</td><td><code>string.IsNullOrWhiteSpace(" ")</code> · <code>(null)</code></td><td><code>True</code> · <code>True</code></td></tr>
+<tr><td><code>string.Join(sep, itens)</code></td><td>junta</td><td><code>string.Join(", ", ["x", "y", "z"])</code></td><td><code>x, y, z</code></td><td><a href="metodos-string.html">Métodos de String</a></td></tr>
+<tr><td><code>string.Concat(…)</code></td><td>junta sem separador</td><td><code>string.Concat("a", "b", "c")</code></td><td><code>abc</code></td><td><a href="strings.html">Strings</a></td></tr>
+<tr><td><code>string.Format(modelo, …)</code></td><td>preenche <code>{0}</code>, <code>{1}</code>… (a forma antiga da interpolação)</td><td><code>string.Format("{0} tem {1} anos", "Ana", 29)</code></td><td><code>Ana tem 29 anos</code></td><td><a href="interpolacao.html">Interpolação</a></td></tr>
+<tr><td><code>new string(c, n)</code></td><td>o caractere <code>c</code> repetido <code>n</code> vezes</td><td><code>new string('-', 5)</code></td><td><code>-----</code></td><td><a href="strings.html">Strings</a></td></tr>
+<tr><td><code>string.Empty</code></td><td>o mesmo que <code>""</code></td><td><code>string vazio = string.Empty;</code></td><td><code>""</code></td><td><a href="strings.html">Strings</a></td></tr>
+</table>
+</div>
+
+<h2 id="comparar">Comparar e ordenar</h2>
+<pre class="file" data-file="comparar.cs">// comparar.cs — comparar e ordenar textos
+string[] nomes = ["bruno", "Ana", "álvaro", "Carla", "ana"];
+Console.WriteLine(string.Join(" ", nomes.Order()));
+Console.WriteLine(string.Join(" ", nomes.Order(StringComparer.Ordinal)));
+Console.WriteLine($"{string.Compare("a", "B")} {string.Compare("a", "B", StringComparison.Ordinal)}");
+Console.WriteLine($"{"Ana".Equals("ana")} {string.Equals("Ana", "ana", StringComparison.OrdinalIgnoreCase)}");
+</pre>
+<pre class="term" data-cwd="~/cs/str">$ dotnet run comparar.cs
+álvaro ana Ana bruno Carla
+Ana Carla ana bruno álvaro
+-1 31
+False True</pre>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Forma</th><th>Compara como</th><th>Exemplo</th><th>Resultado</th></tr>
+<tr><td><code>a == b</code>, <code>a.Equals(b)</code></td><td>caractere por caractere, maiúsculas contam</td><td><code>"ana" == "Ana"</code></td><td><code>False</code></td></tr>
+<tr><td><code>string.Equals(a, b, StringComparison.OrdinalIgnoreCase)</code></td><td>ignorando maiúsculas</td><td><code>"ana".Equals("Ana", StringComparison.OrdinalIgnoreCase)</code></td><td><code>True</code></td></tr>
+<tr><td><code>string.Compare(a, b)</code>, <code>a.CompareTo(b)</code></td><td>ordem de dicionário na cultura atual: negativo se <code>a</code> vem antes, 0 se igual, positivo se depois</td><td><code>string.Compare("abacate", "banana")</code> · <code>("b", "a")</code> · <code>"a".CompareTo("a")</code></td><td><code>-1</code> · <code>1</code> · <code>0</code></td></tr>
+<tr><td><code>StringComparison.Ordinal</code></td><td>pelo código de cada caractere: todas as maiúsculas antes das minúsculas, e os acentos depois de tudo</td><td><code>string.Compare("a", "B", StringComparison.Ordinal)</code></td><td><code>31</code> (positivo: <code>a</code> vem depois de <code>B</code>)</td></tr>
+</table>
+</div>
+<p>Na ordem do dicionário (a primeira linha da saída), <code>álvaro</code> fica junto dos <code>a</code>, e <code>ana</code> vem antes de <code>Ana</code>. Na ordem <code>Ordinal</code> (a segunda), as maiúsculas vêm primeiro e o <code>á</code> vai para o fim. Use a cultura para mostrar listas para pessoas e <code>Ordinal</code> para comparar códigos, nomes de arquivo e chaves. Aula: <a href="cultura.html">Cultura</a>.</p>
+
+<h2 id="char">O tipo <code>char</code></h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Expressão</th><th>Resultado</th><th>Observação</th></tr>
+<tr><td><code>"maçã".Length</code></td><td><code>4</code></td><td>cada letra acentuada é um <code>char</code></td></tr>
+<tr><td><code>"🍎".Length</code></td><td><code>2</code></td><td>um emoji ocupa dois <code>char</code> (UTF-16)</td></tr>
+<tr><td><code>"olá"[2]</code></td><td><code>á</code></td><td>um <code>char</code></td></tr>
+<tr><td><code>(int)'á'</code></td><td><code>225</code></td><td>o código Unicode do caractere</td></tr>
+<tr><td><code>char.IsLetter('á')</code>, <code>char.IsDigit('7')</code></td><td><code>True</code>, <code>True</code></td><td>também <code>IsWhiteSpace</code>, <code>IsUpper</code>, <code>IsLower</code>, <code>IsPunctuation</code></td></tr>
+<tr><td><code>char.ToUpper('é')</code></td><td><code>É</code></td><td>também <code>char.ToLower</code></td></tr>
+<tr><td><code>nome.Count(c =&gt; c == 'a')</code></td><td><code>3</code></td><td>uma string é uma sequência de <code>char</code>: aceita <a href="linq.html">LINQ</a></td></tr>
+</table>
+</div>
+<p>Aula: <a href="char-bool.html">char e bool</a>.</p>
+
+<hr>
+
+<h2 id="sb">StringBuilder</h2>
+<p>O <code>StringBuilder</code> (de <code>System.Text</code>) é um texto que <strong>muda</strong>: cada <code>Append</code> acrescenta no mesmo objeto, sem criar uma string nova. É o certo para montar um texto em muitos pedaços, num laço.</p>
+<pre class="file" data-file="sb.cs">// sb.cs — StringBuilder
+using System.Text;
+
+StringBuilder sb = new();
+sb.Append("Lista de compras");
+sb.AppendLine(":");
+foreach (string item in new[] { "arroz", "feijão", "café" })
+{
+    sb.Append("- ").AppendLine(item);
+}
+sb.AppendLine($"Total: {3} itens");
+Console.Write(sb.ToString());
+Console.WriteLine($"Length: {sb.Length}");
+
+sb.Clear();
+sb.Append("Ana");
+sb.Insert(0, "Sra. ");
+sb.Append('!', 3);
+sb.Replace("Ana", "Ana Maria");
+Console.WriteLine(sb);
+sb.Remove(0, 5);
+Console.WriteLine(sb);
+sb[0] = 'a';
+Console.WriteLine($"{sb} {sb.Length} {sb[0]}");
+</pre>
+<pre class="term" data-cwd="~/cs/str">$ dotnet run sb.cs
+Lista de compras:
+- arroz
+- feijão
+- café
+Total: 3 itens
+Length: 57
+Sra. Ana Maria!!!
+Ana Maria!!!
+ana Maria!!! 12 a</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Membro</th><th>O que faz</th><th>Exemplo</th><th>Aula</th></tr>
+<tr><td><code>new StringBuilder()</code></td><td>cria vazio (também <code>new StringBuilder("começo")</code>)</td><td><code>StringBuilder sb = new();</code></td><td rowspan="12"><a href="stringbuilder.html">StringBuilder</a></td></tr>
+<tr><td><code>Append(x)</code></td><td>acrescenta no fim (texto, número, <code>char</code>…); devolve o próprio <code>sb</code>, então dá para encadear</td><td><code>sb.Append("- ").AppendLine(item);</code></td></tr>
+<tr><td><code>Append(c, n)</code></td><td>acrescenta o caractere <code>c</code> <code>n</code> vezes</td><td><code>sb.Append('!', 3);</code></td></tr>
+<tr><td><code>AppendLine(x)</code></td><td>acrescenta e quebra a linha (<code>AppendLine()</code> só quebra)</td><td><code>sb.AppendLine(":");</code></td></tr>
+<tr><td><code>Insert(posição, x)</code></td><td>põe na posição</td><td><code>sb.Insert(0, "Sra. ");</code></td></tr>
+<tr><td><code>Replace(velho, novo)</code></td><td>troca todas as ocorrências, no próprio <code>sb</code></td><td><code>sb.Replace("Ana", "Ana Maria");</code></td></tr>
+<tr><td><code>Remove(início, quantos)</code></td><td>tira caracteres</td><td><code>sb.Remove(0, 5);</code></td></tr>
+<tr><td><code>Clear()</code></td><td>esvazia</td><td><code>sb.Clear();</code></td></tr>
+<tr><td><code>Length</code></td><td>quantos caracteres tem agora (dá para mudar: <code>sb.Length = 0</code> também esvazia)</td><td><code>sb.Length</code> → <code>57</code></td></tr>
+<tr><td><code>[i]</code></td><td>lê <strong>e muda</strong> um caractere (na string não dá)</td><td><code>sb[0] = 'a';</code></td></tr>
+<tr><td><code>ToString()</code></td><td>a string pronta</td><td><code>string texto = sb.ToString();</code></td></tr>
+<tr><td><code>Console.WriteLine(sb)</code></td><td>chama o <code>ToString()</code> sozinho</td><td><code>Console.WriteLine(sb);</code></td></tr>
+</table>
+</div>
+
+<h2 id="qual">string ou StringBuilder?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th><th>Por quê</th></tr>
+<tr><td>Juntar poucos pedaços numa linha</td><td>interpolação: <code>$"{nome} tem {idade} anos"</code></td><td>mais legível; o compilador já otimiza</td></tr>
+<tr><td>Juntar os itens de uma lista com separador</td><td><code>string.Join(", ", itens)</code></td><td>uma chamada só, sem laço</td></tr>
+<tr><td>Montar um texto num laço, pedaço por pedaço (um relatório, um arquivo)</td><td><code>StringBuilder</code></td><td>com <code>+=</code> num laço, cada volta copia o texto inteiro para uma string nova; com milhares de voltas, fica muito mais lento</td></tr>
+<tr><td>Comparar, procurar, cortar</td><td><code>string</code></td><td>o <code>StringBuilder</code> não tem <code>Contains</code>, <code>Split</code>, <code>IndexOf</code>: faça <code>ToString()</code> antes</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2 id="erros">Quando dá errado</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Código</th><th>Mensagem real (lab)</th><th>O que significa e como consertar</th><th>Aula</th></tr>
+<tr><td><code>nome[0] = 'A';</code></td><td><code>error CS0200: A propriedade ou o indexador "string.this[int]" não pode ser atribuído, pois é somente leitura</code></td><td>A string não muda. Crie outra: <code>nome = char.ToUpper(nome[0]) + nome[1..];</code>, ou use um <code>StringBuilder</code>.</td><td><a href="strings.html">Strings</a></td></tr>
+<tr><td><code>char inicial = 'An';</code></td><td><code>error CS1012: Número excessivo de caracteres no literal de caractere</code></td><td>Aspas simples são para <strong>um</strong> caractere. Texto vai em aspas duplas: <code>string inicial = "An";</code></td><td><a href="char-bool.html">char e bool</a></td></tr>
+<tr><td><code>int idade = "29";</code></td><td><code>error CS0029: Não é possível converter implicitamente tipo "string" em "int"</code></td><td><code>"29"</code> é texto. Converta: <code>int.Parse("29")</code> ou, com o que o usuário digita, <code>int.TryParse</code>.</td><td><a href="parse.html">Parse e TryParse</a></td></tr>
+<tr><td><code>"Ana".Substring(1, 5)</code></td><td><code>System.ArgumentOutOfRangeException: Index and length must refer to a location within the string. (Parameter 'length')</code></td><td>"Início e tamanho têm de caber na string": a partir da posição 1 só há 2 caracteres. Confira o <code>Length</code> antes, ou use <code>[1..]</code>.</td><td><a href="metodos-string.html">Métodos de String</a></td></tr>
+<tr><td><code>"Ana"[3]</code></td><td><code>System.IndexOutOfRangeException: Index was outside the bounds of the array.</code></td><td>As posições de <code>"Ana"</code> vão de 0 a 2. A mensagem fala em "array" mesmo sendo uma string. No lab, o rastro mostra também a linha <code>at System.String.get_Chars(Int32 index)</code>; o editor do guia não mostra essa linha.</td><td><a href="strings.html">Strings</a></td></tr>
+<tr><td><code>string? apelido = null;</code><br><code>apelido.Length</code></td><td><code>warning CS8602: Desreferência de uma referência possivelmente nula.</code> e, ao rodar, <code>System.NullReferenceException: Object reference not set to an instance of an object.</code></td><td>O compilador avisou, e o programa caiu. Use <code>apelido?.Length</code> ou confira <code>is null</code> antes.</td><td><a href="referencias-anulaveis.html">Referências Anuláveis</a></td></tr>
+<tr><td><code>nome.ToUpper();</code> sozinho</td><td>(compila, sem aviso, e não muda nada)</td><td>Guarde o resultado: <code>nome = nome.ToUpper();</code>. Veja a missão abaixo.</td><td><a href="metodos-string.html">Métodos de String</a></td></tr>
+</table>
+</div>
+
+<h2 id="experimente">Experimente</h2>
+<div class="trycs" data-goal="out:[ANA]">
+<p class="try-task"><strong>Missão:</strong> o programa deveria limpar os espaços e pôr o nome em maiúsculas, mas mostra <code>[  ana  ]</code>. Conserte as linhas 2 e 3 para a saída ser <code>[ANA]</code>.</p>
+<pre class="script">string nome = "  ana  ";
+nome.Trim();
+nome.ToUpper();
+Console.WriteLine($"[{nome}]");
+</pre>
+<pre class="solucao">string nome = "  ana  ";
+nome = nome.Trim();
+nome = nome.ToUpper();
+Console.WriteLine($"[{nome}]");
+</pre>
+</div>
+
+<div class="trycs">
+<p class="try-task"><strong>Experimente:</strong> troque o texto e os métodos e veja o resultado. Tente <code>Replace</code>, <code>Split</code> com outro separador, <code>PadLeft</code>…</p>
+<pre class="script">string frase = "  A Ana ama arroz com feijão  ";
+Console.WriteLine($"[{frase.Trim()}]");
+Console.WriteLine(frase.Trim().ToUpper());
+Console.WriteLine(frase.Contains("arroz"));
+Console.WriteLine(frase.Trim().Split(' ').Length);
+Console.WriteLine(frase.Replace("arroz", "macarrão").Trim());
+Console.WriteLine(frase.Count(c =&gt; c == 'a'));
+</pre>
+</div>
+
+<h2>Resumo</h2>
+<ul>
+  <li>A string é imutável: todo método devolve uma string nova. Guarde o resultado.</li>
+  <li><code>Length</code> e <code>[i]</code> (do 0); pedaços com <code>Substring</code> ou <code>[a..b]</code>; posições com <code>IndexOf</code> (<code>-1</code> = não achou).</li>
+  <li><code>Trim</code>, <code>ToUpper</code>, <code>ToLower</code>, <code>Replace</code>, <code>PadLeft</code>, <code>Insert</code>, <code>Remove</code> transformam; <code>Contains</code>, <code>StartsWith</code>, <code>EndsWith</code> perguntam.</li>
+  <li><code>Split</code> corta (com <code>RemoveEmptyEntries</code> e <code>TrimEntries</code>); <code>string.Join</code> junta.</li>
+  <li>Para validar entrada, <code>string.IsNullOrWhiteSpace</code>. Para comparar sem ligar para maiúsculas, <code>StringComparison.OrdinalIgnoreCase</code>.</li>
+  <li>Muitos pedaços num laço: <code>StringBuilder</code> com <code>Append</code>/<code>AppendLine</code> e, no fim, <code>ToString()</code>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
