@@ -372,7 +372,7 @@ Repeated 174521 times:
    at Program.&lt;Main&gt;$(System.String[])
 código: 134</pre>
 <p><strong>O que aconteceu:</strong> dentro do <code>set</code>, <code>Preco = value;</code> grava <strong>na própria propriedade</strong>, o que chama o <code>set</code> de novo, que grava na propriedade, que chama o <code>set</code>… É uma <a href="recursao.html">recursão</a> sem fim. Cada chamada ocupa um pedaço da memória de chamadas (a "pilha"), até ela transbordar (<em>stack overflow</em>). O .NET mostra quantas vezes o <code>set_Preco</code> se repetiu (o número muda de uma execução para outra) e encerra o programa. O compilador não avisou nada.</p>
-<p>No editor do guia, que roda o .NET em WebAssembly dentro do navegador, este programa termina sem a mensagem <code>Stack overflow.</code> e com código de saída 1. A mensagem completa, com o código 134, é a do <code>dotnet</code>, mostrada acima.</p>
+<p>No editor do guia, que roda o .NET em WebAssembly dentro do navegador, a saída é a mesma, com o <code>Stack overflow.</code> e o código 134. Só o número de repetições é outro (perto de 999), porque a pilha do navegador é menor.</p>
 <p><strong>Como resolver:</strong> grave num campo de apoio, que tem outro nome: <code>_preco = value;</code> (com <code>private decimal _preco;</code>), ou <code>field = value;</code> no C# 14. Ou, se não há regra, use a auto-propriedade <code>{ get; set; }</code>.</p>
 </div>
 
