@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# Records — record class, record struct, with e igualdade | Guia C#</title>
+<meta name="description" content="Records em C# para quem está começando: record em uma linha, o ToString pronto, igualdade por valor com == e Equals, imutabilidade e o erro CS8852, a expressão with, desconstrução, record com corpo, record struct e readonly record struct, herança entre records, a cópia rasa e os erros CS8858 e CS8865, com saídas reais do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">Records</span></h1>
+
+<p class="intro">Na aula de <a href="object.html">A Classe object</a>, a Ana escreveu umas 30 linhas para um <code>Produto</code> com nome e preço: propriedades, construtor, <code>ToString</code>, <code>Equals</code> e <code>GetHashCode</code>. Tudo isso para uma coisa que é só "um punhado de dados". O <code>record</code> <span class="versao">C# 9</span> faz tudo isso em <strong>uma linha</strong>: <code>record Produto(string Nome, decimal Preco);</code>. Nesta aula você vai ver o que essa linha gera, como "mudar" um record que não muda (o <code>with</code>) e a diferença entre <code>record class</code> e <code>record struct</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>Como declarar um record em uma linha, e o que o compilador gera para você.</li>
+  <li>O <code>ToString()</code> pronto e a igualdade por valor (<code>==</code> compara o conteúdo).</li>
+  <li>Por que um record não muda (o erro <code>CS8852</code>) e como criar cópias alteradas com <code>with</code>.</li>
+  <li>Desconstrução: <code>var (nome, preco) = produto;</code>.</li>
+  <li>Records com métodos e propriedades a mais.</li>
+  <li><code>record class</code>, <code>record struct</code> <span class="versao">C# 10</span> e <code>readonly record struct</code>.</li>
+  <li>Quando usar record e quando usar class.</li>
+</ul>
+</div>
+
+<p>Todos os programas desta aula rodaram com <code>dotnet run arquivo.cs</code> no .NET 10 da máquina da Ana, na pasta <code>~/cs</code>.</p>
+
+<hr>
+
+<h2>A ideia: uma ficha preenchida</h2>
+<p>Pense numa ficha de cadastro de papel, já preenchida: "Nome: Café. Preço: R$ 18,90." Duas fichas com os mesmos dados dizem a mesma coisa, mesmo que sejam dois papéis diferentes. E, para corrigir uma ficha, o certo não é rasurar: é preencher uma <strong>ficha nova</strong>, copiando o que não mudou.</p>
+
+<p>Um record é essa ficha:</p>
+<ul>
+  <li>serve para guardar <strong>dados</strong> (não para ter "identidade", como uma conta bancária);</li>
+  <li>dois records com os mesmos dados são <strong>iguais</strong>;</li>
+  <li>depois de preenchido, <strong>não muda</strong>; para "mudar", você cria uma cópia alterada.</li>
+</ul>
+
+<hr>
+
+<h2>Um record em uma linha</h2>
+
+<pre class="file" data-file="produto.cs">Produto cafe = new Produto("Café", 18.90m);
+Console.WriteLine(cafe);
+Console.WriteLine(cafe.Nome);
+Console.WriteLine(cafe.Preco);
+
+record Produto(string Nome, decimal Preco);
+</pre>
+
+<dl class="anatomy">
+  <dt>record Produto(…);</dt><dd>Declara um record chamado <code>Produto</code>. Repare que termina com <code>;</code> e não tem chaves: não precisa de corpo.</dd>
+  <dt>(string Nome, decimal Preco)</dt><dd>Os <strong>parâmetros posicionais</strong>. Para cada um, o compilador cria uma propriedade pública com o mesmo nome (<code>Nome</code>, <code>Preco</code>) e um construtor que recebe os valores nessa ordem. Por isso os nomes ficam em PascalCase, como propriedades.</dd>
+  <dt>new Produto("Café", 18.90m)</dt><dd>Usa o construtor gerado: o primeiro argumento vai para <code>Nome</code>, o segundo para <code>Preco</code>.</dd>
+  <dt>Console.WriteLine(cafe)</dt><dd>Usa o <code>ToString()</code> gerado, que mostra o nome do tipo e todas as propriedades.</dd>
+</dl>
+
+<pre class="term">$ dotnet run produto.cs
+Produto { Nome = Café, Preco = 18,90 }
+Café
+18,90</pre>
+
+<p>Compare com a classe da aula <a href="object.html">A Classe object</a>, que mostrava só <code>Produto</code>. O <code>ToString()</code> de um record é ótimo para depurar: você vê o conteúdo inteiro de uma vez.</p>
+
+<h3>O que a linha gera</h3>
+<p>Aquela linha única equivale, mais ou menos, a esta classe (você <strong>não</strong> precisa escrever isto; é só para entender):</p>
+
+<pre class="file" data-file="o-que-o-record-gera.cs">class Produto
+{
+    public string Nome { get; init; }
+    public decimal Preco { get; init; }
+
+    public Produto(string Nome, decimal Preco) { this.Nome = Nome; this.Preco = Preco; }
+
+    public override string ToString() { … }          // "Produto { Nome = …, Preco = … }"
+    public override bool Equals(object? obj) { … }   // compara Nome e Preco
+    public override int GetHashCode() { … }          // combina Nome e Preco
+    public static bool operator ==(Produto? a, Produto? b) { … }
+    public static bool operator !=(Produto? a, Produto? b) { … }
+    public void Deconstruct(out string Nome, out decimal Preco) { … }
+    // … e o que o "with" precisa para copiar
+}
+</pre>
+
+<p>Um <code>record</code> <strong>é uma classe</strong> (um tipo de referência; veja <a href="valor-referencia.html">Valor × Referência</a>), só que com tudo isso pronto. Por isso ele também se chama <code>record class</code>; as duas formas, <code>record Produto(…)</code> e <code>record class Produto(…)</code>, são a mesma coisa.</p>
+
+<div class="trycs" data-goal="out:Produto { Nome = Café\, Preco = 18\,90 },out:True,src:record\s+(class\s+)?Produto">
+<p class="try-task"><strong>Missão:</strong> rode e veja <code>Produto</code> e <code>False</code>. Apague a classe <code>Produto</code> inteira e coloque no lugar a linha <code>record Produto(string Nome, decimal Preco);</code>. Sem mudar mais nada, a saída deve virar <code>Produto { Nome = Café, Preco = 18,90 }</code> e <code>True</code>.</p>
+<pre class="script">Produto a = new Produto("Café", 18.90m);
+Produto b = new Produto("Café", 18.90m);
+Console.WriteLine(a);
+Console.WriteLine(a == b);
+
+class Produto
+{
+    public string Nome { get; }
+    public decimal Preco { get; }
+
+    public Produto(string nome, decimal preco)
+    {
+        Nome = nome;
+        Preco = preco;
+    }
+}
+</pre>
+<pre class="solucao">Produto a = new Produto("Café", 18.90m);
+Produto b = new Produto("Café", 18.90m);
+Console.WriteLine(a);
+Console.WriteLine(a == b);
+
+record Produto(string Nome, decimal Preco);
+</pre>
+</div>
+
+<hr>
+
+<h2>Igualdade por valor</h2>
+
+<pre class="file" data-file="igual.cs">Produto a = new Produto("Café", 18.90m);
+Produto b = new Produto("Café", 18.90m);
+Produto c = new Produto("Chá", 7.50m);
+
+Console.WriteLine(a == b);
+Console.WriteLine(a.Equals(b));
+Console.WriteLine(a == c);
+Console.WriteLine(ReferenceEquals(a, b));
+
+HashSet&lt;Produto&gt; itens = [a, b, c];
+Console.WriteLine(itens.Count);
+
+record Produto(string Nome, decimal Preco);
+</pre>
+
+<pre class="term">$ dotnet run igual.cs
+True       « a == b: mesmo conteúdo
+True       « Equals também
+False      « café × chá
+False      « mas continuam sendo dois objetos
+2          « o HashSet sabe que a e b são iguais</pre>
+
+<dl class="anatomy">
+  <dt>a == b</dt><dd>Num record, o <code>==</code> compara <strong>todas as propriedades</strong>. Numa classe comum, compararia os endereços e daria <code>False</code>.</dd>
+  <dt>ReferenceEquals(a, b)</dt><dd>Pergunta "é o mesmo objeto?" (veja <a href="object.html">A Classe object</a>). Não é: são dois <code>new</code>. O record só muda o significado de "igual".</dd>
+  <dt>itens.Count</dt><dd>O <code>GetHashCode</code> gerado combina as propriedades, então o <code>HashSet</code> e o <code>Dictionary</code> funcionam sem você escrever nada.</dd>
+</dl>
+
+<hr>
+
+<h2>Um record não muda</h2>
+<p>As propriedades geradas são <code>{ get; init; }</code>: o <code>init</code> (veja <a href="readonly.html">readonly e init</a>) deixa definir o valor <strong>só na criação</strong>. Depois, nada muda. A Ana tentou subir o preço do café:</p>
+
+<div class="warning">
+<strong>Este código tem um erro de propósito</strong>
+<pre class="file" data-file="imutavel.cs">Produto cafe = new Produto("Café", 18.90m);
+cafe.Preco = 20.00m;
+
+record Produto(string Nome, decimal Preco);
+</pre>
+</div>
+
+<pre class="term">$ dotnet run imutavel.cs
+/home/ana/cs/imutavel.cs(2,1): error CS8852: A propriedade somente de inicialização ou o indexador 'Produto.Preco' só pode ser atribuído em um inicializador de objeto, em 'this' ou 'base' em um construtor de instância ou em um acessador 'init'.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>"Propriedade somente de inicialização": só pode receber valor quando o objeto é criado. Por que isso é bom? Porque um record é usado como "valor" (num <code>HashSet</code>, numa chave de <code>Dictionary</code>, compartilhado entre várias partes do programa). Se ele pudesse mudar, um produto guardado num <code>HashSet</code> poderia mudar de "estante" sem avisar, e uma parte do programa veria a mudança feita por outra. Imutável, ninguém se preocupa.</p>
+
+<hr>
+
+<h2><code>with</code>: uma cópia com mudanças</h2>
+<p>Para "mudar" um record, você cria um novo, copiando o antigo e trocando só o que precisa. É o que faz a expressão <code>with</code> ("com"):</p>
+
+<pre class="file" data-file="with.cs">Produto cafe = new Produto("Café", 18.90m);
+Produto promocao = cafe with { Preco = 15.90m };
+Produto descafeinado = cafe with { Nome = "Café descafeinado", Preco = 21.50m };
+
+Console.WriteLine(cafe);
+Console.WriteLine(promocao);
+Console.WriteLine(descafeinado);
+
+record Produto(string Nome, decimal Preco);
+</pre>
+
+<dl class="anatomy">
+  <dt>cafe with { Preco = 15.90m }</dt><dd>"O <code>cafe</code>, com o preço 15,90." Cria um <strong>novo</strong> <code>Produto</code>, copia todas as propriedades do <code>cafe</code> e troca as que estão entre as chaves.</dd>
+  <dt>{ Nome = "…", Preco = 21.50m }</dt><dd>Dá para trocar várias propriedades de uma vez, separadas por vírgula, como num <a href="inicializadores.html">inicializador</a>.</dd>
+  <dt>Console.WriteLine(cafe)</dt><dd>O original continua igual: o <code>with</code> nunca mexe nele.</dd>
+</dl>
+
+<pre class="term">$ dotnet run with.cs
+Produto { Nome = Café, Preco = 18,90 }                « o original, intacto
+Produto { Nome = Café, Preco = 15,90 }
+Produto { Nome = Café descafeinado, Preco = 21,50 }</pre>
+
+<p>O <code>with</code> só funciona com records, structs e tipos anônimos. Com uma classe comum, mesmo com propriedades <code>init</code>:</p>
+
+<pre class="term">$ dotnet run classe.cs
+/home/ana/cs/classe.cs(2,23): error CS8858: O tipo de receptor 'ProdutoClasse' não é um tipo de registro válido e não é um tipo struct.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Nas mensagens em português, <em>record</em> é traduzido como "<strong>registro</strong>". O conserto é transformar a classe em record.</p>
+
+<h3>Cuidado: a cópia é rasa</h3>
+<p>O <code>with</code> copia as propriedades, mas, se uma delas é uma referência (uma lista, por exemplo), ele copia o <strong>endereço</strong>, não a lista:</p>
+
+<pre class="file" data-file="raso.cs">Pedido p1 = new Pedido("Ana", ["Café"]);
+Pedido p2 = p1 with { Cliente = "Bia" };
+p2.Itens.Add("Chá");
+
+Console.WriteLine($"{p1.Cliente}: {string.Join(", ", p1.Itens)}");
+Console.WriteLine($"{p2.Cliente}: {string.Join(", ", p2.Itens)}");
+Console.WriteLine(p1);
+
+record Pedido(string Cliente, List&lt;string&gt; Itens);
+</pre>
+
+<pre class="term">$ dotnet run raso.cs
+Ana: Café, Chá      « o chá da Bia foi parar no pedido da Ana
+Bia: Café, Chá
+Pedido { Cliente = Ana, Itens = System.Collections.Generic.List`1[System.String] }</pre>
+
+<p>Duas lições: o record só é tão imutável quanto as coisas que ele guarda (uma <code>List</code> dentro dele continua mudando), e o <code>ToString()</code> gerado mostra a lista pelo nome do tipo, não pelo conteúdo. Para records de verdade imutáveis, use dados imutáveis dentro deles (<code>string</code>, números, outros records) ou crie uma lista nova no <code>with</code>: <code>p1 with { Cliente = "Bia", Itens = [.. p1.Itens] }</code>.</p>
+
+<hr>
+
+<h2>Desconstrução</h2>
+<p>Um record posicional pode ser "aberto" em variáveis, na ordem dos parâmetros:</p>
+
+<pre class="file" data-file="descon.cs">Produto cafe = new Produto("Café", 18.90m);
+var (nome, preco) = cafe;
+Console.WriteLine($"{nome} custa {preco:C}");
+
+record Produto(string Nome, decimal Preco);
+</pre>
+
+<pre class="term">$ dotnet run descon.cs
+Café custa R$ 18,90</pre>
+
+<p>O <code>var (nome, preco)</code> cria duas variáveis e as preenche com <code>Nome</code> e <code>Preco</code>. É o mesmo recurso das <a href="tuplas.html">tuplas</a>, a próxima aula.</p>
+
+<hr>
+
+<h2>Records com corpo</h2>
+<p>Um record pode ter chaves, com métodos e propriedades a mais, como uma classe:</p>
+
+<pre class="file" data-file="corpo.cs">Produto cafe = new Produto("Café", 18.90m);
+Console.WriteLine(cafe.ComDesconto(10));
+Console.WriteLine(cafe.PrecoFormatado);
+
+record Produto(string Nome, decimal Preco)
+{
+    public string PrecoFormatado =&gt; Preco.ToString("C");
+
+    public Produto ComDesconto(int porcento) =&gt; this with { Preco = Preco - Preco * porcento / 100 };
+}
+</pre>
+
+<dl class="anatomy">
+  <dt>public string PrecoFormatado =&gt; …</dt><dd>Uma propriedade calculada. Ela entra no <code>ToString()</code> gerado, porque é pública.</dd>
+  <dt>this with { … }</dt><dd>Um método que devolve um produto <strong>novo</strong>, com desconto. É o estilo dos records: em vez de mudar, devolver uma cópia.</dd>
+</dl>
+
+<pre class="term">$ dotnet run corpo.cs
+Produto { Nome = Café, Preco = 17,01, PrecoFormatado = R$ 17,01 }
+R$ 18,90      « o cafe original não mudou</pre>
+
+<h3>Sem parâmetros posicionais</h3>
+<p>Um record também pode ser escrito com propriedades normais, sem os parênteses. É útil quando há muitas propriedades ou algumas opcionais:</p>
+
+<pre class="file" data-file="nominal.cs">Cliente ana = new Cliente { Nome = "Ana", Email = "ana@exemplo.com" };
+Console.WriteLine(ana);
+
+record Cliente
+{
+    public required string Nome { get; init; }
+    public string? Email { get; init; }
+}
+</pre>
+
+<pre class="term">$ dotnet run nominal.cs
+Cliente { Nome = Ana, Email = ana@exemplo.com }</pre>
+
+<p>O <code>required</code> obriga quem cria o objeto a preencher o <code>Nome</code> (veja <a href="inicializadores.html">Inicializadores e required</a>). O <code>ToString</code>, o <code>==</code> e o <code>with</code> continuam prontos.</p>
+
+<hr>
+
+<h2><code>record struct</code> <span class="versao">C# 10</span></h2>
+<p>O <code>record</code> comum é uma classe. Com <code>record struct</code>, você ganha as mesmas facilidades num <a href="structs.html">struct</a>, um tipo de valor:</p>
+
+<pre class="file" data-file="rstruct.cs">Ponto p = new Ponto(2, 3);
+Ponto q = p with { X = 10 };
+Console.WriteLine(p);
+Console.WriteLine(q);
+Console.WriteLine(p == new Ponto(2, 3));
+
+p.X = 5;
+Console.WriteLine(p);
+
+record struct Ponto(int X, int Y);
+</pre>
+
+<pre class="term">$ dotnet run rstruct.cs
+Ponto { X = 2, Y = 3 }
+Ponto { X = 10, Y = 3 }
+True
+Ponto { X = 5, Y = 3 }      « um record struct pode mudar!</pre>
+
+<p>Repare na última linha: diferente do <code>record</code> (classe), as propriedades de um <code>record struct</code> são <code>{ get; set; }</code>, e <code>p.X = 5</code> funciona. Para um struct imutável, que é o recomendado (veja <a href="structs.html">Structs</a>), escreva <strong><code>readonly record struct</code></strong>:</p>
+
+<pre class="file" data-file="rostruct.cs">Ponto p = new Ponto(2, 3);
+p.X = 5;
+
+readonly record struct Ponto(int X, int Y);
+</pre>
+
+<pre class="term">$ dotnet run rostruct.cs
+/home/ana/cs/rostruct.cs(2,1): error CS8852: A propriedade somente de inicialização ou o indexador 'Ponto.X' só pode ser atribuído em um inicializador de objeto, em 'this' ou 'base' em um construtor de instância ou em um acessador 'init'.
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th></th><th><code>record</code> = <code>record class</code></th><th><code>record struct</code></th><th><code>readonly record struct</code></th></tr>
+<tr><td>Família</td><td>Referência</td><td>Valor</td><td>Valor</td></tr>
+<tr><td>Propriedades posicionais</td><td><code>get; init;</code> (imutável)</td><td><code>get; set;</code> (mutável)</td><td><code>get; init;</code> (imutável)</td></tr>
+<tr><td><code>b = a</code></td><td>Mesmo objeto</td><td>Cópia</td><td>Cópia</td></tr>
+<tr><td>Pode ser <code>null</code></td><td>Sim</td><td>Não</td><td>Não</td></tr>
+<tr><td>Herança</td><td>Sim, entre records</td><td>Não</td><td>Não</td></tr>
+<tr><td><code>ToString</code>, <code>==</code>, <code>Equals</code>, <code>with</code></td><td colspan="3">Prontos nos três</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Herança entre records</h2>
+<p>Um record (classe) pode herdar de outro record, passando os parâmetros para a mãe como num <code>: base(…)</code>:</p>
+
+<pre class="file" data-file="heranca.cs">Animal rex = new Cachorro("Rex", "vira-lata");
+Console.WriteLine(rex);
+Console.WriteLine(rex == new Cachorro("Rex", "vira-lata"));
+
+record Animal(string Nome);
+record Cachorro(string Nome, string Raca) : Animal(Nome);
+</pre>
+
+<pre class="term">$ dotnet run heranca.cs
+Cachorro { Nome = Rex, Raca = vira-lata }
+True</pre>
+
+<p>Mesmo numa variável do tipo <code>Animal</code>, o <code>ToString()</code> mostra o tipo e as propriedades do <code>Cachorro</code>. Só que records e classes não se misturam na herança: uma <code>class Cachorro : Animal</code> (com <code>Animal</code> record) dá <code>CS8865: Somente os registros podem ser herdados de registros.</code></p>
+
+<hr>
+
+<h2>Record ou classe?</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Situação</th><th>Use</th></tr>
+<tr><td>Dados que só são lidos: um produto do catálogo, uma resposta de uma API, uma linha de relatório, um endereço</td><td><code>record</code></td></tr>
+<tr><td>Dois objetos com o mesmo conteúdo devem ser "iguais"</td><td><code>record</code></td></tr>
+<tr><td>Valores pequenos (coordenada, cor, medida)</td><td><code>readonly record struct</code></td></tr>
+<tr><td>Algo com identidade e estado que muda: conta bancária, carrinho, jogador, conexão</td><td><code>class</code></td></tr>
+<tr><td>Muito comportamento (métodos) e poucos dados expostos</td><td><code>class</code></td></tr>
+</table>
+</div>
+
+<p>Uma pergunta resolve a maioria dos casos: "duas coisas com os mesmos dados são a mesma coisa?" Dois produtos "Café, R$ 18,90": sim, record. Duas contas com saldo de R$ 100: não, são contas diferentes, então classe.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>CS8852: "A propriedade somente de inicialização … só pode ser atribuído em um inicializador de objeto …"</strong>
+<pre class="term">$ dotnet run imutavel.cs
+/home/ana/cs/imutavel.cs(2,1): error CS8852: A propriedade somente de inicialização ou o indexador 'Produto.Preco' só pode ser atribuído em um inicializador de objeto, …</pre>
+<p><strong>O que aconteceu:</strong> você tentou mudar uma propriedade de um record (ou de um <code>readonly record struct</code>) depois de criado.</p>
+<p><strong>Como resolver:</strong> crie uma cópia com <code>with</code>: <code>cafe = cafe with { Preco = 20.00m };</code>. Se o objeto precisa mesmo mudar o tempo todo, talvez ele seja uma <code>class</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>CS8858: "O tipo de receptor … não é um tipo de registro válido e não é um tipo struct"</strong>
+<p><strong>O que aconteceu:</strong> <code>with</code> numa classe comum.</p>
+<p><strong>Como resolver:</strong> transforme a classe em <code>record</code> ou crie o objeto novo com <code>new</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>"Mudei a lista da cópia e o original mudou"</strong>
+<p><strong>O que aconteceu:</strong> o <code>with</code> faz uma cópia rasa: listas e outros objetos dentro do record são compartilhados.</p>
+<p><strong>Como resolver:</strong> no <code>with</code>, crie uma lista nova (<code>Itens = [.. p1.Itens]</code>), ou guarde dentro do record dados que não mudam.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>record Produto(string Nome, decimal Preco);</code></td><td>Record posicional (classe) <span class="versao">C# 9</span></td></tr>
+<tr><td><code>record class Produto(…);</code></td><td>O mesmo, escrito por extenso <span class="versao">C# 10</span></td></tr>
+<tr><td><code>record struct Ponto(int X, int Y);</code></td><td>Record de valor, mutável <span class="versao">C# 10</span></td></tr>
+<tr><td><code>readonly record struct Ponto(int X, int Y);</code></td><td>Record de valor, imutável</td></tr>
+<tr><td><code>a == b</code>, <code>a.Equals(b)</code></td><td>Compara todas as propriedades</td></tr>
+<tr><td><code>x with { Preco = 15.90m }</code></td><td>Cópia com mudanças (rasa)</td></tr>
+<tr><td><code>var (nome, preco) = x;</code></td><td>Desconstrução</td></tr>
+<tr><td><code>record Cachorro(string Nome, string Raca) : Animal(Nome);</code></td><td>Herança entre records</td></tr>
+<tr><td><code>record Cliente { public required string Nome { get; init; } }</code></td><td>Record sem parâmetros posicionais</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. Declarar</h3>
+<p>Complete para declarar um record <code>Aluno</code> com <code>Nome</code> (texto) e <code>Nota</code> (<code>double</code>):</p>
+<div class="ex-code"><input data-answer="record Aluno(string Nome, double Nota);|record class Aluno(string Nome, double Nota);|public record Aluno(string Nome, double Nota);" aria-label="declaração"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Uma cópia com mudança</h3>
+<p>Complete para criar um aluno igual à <code>bia</code>, mas com nota 10:</p>
+<div class="ex-code">Aluno corrigida = bia <input data-answer="with { Nota = 10 }|with {Nota = 10}|with { Nota = 10.0 }" aria-label="expressão">;</div>
+</div>
+
+<div class="exercise">
+<h3>3. O ToString</h3>
+<p>O que mostra <code>Console.WriteLine(new Aluno("Bia", 9));</code>, com o record do exercício 1?</p>
+<div class="ex-code"><input data-answer="Aluno { Nome = Bia, Nota = 9 }" aria-label="saída"></div>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">4. <code>record Produto(string Nome, decimal Preco);</code> Quanto dá <code>new Produto("Café", 18.90m) == new Produto("Café", 18.90m)</code>?</p>
+<label><input type="radio" name="q4"> <code>True</code></label>
+<label><input type="radio" name="q4"> <code>False</code></label>
+<label><input type="radio" name="q4"> Erro <code>CS0019</code></label>
+<label><input type="radio" name="q4"> Depende da execução</label>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">5. Com o mesmo record, o que acontece em <code>cafe.Preco = 20m;</code>?</p>
+<label><input type="radio" name="q5"> O preço muda para 20</label>
+<label><input type="radio" name="q5"> É criada uma cópia com preço 20</label>
+<label><input type="radio" name="q5"> Erro <code>CS8852</code>: a propriedade é somente de inicialização</label>
+<label><input type="radio" name="q5"> Exceção ao rodar</label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">6. Qual tipo de record pode ter as propriedades mudadas depois de criado?</p>
+<label><input type="radio" name="q6"> <code>record</code></label>
+<label><input type="radio" name="q6"> <code>record struct</code></label>
+<label><input type="radio" name="q6"> <code>readonly record struct</code></label>
+<label><input type="radio" name="q6"> Nenhum</label>
+</div>
+
+<div class="trycs" data-goal="outre:Promoção:\nCafé: R\$\s15\,12\nChá: R\$\s6\,00\nCatálogo:\nCafé: R\$\s18\,90,src:\bwith\s*\{">
+<p class="try-task"><strong>Missão final:</strong> é dia de promoção na lojinha: 20% de desconto em tudo. Dentro do primeiro <code>foreach</code>, use <code>with</code> para criar uma cópia de cada produto com <code>Preco = p.Preco * 0.8m</code> e adicione a cópia na lista <code>promocao</code>. O catálogo original <strong>não</strong> pode mudar. A saída deve mostrar a promoção (<code>Café: R$ 15,12</code>, <code>Chá: R$ 6,00</code>) e, depois, o catálogo com os preços de sempre (<code>Café: R$ 18,90</code>).</p>
+<pre class="script">List&lt;Produto&gt; catalogo = [new Produto("Café", 18.90m), new Produto("Chá", 7.50m)];
+List&lt;Produto&gt; promocao = [];
+
+foreach (Produto p in catalogo)
+{
+    // crie aqui a cópia com desconto e adicione em promocao
+}
+
+Console.WriteLine("Promoção:");
+foreach (Produto p in promocao)
+{
+    Console.WriteLine($"{p.Nome}: {p.Preco:C}");
+}
+
+Console.WriteLine("Catálogo:");
+foreach (Produto p in catalogo)
+{
+    Console.WriteLine($"{p.Nome}: {p.Preco:C}");
+}
+
+record Produto(string Nome, decimal Preco);
+</pre>
+<pre class="solucao">List&lt;Produto&gt; catalogo = [new Produto("Café", 18.90m), new Produto("Chá", 7.50m)];
+List&lt;Produto&gt; promocao = [];
+
+foreach (Produto p in catalogo)
+{
+    promocao.Add(p with { Preco = p.Preco * 0.8m });
+}
+
+Console.WriteLine("Promoção:");
+foreach (Produto p in promocao)
+{
+    Console.WriteLine($"{p.Nome}: {p.Preco:C}");
+}
+
+Console.WriteLine("Catálogo:");
+foreach (Produto p in catalogo)
+{
+    Console.WriteLine($"{p.Nome}: {p.Preco:C}");
+}
+
+record Produto(string Nome, decimal Preco);
+</pre>
+</div>
+
+<pre class="term">$ dotnet run promocao.cs      « a solução
+Promoção:
+Café: R$ 15,12
+Chá: R$ 6,00
+Catálogo:
+Café: R$ 18,90
+Chá: R$ 7,50</pre>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li><code>record Produto(string Nome, decimal Preco);</code> gera propriedades, construtor, <code>ToString</code>, <code>Equals</code>, <code>GetHashCode</code>, <code>==</code> e desconstrução. É uma classe com tudo pronto.</li>
+  <li>Records se comparam pelo <strong>conteúdo</strong>: <code>==</code> dá <code>True</code> para dados iguais, e <code>HashSet</code>/<code>Dictionary</code> funcionam.</li>
+  <li>As propriedades posicionais são <code>init</code>: o record não muda (<code>CS8852</code>). Para "mudar", <code>with { … }</code> cria uma cópia alterada, rasa.</li>
+  <li><code>record struct</code> é a versão de valor (mutável); <code>readonly record struct</code>, a de valor imutável. Records podem ter corpo e herdar de outros records.</li>
+  <li>Record para dados; classe para coisas com identidade e estado que muda. Próxima aula: <a href="tuplas.html">Tuplas</a>.</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
