@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C# public, private e internal — modificadores de acesso | Guia C#</title>
+<meta name="description" content="Modificadores de acesso em C# para quem está começando: public, private, internal, protected, protected internal, private protected e file; o padrão de cada lugar (membro de classe é private, classe é internal), métodos ajudantes privados e os erros reais CS0122, CS1527 e CS0050 do dotnet 10.">
+<link rel="stylesheet" href="assets/style.css">
+<script>try{var t=localStorage.getItem("tema");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" id="sidebar" aria-label="Tópicos"></nav>
+<main class="main">
+<div class="content">
+
+<div class="pager"></div>
+
+<h1>C# <span class="hl">public, private e internal</span></h1>
+
+<p class="intro">Até aqui, você escreveu <code>public</code> na frente de quase tudo, sem pensar muito. Essa palavra é um <strong>modificador de acesso</strong>: ela diz <strong>quem pode usar</strong> um campo, um método ou uma classe. Nesta aula você conhece todos os modificadores do C#, descobre o que vale quando você não escreve nenhum (o "padrão") e aprende a ler o erro mais comum do assunto, o <code>CS0122</code>.</p>
+
+<div class="note">
+<strong>Você vai aprender</strong>
+<ul>
+  <li>O que é um modificador de acesso e por que ele existe.</li>
+  <li><code>private</code> ("privado"): só a própria classe usa.</li>
+  <li><code>public</code> ("público"): qualquer código usa.</li>
+  <li><code>internal</code> ("interno"): só o mesmo projeto usa.</li>
+  <li><code>protected</code> ("protegido"): a classe e as classes filhas.</li>
+  <li>O <strong>padrão</strong> de cada lugar: membro de classe sem modificador é <code>private</code>; classe sem modificador é <code>internal</code>.</li>
+  <li>Os erros reais <code>CS0122</code>, <code>CS1527</code> e <code>CS0050</code>, e como consertar cada um.</li>
+</ul>
+</div>
+
+<p>Esta aula usa o que você viu em <a href="classes-objetos.html">Classes e Objetos</a>, <a href="campos.html">Campos</a> e <a href="metodos.html">Métodos</a>.</p>
+
+<hr>
+
+<h2>A ideia antes do código: as portas da escola</h2>
+<p>Pense na escola da Ana. Nem toda porta abre para todo mundo:</p>
+<ul>
+  <li>O <strong>portão da rua</strong> abre para qualquer pessoa: pais, visitantes, entregadores. Isso é <code>public</code>.</li>
+  <li>O <strong>corredor das salas</strong> é só para quem é da escola: alunos e professores. Quem vem de outra escola não entra. Isso é <code>internal</code> (o "da escola" é o seu <strong>projeto</strong>).</li>
+  <li>O <strong>armário da família</strong> do zelador abre para ele e para os filhos dele. Isso é <code>protected</code> (os "filhos" são as classes que herdam).</li>
+  <li>A <strong>gaveta da mesa</strong> da diretora só ela abre. Isso é <code>private</code>.</li>
+</ul>
+<p>Num programa é igual. Uma classe guarda coisas que <strong>só ela</strong> deveria mexer (o dinheiro de um cofre, a senha de uma porta) e oferece algumas portas abertas para o resto do programa. O modificador de acesso é a placa em cada porta. E quem confere as placas é o <strong>compilador</strong>: se alguém tenta entrar por uma porta fechada, o programa nem compila.</p>
+
+<hr>
+
+<h2>private: só a própria classe</h2>
+<p>A Ana tem um cofrinho. O dinheiro fica guardado lá dentro, e a única forma de mexer nele é pelo método <code>Guardar</code>:</p>
+
+<pre class="file" data-file="cofre.cs">var cofre = new Cofre();
+cofre.Guardar(50m);
+cofre.Guardar(20m);
+Console.WriteLine($"No cofre: {cofre.Total()}");
+
+class Cofre
+{
+    private decimal _dinheiro;
+
+    public void Guardar(decimal valor)
+    {
+        _dinheiro += valor;
+    }
+
+    public decimal Total()
+    {
+        return _dinheiro;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run cofre.cs
+No cofre: 70</pre>
+
+<dl class="anatomy">
+  <dt>private decimal _dinheiro;</dt><dd>O campo é <code>private</code>: só o código <strong>dentro das chaves</strong> de <code>class Cofre</code> pode ler ou mudar <code>_dinheiro</code>. O <code>_</code> no começo do nome é a convenção da Microsoft para campos privados: quem lê o código já sabe que aquilo é "coisa de dentro".</dd>
+  <dt>public void Guardar(decimal valor)</dt><dd>O método é <code>public</code>: qualquer código pode chamá-lo. Ele está dentro da classe, então <strong>pode</strong> mexer em <code>_dinheiro</code>.</dd>
+  <dt>public decimal Total()</dt><dd>Outra porta aberta, só para <strong>ler</strong>: devolve o valor guardado.</dd>
+  <dt>cofre.Guardar(50m);</dt><dd>As instruções de cima ficam <strong>fora</strong> da classe. Elas usam só as portas <code>public</code>.</dd>
+</dl>
+
+<h3>Tentando abrir a gaveta</h3>
+<p>Agora alguém tenta escrever direto no campo privado, por fora:</p>
+
+<pre class="file" data-file="cofre-erro.cs — com erro de propósito">var cofre = new Cofre();
+cofre.Guardar(50m);
+cofre._dinheiro = 1000000m;
+Console.WriteLine($"No cofre: {cofre.Total()}");
+
+class Cofre
+{
+    private decimal _dinheiro;
+
+    public void Guardar(decimal valor)
+    {
+        _dinheiro += valor;
+    }
+
+    public decimal Total()
+    {
+        return _dinheiro;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run cofre-erro.cs
+/home/ana/cs/cofre-erro.cs(3,7): error CS0122: "Cofre._dinheiro" é inacessível devido ao seu nível de proteção
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Leia a mensagem por partes:</p>
+<ul>
+  <li><code>cofre-erro.cs(3,7)</code>: linha 3, coluna 7, exatamente onde aparece o <code>_dinheiro</code>.</li>
+  <li><code>CS0122</code>: o código do erro. Em inglês, a mensagem é <code>'Cofre._dinheiro' is inaccessible due to its protection level</code>.</li>
+  <li><strong>"inacessível devido ao seu nível de proteção"</strong>: o campo existe, mas a placa da porta diz <code>private</code>, e você está do lado de fora.</li>
+</ul>
+<p>Repare que o erro aparece <strong>antes</strong> de o programa rodar. Ninguém consegue colocar um milhão no cofre da Ana "por engano": o compilador barra. Para consertar, use a porta aberta: <code>cofre.Guardar(…)</code>.</p>
+
+<h3>Métodos private: ajudantes internos</h3>
+<p>Métodos também podem ser <code>private</code>. Isso é útil para <strong>ajudantes</strong>: pedaços de código que a classe usa por dentro, mas que não fazem sentido para quem está de fora. O caixa da lojinha da Ana registra cada venda com um método ajudante:</p>
+
+<pre class="file" data-file="caixa.cs">var caixa = new Caixa();
+caixa.Vender(12.50m);
+caixa.Vender(-3m);
+caixa.Vender(7.25m);
+Console.WriteLine($"Total do dia: {caixa.Total():C}");
+
+class Caixa
+{
+    private decimal _total;
+
+    public void Vender(decimal valor)
+    {
+        if (valor &lt;= 0)
+        {
+            Registrar($"Venda recusada: {valor:C}");
+            return;
+        }
+        _total += valor;
+        Registrar($"Venda de {valor:C}");
+    }
+
+    public decimal Total()
+    {
+        return _total;
+    }
+
+    private void Registrar(string texto)
+    {
+        Console.WriteLine($"[caixa] {texto}");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run caixa.cs
+[caixa] Venda de R$ 12,50
+[caixa] Venda recusada: -R$ 3,00
+[caixa] Venda de R$ 7,25
+Total do dia: R$ 19,75</pre>
+
+<p><code>Vender</code> chama <code>Registrar</code> sem problema, porque os dois estão dentro da mesma classe. Mas, de fora, <code>caixa.Registrar("tentando de fora");</code> dá o mesmo erro de antes:</p>
+
+<pre class="term">$ dotnet run ajudante.cs
+/home/ana/cs/ajudante.cs(3,7): error CS0122: "Caixa.Registrar(string)" é inacessível devido ao seu nível de proteção
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>A vantagem: amanhã a Ana pode trocar o <code>Registrar</code> para gravar num arquivo em vez de mostrar na tela, ou até apagá-lo. Como ninguém de fora usa esse método, nada quebra fora da classe.</p>
+
+<hr>
+
+<h2>O padrão: quando você não escreve nada</h2>
+<p>Você pode declarar um campo ou um método <strong>sem</strong> modificador nenhum. Ele não fica "sem proteção": o C# aplica o modificador <strong>padrão</strong>, e o padrão de quem está dentro de uma classe é o mais fechado de todos, <code>private</code>.</p>
+
+<pre class="file" data-file="padrao.cs — com erro de propósito">var cofre = new Cofre();
+cofre.Guardar(50m);
+Console.WriteLine(cofre._dinheiro);
+
+class Cofre
+{
+    decimal _dinheiro;
+
+    public void Guardar(decimal valor)
+    {
+        _dinheiro += valor;
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run padrao.cs
+/home/ana/cs/padrao.cs(3,25): error CS0122: "Cofre._dinheiro" é inacessível devido ao seu nível de proteção
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p><code>decimal _dinheiro;</code> sem modificador é o mesmo que <code>private decimal _dinheiro;</code>. Com métodos acontece igual, e esse é um susto comum de quem está começando: esquecer o <code>public</code> num método que deveria ser chamado de fora.</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Onde está a declaração</th><th>Sem modificador, vale…</th><th>Exemplo</th></tr>
+<tr><td>Campo, método, propriedade ou construtor de uma <strong>classe</strong> (ou struct)</td><td><code>private</code></td><td><code>decimal _dinheiro;</code></td></tr>
+<tr><td>Classe dentro de outra classe (classe aninhada)</td><td><code>private</code></td><td><code>class Cofre { class Chave { } }</code></td></tr>
+<tr><td>Classe, struct, record, enum ou interface "solta" no arquivo (ou num namespace)</td><td><code>internal</code></td><td><code>class Cofre { }</code></td></tr>
+<tr><td>Membro de uma <a href="interfaces.html">interface</a></td><td><code>public</code></td><td><code>interface IVendavel { decimal Preco(); }</code></td></tr>
+<tr><td>Valor de um <a href="enums.html">enum</a></td><td><code>public</code> (não aceita outro)</td><td><code>enum Cor { Azul, Verde }</code></td></tr>
+</table>
+</div>
+
+<div class="tip"><strong>Escreva sempre o modificador.</strong> O padrão funciona, mas quem lê o código precisa lembrar a regra. Com <code>private</code> escrito, ninguém tem dúvida. É o que a própria Microsoft recomenda nos seus guias de estilo.</div>
+
+<div class="trycs" data-goal="out:Porta aberta!,out:Senha errada.,src:public\s+void\s+Abrir,src:private\s+string\s+_senha">
+<p class="try-task"><strong>Missão:</strong> o programa não compila, porque o método <code>Abrir</code> está sem modificador (e, por isso, é <code>private</code>). Clique em Rodar e leia o erro. Depois, deixe <code>Abrir</code> público, <strong>sem</strong> abrir a senha, e rode de novo.</p>
+<pre class="script">var porta = new Porta();
+porta.Abrir("1234");
+porta.Abrir("0000");
+
+class Porta
+{
+    private string _senha = "1234";
+
+    void Abrir(string tentativa)
+    {
+        if (tentativa == _senha)
+        {
+            Console.WriteLine("Porta aberta!");
+        }
+        else
+        {
+            Console.WriteLine("Senha errada.");
+        }
+    }
+}
+</pre>
+<pre class="solucao">var porta = new Porta();
+porta.Abrir("1234");
+porta.Abrir("0000");
+
+class Porta
+{
+    private string _senha = "1234";
+
+    public void Abrir(string tentativa)
+    {
+        if (tentativa == _senha)
+        {
+            Console.WriteLine("Porta aberta!");
+        }
+        else
+        {
+            Console.WriteLine("Senha errada.");
+        }
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>public: qualquer código</h2>
+<p><code>public</code> é o portão da rua: qualquer código, de qualquer classe, de qualquer projeto que use o seu, pode chamar. Use para as coisas que a sua classe <strong>oferece</strong> ao mundo: <code>Guardar</code>, <code>Total</code>, <code>Vender</code>, <code>Abrir</code>.</p>
+<p>Cada coisa <code>public</code> é uma <strong>promessa</strong>. Se outras partes do programa (ou outras pessoas) passaram a usar <code>Vender</code>, mudar o nome ou os parâmetros dele quebra todo esse código. Por isso a regra dos programadores experientes é: <strong>comece fechado e só abra o que precisar</strong>.</p>
+
+<hr>
+
+<h2>internal: só o mesmo projeto</h2>
+<p>Um programa maior é dividido em vários <strong>projetos</strong> (você vai ver em <a href="solucoes.html">Soluções e Vários Projetos</a> e <a href="bibliotecas-classe.html">Bibliotecas de Classes</a>). Cada projeto vira um arquivo compilado, chamado <strong>assembly</strong> (o <code>.dll</code>). <code>internal</code> quer dizer: <strong>visível dentro do mesmo assembly, invisível para os outros</strong>.</p>
+<p>A Ana separou a lojinha em dois projetos: <code>Estoque</code>, uma biblioteca com as classes dos produtos, e <code>Caixa</code>, o programa que ela roda. No <code>Estoque</code>, o <code>Produto</code> é <code>public</code> e o <code>Fornecedor</code> é <code>internal</code>:</p>
+
+<pre class="file" data-file="~/projetos/Estoque/Class1.cs">namespace Estoque;
+
+public class Produto
+{
+    public string Nome = "Caderno";
+    public decimal Preco = 12.50m;
+}
+
+internal class Fornecedor
+{
+    public string Nome = "Papelaria Central";
+}
+</pre>
+
+<pre class="file" data-file="~/projetos/Caixa/Program.cs — com erro de propósito">using Estoque;
+
+var p = new Produto();
+Console.WriteLine($"{p.Nome}: {p.Preco:C}");
+var f = new Fornecedor();
+</pre>
+
+<pre class="term">$ cd ~/projetos/Caixa
+$ dotnet add reference ../Estoque          « o Caixa passa a usar o Estoque
+A referência ‘..\Estoque\Estoque.csproj’ foi adicionada ao projeto.
+$ dotnet run
+/home/ana/projetos/Caixa/Program.cs(5,13): error CS0122: "Fornecedor" é inacessível devido ao seu nível de proteção [/home/ana/projetos/Caixa/Caixa.csproj]
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O <code>Produto</code> passou, o <code>Fornecedor</code> não. É o mesmo <code>CS0122</code>, agora entre projetos. Apagando a última linha:</p>
+
+<pre class="term">$ dotnet run
+Caderno: R$ 12,50</pre>
+
+<div class="note"><strong>E nos programas de um arquivo só?</strong> Quando você roda <code>dotnet run cofre.cs</code>, tudo fica no <strong>mesmo</strong> assembly. Então, ali, <code>internal</code> e <code>public</code> se comportam igual. É por isso que <code>class Cofre</code>, sem modificador (portanto <code>internal</code>), funciona em todos os exemplos desta aula.</div>
+
+<hr>
+
+<h2>protected: a classe e as filhas</h2>
+<p>Uma classe pode <strong>herdar</strong> de outra: <code>class Cachorro : Animal</code> quer dizer "um cachorro é um animal e ganha tudo o que o animal tem". Você vai estudar isso com calma em <a href="heranca.html">Herança</a>. Por agora, basta a ideia: <code>protected</code> é o armário da família, aberto para a classe e para as <strong>classes filhas</strong> dela, e fechado para o resto.</p>
+
+<pre class="file" data-file="protegido.cs — com erro de propósito">var rex = new Cachorro();
+rex.Brincar();
+rex.Brincar();
+Console.WriteLine(rex._energia);
+
+class Animal
+{
+    protected int _energia = 10;
+}
+
+class Cachorro : Animal
+{
+    public void Brincar()
+    {
+        _energia -= 3;
+        Console.WriteLine($"Rex brincou. Energia: {_energia}");
+    }
+}
+</pre>
+
+<pre class="term">$ dotnet run protegido.cs
+/home/ana/cs/protegido.cs(4,23): error CS0122: "Animal._energia" é inacessível devido ao seu nível de proteção
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>Dentro de <code>Cachorro</code>, o método <code>Brincar</code> usa <code>_energia</code> à vontade, porque <code>Cachorro</code> é filho de <code>Animal</code>. A linha 4, que está fora das duas classes, é barrada. Sem ela:</p>
+
+<pre class="term">$ dotnet run protegido-ok.cs
+Rex brincou. Energia: 7
+Rex brincou. Energia: 4</pre>
+
+<h3>As combinações: protected internal e private protected</h3>
+<p>O C# ainda tem duas combinações, bem menos usadas. Você raramente vai escrevê-las, mas vai encontrá-las em código pronto:</p>
+<ul>
+  <li><code>protected internal</code>: aberto para quem é do mesmo projeto <strong>ou</strong> para as classes filhas (mesmo em outro projeto). É o "ou" das duas.</li>
+  <li><code>private protected</code> <span class="versao">C# 7.2</span>: aberto só para as classes filhas que estão <strong>no mesmo projeto</strong>. É o "e" das duas.</li>
+</ul>
+<p>E existe o <code>file</code> <span class="versao">C# 11</span>, que vale só para tipos: <code>file class Ajudante</code> só pode ser usada <strong>no próprio arquivo</strong> em que foi escrita. Num projeto, outro arquivo que tente usá-la recebe <code>error CS0103: O nome "Ajudante" não existe no contexto atual</code>.</p>
+
+<hr>
+
+<h2>A tabela completa</h2>
+<p>Do mais aberto para o mais fechado. "Sim" quer dizer que aquele código consegue usar o membro:</p>
+
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Modificador</th><th>A própria classe</th><th>Classe filha, mesmo projeto</th><th>Outra classe, mesmo projeto</th><th>Classe filha, outro projeto</th><th>Outra classe, outro projeto</th></tr>
+<tr><td><code>public</code></td><td>Sim</td><td>Sim</td><td>Sim</td><td>Sim</td><td>Sim</td></tr>
+<tr><td><code>protected internal</code></td><td>Sim</td><td>Sim</td><td>Sim</td><td>Sim</td><td>Não</td></tr>
+<tr><td><code>internal</code></td><td>Sim</td><td>Sim</td><td>Sim</td><td>Não</td><td>Não</td></tr>
+<tr><td><code>protected</code></td><td>Sim</td><td>Sim</td><td>Não</td><td>Sim</td><td>Não</td></tr>
+<tr><td><code>private protected</code></td><td>Sim</td><td>Sim</td><td>Não</td><td>Não</td><td>Não</td></tr>
+<tr><td><code>private</code></td><td>Sim</td><td>Não</td><td>Não</td><td>Não</td><td>Não</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Modificadores em classes</h2>
+<p>Uma classe "solta" no arquivo (ou dentro de um <a href="namespaces.html">namespace</a>) só pode ser <code>public</code> ou <code>internal</code>. Não faz sentido uma classe <code>private</code> lá: ela seria privada de quem? Não há nenhuma classe em volta para ser a "dona".</p>
+
+<pre class="file" data-file="topo-private.cs — com erro de propósito">Console.WriteLine("oi");
+
+private class Segredo
+{
+}
+</pre>
+
+<pre class="term">$ dotnet run topo-private.cs
+/home/ana/cs/topo-private.cs(3,15): error CS1527: Os elementos definidos em um namespace não podem ser declarados explicitamente como privados, protegidos, protegidos internamente ou protegidos de forma privada
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p>O conserto é tirar o <code>private</code> (a classe fica <code>internal</code>) ou trocá-lo por <code>public</code>. Uma classe <strong>dentro de outra</strong> pode, sim, ser <code>private</code>: aí a dona é a classe de fora.</p>
+
+<h3>Acessibilidade inconsistente</h3>
+<p>Uma porta aberta não pode levar a uma sala fechada. Se um método é <code>public</code>, os tipos que ele recebe e devolve também têm de ser visíveis para quem chama:</p>
+
+<pre class="file" data-file="inconsistente.cs — com erro de propósito">var loja = new Loja();
+Console.WriteLine(loja.Achar().Nome);
+
+public class Loja
+{
+    public Produto Achar()
+    {
+        return new Produto();
+    }
+}
+
+class Produto
+{
+    public string Nome = "Caderno";
+}
+</pre>
+
+<pre class="term">$ dotnet run inconsistente.cs
+/home/ana/cs/inconsistente.cs(6,20): error CS0050: Acessibilidade inconsistente: tipo de retorno "Produto" é menos acessível do que o método "Loja.Achar()"
+
+Ocorreu uma falha no build. Corrija os erros de build e execute novamente.</pre>
+
+<p><code>Loja</code> é <code>public</code>, então <code>Achar</code> é visível até para outros projetos. Mas ele devolve um <code>Produto</code>, que é <code>internal</code> (não tem modificador). Outro projeto receberia um objeto de um tipo que ele nem pode enxergar. Há dois consertos: deixar <code>Produto</code> <code>public</code> ou fechar a <code>Loja</code> (tirar o <code>public</code> dela). Com um parâmetro do tipo errado, o erro irmão é o <code>CS0051</code> ("tipo de parâmetro … é menos acessível").</p>
+
+<hr>
+
+<h2>Qual usar? (regras práticas)</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>O que é</th><th>Use</th><th>Por quê</th></tr>
+<tr><td>Campos (os dados guardados)</td><td><code>private</code></td><td>Ninguém de fora estraga os dados. Para mostrar, use métodos ou <a href="propriedades.html">propriedades</a> (veja <a href="encapsulamento.html">Encapsulamento</a>).</td></tr>
+<tr><td>Métodos que a classe oferece</td><td><code>public</code></td><td>São as portas de entrada.</td></tr>
+<tr><td>Métodos ajudantes</td><td><code>private</code></td><td>Podem mudar ou sumir sem quebrar ninguém.</td></tr>
+<tr><td>Coisas que as classes filhas precisam</td><td><code>protected</code></td><td>Abre só para a família.</td></tr>
+<tr><td>Classes usadas só dentro do projeto</td><td><code>internal</code> (ou nada)</td><td>Outros projetos não dependem delas.</td></tr>
+<tr><td>Classes que outros projetos usam</td><td><code>public</code></td><td>É a "vitrine" da biblioteca.</td></tr>
+</table>
+</div>
+<p>Na dúvida, comece com <code>private</code>. Abrir depois é fácil: o compilador avisa com <code>CS0122</code> e você decide. Fechar depois é difícil: alguém pode já estar usando.</p>
+
+<hr>
+
+<h2>Quando dá errado</h2>
+
+<div class="cenario">
+<strong>error CS0122: "…" é inacessível devido ao seu nível de proteção</strong>
+<p><strong>O que aconteceu:</strong> você usou um campo, método ou classe de um lugar que não tem acesso: um membro <code>private</code> de fora da classe, um <code>protected</code> de fora da família, ou um <code>internal</code> de outro projeto.</p>
+<p><strong>Como resolver:</strong> primeiro, procure a porta aberta que a classe oferece (um método <code>public</code> como <code>Guardar</code>). Se ela não existe e faz sentido existir, crie um método <code>public</code> que faça aquilo <strong>com regras</strong>. Trocar <code>private</code> por <code>public</code> num campo é o último recurso.</p>
+</div>
+
+<div class="cenario">
+<strong>CS0122 num método que você escreveu e "devia funcionar"</strong>
+<p><strong>O que aconteceu:</strong> o método está sem modificador. Dentro de uma classe, isso quer dizer <code>private</code>.</p>
+<p><strong>Como resolver:</strong> escreva <code>public</code> na frente: <code>public void Abrir(string tentativa)</code>.</p>
+</div>
+
+<div class="cenario">
+<strong>error CS1527: Os elementos definidos em um namespace não podem ser declarados explicitamente como privados…</strong>
+<p><strong>O que aconteceu:</strong> uma classe solta no arquivo recebeu <code>private</code>, <code>protected</code> ou uma das combinações.</p>
+<p><strong>Como resolver:</strong> use <code>public</code> ou <code>internal</code> (ou nada, que é <code>internal</code>).</p>
+</div>
+
+<div class="cenario">
+<strong>error CS0050 / CS0051: Acessibilidade inconsistente</strong>
+<p><strong>O que aconteceu:</strong> um membro <code>public</code> devolve (<code>CS0050</code>) ou recebe (<code>CS0051</code>) um tipo menos visível que ele.</p>
+<p><strong>Como resolver:</strong> deixe o tipo tão aberto quanto o método (<code>public class Produto</code>) ou feche o método e a classe dele.</p>
+</div>
+
+<hr>
+
+<h2>Referência</h2>
+<div class="table-wrap">
+<table class="ref">
+<tr><th>Escrita</th><th>Significado</th></tr>
+<tr><td><code>public</code></td><td>Qualquer código usa</td></tr>
+<tr><td><code>private</code></td><td>Só a própria classe usa. Padrão dos membros de classe</td></tr>
+<tr><td><code>internal</code></td><td>Só o mesmo projeto (assembly) usa. Padrão das classes soltas</td></tr>
+<tr><td><code>protected</code></td><td>A classe e as filhas</td></tr>
+<tr><td><code>protected internal</code></td><td>O mesmo projeto <strong>ou</strong> as filhas</td></tr>
+<tr><td><code>private protected</code> <span class="versao">C# 7.2</span></td><td>As filhas que estão no mesmo projeto</td></tr>
+<tr><td><code>file class X</code> <span class="versao">C# 11</span></td><td>Tipo visível só no próprio arquivo</td></tr>
+<tr><td><code>_nome</code></td><td>Convenção para campos <code>private</code>: <code>_</code> + camelCase</td></tr>
+</table>
+</div>
+
+<hr>
+
+<h2>Missão final: o caixa da lojinha</h2>
+<div class="trycs" data-goal="out:[caixa] Venda de R$ 8\,00,out:[caixa] Venda recusada: R$ 0\,00,out:Total do dia: R$ 13\,50,src:private\s+decimal\s+_total,src:private\s+void\s+Registrar,src:public\s+void\s+Vender">
+<p class="try-task"><strong>Missão:</strong> escreva a classe <code>Caixa</code> com: (1) um campo <code>private decimal _total</code>; (2) um método <code>public void Vender(decimal valor)</code>, que, se <code>valor</code> for menor ou igual a zero, chama <code>Registrar($"Venda recusada: {valor:C}")</code> e para, e senão soma no <code>_total</code> e chama <code>Registrar($"Venda de {valor:C}")</code>; (3) um método <code>public decimal Total()</code>, que devolve o <code>_total</code>; (4) um ajudante <code>private void Registrar(string texto)</code>, que mostra <code>[caixa] </code> seguido do texto.</p><pre class="script">var caixa = new Caixa();
+caixa.Vender(8m);
+caixa.Vender(0m);
+caixa.Vender(5.50m);
+Console.WriteLine($"Total do dia: {caixa.Total():C}");
+
+class Caixa
+{
+    // campo, métodos públicos e o ajudante aqui
+}
+</pre>
+<pre class="solucao">var caixa = new Caixa();
+caixa.Vender(8m);
+caixa.Vender(0m);
+caixa.Vender(5.50m);
+Console.WriteLine($"Total do dia: {caixa.Total():C}");
+
+class Caixa
+{
+    private decimal _total;
+
+    public void Vender(decimal valor)
+    {
+        if (valor &lt;= 0)
+        {
+            Registrar($"Venda recusada: {valor:C}");
+            return;
+        }
+        _total += valor;
+        Registrar($"Venda de {valor:C}");
+    }
+
+    public decimal Total()
+    {
+        return _total;
+    }
+
+    private void Registrar(string texto)
+    {
+        Console.WriteLine($"[caixa] {texto}");
+    }
+}
+</pre>
+</div>
+
+<hr>
+
+<h2>Exercícios</h2>
+
+<div class="exercise">
+<h3>1. O mais fechado</h3>
+<p>Qual modificador deixa um campo visível <strong>só</strong> dentro da própria classe?</p>
+<div class="ex-code"><input data-answer="private" aria-label="modificador"></div>
+</div>
+
+<div class="exercise">
+<h3>2. Sem modificador</h3>
+<p>Dentro de uma classe, você escreveu <code>int _pontos;</code>, sem modificador. Que modificador o C# aplica?</p>
+<div class="ex-code"><input data-answer="private" aria-label="modificador"></div>
+</div>
+
+<div class="exercise">
+<h3>3. O código do erro</h3>
+<p>Qual é o código do erro "… é inacessível devido ao seu nível de proteção"? (só o código, como <code>CS0000</code>)</p>
+<div class="ex-code"><input data-answer="CS0122|cs0122" aria-label="código do erro"></div>
+</div>
+
+<div class="mc" data-answer="3">
+<p class="mc-q">4. Uma classe escrita como <code>class Produto { }</code>, solta no arquivo, é:</p>
+<label><input type="radio" name="q4"> <code>private</code></label>
+<label><input type="radio" name="q4"> <code>public</code></label>
+<label><input type="radio" name="q4"> <code>internal</code></label>
+<label><input type="radio" name="q4"> <code>protected</code></label>
+</div>
+
+<div class="mc" data-answer="2">
+<p class="mc-q">5. Um campo <code>protected</code> da classe <code>Animal</code> pode ser usado por:</p>
+<label><input type="radio" name="q5"> Qualquer classe do mesmo projeto.</label>
+<label><input type="radio" name="q5"> A própria <code>Animal</code> e as classes que herdam dela, como <code>Cachorro</code>.</label>
+<label><input type="radio" name="q5"> Só a própria <code>Animal</code>.</label>
+<label><input type="radio" name="q5"> Qualquer código, de qualquer projeto.</label>
+</div>
+
+<div class="mc" data-answer="1">
+<p class="mc-q">6. Um método <code>public</code> devolve um tipo <code>internal</code>. O que acontece?</p>
+<label><input type="radio" name="q6"> Erro <code>CS0050</code>: acessibilidade inconsistente.</label>
+<label><input type="radio" name="q6"> Compila, e o tipo vira <code>public</code> sozinho.</label>
+<label><input type="radio" name="q6"> Compila, mas dá uma exceção quando roda.</label>
+<label><input type="radio" name="q6"> Erro <code>CS1527</code>.</label>
+</div>
+
+<hr>
+
+<h2>Resumo</h2>
+<ul>
+  <li>Modificadores de acesso dizem <strong>quem pode usar</strong> cada coisa. Quem confere é o compilador, antes de o programa rodar.</li>
+  <li><code>public</code>: todo mundo. <code>private</code>: só a classe. <code>internal</code>: o mesmo projeto. <code>protected</code>: a classe e as filhas.</li>
+  <li>Sem modificador, membro de classe é <code>private</code> e classe solta é <code>internal</code>. Mesmo assim, escreva sempre o modificador.</li>
+  <li>Campos <code>private</code> (com <code>_nome</code>), métodos que a classe oferece <code>public</code>, ajudantes <code>private</code>. Comece fechado e abra só o necessário.</li>
+  <li>Erros: <code>CS0122</code> (sem acesso), <code>CS1527</code> (classe solta <code>private</code>), <code>CS0050</code>/<code>CS0051</code> (acessibilidade inconsistente).</li>
+</ul>
+
+<div class="pager"></div>
+
+</div>
+</main>
+</div>
+<script src="assets/site.js"></script>
+</body>
+</html>
